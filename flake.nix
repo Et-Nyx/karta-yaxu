@@ -25,7 +25,7 @@
         devShells.default = pkgs.mkShell {
           buildInputs = with pkgs; [
             rustToolchain
-            wasm-wasm-bindgen-cli
+            wasm-bindgen-cli
             wasm-pack
             cargo-watch
             sqlx-cli

@@ -1,0 +1,18 @@
+# Rust
+/target/
+
+# Nix
+result*
+
+# WebAssembly
+pkg/
+
+# Banco de dados
+*.db*
+
+# Editores
+.zed/
+.vscode/
+.idea/
+.DS_Store
+*.sw?
