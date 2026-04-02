@@ -81,7 +81,7 @@ pokemon-rom-wiki/
 
 Exemplo de um Pokémon:
 
-```json
+```toml
 [base]
 name = "Blaziken"
 types = ["Fire", "Fighting"]
@@ -256,7 +256,7 @@ O flake garante que todo o time tenha exatamente o mesmo ambiente.
 }
 ```
 
-```json
+```toml
 # rust-toolchain.toml
 [toolchain]
 channel    = "stable"
