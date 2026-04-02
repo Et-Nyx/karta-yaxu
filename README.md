@@ -8,7 +8,9 @@ Uma plataforma web com três pilares integrados para suportar o desenvolvimento 
 - **Editor** — interface para o time de desenvolvimento editar os dados que alimentam a wiki e o simulador
 - **Simulador** — batalhas online em tempo real com as regras customizadas da ROM
 
-Todos os pilares compartilham a mesma fonte de dados. Quando o time atualiza um move no editor, a wiki e o simulador refletem a mudança automaticamente.
+Todos os pilares compartilham o mesmo **banco de dados**. Quando o time atualiza um movimento no editor, a wiki e o simulador refletem a mudança automaticamente.
+
+Os arquivos `.toml` no repositório servem como *seeds* para popular o banco de dados e como formato de exportação.
 
 ---
 
@@ -18,7 +20,7 @@ Todos os pilares compartilham a mesma fonte de dados. Quando o time atualiza um 
 |---|---|
 | UI | HTML + CSS vanilla |
 | Lógica no navegador | Rust → WebAssembly (wasm-bindgen) |
-| Dados estruturados | TOML |
+| Dados de exportação | TOML |
 | Wiki / documentação | Markdown |
 | Backend | Rust + Axum + Tokio |
 | Batalhas em tempo real | WebSockets nativos (Axum) |
@@ -64,9 +66,7 @@ pokemon-rom-wiki/
 │   ├── index.html
 │   └── style.css
 ├── data/
-│   ├── pokemon/
-│   │   ├── bulbasaur.toml
-│   │   └── ...
+│   ├── pokemon.toml
 │   ├── moves.toml
 │   ├── types.toml
 │   ├── abilities.toml
@@ -79,7 +79,10 @@ pokemon-rom-wiki/
 
 ### Formato TOML dos dados
 
-Exemplo de um Pokémon:
+Todo o estado dinâmico do projeto (Pokemon, movmentos, usuários, edições, ...) vive no **SQLite**.
+Os aquivos **TOML** na pasta 'data/' atuam apenas como *seeds* para popular o banco de dados.
+
+Exemplo de formato de um Pokémon:
 
 ```toml
 [base]
@@ -291,11 +294,12 @@ direnv allow
 
 ## Ordem de Desenvolvimento
 
-1. Definir schemas TOML dos dados da ROM
-2. Implementar a crate `engine` — damage formula Gen 3, sem UI
-3. Frontend WASM — renderizar dados TOML no browser, wiki em Markdown
-4. Editor — formulários HTML que editam os TOMLs via backend
-5. Backend Axum — servir arquivos, API REST, sistema de Trainers
+1. Modelar i esquema do banco de dados SQLite e definir os schemas
+2. Implementar a crate `engine` — ler estrutruras do banco, damage formula Gen 3
+3. backend Axum - rotas de API REST, servir arquivos estáticos, ler dados do banco
+4. Frontend WASM — renderizar dados do backend, redenrizar Wiki e Editor
+5. Sistema de Trainers - autenticação, roles e registro de edições
 6. WebSockets — sala de batalha, conectar dois jogadores
 7. Histórico — salvar replays, edits e times dos Trainers
+8. Ferramenta de exportação - gerar os TOMLs atualizados a partir do banco.
 8. Deploy no Fly.io
