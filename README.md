@@ -1,64 +1,301 @@
-Example plain HTML site using GitLab Pages.
+# Plano do Projeto — Pokemon ROM Hack Simulator & Wiki
 
-Learn more about GitLab Pages at https://pages.gitlab.io and the official
-documentation https://docs.gitlab.com/ce/user/project/pages/.
+## Visão Geral
+
+Uma plataforma web com três pilares integrados para suportar o desenvolvimento de um ROM hack de Pokémon Gen 3 (RSE/FRLG):
+
+- **Wiki** — documentação pública dos recursos da ROM (Pokémon, moves, abilities, itens, mecânicas)
+- **Editor** — interface para o time de desenvolvimento editar os dados que alimentam a wiki e o simulador
+- **Simulador** — batalhas online em tempo real com as regras customizadas da ROM
+
+Todos os pilares compartilham a mesma fonte de dados. Quando o time atualiza um move no editor, a wiki e o simulador refletem a mudança automaticamente.
 
 ---
 
-<!-- START doctoc generated TOC please keep comment here to allow auto update -->
-<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
-**Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
+## Stack
 
-- [GitLab CI](#gitlab-ci)
-- [GitLab User or Group Pages](#gitlab-user-or-group-pages)
-- [Did you fork this project?](#did-you-fork-this-project)
-- [Troubleshooting](#troubleshooting)
+| Camada | Tecnologia |
+|---|---|
+| UI | HTML + CSS vanilla |
+| Lógica no navegador | Rust → WebAssembly (wasm-bindgen) |
+| Dados estruturados | TOML |
+| Wiki / documentação | Markdown |
+| Backend | Rust + Axum + Tokio |
+| Batalhas em tempo real | WebSockets nativos (Axum) |
+| Banco de dados | SQLite via sqlx |
+| Deploy | Fly.io (Docker) |
 
-<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+Sem frameworks de frontend. Sem bibliotecas de terceiros para WebSocket ou auth — só o ecossistema Rust e protocolos nativos.
 
-## GitLab CI
+---
 
-This project's static Pages are built by [GitLab CI][ci], following the steps
-defined in [`.gitlab-ci.yml`](.gitlab-ci.yml):
+## Arquitetura — Shared Engine
+
+A principal vantagem da stack é que o mesmo código Rust pode compilar para dois alvos:
 
 ```
-image: busybox
-
-pages:
-  stage: deploy
-  script:
-  - echo 'Nothing to do...'
-  artifacts:
-    paths:
-    - public
-    expire_in: 1 day
-  rules:
-    - if: $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH
+┌─────────────────────────────────┐
+│      crate: engine              │
+│  damage calc, battle loop,      │
+│  gen 3 mechanics, TOML parser   │
+└──────────┬──────────────────────┘
+           │ compilado para...
+     ┌─────┴──────┐
+     ▼            ▼
+  WASM          Binário
+(navegador)    (servidor)
 ```
 
-The above example expects to put all your HTML files in the `public/` directory.
+O `engine` é uma crate Rust pura, sem dependências de plataforma. Compila para WASM para uso offline no cliente, e é linkada no backend para validar batalhas online. Zero duplicação de lógica.
 
-## GitLab User or Group Pages
+---
 
-To use this project as your user/group website, you will need one additional
-step: just rename your project to `namespace.gitlab.io`, where `namespace` is
-your `username` or `groupname`. This can be done by navigating to your
-project's **Settings**.
+## Estrutura do Projeto
 
-Read more about [user/group Pages][userpages] and [project Pages][projpages].
+```
+pokemon-rom-wiki/
+├── flake.nix
+├── rust-toolchain.toml
+├── crates/
+│   ├── engine/       # battle engine, damage calc — Rust puro
+│   ├── frontend/     # compila para WASM, manipula DOM via wasm-bindgen
+│   └── backend/      # Axum + WebSockets + sqlx
+├── static/
+│   ├── index.html
+│   └── style.css
+├── data/
+│   ├── pokemon/
+│   │   ├── bulbasaur.toml
+│   │   └── ...
+│   ├── moves.toml
+│   ├── types.toml
+│   ├── abilities.toml
+│   └── items.toml
+└── wiki/
+    ├── mechanics.md
+    ├── changes.md
+    └── ...
+```
 
-## Did you fork this project?
+### Formato TOML dos dados
 
-If you forked this project for your own use, please go to your project's
-**Settings** and remove the forking relationship, which won't be necessary
-unless you want to contribute back to the upstream project.
+Exemplo de um Pokémon:
 
-## Troubleshooting
+```json
+[base]
+name = "Blaziken"
+types = ["Fire", "Fighting"]
+hp = 80
+atk = 120
+def = 70
+spa = 110
+spd = 70
+spe = 80
 
-1. CSS is missing! That means that you have wrongly set up the CSS URL in your
-   HTML files. Have a look at the [index.html] for an example.
+[learnset]
+level_up = [
+  { level = 1,  move = "Scratch"    },
+  { level = 36, move = "Blaze Kick" },
+]
+```
 
-[ci]: https://about.gitlab.com/gitlab-ci/
-[index.html]: https://gitlab.com/pages/plain-html/blob/master/public/index.html
-[userpages]: https://docs.gitlab.com/ce/user/project/pages/introduction.html#user-or-group-pages
-[projpages]: https://docs.gitlab.com/ce/user/project/pages/introduction.html#project-pages
+---
+
+## Rotas
+
+A navegação reflete uma hierarquia de sistema de arquivos. Qualquer usuário consegue adivinhar a URL de uma página só de saber onde ela está na hierarquia.
+
+```
+/
+├── wiki/
+│   ├── pokemon/
+│   │   ├── bulbasaur
+│   │   ├── charmander
+│   │   └── ...
+│   ├── moves/
+│   ├── abilities/
+│   ├── items/
+│   ├── types/
+│   └── mechanics/
+│       ├── damage-formula
+│       ├── status-conditions
+│       └── ...
+│
+├── editor/
+│   ├── pokemon/
+│   │   ├── bulbasaur     ← edita o mesmo recurso da wiki
+│   │   └── new
+│   ├── moves/
+│   ├── abilities/
+│   ├── items/
+│   └── types/
+│
+├── battle/
+│   ├── new              ← criar sala
+│   ├── join             ← entrar com código
+│   └── :id              ← sala em andamento
+│
+└── trainer/
+    ├── login
+    ├── register
+    └── :username        ← perfil público
+        ├── teams
+        ├── battles
+        └── edits
+```
+
+### Simetria entre wiki e editor
+
+`/wiki/pokemon/bulbasaur` e `/editor/pokemon/bulbasaur` apontam para o mesmo recurso — só muda o que o usuário pode fazer com ele:
+
+```
+GET  /wiki/pokemon/bulbasaur    → página de leitura
+GET  /editor/pokemon/bulbasaur  → formulário de edição
+POST /editor/pokemon/bulbasaur  → salva as alterações
+```
+
+### Navegação
+
+- **Sidebar** fixa com os diretórios principais
+- **Breadcrumbs** no topo mostrando a posição atual, cada parte clicável:
+  ```
+  Raiz > Wiki > Pokémon > Bulbasaur
+  ```
+
+---
+
+## Sistema de Autenticação — Trainers
+
+Usuários do sistema se chamam **Trainers**. O cadastro é aberto, mas o acesso ao editor é restrito por role.
+
+### Dados de um Trainer
+
+```
+trainer
+├── id            (uuid)
+├── username
+├── password_hash (argon2)
+├── role          (viewer | editor)
+├── created_at
+├── teams[]       (times salvos com nickname)
+├── battles[]     (histórico de batalhas)
+└── edits[]       (histórico de edições na wiki)
+```
+
+### Roles
+
+| Role | Acesso |
+|---|---|
+| `viewer` | Wiki (pública) + batalhas |
+| `editor` | Tudo acima + `/editor/*` |
+
+Qualquer pessoa pode se cadastrar como `viewer`. O role `editor` é promovido manualmente por um membro do time no banco de dados.
+
+### Controle de acesso por rota
+
+| Rota | Acesso |
+|---|---|
+| `/wiki/*` | Público — sem login necessário |
+| `/trainer/register`, `/trainer/login` | Público |
+| `/trainer/:username` | Público |
+| `/battle/*` | Requer login (qualquer role) |
+| `/editor/*` | Requer role `editor` |
+
+### Segurança
+
+- Senhas armazenadas com hash **argon2** (crate `argon2`)
+- Sessões via cookie gerenciado pela crate `tower-sessions`
+- Nenhuma senha em texto puro no banco
+
+---
+
+## Ambiente de Desenvolvimento — NixOS + Flakes
+
+O flake garante que todo o time tenha exatamente o mesmo ambiente.
+
+```nix
+# flake.nix
+{
+  description = "Pokemon ROM hack simulator + wiki";
+
+  inputs = {
+    nixpkgs.url     = "github:NixOS/nixpkgs/nixos-unstable";
+    rust-overlay.url = "github:oxalica/rust-overlay";
+    flake-utils.url  = "github:numtide/flake-utils";
+  };
+
+  outputs = { self, nixpkgs, rust-overlay, flake-utils }:
+    flake-utils.lib.eachDefaultSystem (system:
+      let
+        overlays     = [ (import rust-overlay) ];
+        pkgs         = import nixpkgs { inherit system overlays; };
+        rustToolchain = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
+      in
+      {
+        devShells.default = pkgs.mkShell {
+          buildInputs = with pkgs; [
+            rustToolchain
+            wasm-bindgen-cli
+            wasm-pack
+            cargo-watch
+            sqlx-cli
+            flyctl
+            mdbook
+            pkg-config
+            openssl
+          ];
+
+          shellHook = ''
+            export DATABASE_URL="sqlite:./data/rom.db"
+            export RUST_LOG="debug"
+            echo "🦀 Ambiente Pokemon ROM pronto"
+          '';
+        };
+      }
+    );
+}
+```
+
+```json
+# rust-toolchain.toml
+[toolchain]
+channel    = "stable"
+targets    = ["wasm32-unknown-unknown"]
+components = ["rustfmt", "clippy", "rust-analyzer"]
+```
+
+O `rust-toolchain.toml` é reconhecido pelo `rustup` também — membros do time que não usem Nix ainda pegam a versão correta automaticamente.
+
+### Uso diário
+
+```bash
+# entrar no ambiente manualmente
+nix develop
+
+# ou com direnv (ativa automaticamente ao entrar na pasta)
+echo "use flake" > .envrc
+direnv allow
+```
+
+---
+
+## Deploy — Fly.io
+
+- Projeto empacotado via **Dockerfile** que compila o backend Rust
+- `fly deploy` sobe o container em ~30 segundos
+- WebSockets persistentes suportados nativamente (sem configuração extra)
+- Volume persistente para o arquivo SQLite
+- HTTPS e roteamento gerenciados pelo Fly automaticamente
+
+---
+
+## Ordem de Desenvolvimento
+
+1. Definir schemas TOML dos dados da ROM
+2. Implementar a crate `engine` — damage formula Gen 3, sem UI
+3. Frontend WASM — renderizar dados TOML no browser, wiki em Markdown
+4. Editor — formulários HTML que editam os TOMLs via backend
+5. Backend Axum — servir arquivos, API REST, sistema de Trainers
+6. WebSockets — sala de batalha, conectar dois jogadores
+7. Histórico — salvar replays, edits e times dos Trainers
+8. Deploy no Fly.io
