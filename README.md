@@ -20,8 +20,8 @@ Os arquivos `.toml` no repositório servem como *seeds* para popular o banco de 
 |---|---|
 | UI | HTML + CSS vanilla |
 | Lógica no navegador | Rust → WebAssembly (wasm-bindgen) |
-| Dados de exportação | TOML |
-| Wiki / documentação | Markdown |
+| Dados / edição | TOML |
+| Templates HTML | askama (Rust, compile-time) |
 | Backend | Rust + Axum + Tokio |
 | Batalhas em tempo real | WebSockets nativos (Axum) |
 | Banco de dados | SQLite via sqlx |
@@ -55,51 +55,55 @@ O `engine` é uma crate Rust pura, sem dependências de plataforma. Compila para
 ## Estrutura do Projeto
 
 ```
-pokemon-rom-wiki/
+karta-yaxu/
 ├── flake.nix
 ├── rust-toolchain.toml
 ├── crates/
 │   ├── engine/       # battle engine, damage calc — Rust puro
 │   ├── frontend/     # compila para WASM, manipula DOM via wasm-bindgen
-│   └── backend/      # Axum + WebSockets + sqlx
+│   └── backend/      # Axum + WebSockets + sqlx + askama templates
 ├── static/
 │   ├── index.html
 │   └── style.css
-├── data/
-│   ├── pokemon.toml
-│   ├── moves.toml
-│   ├── types.toml
-│   ├── abilities.toml
-│   └── items.toml
-└── wiki/
-    ├── mechanics.md
-    ├── changes.md
-    └── ...
+└── data/
+    └── template/     # templates TOML para registros novos
+        ├── pokemon.toml
+        ├── move.toml
+        └── ability.toml
 ```
 
 ### Formato TOML dos dados
 
-Todo o estado dinâmico do projeto (Pokemon, movmentos, usuários, edições, ...) vive no **SQLite**.
-Os aquivos **TOML** na pasta 'data/' atuam apenas como *seeds* para popular o banco de dados.
+Todo o estado dinâmico do projeto (Pokémon, movimentos, usuários, edições...) vive no **SQLite**. O TOML é a interface de leitura e escrita desse banco — não há arquivos TOML persistentes por registro.
 
-Exemplo de formato de um Pokémon:
+Os TOMLs têm dois papéis:
+
+**1. Templates (`data/template/`)** — definem a estrutura de cada tipo de dado. Quando um editor cria um registro novo, o backend usa o template como ponto de partida.
+
+**2. Interface de edição (sessão)** — ao acessar `/editor/*`, o backend serializa o registro do banco para uma string TOML armazenada na sessão do usuário. O editor exibe o TOML cru num `textarea`. Ao salvar, o backend valida, deserializa e grava no banco.
+
+```
+DB → serializa → TOML na sessão → textarea no browser
+ ↑                                          ↓
+ └──── deserializa ←── POST /editor/* ───────┘
+```
+
+Exemplo do template de um Pokémon (`data/template/pokemon.toml`):
 
 ```toml
 [base]
-name = "Blaziken"
-types = ["Fire", "Fighting"]
-hp = 80
-atk = 120
-def = 70
-spa = 110
-spd = 70
-spe = 80
+name = ""
+types = []
+hp = 0
+atk = 0
+def = 0
+spa = 0
+spd = 0
+spe = 0
+pokedex_entry = ""
 
 [learnset]
-level_up = [
-  { level = 1,  move = "Scratch"    },
-  { level = 36, move = "Blaze Kick" },
-]
+level_up = []
 ```
 
 ---
@@ -294,12 +298,12 @@ direnv allow
 
 ## Ordem de Desenvolvimento
 
-1. Modelar i esquema do banco de dados SQLite e definir os schemas
-2. Implementar a crate `engine` — ler estrutruras do banco, damage formula Gen 3
-3. backend Axum - rotas de API REST, servir arquivos estáticos, ler dados do banco
-4. Frontend WASM — renderizar dados do backend, redenrizar Wiki e Editor
-5. Sistema de Trainers - autenticação, roles e registro de edições
-6. WebSockets — sala de batalha, conectar dois jogadores
-7. Histórico — salvar replays, edits e times dos Trainers
-8. Ferramenta de exportação - gerar os TOMLs atualizados a partir do banco.
-8. Deploy no Fly.io
+1. Modelar o esquema do banco de dados SQLite e definir as structs Rust
+2. Implementar a crate `engine` — ler estruturas do banco, damage formula Gen 3
+3. Backend Axum — rotas, templates `askama`, servir estáticos, ler dados do banco
+4. Editor TOML — serializar registros do banco para TOML na sessão, edição cru no browser, deserializar no POST
+5. Frontend WASM — partes interativas (validação TOML em tempo real, batalha)
+6. Sistema de Trainers — autenticação, roles e registro de edições
+7. WebSockets — sala de batalha, conectar dois jogadores
+8. Histórico — salvar replays, edits e times dos Trainers
+9. Deploy no Fly.io
