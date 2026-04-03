@@ -114,7 +114,7 @@ level_up = []
 
 Duas tabelas: uma para os dados do tipo, outra para a matriz de efetividade.
 
-```
+```sql
 types
 ─────────────────────────────────────────
 id        INTEGER  PRIMARY KEY
@@ -132,7 +132,7 @@ PRIMARY KEY (attacker_id, defender_id)
 
 ### Ability
 
-```
+```sql
 abilities
 ─────────────────────────────────────────
 id           INTEGER  PRIMARY KEY
@@ -149,7 +149,7 @@ PRIMARY KEY (pokemon_id, slot)
 
 ### Move
 
-```
+```sql
 moves
 ─────────────────────────────────────────
 id           INTEGER  PRIMARY KEY
@@ -172,7 +172,7 @@ PRIMARY KEY (pokemon_id, move_id, method)
 
 ### Pokémon
 
-```
+```sql
 pokemon
 ─────────────────────────────────────────
 id             INTEGER  PRIMARY KEY
@@ -208,9 +208,31 @@ PRIMARY KEY (base_id, form_id)
 
 Cada forma alternativa e Mega Evolução é um registro independente em `pokemon` (com seus próprios stats, tipos e sprites), ligado à forma base via `pokemon_forms`. Mega Evoluções ficam fora da tabela `evolutions`, mantendo a query de evoluções finais limpa.
 
+### Items
+
+```sql
+items
+─────────────────────────────────────────
+id           INTEGER  PRIMARY KEY
+name         TEXT     NOT NULL UNIQUE
+description  TEXT     NOT NULL DEFAULT ''
+icon         TEXT     NOT NULL             -- nome do arquivo em static/icons/items/
+```
+
+### Nature
+
+```sql
+natures
+─────────────────────────────────────────
+id              INTEGER  PRIMARY KEY
+name            TEXT     NOT NULL UNIQUE   -- 'Adamant', 'Timid', 'Hardy', etc
+increased_stat  TEXT                       -- 'atk', 'def', 'spa', 'spd', 'spe' (NULL se neutra)
+decreased_stat  TEXT                       -- (NULL se neutra)
+```
+
 ### Trainer
 
-```
+```sql
 trainers
 ─────────────────────────────────────────
 id             TEXT     PRIMARY KEY  -- uuid
@@ -219,8 +241,6 @@ password_hash  TEXT     NOT NULL     -- argon2
 role           TEXT     NOT NULL DEFAULT 'viewer'  -- 'viewer' | 'editor'
 is_npc         INTEGER  NOT NULL DEFAULT 0  -- 1 para personagens canônicos
 created_at     TEXT     NOT NULL DEFAULT (datetime('now'))
-
-trainers (já definido)
 
 teams
 ─────────────────────────────────────────
@@ -231,17 +251,17 @@ created_at  TEXT     NOT NULL DEFAULT (datetime('now'))
 
 team_members
 ─────────────────────────────────────────
-id          INTEGER  PRIMARY KEY
-team_id     INTEGER  NOT NULL  → teams(id)
-slot        INTEGER  NOT NULL  -- 1 a 6
-pokemon_id  INTEGER  NOT NULL  → pokemon(id)
-ability_id  INTEGER  NOT NULL  → abilities(id)
-nature      TEXT     NOT NULL  -- 'Hardy' | 'Lonely' | 'Brave' | ...
-held_item   TEXT               -- referência a items (tabela a definir)
-move1_id    INTEGER            → moves(id)
-move2_id    INTEGER            → moves(id)
-move3_id    INTEGER            → moves(id)
-move4_id    INTEGER            → moves(id)
+id            INTEGER  PRIMARY KEY
+team_id       INTEGER  NOT NULL  → teams(id)
+slot          INTEGER  NOT NULL  -- 1 a 6
+pokemon_id    INTEGER  NOT NULL  → pokemon(id)
+ability_id    INTEGER  NOT NULL  → abilities(id)
+nature_id     INTEGER  NOT NULL  → natures(id)
+held_item_id  INTEGER            → items(id)
+move1_id      INTEGER            → moves(id)
+move2_id      INTEGER            → moves(id)
+move3_id      INTEGER            → moves(id)
+move4_id      INTEGER            → moves(id)
 
 battles
 ─────────────────────────────────────────
