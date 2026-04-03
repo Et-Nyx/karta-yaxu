@@ -10,22 +10,22 @@ Uma plataforma web com três pilares integrados para suportar o desenvolvimento 
 
 Todos os pilares compartilham o mesmo **banco de dados**. Quando o time atualiza um movimento no editor, a wiki e o simulador refletem a mudança automaticamente.
 
-Os arquivos `.toml` no repositório servem como *seeds* para popular o banco de dados e como formato de exportação.
+Os arquivos `.toml` no repositório servem como _seeds_ para popular o banco de dados e como formato de exportação.
 
 ---
 
 ## Stack
 
-| Camada | Tecnologia |
-|---|---|
-| UI | HTML + CSS vanilla |
-| Lógica no navegador | Rust → WebAssembly (wasm-bindgen) |
-| Dados / edição | TOML |
-| Templates HTML | askama (Rust, compile-time) |
-| Backend | Rust + Axum + Tokio |
-| Batalhas em tempo real | WebSockets nativos (Axum) |
-| Banco de dados | SQLite via sqlx |
-| Deploy | Fly.io (Docker) |
+| Camada                 | Tecnologia                        |
+| ---------------------- | --------------------------------- |
+| UI                     | HTML + CSS vanilla                |
+| Lógica no navegador    | Rust → WebAssembly (wasm-bindgen) |
+| Dados / edição         | TOML                              |
+| Templates HTML         | askama (Rust, compile-time)       |
+| Backend                | Rust + Axum + Tokio               |
+| Batalhas em tempo real | WebSockets nativos (Axum)         |
+| Banco de dados         | SQLite via sqlx                   |
+| Deploy                 | Fly.io (Docker)                   |
 
 Sem frameworks de frontend. Sem bibliotecas de terceiros para WebSocket ou auth — só o ecossistema Rust e protocolos nativos.
 
@@ -104,6 +104,167 @@ pokedex_entry = ""
 
 [learnset]
 level_up = []
+```
+
+---
+
+## Schema do Banco de Dados
+
+### Type
+
+Duas tabelas: uma para os dados do tipo, outra para a matriz de efetividade.
+
+```
+types
+─────────────────────────────────────────
+id        INTEGER  PRIMARY KEY
+name      TEXT     NOT NULL UNIQUE
+hexcolor  TEXT     NOT NULL        -- ex: "#F08030"
+icon      TEXT     NOT NULL        -- nome do arquivo em static/icons/
+
+type_effectiveness
+─────────────────────────────────────────
+attacker_id  INTEGER  NOT NULL  → types(id)
+defender_id  INTEGER  NOT NULL  → types(id)
+multiplier   REAL     NOT NULL  -- 0 | 0.5 | 1 | 2
+PRIMARY KEY (attacker_id, defender_id)
+```
+
+### Ability
+
+```
+abilities
+─────────────────────────────────────────
+id           INTEGER  PRIMARY KEY
+name         TEXT     NOT NULL UNIQUE
+description  TEXT     NOT NULL DEFAULT ''
+
+pokemon_abilities
+─────────────────────────────────────────
+pokemon_id   INTEGER  NOT NULL  → pokemon(id)
+ability_id   INTEGER  NOT NULL  → abilities(id)
+slot         INTEGER  NOT NULL  -- 1, 2, 3...
+PRIMARY KEY (pokemon_id, slot)
+```
+
+### Move
+
+```
+moves
+─────────────────────────────────────────
+id           INTEGER  PRIMARY KEY
+name         TEXT     NOT NULL UNIQUE
+type_id      INTEGER  NOT NULL  → types(id)
+category     TEXT     NOT NULL  -- 'physical' | 'special' | 'status'
+power        INTEGER             -- NULL para moves de status
+accuracy     INTEGER             -- NULL para moves que sempre acertam
+pp           INTEGER  NOT NULL
+description  TEXT     NOT NULL DEFAULT ''
+
+learnset
+─────────────────────────────────────────
+pokemon_id   INTEGER  NOT NULL  → pokemon(id)
+move_id      INTEGER  NOT NULL  → moves(id)
+method       TEXT     NOT NULL  -- 'level_up' | 'tm' | 'egg' | 'tutor'
+level        INTEGER             -- NULL quando method ≠ 'level_up'
+PRIMARY KEY (pokemon_id, move_id, method)
+```
+
+### Pokémon
+
+```
+pokemon
+─────────────────────────────────────────
+id             INTEGER  PRIMARY KEY
+dex_number     INTEGER  NOT NULL        -- pode repetir em formas alternativas
+name           TEXT     NOT NULL UNIQUE
+sprite         TEXT     NOT NULL        -- nome do arquivo em static/sprites/
+sprite_shiny   TEXT     NOT NULL        -- nome do arquivo em static/sprites/shiny/
+type1_id       INTEGER  NOT NULL  → types(id)
+type2_id       INTEGER             → types(id)   -- NULL se monotype
+hp             INTEGER  NOT NULL
+atk            INTEGER  NOT NULL
+def            INTEGER  NOT NULL
+spa            INTEGER  NOT NULL
+spd            INTEGER  NOT NULL
+spe            INTEGER  NOT NULL
+pokedex_entry  TEXT     NOT NULL DEFAULT ''
+
+evolutions
+─────────────────────────────────────────
+from_id          INTEGER  NOT NULL  → pokemon(id)
+to_id            INTEGER  NOT NULL  → pokemon(id)
+condition        TEXT     NOT NULL  -- 'level' | 'item' | 'trade' | 'happiness' | ...
+condition_value  TEXT               -- ex: "36" para level, "Fire Stone" para item
+PRIMARY KEY (from_id, to_id)
+
+pokemon_forms  (formas alternativas e Mega Evoluções)
+─────────────────────────────────────────
+base_id    INTEGER  NOT NULL  → pokemon(id)  -- ex: Venusaur
+form_id    INTEGER  NOT NULL  → pokemon(id)  -- ex: Mega Venusaur
+form_name  TEXT     NOT NULL                 -- 'Mega' | 'Alolan' | 'Attack Form' | ...
+PRIMARY KEY (base_id, form_id)
+```
+
+Cada forma alternativa e Mega Evolução é um registro independente em `pokemon` (com seus próprios stats, tipos e sprites), ligado à forma base via `pokemon_forms`. Mega Evoluções ficam fora da tabela `evolutions`, mantendo a query de evoluções finais limpa.
+
+### Trainer
+
+```
+trainers
+─────────────────────────────────────────
+id             TEXT     PRIMARY KEY  -- uuid
+username       TEXT     NOT NULL UNIQUE
+password_hash  TEXT     NOT NULL     -- argon2
+role           TEXT     NOT NULL DEFAULT 'viewer'  -- 'viewer' | 'editor'
+is_npc         INTEGER  NOT NULL DEFAULT 0  -- 1 para personagens canônicos
+created_at     TEXT     NOT NULL DEFAULT (datetime('now'))
+
+trainers (já definido)
+
+teams
+─────────────────────────────────────────
+id          INTEGER  PRIMARY KEY
+trainer_id  TEXT     NOT NULL  → trainers(id)
+name        TEXT     NOT NULL  -- nickname do time
+created_at  TEXT     NOT NULL DEFAULT (datetime('now'))
+
+team_members
+─────────────────────────────────────────
+id          INTEGER  PRIMARY KEY
+team_id     INTEGER  NOT NULL  → teams(id)
+slot        INTEGER  NOT NULL  -- 1 a 6
+pokemon_id  INTEGER  NOT NULL  → pokemon(id)
+ability_id  INTEGER  NOT NULL  → abilities(id)
+nature      TEXT     NOT NULL  -- 'Hardy' | 'Lonely' | 'Brave' | ...
+held_item   TEXT               -- referência a items (tabela a definir)
+move1_id    INTEGER            → moves(id)
+move2_id    INTEGER            → moves(id)
+move3_id    INTEGER            → moves(id)
+move4_id    INTEGER            → moves(id)
+
+battles
+─────────────────────────────────────────
+id            INTEGER  PRIMARY KEY
+trainer_id_1  TEXT     NOT NULL  → trainers(id)
+trainer_id_2  TEXT     NOT NULL  → trainers(id)  -- nunca NULL
+team_id_1     INTEGER  NOT NULL  → teams(id)
+team_id_2     INTEGER  NOT NULL  → teams(id)     -- nunca NULL
+winner_id     TEXT               → trainers(id)  -- NULL se empate
+log           TEXT     NOT NULL DEFAULT ''
+played_at     TEXT     NOT NULL DEFAULT (datetime('now'))
+
+
+edits
+─────────────────────────────────────────
+id          INTEGER  PRIMARY KEY
+trainer_id  TEXT     NOT NULL  → trainers(id)
+table_name  TEXT     NOT NULL  -- 'pokemon' | 'moves' | 'abilities' | ...
+record_id   INTEGER  NOT NULL  -- id do registro editado
+diff        TEXT     NOT NULL  -- diff do TOML antes/depois
+edited_at   TEXT     NOT NULL DEFAULT (datetime('now'))
+
+
 ```
 
 ---
@@ -191,22 +352,22 @@ trainer
 
 ### Roles
 
-| Role | Acesso |
-|---|---|
+| Role     | Acesso                    |
+| -------- | ------------------------- |
 | `viewer` | Wiki (pública) + batalhas |
-| `editor` | Tudo acima + `/editor/*` |
+| `editor` | Tudo acima + `/editor/*`  |
 
 Qualquer pessoa pode se cadastrar como `viewer`. O role `editor` é promovido manualmente por um membro do time no banco de dados.
 
 ### Controle de acesso por rota
 
-| Rota | Acesso |
-|---|---|
-| `/wiki/*` | Público — sem login necessário |
-| `/trainer/register`, `/trainer/login` | Público |
-| `/trainer/:username` | Público |
-| `/battle/*` | Requer login (qualquer role) |
-| `/editor/*` | Requer role `editor` |
+| Rota                                  | Acesso                         |
+| ------------------------------------- | ------------------------------ |
+| `/wiki/*`                             | Público — sem login necessário |
+| `/trainer/register`, `/trainer/login` | Público                        |
+| `/trainer/:username`                  | Público                        |
+| `/battle/*`                           | Requer login (qualquer role)   |
+| `/editor/*`                           | Requer role `editor`           |
 
 ### Segurança
 
