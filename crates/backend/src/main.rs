@@ -2,7 +2,7 @@ use axum::{
     routing::get,
     Router,
 };
-Use sqlx::sqlite::SqlitePoolOptions;
+use sqlx::sqlite::SqlitePoolOptions;
 use std::env;
 use std::net::SocketAddr;
 
