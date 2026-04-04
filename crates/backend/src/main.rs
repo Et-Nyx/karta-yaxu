@@ -4,7 +4,6 @@ use axum::{
 };
 use sqlx::sqlite::SqlitePoolOptions;
 use std::env;
-use std::net::SocketAddr;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -24,13 +23,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/health", get(health_handler))
         .with_state(pool);
 
-    let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
+    println!("Servidor rodando localmente em: http://0.0.0.0:3000");
 
-    println!("Servidor rodando localmente em: http://{}", addr);
-
-    axum::Server::bind(&addr)
-        .serve(app.into_make_service())
-        .await?;
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await?;
+    axum::serve(listener, app).await?;
 
     Ok(())
 }
