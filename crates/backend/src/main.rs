@@ -7,15 +7,15 @@ use std::env;
 use std::net::SocketAddr;
 
 #[tokio::main]
-async fn main() {
-    let db_url = env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite:.data/rom.db".to_string());
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let db_url = env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite:./data/rom.db".to_string());
 
     println!("Conectando ao banco de dados...");
 
     let pool = SqlitePoolOptions::new()
         .max_connections(5)
         .connect(&db_url)
-        .await
+        .await?;
 
     println!("Configurando as rotas Axum...");
 
@@ -36,9 +36,9 @@ async fn main() {
 }
 
 async fn home_handler() -> &'static str {
-    "Bem-vindo ao Backend do Karta Yaxu!";
+    "Bem-vindo ao Backend do Karta Yaxu!"
 }
 
 async fn health_handler() -> &'static str {
-    "Servidor online e saudável";
+    "Servidor online e saudável"
 }
