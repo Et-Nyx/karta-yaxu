@@ -96,6 +96,15 @@ CREATE TABLE IF NOT EXISTS learnset (
     PRIMARY KEY (pokemon_id, move_id, method)
 );
 
+-- Status Conditions
+CREATE TABLE IF NOT EXISTS status_conditions (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    description TEXT NOT NULL DEFAULT '',
+    icon TEXT NOT NULL,
+    is_volatile INTEGER NOT NULL DEFAULT 0
+);
+
 -- Trainers
 CREATE TABLE IF NOT EXISTS trainers (
     id TEXT PRIMARY KEY,
