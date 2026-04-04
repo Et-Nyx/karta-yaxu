@@ -1,0 +1,5 @@
+[[item]]
+id = 1
+name = "Miracle Seed"
+description = "Um item segurado que aumenta a força de golpes do tipo Grass."
+icon = "miracle_seed.png"

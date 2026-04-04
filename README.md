@@ -10,7 +10,7 @@ Uma plataforma web com três pilares integrados para suportar o desenvolvimento 
 
 Todos os pilares compartilham o mesmo **banco de dados**. Quando o time atualiza um movimento no editor, a wiki e o simulador refletem a mudança automaticamente.
 
-Os arquivos `.toml` no repositório servem como _seeds_ para popular o banco de dados e como formato de exportação.
+Os arquivos `.toml` do repositório (como os templates) servem como a linguagem base do sistema de edição no navegador. O Backend converte registros do SQLite para TOML na tela do Editor, e reverte as edições de volta para o Banco.
 
 ---
 
@@ -59,12 +59,19 @@ karta-yaxu/
 ├── flake.nix
 ├── rust-toolchain.toml
 ├── crates/
-│   ├── engine/       # battle engine, damage calc — Rust puro
+│   ├── engine/       # models.rs (Base de Dados) e battle.rs (Lógica de Simulação)
 │   ├── frontend/     # compila para WASM, manipula DOM via wasm-bindgen
 │   └── backend/      # Axum + WebSockets + sqlx + askama templates
 ├── static/
 │   ├── index.html
-│   └── style.css
+│   ├── style.css
+│   ├── sprites/
+│   │   ├── pokemon/   # ex: bulbasaur.png
+│   │   └── shiny/     # ex: bulbasaur_shiny.png
+│   └── icons/
+│       ├── types/     # svg dos 18 tipos base
+│       ├── items/     # ex: miracle_seed.png
+│       └── status/    # ex: brn.png
 └── data/
     └── template/     # templates TOML para registros novos
         ├── pokemon.toml
@@ -88,23 +95,33 @@ DB → serializa → TOML na sessão → textarea no browser
  └──── deserializa ←── POST /editor/* ───────┘
 ```
 
-Exemplo do template de um Pokémon (`data/template/pokemon.toml`):
+Exemplo do formato atual de um Pokémon (`data/template/pokemon.toml`):
 
 ```toml
-[base]
-name = ""
-types = []
-hp = 0
-atk = 0
-def = 0
-spa = 0
-spd = 0
-spe = 0
-pokedex_entry = ""
-
-[learnset]
-level_up = []
+[[pokemon]]
+id = 1
+dex_number = 1
+name = "Bulbasaur"
+sprite = "bulbasaur.png"
+sprite_shiny = "bulbasaur_shiny.png"
+type1_id = 12
+type2_id = 4
+hp = 45
+atk = 49
+def = 49
+spa = 65
+spd = 65
+spe = 45
+pokedex_entry = "A strange seed was planted on its back at birth."
 ```
+
+*(Nota: As tabelas relacionais em Array, como `[learnset]` e evoluções, ganharam arquivos `.toml` independentes para preservar 100% da correspondência bidimensional com o banco de dados).*
+
+### Seeding Automático do Banco
+
+O SQLite criado pelo `sqlx` nasce fisicamente vazio. Para poupar trabalho do desenvolvedor de injetar SQL na unha, nosso backend possui uma Rota Administrativa Mágica em Rust. 
+
+Ao "bater" na Rota `GET /admin/seed` no servidor ativo, o Backend devora todos os dados arrays `[[nome]]` dos TOMLs locais, transformando-os em dezenas de `INSERT OR REPLACE`. Isso preenche 100% da matriz relacional da engine (Todas as 12 tabelas Estáticas) instantaneamente de forma não-destrutiva!
 
 ---
 
@@ -178,8 +195,8 @@ pokemon
 id             INTEGER  PRIMARY KEY
 dex_number     INTEGER  NOT NULL        -- pode repetir em formas alternativas
 name           TEXT     NOT NULL UNIQUE
-sprite         TEXT     NOT NULL        -- nome do arquivo em static/sprites/
-sprite_shiny   TEXT     NOT NULL        -- nome do arquivo em static/sprites/shiny/
+sprite         TEXT     NOT NULL        -- renderizado em static/sprites/pokemon/
+sprite_shiny   TEXT     NOT NULL        -- renderizado em static/sprites/shiny/
 type1_id       INTEGER  NOT NULL  → types(id)
 type2_id       INTEGER             → types(id)   -- NULL se monotype
 hp             INTEGER  NOT NULL
@@ -208,6 +225,11 @@ PRIMARY KEY (base_id, form_id)
 
 Cada forma alternativa e Mega Evolução é um registro independente em `pokemon` (com seus próprios stats, tipos e sprites), ligado à forma base via `pokemon_forms`. Mega Evoluções ficam fora da tabela `evolutions`, mantendo a query de evoluções finais limpa.
 
+*Convenção de Continuidade (ID):* O projeto mapeia variações usando um sistema de saltos baseado no ID principal original do Pokémon de forma previsível:
+- **`+ 2000`** = Mega Evolução (Ex: Venusaur é *#3*, Mega Venusaur é *2003*)
+- **`+ 3000`** = Formas Regionais 
+Independente do pulo do `.id`, o banco mantém a coluna separada `.dex_number` intocada entre todas as formas para agrupar visualmente na Wiki Oficial sem furar a continuidade da Pokedex.
+
 ### Items
 
 ```sql
@@ -217,6 +239,18 @@ id           INTEGER  PRIMARY KEY
 name         TEXT     NOT NULL UNIQUE
 description  TEXT     NOT NULL DEFAULT ''
 icon         TEXT     NOT NULL             -- nome do arquivo em static/icons/items/
+```
+
+### Status Conditions
+
+```sql
+status_conditions
+─────────────────────────────────────────
+id           INTEGER  PRIMARY KEY
+name         TEXT     NOT NULL UNIQUE
+description  TEXT     NOT NULL DEFAULT ''
+icon         TEXT     NOT NULL             -- nome da imagem do ícone para o front
+is_volatile  INTEGER  NOT NULL DEFAULT 0   -- 0 = Status Principal (Burn), 1 = Volátil (Sleep)
 ```
 
 ### Nature

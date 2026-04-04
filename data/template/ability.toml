@@ -1,0 +1,9 @@
+[[ability]]
+id = 1
+name = "Overgrow"
+description = "Powers up Grass-type moves when the Pokemon's HP is low."
+
+[[ability]]
+id = 2
+name = "Thick Fat"
+description = "Boosts resistance to Fire- and Ice-type moves."

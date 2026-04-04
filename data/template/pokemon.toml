@@ -1,0 +1,63 @@
+[[pokemon]]
+id = 1
+dex_number = 1
+name = "Bulbasaur"
+sprite = "bulbasaur.png"
+sprite_shiny = "bulbasaur_shiny.png"
+type1_id = 12
+type2_id = 4
+hp = 45
+atk = 49
+def = 49
+spa = 65
+spd = 65
+spe = 45
+pokedex_entry = "A strange seed was planted on its back at birth."
+
+[[pokemon]]
+id = 2
+dex_number = 2
+name = "Ivysaur"
+sprite = "ivysaur.png"
+sprite_shiny = "ivysaur_shiny.png"
+type1_id = 12
+type2_id = 4
+hp = 60
+atk = 62
+def = 63
+spa = 80
+spd = 80
+spe = 60
+pokedex_entry = "When the bulb on its back grows large, it appears to lose the ability to stand on its hind legs."
+
+[[pokemon]]
+id = 3
+dex_number = 3
+name = "Venusaur"
+sprite = "venusaur.png"
+sprite_shiny = "venusaur_shiny.png"
+type1_id = 12
+type2_id = 4
+hp = 80
+atk = 82
+def = 83
+spa = 100
+spd = 100
+spe = 80
+pokedex_entry = "The plant blooms when it is absorbing solar energy. It stays on the move to seek sunlight."
+
+[[pokemon]]
+id = 2003
+dex_number = 3
+name = "Mega Venusaur"
+sprite = "venusaur_mega.png"
+sprite_shiny = "venusaur_mega_shiny.png"
+type1_id = 12
+type2_id = 4
+hp = 80
+atk = 100
+def = 123
+spa = 122
+spd = 120
+spe = 80
+pokedex_entry = "In order to support its flower, which has grown larger due to Mega Evolution, its back and legs have become stronger."

@@ -5,6 +5,9 @@ use axum::{
 use sqlx::sqlite::SqlitePoolOptions;
 use std::env;
 
+pub mod models;
+pub mod seed;
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let db_url = env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite:./data/rom.db".to_string());
@@ -21,6 +24,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let app = Router::new()
         .route("/", get(home_handler))
         .route("/health", get(health_handler))
+        .route("/admin/seed", get(seed::run_seed))
         .with_state(pool);
 
     println!("Servidor rodando localmente em: http://0.0.0.0:3000");

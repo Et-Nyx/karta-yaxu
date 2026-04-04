@@ -1,0 +1,11 @@
+[[evolution]]
+from_id = 1
+to_id = 2
+condition = "level"
+condition_value = "16"
+
+[[evolution]]
+from_id = 2
+to_id = 3
+condition = "level"
+condition_value = "32"

@@ -1,0 +1,4 @@
+[[type_effectiveness]]
+attacker_id = 12
+defender_id = 11
+multiplier = 2.0

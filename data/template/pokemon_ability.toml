@@ -1,0 +1,19 @@
+[[pokemon_ability]]
+pokemon_id = 1
+ability_id = 1
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 2
+ability_id = 1
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 3
+ability_id = 1
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 2003
+ability_id = 2
+slot = 1

@@ -1,0 +1,107 @@
+[[type]]
+id = 1
+name = "Normal"
+hexcolor = "#9FA19F"
+icon = "normal.png"
+
+[[type]]
+id = 2
+name = "Fighting"
+hexcolor = "#FF8000"
+icon = "fighting.png"
+
+[[type]]
+id = 3
+name = "Flying"
+hexcolor = "#81B9EF"
+icon = "flying.png"
+
+[[type]]
+id = 4
+name = "Poison"
+hexcolor = "#9141CB"
+icon = "poison.png"
+
+[[type]]
+id = 5
+name = "Ground"
+hexcolor = "#915121"
+icon = "ground.png"
+
+[[type]]
+id = 6
+name = "Rock"
+hexcolor = "#AFA981"
+icon = "rock.png"
+
+[[type]]
+id = 7
+name = "Bug"
+hexcolor = "#91A119"
+icon = "bug.png"
+
+[[type]]
+id = 8
+name = "Ghost"
+hexcolor = "#704170"
+icon = "ghost.png"
+
+[[type]]
+id = 9
+name = "Steel"
+hexcolor = "#60A1B8"
+icon = "steel.png"
+
+[[type]]
+id = 10
+name = "Fire"
+hexcolor = "#E62829"
+icon = "fire.png"
+
+[[type]]
+id = 11
+name = "Water"
+hexcolor = "#2980EF"
+icon = "water.png"
+
+[[type]]
+id = 12
+name = "Grass"
+hexcolor = "#3FA129"
+icon = "grass.png"
+
+[[type]]
+id = 13
+name = "Electric"
+hexcolor = "#FAC000"
+icon = "electric.png"
+
+[[type]]
+id = 14
+name = "Psychic"
+hexcolor = "#EF4179"
+icon = "psychic.png"
+
+[[type]]
+id = 15
+name = "Ice"
+hexcolor = "#3dd8ff"
+icon = "ice.png"
+
+[[type]]
+id = 16
+name = "Dragon"
+hexcolor = "#5060E1"
+icon = "dragon.png"
+
+[[type]]
+id = 17
+name = "Dark"
+hexcolor = "#4f3f3d"
+icon = "dark.png"
+
+[[type]]
+id = 18
+name = "Fairy"
+hexcolor = "#EF70EF"
+icon = "fairy.png"

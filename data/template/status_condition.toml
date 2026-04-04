@@ -1,0 +1,6 @@
+[[status_condition]]
+id = 1
+name = "Burn"
+description = "Causa dano fixo a cada turno e corta o dano físico pela metade."
+icon = "brn.png"
+is_volatile = false

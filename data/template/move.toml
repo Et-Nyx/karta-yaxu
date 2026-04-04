@@ -1,0 +1,38 @@
+[[move]]
+id = 1
+name = "Vine Whip"
+type_id = 12
+category = "physical"
+power = 45
+accuracy = 100
+pp = 25
+description = "The target is struck with slender, whiplike vines to inflict damage."
+
+[[move]]
+id = 2
+name = "Razor Leaf"
+type_id = 12
+category = "physical"
+power = 55
+accuracy = 95
+pp = 25
+description = "Sharp-edged leaves are launched to slash at the opposing Pokemon. Critical hits land more easily."
+
+[[move]]
+id = 3
+name = "Solar Beam"
+type_id = 12
+category = "special"
+power = 120
+accuracy = 100
+pp = 10
+description = "In this two-turn attack, the user gathers light, then blasts a bundled beam on the next turn."
+
+[[move]]
+id = 4
+name = "Leech Seed"
+type_id = 12
+category = "status"
+accuracy = 90
+pp = 10
+description = "A seed is planted on the target. It steals some HP from the target every turn."

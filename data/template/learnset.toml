@@ -1,0 +1,23 @@
+[[learnset]]
+pokemon_id = 1
+move_id = 1
+method = "level_up"
+level = 9
+
+[[learnset]]
+pokemon_id = 1
+move_id = 4 # Leech Seed
+method = "level_up"
+level = 13
+
+[[learnset]]
+pokemon_id = 2
+move_id = 2 # Razor Leaf
+method = "level_up"
+level = 20
+
+[[learnset]]
+pokemon_id = 3
+move_id = 3 # Solar Beam
+method = "level_up"
+level = 65

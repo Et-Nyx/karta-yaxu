@@ -1,0 +1,5 @@
+[[nature]]
+id = 1
+name = "Modest"
+increased_stat = "spa"
+decreased_stat = "atk"
