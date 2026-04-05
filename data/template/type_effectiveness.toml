@@ -1,4 +1,714 @@
+# Normal -> Rock
+[[type_effectiveness]]
+attacker_id = 1
+defender_id = 6
+multiplier = 0.5
+
+# Normal -> Ghost
+[[type_effectiveness]]
+attacker_id = 1
+defender_id = 8
+multiplier = 0
+
+# Normal -> Steel
+[[type_effectiveness]]
+attacker_id = 1
+defender_id = 9
+multiplier = 0.5
+
+# Fighting -> Normal
+[[type_effectiveness]]
+attacker_id = 2
+defender_id = 1
+multiplier = 2
+
+# Fighting -> Flying
+[[type_effectiveness]]
+attacker_id = 2
+defender_id = 3
+multiplier = 0.5
+
+# Fighting -> Poison
+[[type_effectiveness]]
+attacker_id = 2
+defender_id = 4
+multiplier = 0.5
+
+# Fighting -> Rock
+[[type_effectiveness]]
+attacker_id = 2
+defender_id = 6
+multiplier = 2
+
+# Fighting -> Bug
+[[type_effectiveness]]
+attacker_id = 2
+defender_id = 7
+multiplier = 0.5
+
+# Fighting -> Ghost
+[[type_effectiveness]]
+attacker_id = 2
+defender_id = 8
+multiplier = 0
+
+# Fighting -> Steel
+[[type_effectiveness]]
+attacker_id = 2
+defender_id = 9
+multiplier = 2
+
+# Fighting -> Ice
+[[type_effectiveness]]
+attacker_id = 2
+defender_id = 15
+multiplier = 2
+
+# Fighting -> Dark
+[[type_effectiveness]]
+attacker_id = 2
+defender_id = 17
+multiplier = 2
+
+# Fighting -> Fairy
+[[type_effectiveness]]
+attacker_id = 2
+defender_id = 18
+multiplier = 0.5
+
+# Flying -> Fighting
+[[type_effectiveness]]
+attacker_id = 3
+defender_id = 2
+multiplier = 2
+
+# Flying -> Rock
+[[type_effectiveness]]
+attacker_id = 3
+defender_id = 6
+multiplier = 0.5
+
+# Flying -> Bug
+[[type_effectiveness]]
+attacker_id = 3
+defender_id = 7
+multiplier = 2
+
+# Flying -> Steel
+[[type_effectiveness]]
+attacker_id = 3
+defender_id = 9
+multiplier = 0.5
+
+# Flying -> Grass
+[[type_effectiveness]]
+attacker_id = 3
+defender_id = 12
+multiplier = 2
+
+# Flying -> Electric
+[[type_effectiveness]]
+attacker_id = 3
+defender_id = 13
+multiplier = 0.5
+
+# Poison -> Poison
+[[type_effectiveness]]
+attacker_id = 4
+defender_id = 4
+multiplier = 0.5
+
+# Poison -> Ground
+[[type_effectiveness]]
+attacker_id = 4
+defender_id = 5
+multiplier = 0.5
+
+# Poison -> Rock
+[[type_effectiveness]]
+attacker_id = 4
+defender_id = 6
+multiplier = 0.5
+
+# Poison -> Ghost
+[[type_effectiveness]]
+attacker_id = 4
+defender_id = 8
+multiplier = 0.5
+
+# Poison -> Steel
+[[type_effectiveness]]
+attacker_id = 4
+defender_id = 9
+multiplier = 0
+
+# Poison -> Grass
+[[type_effectiveness]]
+attacker_id = 4
+defender_id = 12
+multiplier = 2
+
+# Poison -> Fairy
+[[type_effectiveness]]
+attacker_id = 4
+defender_id = 18
+multiplier = 2
+
+# Ground -> Flying
+[[type_effectiveness]]
+attacker_id = 5
+defender_id = 3
+multiplier = 0
+
+# Ground -> Poison
+[[type_effectiveness]]
+attacker_id = 5
+defender_id = 4
+multiplier = 2
+
+# Ground -> Rock
+[[type_effectiveness]]
+attacker_id = 5
+defender_id = 6
+multiplier = 2
+
+# Ground -> Bug
+[[type_effectiveness]]
+attacker_id = 5
+defender_id = 7
+multiplier = 0.5
+
+# Ground -> Steel
+[[type_effectiveness]]
+attacker_id = 5
+defender_id = 9
+multiplier = 2
+
+# Ground -> Fire
+[[type_effectiveness]]
+attacker_id = 5
+defender_id = 10
+multiplier = 2
+
+# Ground -> Grass
+[[type_effectiveness]]
+attacker_id = 5
+defender_id = 12
+multiplier = 0.5
+
+# Ground -> Electric
+[[type_effectiveness]]
+attacker_id = 5
+defender_id = 13
+multiplier = 2
+
+# Rock -> Fighting
+[[type_effectiveness]]
+attacker_id = 6
+defender_id = 2
+multiplier = 0.5
+
+# Rock -> Flying
+[[type_effectiveness]]
+attacker_id = 6
+defender_id = 3
+multiplier = 2
+
+# Rock -> Ground
+[[type_effectiveness]]
+attacker_id = 6
+defender_id = 5
+multiplier = 0.5
+
+# Rock -> Bug
+[[type_effectiveness]]
+attacker_id = 6
+defender_id = 7
+multiplier = 2
+
+# Rock -> Steel
+[[type_effectiveness]]
+attacker_id = 6
+defender_id = 9
+multiplier = 0.5
+
+# Rock -> Fire
+[[type_effectiveness]]
+attacker_id = 6
+defender_id = 10
+multiplier = 2
+
+# Rock -> Ice
+[[type_effectiveness]]
+attacker_id = 6
+defender_id = 15
+multiplier = 2
+
+# Bug -> Fighting
+[[type_effectiveness]]
+attacker_id = 7
+defender_id = 2
+multiplier = 0.5
+
+# Bug -> Flying
+[[type_effectiveness]]
+attacker_id = 7
+defender_id = 3
+multiplier = 0.5
+
+# Bug -> Poison
+[[type_effectiveness]]
+attacker_id = 7
+defender_id = 4
+multiplier = 0.5
+
+# Bug -> Ghost
+[[type_effectiveness]]
+attacker_id = 7
+defender_id = 8
+multiplier = 0.5
+
+# Bug -> Steel
+[[type_effectiveness]]
+attacker_id = 7
+defender_id = 9
+multiplier = 0.5
+
+# Bug -> Fire
+[[type_effectiveness]]
+attacker_id = 7
+defender_id = 10
+multiplier = 0.5
+
+# Bug -> Grass
+[[type_effectiveness]]
+attacker_id = 7
+defender_id = 12
+multiplier = 2
+
+# Bug -> Psychic
+[[type_effectiveness]]
+attacker_id = 7
+defender_id = 14
+multiplier = 2
+
+# Bug -> Dark
+[[type_effectiveness]]
+attacker_id = 7
+defender_id = 17
+multiplier = 2
+
+# Bug -> Fairy
+[[type_effectiveness]]
+attacker_id = 7
+defender_id = 18
+multiplier = 0.5
+
+# Ghost -> Normal
+[[type_effectiveness]]
+attacker_id = 8
+defender_id = 1
+multiplier = 0
+
+# Ghost -> Ghost
+[[type_effectiveness]]
+attacker_id = 8
+defender_id = 8
+multiplier = 2
+
+# Ghost -> Psychic
+[[type_effectiveness]]
+attacker_id = 8
+defender_id = 14
+multiplier = 2
+
+# Ghost -> Dark
+[[type_effectiveness]]
+attacker_id = 8
+defender_id = 17
+multiplier = 0.5
+
+# Steel -> Rock
+[[type_effectiveness]]
+attacker_id = 9
+defender_id = 6
+multiplier = 2
+
+# Steel -> Steel
+[[type_effectiveness]]
+attacker_id = 9
+defender_id = 9
+multiplier = 0.5
+
+# Steel -> Fire
+[[type_effectiveness]]
+attacker_id = 9
+defender_id = 10
+multiplier = 0.5
+
+# Steel -> Water
+[[type_effectiveness]]
+attacker_id = 9
+defender_id = 11
+multiplier = 0.5
+
+# Steel -> Electric
+[[type_effectiveness]]
+attacker_id = 9
+defender_id = 13
+multiplier = 0.5
+
+# Steel -> Ice
+[[type_effectiveness]]
+attacker_id = 9
+defender_id = 15
+multiplier = 2
+
+# Steel -> Fairy
+[[type_effectiveness]]
+attacker_id = 9
+defender_id = 18
+multiplier = 2
+
+# Fire -> Rock
+[[type_effectiveness]]
+attacker_id = 10
+defender_id = 6
+multiplier = 0.5
+
+# Fire -> Bug
+[[type_effectiveness]]
+attacker_id = 10
+defender_id = 7
+multiplier = 2
+
+# Fire -> Steel
+[[type_effectiveness]]
+attacker_id = 10
+defender_id = 9
+multiplier = 2
+
+# Fire -> Fire
+[[type_effectiveness]]
+attacker_id = 10
+defender_id = 10
+multiplier = 0.5
+
+# Fire -> Water
+[[type_effectiveness]]
+attacker_id = 10
+defender_id = 11
+multiplier = 0.5
+
+# Fire -> Grass
+[[type_effectiveness]]
+attacker_id = 10
+defender_id = 12
+multiplier = 2
+
+# Fire -> Ice
+[[type_effectiveness]]
+attacker_id = 10
+defender_id = 15
+multiplier = 2
+
+# Fire -> Dragon
+[[type_effectiveness]]
+attacker_id = 10
+defender_id = 16
+multiplier = 0.5
+
+# Water -> Ground
+[[type_effectiveness]]
+attacker_id = 11
+defender_id = 5
+multiplier = 2
+
+# Water -> Rock
+[[type_effectiveness]]
+attacker_id = 11
+defender_id = 6
+multiplier = 2
+
+# Water -> Fire
+[[type_effectiveness]]
+attacker_id = 11
+defender_id = 10
+multiplier = 2
+
+# Water -> Water
+[[type_effectiveness]]
+attacker_id = 11
+defender_id = 11
+multiplier = 0.5
+
+# Water -> Grass
+[[type_effectiveness]]
+attacker_id = 11
+defender_id = 12
+multiplier = 0.5
+
+# Water -> Dragon
+[[type_effectiveness]]
+attacker_id = 11
+defender_id = 16
+multiplier = 0.5
+
+# Grass -> Flying
+[[type_effectiveness]]
+attacker_id = 12
+defender_id = 3
+multiplier = 0.5
+
+# Grass -> Poison
+[[type_effectiveness]]
+attacker_id = 12
+defender_id = 4
+multiplier = 0.5
+
+# Grass -> Ground
+[[type_effectiveness]]
+attacker_id = 12
+defender_id = 5
+multiplier = 2
+
+# Grass -> Rock
+[[type_effectiveness]]
+attacker_id = 12
+defender_id = 6
+multiplier = 2
+
+# Grass -> Bug
+[[type_effectiveness]]
+attacker_id = 12
+defender_id = 7
+multiplier = 0.5
+
+# Grass -> Steel
+[[type_effectiveness]]
+attacker_id = 12
+defender_id = 9
+multiplier = 0.5
+
+# Grass -> Fire
+[[type_effectiveness]]
+attacker_id = 12
+defender_id = 10
+multiplier = 0.5
+
+# Grass -> Water
 [[type_effectiveness]]
 attacker_id = 12
 defender_id = 11
-multiplier = 2.0
+multiplier = 2
+
+# Grass -> Grass
+[[type_effectiveness]]
+attacker_id = 12
+defender_id = 12
+multiplier = 0.5
+
+# Grass -> Dragon
+[[type_effectiveness]]
+attacker_id = 12
+defender_id = 16
+multiplier = 0.5
+
+# Electric -> Flying
+[[type_effectiveness]]
+attacker_id = 13
+defender_id = 3
+multiplier = 2
+
+# Electric -> Ground
+[[type_effectiveness]]
+attacker_id = 13
+defender_id = 5
+multiplier = 0
+
+# Electric -> Water
+[[type_effectiveness]]
+attacker_id = 13
+defender_id = 11
+multiplier = 2
+
+# Electric -> Grass
+[[type_effectiveness]]
+attacker_id = 13
+defender_id = 12
+multiplier = 0.5
+
+# Electric -> Electric
+[[type_effectiveness]]
+attacker_id = 13
+defender_id = 13
+multiplier = 0.5
+
+# Electric -> Dragon
+[[type_effectiveness]]
+attacker_id = 13
+defender_id = 16
+multiplier = 0.5
+
+# Psychic -> Fighting
+[[type_effectiveness]]
+attacker_id = 14
+defender_id = 2
+multiplier = 2
+
+# Psychic -> Poison
+[[type_effectiveness]]
+attacker_id = 14
+defender_id = 4
+multiplier = 2
+
+# Psychic -> Steel
+[[type_effectiveness]]
+attacker_id = 14
+defender_id = 9
+multiplier = 0.5
+
+# Psychic -> Psychic
+[[type_effectiveness]]
+attacker_id = 14
+defender_id = 14
+multiplier = 0.5
+
+# Psychic -> Dark
+[[type_effectiveness]]
+attacker_id = 14
+defender_id = 17
+multiplier = 0
+
+# Ice -> Flying
+[[type_effectiveness]]
+attacker_id = 15
+defender_id = 3
+multiplier = 2
+
+# Ice -> Ground
+[[type_effectiveness]]
+attacker_id = 15
+defender_id = 5
+multiplier = 2
+
+# Ice -> Steel
+[[type_effectiveness]]
+attacker_id = 15
+defender_id = 9
+multiplier = 0.5
+
+# Ice -> Fire
+[[type_effectiveness]]
+attacker_id = 15
+defender_id = 10
+multiplier = 0.5
+
+# Ice -> Water
+[[type_effectiveness]]
+attacker_id = 15
+defender_id = 11
+multiplier = 0.5
+
+# Ice -> Grass
+[[type_effectiveness]]
+attacker_id = 15
+defender_id = 12
+multiplier = 2
+
+# Ice -> Ice
+[[type_effectiveness]]
+attacker_id = 15
+defender_id = 15
+multiplier = 0.5
+
+# Ice -> Dragon
+[[type_effectiveness]]
+attacker_id = 15
+defender_id = 16
+multiplier = 2
+
+# Dragon -> Steel
+[[type_effectiveness]]
+attacker_id = 16
+defender_id = 9
+multiplier = 0.5
+
+# Dragon -> Dragon
+[[type_effectiveness]]
+attacker_id = 16
+defender_id = 16
+multiplier = 2
+
+# Dragon -> Fairy
+[[type_effectiveness]]
+attacker_id = 16
+defender_id = 18
+multiplier = 0
+
+# Dark -> Fighting
+[[type_effectiveness]]
+attacker_id = 17
+defender_id = 2
+multiplier = 0.5
+
+# Dark -> Ghost
+[[type_effectiveness]]
+attacker_id = 17
+defender_id = 8
+multiplier = 2
+
+# Dark -> Psychic
+[[type_effectiveness]]
+attacker_id = 17
+defender_id = 14
+multiplier = 2
+
+# Dark -> Dark
+[[type_effectiveness]]
+attacker_id = 17
+defender_id = 17
+multiplier = 0.5
+
+# Dark -> Fairy
+[[type_effectiveness]]
+attacker_id = 17
+defender_id = 18
+multiplier = 0.5
+
+# Fairy -> Fighting
+[[type_effectiveness]]
+attacker_id = 18
+defender_id = 2
+multiplier = 2
+
+# Fairy -> Poison
+[[type_effectiveness]]
+attacker_id = 18
+defender_id = 4
+multiplier = 0.5
+
+# Fairy -> Steel
+[[type_effectiveness]]
+attacker_id = 18
+defender_id = 9
+multiplier = 0.5
+
+# Fairy -> Fire
+[[type_effectiveness]]
+attacker_id = 18
+defender_id = 10
+multiplier = 0.5
+
+# Fairy -> Dragon
+[[type_effectiveness]]
+attacker_id = 18
+defender_id = 16
+multiplier = 2
+
+# Fairy -> Dark
+[[type_effectiveness]]
+attacker_id = 18
+defender_id = 17
+multiplier = 2
+
