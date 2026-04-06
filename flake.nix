@@ -37,8 +37,9 @@
 
           shellHook = ''
             export DATABASE_URL="sqlite:./data/rom.db"
+            export SEED_DATA_PATH="$PWD/data/template"
             export RUST_LOG="debug"
-            echo "Ambiente Pokemon ROM pronto!"
+            echo "🦀 Ambiente Pokemon ROM pronto"
           '';
         };
       }
