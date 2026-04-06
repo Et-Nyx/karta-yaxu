@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT OR REPLACE INTO moves (id, name, type_id, category, power, accuracy, pp, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 8
+    },
+    "nullable": []
+  },
+  "hash": "0762ea798e8bd1624658c5fb87abed02c5cfaac468b8e574e681a6054a7d8ae0"
+}

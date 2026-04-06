@@ -91,7 +91,7 @@ CREATE TABLE IF NOT EXISTS moves (
 CREATE TABLE IF NOT EXISTS learnset (
     pokemon_id INTEGER NOT NULL REFERENCES pokemon(id),
     move_id INTEGER NOT NULL REFERENCES moves(id),
-    method TEXT NOT NULL CHECK(method IN ('level_up', 'tm', 'egg', 'tutor')),
+    method TEXT NOT NULL CHECK(method IN ('level_up', 'tm', 'egg', 'tutor', 'gmax', 'max')),
     level INTEGER,
     PRIMARY KEY (pokemon_id, move_id, method)
 );

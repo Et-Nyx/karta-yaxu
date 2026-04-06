@@ -1,0 +1,2 @@
+# Askama templates — o Prettier quebra tags {% %} dentro de atributos HTML
+crates/backend/templates/

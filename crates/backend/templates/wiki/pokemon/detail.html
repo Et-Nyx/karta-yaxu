@@ -2,9 +2,9 @@
 %} {% block content %}
 <div class="pokemon-detail">
   <header class="poke-header">
-    <img src="/static/sprites/pokemon/{{ p.sprite }}" alt="{{ p.name }}" />
+    <img src="/static/sprites/pokemon/{{ p.sprite }}?v=1" alt="{{ p.name }}" />
     <img
-      src="/static/sprites/shiny/{{ p.sprite_shiny }}"
+      src="/static/sprites/shiny/{{ p.sprite_shiny }}?v=1"
       alt="{{ p.name }} shiny"
       title="Shiny"
     />
@@ -82,7 +82,7 @@
     {% for e in evolutions %}
     <a class="card" href="/wiki/pokemon/{{ e.name|slugify }}" {% if e.id == p.id %}style="border-color: #ffd700; background: #fffde7;"{% endif %}>
       <img
-        src="/static/sprites/pokemon/{{ e.sprite }}"
+        src="/static/sprites/pokemon/{{ e.sprite }}?v=1"
         alt="{{ e.name }}"
         onerror="this.style.display = 'none'"
       />
@@ -96,7 +96,7 @@
     {% for f in forms %}
     <a class="card" href="/wiki/pokemon/{{ f.name|slugify }}">
       <img
-        src="/static/sprites/pokemon/{{ f.sprite }}"
+        src="/static/sprites/pokemon/{{ f.sprite }}?v=1"
         alt="{{ f.name }}"
         onerror="this.style.display = 'none'"
       />
@@ -121,9 +121,11 @@
       {% for (m, t, method, level) in learnset %}
       <tr>
         <td>
-          {% if method == "level_up" %}Nível {% if let Some(l) = level %}{{ l
-          }}{% endif %} {% else if method == "tm" %}TM {% else if method ==
-          "egg" %}Egg {% else %}{{ method }}{% endif %}
+          {% if method == "level_up" %}Nível {% if let Some(l) = level %}{{
+          l}}{% endif %} {% else if method == "tm" %}TM {% else if method ==
+          "egg" %}Egg {% else if method == "tutor" %}Tutor {% else if method ==
+          "gmax" %}G-Max {% else if method == "max" %}Max {% else %}{{ method
+          }}{% endif %}
         </td>
         <td><a href="/wiki/moves/{{ m.name|slugify }}">{{ m.name }}</a></td>
         <td>

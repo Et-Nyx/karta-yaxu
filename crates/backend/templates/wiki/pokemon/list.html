@@ -5,7 +5,7 @@
 <div class="pokemon-grid">
 {% for p in pokemon %}
 <a class="card" href="/wiki/pokemon/{{ p.name|slugify }}">
-    <img src="/static/sprites/pokemon/{{ p.sprite }}" alt="{{ p.name }}" onerror="this.style.display='none'">
+    <img src="/static/sprites/pokemon/{{ p.sprite }}?v=1" alt="{{ p.name }}" onerror="this.style.display='none'">
     <div class="card-info">
         <span class="dex-num">#{{ p.dex_number }}</span>
         <span class="name">{{ p.name }}</span>

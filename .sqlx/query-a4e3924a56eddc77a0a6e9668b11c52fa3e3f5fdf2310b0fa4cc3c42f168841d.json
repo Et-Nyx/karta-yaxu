@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT OR REPLACE INTO evolutions (from_id, to_id, condition, condition_value) VALUES (?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "a4e3924a56eddc77a0a6e9668b11c52fa3e3f5fdf2310b0fa4cc3c42f168841d"
+}

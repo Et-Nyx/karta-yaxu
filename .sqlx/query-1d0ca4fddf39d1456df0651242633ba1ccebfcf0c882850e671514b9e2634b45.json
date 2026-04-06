@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT OR REPLACE INTO natures (id, name, increased_stat, decreased_stat) VALUES (?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "1d0ca4fddf39d1456df0651242633ba1ccebfcf0c882850e671514b9e2634b45"
+}

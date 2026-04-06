@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT OR REPLACE INTO type_effectiveness (attacker_id, defender_id, multiplier) VALUES (?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "b651b261c7b05370742311112600883c9b1e08b578fac96b55df54f9c950587d"
+}

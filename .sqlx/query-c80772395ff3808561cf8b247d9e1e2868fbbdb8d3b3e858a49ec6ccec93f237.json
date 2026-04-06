@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT OR REPLACE INTO items (id, name, description, icon) VALUES (?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "c80772395ff3808561cf8b247d9e1e2868fbbdb8d3b3e858a49ec6ccec93f237"
+}

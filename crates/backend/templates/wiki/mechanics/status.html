@@ -7,7 +7,7 @@
 <ul class="status-list">
 {% for c in conditions %}{% if !c.is_volatile %}
 <li>
-    <img src="/static/icons/status/{{ c.icon }}" alt="{{ c.name }}" onerror="this.style.display='none'">
+    <img src="/static/icons/status/{{ c.icon }}?v=1" alt="{{ c.name }}" onerror="this.style.display='none'">
     <strong>{{ c.name }}</strong> — {{ c.description }}
 </li>
 {% endif %}{% endfor %}
@@ -17,7 +17,7 @@
 <ul class="status-list">
 {% for c in conditions %}{% if c.is_volatile %}
 <li>
-    <img src="/static/icons/status/{{ c.icon }}" alt="{{ c.name }}" onerror="this.style.display='none'">
+    <img src="/static/icons/status/{{ c.icon }}?v=1" alt="{{ c.name }}" onerror="this.style.display='none'">
     <strong>{{ c.name }}</strong> — {{ c.description }}
 </li>
 {% endif %}{% endfor %}

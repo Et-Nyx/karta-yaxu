@@ -117,11 +117,21 @@ pokedex_entry = "A strange seed was planted on its back at birth."
 
 *(Nota: As tabelas relacionais em Array, como `[learnset]` e evoluções, ganharam arquivos `.toml` independentes para preservar 100% da correspondência bidimensional com o banco de dados).*
 
-### Seeding Automático do Banco
+### Seeding do Banco de Dados
 
-O SQLite criado pelo `sqlx` nasce fisicamente vazio. Para poupar trabalho do desenvolvedor de injetar SQL na unha, nosso backend possui uma Rota Administrativa Mágica em Rust. 
+O banco é populado pelo binário CLI `seed`, que pode ser invocado a qualquer momento. Ele cria o arquivo `.db` automaticamente (se não existir), aplica as migrations e insere todos os dados dos templates TOML em transação única.
 
-Ao "bater" na Rota `GET /admin/seed` no servidor ativo, o Backend devora todos os dados arrays `[[nome]]` dos TOMLs locais, transformando-os em dezenas de `INSERT OR REPLACE`. Isso preenche 100% da matriz relacional da engine (Todas as 12 tabelas Estáticas) instantaneamente de forma não-destrutiva!
+```bash
+# Popular (ou recriar do zero) o banco:
+cargo run -p backend --bin seed
+
+# Se precisar recriar completamente:
+rm data/rom.db && cargo run -p backend --bin seed
+```
+
+Os arquivos `.toml` em `data/template/` são a fonte de verdade dos dados estáticos. Ao editar um template e rodar o seed novamente, o banco é atualizado via `INSERT OR REPLACE` (não-destrutivo para dados não presentes nos templates).
+
+> **Nota:** O projeto usa SQLx com modo offline (`SQLX_OFFLINE=true` via `.cargo/config.toml`). Após alterar queries ou migrations, regenere o cache: `DATABASE_URL=sqlite:./data/rom.db cargo sqlx prepare --workspace`.
 
 ---
 
@@ -182,7 +192,7 @@ learnset
 ─────────────────────────────────────────
 pokemon_id   INTEGER  NOT NULL  → pokemon(id)
 move_id      INTEGER  NOT NULL  → moves(id)
-method       TEXT     NOT NULL  -- 'level_up' | 'tm' | 'egg' | 'tutor'
+method       TEXT     NOT NULL  -- 'level_up' | 'tm' | 'egg' | 'tutor' | 'gmax' | 'max'
 level        INTEGER             -- NULL quando method ≠ 'level_up'
 PRIMARY KEY (pokemon_id, move_id, method)
 ```
@@ -227,8 +237,14 @@ Cada forma alternativa e Mega Evolução é um registro independente em `pokemon
 
 *Convenção de Continuidade (ID):* O projeto mapeia variações usando um sistema de saltos baseado no ID principal original do Pokémon de forma previsível:
 - **`+ 2000`** = Mega Evolução (Ex: Venusaur é *#3*, Mega Venusaur é *2003*)
-- **`+ 3000`** = Formas Regionais 
+- **`+ 3000`** = Formas Especiais (Gigantamax, Dynamax, Formas Regionais)
+
 Independente do pulo do `.id`, o banco mantém a coluna separada `.dex_number` intocada entre todas as formas para agrupar visualmente na Wiki Oficial sem furar a continuidade da Pokedex.
+
+*Herança de Propriedades entre Formas:* Formas alternativas que não possuem entradas próprias no banco herdam automaticamente as propriedades da forma base:
+- Sem evoluções próprias → herda a linha evolutiva da base (BFS a partir da raiz)
+- Sem learnset próprio → herda o moveset completo da base
+- Formas com entradas próprias (ex: Gigantamax com G-Max Moves) sobrescrevem o fallback
 
 ### Items
 
@@ -513,12 +529,51 @@ direnv allow
 
 ## Ordem de Desenvolvimento
 
-1. Modelar o esquema do banco de dados SQLite e definir as structs Rust
-2. Implementar a crate `engine` — ler estruturas do banco, damage formula Gen 3
-3. Backend Axum — rotas, templates `askama`, servir estáticos, ler dados do banco
-4. Editor TOML — serializar registros do banco para TOML na sessão, edição cru no browser, deserializar no POST
-5. Frontend WASM — partes interativas (validação TOML em tempo real, batalha)
-6. Sistema de Trainers — autenticação, roles e registro de edições
-7. WebSockets — sala de batalha, conectar dois jogadores
-8. Histórico — salvar replays, edits e times dos Trainers
-9. Deploy no Fly.io
+### ✅ Bloco 1 — Fundação Operacional (concluído)
+
+- Seed movido para binário CLI (`cargo run -p backend --bin seed`) com `create_if_missing` e migrations automáticas
+- Tratamento de erros no seed com mensagens descritivas por arquivo/linha
+- `sqlx::migrate!()` chamado automaticamente no `main.rs`
+- Cache SQLx offline gerado (`.sqlx/`) — builds não precisam de banco ativo em compile time
+- Variável `DATABASE_URL` definida via `flake.nix` e `.env`
+
+### ✅ Bloco 2 — Wiki (leitura pública) (concluído)
+
+- Templates Askama SSR: `base.html`, pokemon/list, pokemon/detail, moves/list, moves/detail, types/list, types/detail, abilities/list, abilities/detail, mechanics/nature, mechanics/status
+- Rotas wiki completas: `/wiki/pokemon`, `/wiki/pokemon/{slug}`, `/wiki/types/{slug}`, `/wiki/moves/{slug}`, `/wiki/abilities/{slug}`, `/wiki/mechanics/nature`, `/wiki/mechanics/status`
+- Slugificação de URLs (lowercase, sem espaços/apóstrofos) via filtro `|slugify`
+- Linha evolutiva calculada por BFS — inclui toda a genealogia da raiz ao estágio final
+- Formas alternativas bidirecionais — base lista formas, formas listam a base
+- Herança inteligente de learnset e linha evolutiva para formas sem entradas próprias
+- Tipos como links navegáveis (badges clicáveis em todos os templates)
+- Cache-busting (`?v=1`) em todos os assets de imagem
+- `.prettierignore` protegendo templates Askama de formatadores automáticos
+
+### 🔲 Bloco 3 — Autenticação e Editor
+
+> Objetivo: sistema de login e painel de edição de dados.
+
+- Implementar autenticação (registro/login com argon2, sessões via `tower-sessions`, middleware de proteção por role)
+- Implementar o editor TOML (`GET /editor/*` serializa DB→TOML, `POST /editor/*` valida e grava)
+- Registrar cada edição na tabela `edits`
+
+### 🔲 Bloco 4 — Engine de Batalha
+
+> Objetivo: implementar a lógica de combate Gen 3 no crate `engine`.
+
+- Converter `weather` e `terrain` para enums em `battle.rs`
+- Implementar a damage formula Gen 3 com lookup de `type_effectiveness` e stat stages
+- Escrever testes unitários para o engine
+
+### 🔲 Bloco 5 — Frontend WASM e WebSockets
+
+> Objetivo: interatividade no cliente e batalha online.
+
+- Implementar `crate frontend` com `wasm-bindgen` (validação TOML, preview de damage calc)
+- Implementar WebSockets no backend (sala de batalha, matchmaking, loop de turno)
+
+### 🔲 Bloco 6 — Deploy
+
+- Criar Dockerfile multi-stage (build → runtime mínimo)
+- Criar `fly.toml` com volume persistente para `rom.db`
+- CI básico (GitHub Actions): `cargo test`, `cargo clippy`, `cargo fmt --check`

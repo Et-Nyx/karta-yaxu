@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT OR REPLACE INTO types (id, name, hexcolor, icon) VALUES (?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "04b21eef584593827397163edcd1d4c2dc14dd59cc039ff9f729433baffc32eb"
+}

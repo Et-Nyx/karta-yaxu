@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT OR REPLACE INTO status_conditions (id, name, description, icon, is_volatile) VALUES (?, ?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "25a756d4afa5b327f9869a89e751629757b4df13ffb46c4adac2aa9eb86c8393"
+}

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT OR REPLACE INTO pokemon_abilities (pokemon_id, ability_id, slot) VALUES (?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "9d4c894462d4cc9a142c9af382f2c40899e3ad6cf027a76e48bd1b3919b1b893"
+}

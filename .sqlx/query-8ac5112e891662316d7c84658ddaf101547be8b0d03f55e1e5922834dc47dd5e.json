@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT OR REPLACE INTO learnset (pokemon_id, move_id, method, level) VALUES (?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "8ac5112e891662316d7c84658ddaf101547be8b0d03f55e1e5922834dc47dd5e"
+}

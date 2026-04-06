@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT OR REPLACE INTO pokemon_forms (base_id, form_id, form_name) VALUES (?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "d2c49d384940d760ba97449a26298c073159081bcd5f7eeeced52369c1a54f60"
+}

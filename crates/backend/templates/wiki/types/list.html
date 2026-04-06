@@ -1,13 +1,20 @@
-{% extends "base.html" %}
-{% block title %}Tipos — Karta Yaxu{% endblock %}
-{% block content %}
+{% extends "base.html" %} {% block title %}Tipos — Karta Yaxu{% endblock %} {%
+block content %}
 <h1>Tipos</h1>
 <div class="types-grid">
-{% for t in types %}
-<a class="type-card" href="/wiki/types/{{ t.name|slugify }}" style="border-color:{{ t.hexcolor }}">
-    <img src="/static/icons/types/{{ t.icon }}" alt="{{ t.name }}" onerror="this.style.display='none'">
+  {% for t in types %}
+  <a
+    class="type-card"
+    href="/wiki/types/{{ t.name|slugify }}"
+    style="border-color:{{ t.hexcolor }}"
+  >
+    <img
+      src="/static/icons/types/{{ t.icon }}?v=1"
+      alt="{{ t.name }}"
+      onerror="this.style.display = 'none'"
+    />
     <span style="color:{{ t.hexcolor }}">{{ t.name }}</span>
-</a>
-{% endfor %}
+  </a>
+  {% endfor %}
 </div>
 {% endblock %}

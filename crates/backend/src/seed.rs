@@ -119,7 +119,7 @@ pub async fn run_seed_cli(pool: &SqlitePool) -> Result<(), Box<dyn std::error::E
         .map_err(|e| format!("Erro ao ler learnset.toml: {e}"))?;
     for l in toml::from_str::<LearnsetSeed>(&c)
         .map_err(|e| format!("Erro ao parsear learnset.toml: {e}"))?.learnset {
-        let met = match l.method { LearnMethod::LevelUp=>"level_up", LearnMethod::Tm=>"tm", LearnMethod::Egg=>"egg", LearnMethod::Tutor=>"tutor" };
+        let met = match l.method { LearnMethod::LevelUp=>"level_up", LearnMethod::Tm=>"tm", LearnMethod::Egg=>"egg", LearnMethod::Tutor=>"tutor", LearnMethod::Gmax=>"gmax", LearnMethod::Max=>"max" };
         sqlx::query!("INSERT OR REPLACE INTO learnset (pokemon_id, move_id, method, level) VALUES (?, ?, ?, ?)", l.pokemon_id, l.move_id, met, l.level).execute(&mut *tx).await
             .map_err(|e| format!("Erro ao inserir learnset (pokemon {}, move {}): {e}", l.pokemon_id, l.move_id))?;
     }

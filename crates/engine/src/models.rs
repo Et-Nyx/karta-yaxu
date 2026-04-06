@@ -6,7 +6,7 @@ pub struct Type {
     pub id: i64,
     pub name: String,
     pub hexcolor: String,
-    pub icon: String
+    pub icon: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -14,7 +14,7 @@ pub struct Type {
 pub struct Ability {
     pub id: i64,
     pub name: String,
-    pub description: String
+    pub description: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
@@ -24,7 +24,7 @@ pub struct Ability {
 pub enum MoveCategory {
     Physical,
     Special,
-    Status
+    Status,
 }
 
 impl std::fmt::Display for MoveCategory {
@@ -44,7 +44,7 @@ pub struct StatusCondition {
     pub name: String,
     pub description: String,
     pub icon: String,
-    pub is_volatile: bool
+    pub is_volatile: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
@@ -55,7 +55,7 @@ pub enum StatusEffect {
     Paralysis,
     Burn,
     Sleep,
-    Freeze
+    Freeze,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -68,7 +68,7 @@ pub struct Move {
     pub power: Option<i64>,
     pub accuracy: Option<i64>,
     pub pp: i64,
-    pub description: String
+    pub description: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -87,7 +87,7 @@ pub struct Pokemon {
     pub spa: i64,
     pub spd: i64,
     pub spe: i64,
-    pub pokedex_entry: String
+    pub pokedex_entry: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -148,6 +148,8 @@ pub enum LearnMethod {
     Tm,
     Egg,
     Tutor,
+    Gmax,
+    Max,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
