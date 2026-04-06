@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Status — Karta Yaxu{% endblock %}
+{% block content %}
+<h1>Condições de Status</h1>
+
+<h2>Principais (Persistentes)</h2>
+<ul class="status-list">
+{% for c in conditions %}{% if !c.is_volatile %}
+<li>
+    <img src="/static/icons/status/{{ c.icon }}" alt="{{ c.name }}" onerror="this.style.display='none'">
+    <strong>{{ c.name }}</strong> — {{ c.description }}
+</li>
+{% endif %}{% endfor %}
+</ul>
+
+<h2>Voláteis (Temporários)</h2>
+<ul class="status-list">
+{% for c in conditions %}{% if c.is_volatile %}
+<li>
+    <img src="/static/icons/status/{{ c.icon }}" alt="{{ c.name }}" onerror="this.style.display='none'">
+    <strong>{{ c.name }}</strong> — {{ c.description }}
+</li>
+{% endif %}{% endfor %}
+</ul>
+{% endblock %}

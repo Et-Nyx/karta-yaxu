@@ -6,6 +6,7 @@ use sqlx::sqlite::SqlitePoolOptions;
 use sqlx::sqlite::SqliteConnectOptions;
 use std::str::FromStr;
 use std::env;
+use tower_http::services::ServeDir;
 
 
 #[tokio::main]
@@ -27,9 +28,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await?;
 
     println!("Configurando as rotas Axum...");
-    let app = Router::new() 
+    let app = Router::new()
         .route("/", get(home_handler))
         .route("/health", get(health_handler))
+        // Wiki — Pokémon
+        .route("/wiki/pokemon", get(backend::wiki::pokemon_list))
+        .route("/wiki/pokemon/{slug}", get(backend::wiki::pokemon_detail))
+        // Wiki — Tipos
+        .route("/wiki/types", get(backend::wiki::types_list))
+        .route("/wiki/types/{slug}", get(backend::wiki::type_detail))
+        // Wiki — Moves
+        .route("/wiki/moves", get(backend::wiki::moves_list))
+        .route("/wiki/moves/{slug}", get(backend::wiki::move_detail))
+        // Wiki — Habilidades
+        .route("/wiki/abilities", get(backend::wiki::abilities_list))
+        .route("/wiki/abilities/{slug}", get(backend::wiki::ability_detail))
+        // Wiki — Mecânicas
+        .route("/wiki/mechanics/nature", get(backend::wiki::natures_list))
+        .route("/wiki/mechanics/status", get(backend::wiki::status_list))
+        // Estáticos
+        .nest_service("/static", ServeDir::new("static"))
         .with_state(pool);
 
     println!("Servidor rodando localmente em: http://0.0.0.0:3000");

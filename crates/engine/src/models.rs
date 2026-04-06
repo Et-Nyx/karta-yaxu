@@ -1,14 +1,16 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "db", derive(sqlx::FromRow))]
 pub struct Type {
     pub id: i64,
     pub name: String,
     pub hexcolor: String,
-    pub icon: String 
+    pub icon: String
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "db", derive(sqlx::FromRow))]
 pub struct Ability {
     pub id: i64,
     pub name: String,
@@ -16,6 +18,8 @@ pub struct Ability {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "db", derive(sqlx::Type))]
+#[cfg_attr(feature = "db", sqlx(type_name = "TEXT", rename_all = "lowercase"))]
 #[serde(rename_all = "snake_case")]
 pub enum MoveCategory {
     Physical,
@@ -23,7 +27,18 @@ pub enum MoveCategory {
     Status
 }
 
+impl std::fmt::Display for MoveCategory {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MoveCategory::Physical => write!(f, "Físico"),
+            MoveCategory::Special => write!(f, "Especial"),
+            MoveCategory::Status => write!(f, "Status"),
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "db", derive(sqlx::FromRow))]
 pub struct StatusCondition {
     pub id: i64,
     pub name: String,
@@ -44,6 +59,7 @@ pub enum StatusEffect {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "db", derive(sqlx::FromRow))]
 pub struct Move {
     pub id: i64,
     pub name: String,
@@ -56,6 +72,7 @@ pub struct Move {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "db", derive(sqlx::FromRow))]
 pub struct Pokemon {
     pub id: i64,
     pub dex_number: i64,
@@ -74,6 +91,7 @@ pub struct Pokemon {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "db", derive(sqlx::FromRow))]
 pub struct Item {
     pub id: i64,
     pub name: String,
@@ -82,6 +100,7 @@ pub struct Item {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "db", derive(sqlx::FromRow))]
 pub struct Nature {
     pub id: i64,
     pub name: String,
@@ -90,6 +109,7 @@ pub struct Nature {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "db", derive(sqlx::FromRow))]
 pub struct TypeEffectiveness {
     pub attacker_id: i64,
     pub defender_id: i64,
@@ -97,6 +117,7 @@ pub struct TypeEffectiveness {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "db", derive(sqlx::FromRow))]
 pub struct PokemonAbility {
     pub pokemon_id: i64,
     pub ability_id: i64,
@@ -104,6 +125,7 @@ pub struct PokemonAbility {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "db", derive(sqlx::FromRow))]
 pub struct Evolution {
     pub from_id: i64,
     pub to_id: i64,
@@ -112,6 +134,7 @@ pub struct Evolution {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "db", derive(sqlx::FromRow))]
 pub struct PokemonForm {
     pub base_id: i64,
     pub form_id: i64,

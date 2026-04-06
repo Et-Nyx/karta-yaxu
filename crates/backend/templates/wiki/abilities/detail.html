@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}{{ a.name }} — Habilidades — Karta Yaxu{% endblock %}
+{% block content %}
+<div class="ability-detail">
+    <h1>{{ a.name }}</h1>
+    <p class="description">{{ a.description }}</p>
+
+    {% if !pokemon.is_empty() %}
+    <h2>Pokémon com esta habilidade</h2>
+    <div class="pokemon-grid">
+    {% for p in pokemon %}
+    <a class="card" href="/wiki/pokemon/{{ p.name|slugify }}">
+        <img src="/static/sprites/pokemon/{{ p.sprite }}" alt="{{ p.name }}" onerror="this.style.display='none'">
+        <span>{{ p.name }}</span>
+    </a>
+    {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

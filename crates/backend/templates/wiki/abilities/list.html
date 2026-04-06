@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Habilidades — Karta Yaxu{% endblock %}
+{% block content %}
+<h1>Habilidades</h1>
+<ul class="ability-list">
+{% for a in abilities %}
+<li>
+    <a href="/wiki/abilities/{{ a.name|slugify }}"><strong>{{ a.name }}</strong></a>
+    — {{ a.description }}
+</li>
+{% endfor %}
+</ul>
+{% endblock %}

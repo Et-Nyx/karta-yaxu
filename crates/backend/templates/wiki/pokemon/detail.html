@@ -1,0 +1,146 @@
+{% extends "base.html" %} {% block title %}{{ p.name }} — Karta Yaxu{% endblock
+%} {% block content %}
+<div class="pokemon-detail">
+  <header class="poke-header">
+    <img src="/static/sprites/pokemon/{{ p.sprite }}" alt="{{ p.name }}" />
+    <img
+      src="/static/sprites/shiny/{{ p.sprite_shiny }}"
+      alt="{{ p.name }} shiny"
+      title="Shiny"
+    />
+    <div>
+      <span class="dex-num">#{{ p.dex_number }}</span>
+      <h1>{{ p.name }}</h1>
+      <div class="types">
+        <a
+          class="type-badge"
+          href="/wiki/types/{{ type1.name|slugify }}"
+          style="background:{{ type1.hexcolor }}"
+          >{{ type1.name }}</a
+        >
+        {% if let Some(t2) = type2 %}
+        <a
+          class="type-badge"
+          href="/wiki/types/{{ t2.name|slugify }}"
+          style="background:{{ t2.hexcolor }}"
+          >{{ t2.name }}</a
+        >
+        {% endif %}
+      </div>
+    </div>
+  </header>
+
+  <p class="pokedex-entry">{{ p.pokedex_entry }}</p>
+
+  <h2>Stats Base</h2>
+  <table class="stats-table">
+    <tr>
+      <th>HP</th>
+      <td>{{ p.hp }}</td>
+    </tr>
+    <tr>
+      <th>Ataque</th>
+      <td>{{ p.atk }}</td>
+    </tr>
+    <tr>
+      <th>Defesa</th>
+      <td>{{ p.def }}</td>
+    </tr>
+    <tr>
+      <th>Atq. Esp.</th>
+      <td>{{ p.spa }}</td>
+    </tr>
+    <tr>
+      <th>Def. Esp.</th>
+      <td>{{ p.spd }}</td>
+    </tr>
+    <tr>
+      <th>Velocidade</th>
+      <td>{{ p.spe }}</td>
+    </tr>
+    <tr>
+      <th>Total</th>
+      <td>
+        <strong>{{ p.hp + p.atk + p.def + p.spa + p.spd + p.spe }}</strong>
+      </td>
+    </tr>
+  </table>
+
+  {% if !abilities.is_empty() %}
+  <h2>Habilidades</h2>
+  <ul class="ability-list">
+    {% for a in abilities %}
+    <li>
+      <a href="/wiki/abilities/{{ a.name|slugify }}">{{ a.name }}</a> — {{
+      a.description }}
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %} {% if !evolutions.is_empty() %}
+  <h2>Linha Evolutiva</h2>
+  <div class="evo-list">
+    {% for e in evolutions %}
+    <a class="card" href="/wiki/pokemon/{{ e.name|slugify }}" {% if e.id == p.id %}style="border-color: #ffd700; background: #fffde7;"{% endif %}>
+      <img
+        src="/static/sprites/pokemon/{{ e.sprite }}"
+        alt="{{ e.name }}"
+        onerror="this.style.display = 'none'"
+      />
+      <span>{{ e.name }}</span>
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %} {% if !forms.is_empty() %}
+  <h2>Formas Alternativas</h2>
+  <div class="evo-list">
+    {% for f in forms %}
+    <a class="card" href="/wiki/pokemon/{{ f.name|slugify }}">
+      <img
+        src="/static/sprites/pokemon/{{ f.sprite }}"
+        alt="{{ f.name }}"
+        onerror="this.style.display = 'none'"
+      />
+      <span>{{ f.name }}</span>
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %} {% if !learnset.is_empty() %}
+  <h2>Moves Aprendidos</h2>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Método / Nível</th>
+        <th>Move</th>
+        <th>Tipo</th>
+        <th>Cat.</th>
+        <th>PWR</th>
+        <th>ACC</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for (m, t, method, level) in learnset %}
+      <tr>
+        <td>
+          {% if method == "level_up" %}Nível {% if let Some(l) = level %}{{ l
+          }}{% endif %} {% else if method == "tm" %}TM {% else if method ==
+          "egg" %}Egg {% else %}{{ method }}{% endif %}
+        </td>
+        <td><a href="/wiki/moves/{{ m.name|slugify }}">{{ m.name }}</a></td>
+        <td>
+          <a
+            class="type-badge"
+            href="/wiki/types/{{ t.name|slugify }}"
+            style="background:{{ t.hexcolor }}"
+            >{{ t.name }}</a
+          >
+        </td>
+        <td>{{ m.category }}</td>
+        <td>{% if let Some(p) = m.power %}{{ p }}{% else %}—{% endif %}</td>
+        <td>{% if let Some(a) = m.accuracy %}{{ a }}%{% else %}—{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</div>
+{% endblock %}

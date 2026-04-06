@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Naturezas — Karta Yaxu{% endblock %}
+{% block content %}
+<h1>Naturezas</h1>
+<table class="data-table">
+    <thead>
+        <tr><th>Nome</th><th>Stat +10%</th><th>Stat -10%</th></tr>
+    </thead>
+    <tbody>
+    {% for n in natures %}
+    <tr>
+        <td>{{ n.name }}</td>
+        <td>{% if let Some(s) = n.increased_stat %}{{ s }}{% else %}—{% endif %}</td>
+        <td>{% if let Some(s) = n.decreased_stat %}{{ s }}{% else %}—{% endif %}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

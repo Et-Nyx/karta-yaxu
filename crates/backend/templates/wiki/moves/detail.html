@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}{{ m.name }} — Moves — Karta Yaxu{% endblock %}
+{% block content %}
+<div class="move-detail">
+    <h1>{{ m.name }}</h1>
+    <table class="info-table">
+        <tr><th>Tipo</th>
+            <td><a class="type-badge" href="/wiki/types/{{ t.name|slugify }}" style="background:{{ t.hexcolor }}">{{ t.name }}</a></td></tr>
+        <tr><th>Categoria</th><td>{{ m.category }}</td></tr>
+        <tr><th>Poder</th>
+            <td>{% if let Some(p) = m.power %}{{ p }}{% else %}—{% endif %}</td></tr>
+        <tr><th>Precisão</th>
+            <td>{% if let Some(a) = m.accuracy %}{{ a }}%{% else %}—{% endif %}</td></tr>
+        <tr><th>PP</th><td>{{ m.pp }}</td></tr>
+    </table>
+    <p class="description">{{ m.description }}</p>
+
+    {% if !learnset.is_empty() %}
+    <h2>Aprendido por</h2>
+    <div class="pokemon-grid">
+    {% for (p, method, level) in learnset %}
+    <a class="card" href="/wiki/pokemon/{{ p.name|slugify }}">
+        <img src="/static/sprites/pokemon/{{ p.sprite }}" alt="{{ p.name }}" onerror="this.style.display='none'">
+        <span>{{ p.name }}</span>
+        <span class="method">
+            {% if method == "level_up" %}Nv {% if let Some(lv) = level %}{{ lv }}{% endif %}
+            {% else if method == "tm" %}TM
+            {% else if method == "egg" %}Egg
+            {% else %}{{ method }}{% endif %}
+        </span>
+    </a>
+    {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

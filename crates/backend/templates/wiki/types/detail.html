@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}{{ t.name }} — Tipos — Karta Yaxu{% endblock %}
+{% block content %}
+<div class="type-detail">
+    <h1 class="type-badge" style="background:{{ t.hexcolor }}">
+        <img src="/static/icons/types/{{ t.icon }}" alt="{{ t.name }}">
+        {{ t.name }}
+    </h1>
+
+    <h2>Como atacante</h2>
+    <p>Dano que o tipo {{ t.name }} causa em outros tipos:</p>
+    <table class="eff-table">
+        <thead><tr><th>Defensor</th><th>Multiplicador</th></tr></thead>
+        <tbody>
+        {% for (def_t, mult) in as_attacker %}
+        <tr>
+            <td><a class="type-badge" href="/wiki/types/{{ def_t.name|slugify }}" style="background:{{ def_t.hexcolor }}">{{ def_t.name }}</a></td>
+            <td class="multiplier">{{ mult }}x</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    <h2>Como defensor</h2>
+    <p>Dano que outros tipos causam em {{ t.name }}:</p>
+    <table class="eff-table">
+        <thead><tr><th>Atacante</th><th>Multiplicador</th></tr></thead>
+        <tbody>
+        {% for (atk_t, mult) in as_defender %}
+        <tr>
+            <td><a class="type-badge" href="/wiki/types/{{ atk_t.name|slugify }}" style="background:{{ atk_t.hexcolor }}">{{ atk_t.name }}</a></td>
+            <td class="multiplier">{{ mult }}x</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

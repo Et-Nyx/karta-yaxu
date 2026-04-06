@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Moves — Karta Yaxu{% endblock %}
+{% block content %}
+<h1>Moves</h1>
+<table class="data-table">
+    <thead>
+        <tr>
+            <th>Nome</th><th>Tipo</th><th>Categoria</th>
+            <th>Poder</th><th>Precisão</th><th>PP</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for (m, t) in moves %}
+    <tr>
+        <td><a href="/wiki/moves/{{ m.name|slugify }}">{{ m.name }}</a></td>
+        <td><a class="type-badge" href="/wiki/types/{{ t.name|slugify }}" style="background:{{ t.hexcolor }}">{{ t.name }}</a></td>
+        <td>{{ m.category }}</td>
+        <td>{% if let Some(p) = m.power %}{{ p }}{% else %}—{% endif %}</td>
+        <td>{% if let Some(a) = m.accuracy %}{{ a }}%{% else %}—{% endif %}</td>
+        <td>{{ m.pp }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Karta Yaxu{% endblock %}</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <nav class="sidebar">
+        <a class="logo" href="/">Karta Yaxu</a>
+        <ul>
+            <li><a href="/wiki/pokemon">Pokédex</a></li>
+            <li><a href="/wiki/types">Tipos</a></li>
+            <li><a href="/wiki/moves">Moves</a></li>
+            <li><a href="/wiki/abilities">Habilidades</a></li>
+            <li><a href="/wiki/mechanics/nature">Naturezas</a></li>
+            <li><a href="/wiki/mechanics/status">Status</a></li>
+        </ul>
+    </nav>
+    <main class="content">
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>
