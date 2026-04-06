@@ -2,3 +2,8 @@
 base_id = 3
 form_id = 2003
 form_name = "Mega"
+
+[[pokemon_form]]
+base_id = 3
+form_id = 3003
+form_name = "Gmax"

@@ -61,3 +61,19 @@ spa = 122
 spd = 120
 spe = 80
 pokedex_entry = "In order to support its flower, which has grown larger due to Mega Evolution, its back and legs have become stronger."
+
+[[pokemon]]
+id = 3003
+dex_number = 3
+name = "Gigantamax Venusaur"
+sprite = "venusaur_gmax.png"
+sprite_shiny = "venusaur_gmax_shiny.png"
+type1_id = 12
+type2_id = 4
+hp = 160
+atk = 82
+def = 100
+spa = 130
+spd = 120
+spe = 60
+pokedex_entry = "Its flower has grown to a massive size due to Gigantamax energy. The flower's scent brings joy to people's hearts."

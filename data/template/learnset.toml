@@ -21,3 +21,20 @@ pokemon_id = 3
 move_id = 3 # Solar Beam
 method = "level_up"
 level = 65
+
+[[learnset]]
+pokemon_id = 3003
+move_id = 2 # Razor Leaf
+method = "tm"
+
+[[learnset]]
+pokemon_id = 3003
+move_id = 3 # Solar Beam
+method = "level_up"
+level = 100
+
+[[learnset]]
+pokemon_id = 3003
+move_id = 5 # G-Max Vine Lash
+method = "tutor"
+level = 1
