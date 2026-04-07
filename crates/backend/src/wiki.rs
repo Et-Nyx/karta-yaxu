@@ -81,7 +81,7 @@ pub async fn pokemon_detail(
     ).bind(p.id).fetch_all(&pool).await.unwrap_or_default();
 
     let all_forms = sqlx::query_as::<_, (i64, i64)>("SELECT base_id, form_id FROM pokemon_forms").fetch_all(&pool).await.unwrap_or_default();
-    
+
     let true_base_id = all_forms.iter()
         .find(|&&(_, form)| form == p.id)
         .map(|&(base, _)| base)
@@ -109,8 +109,8 @@ pub async fn pokemon_detail(
     while head < evo_ids.len() {
         let current = evo_ids[head];
         for &(from, to) in &all_evos {
-            if from == current && !evo_ids.contains(&to) { 
-                evo_ids.push(to); 
+            if from == current && !evo_ids.contains(&to) {
+                evo_ids.push(to);
             }
         }
         head += 1;
@@ -212,7 +212,7 @@ pub async fn type_detail(
             }
         }
     }
-    
+
     // Sort
     as_attacker.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap().then_with(|| a.0.name.cmp(&b.0.name)));
     as_defender.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap().then_with(|| a.0.name.cmp(&b.0.name)));
@@ -266,7 +266,7 @@ pub async fn move_detail(
     };
 
     let all_types = sqlx::query_as::<_, Type>("SELECT id, name, hexcolor, icon FROM types").fetch_all(&pool).await.unwrap_or_default();
-    
+
     let t = all_types.into_iter().find(|t| t.id == m.type_id).unwrap();
 
     let all_pokemon = sqlx::query_as::<_, Pokemon>("SELECT id, dex_number, name, sprite, sprite_shiny, type1_id, type2_id, hp, atk, def, spa, spd, spe, pokedex_entry FROM pokemon")

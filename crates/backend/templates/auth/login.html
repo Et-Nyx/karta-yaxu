@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Login - Karta Yaxu{% endblock %}
+
+{% block content %}
+<div class="content-block">
+    <h1>Login Trainer</h1>
+
+    {% if let Some(err) = error %}
+    <div style="color: red; margin-bottom: 1rem; padding: 0.5rem; border-radius: 4px;">
+        {{ err }}
+    </div>
+    {% endif %}
+
+    <form method="post" action="/trainer/login">
+        <div style="margin-bottom: 1rem;">
+            <label for="username" style="display: block; margin-bottom: 0.5rem;">Username</label>
+            <input type="text" id="username" name="username" required style="width: 100%; padding: 0.5rem; border-radius: 4px; border: 1px solid var(--border);">
+        </div>
+
+        <div style="margin-bottom: 1rem;">
+            <label for="password" style="display: block; margin-bottom: 0.5rem;">Senha</label>
+            <input type="password" id="password" name="password" required style="width: 100%; padding: 0.5rem; border-radius: 4px; border: 1px solid var(--border);">
+        </div>
+
+        <button type="submit" style="padding: 0.5rem 1rem; background: var(--type-normal); border: none; border-radius: 4px; cursor: pointer;">
+            Entrar
+        </button>
+    </form>
+
+    <p style="margin-top: 1rem;">
+        Não tem conta? <a href="/trainer/register">Registre-se aqui</a>
+    </p>
+</div>
+{% endblock %}

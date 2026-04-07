@@ -2,19 +2,19 @@
 block content %}
 <h1>Tipos</h1>
 <div class="types-grid">
-  {% for t in types %}
-  <a
-    class="type-card"
-    href="/wiki/types/{{ t.name|slugify }}"
-    style="border-color:{{ t.hexcolor }}"
-  >
-    <img
-      src="/static/icons/types/{{ t.icon }}?v=1"
-      alt="{{ t.name }}"
-      onerror="this.style.display = 'none'"
-    />
-    <span style="color:{{ t.hexcolor }}">{{ t.name }}</span>
-  </a>
-  {% endfor %}
+    {% for t in types %}
+    <a
+        class="type-card"
+        href="/wiki/types/{{ t.name|slugify }}"
+        style="border-color:{{ t.hexcolor }}"
+    >
+        <img
+            src="/static/icons/types/{{ t.icon }}?v=1"
+            alt="{{ t.name }}"
+            onerror="this.style.display = 'none'"
+        />
+        <span style="color:{{ t.hexcolor }}">{{ t.name }}</span>
+    </a>
+    {% endfor %}
 </div>
 {% endblock %}

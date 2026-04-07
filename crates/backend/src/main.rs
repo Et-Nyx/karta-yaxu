@@ -7,7 +7,9 @@ use sqlx::sqlite::SqliteConnectOptions;
 use std::str::FromStr;
 use std::env;
 use tower_http::services::ServeDir;
-
+use tower_sessions::SessionManagerLayer;
+use tower_sessions_sqlx_store::SqliteStore;
+use backend::auth;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -27,10 +29,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .run(&pool)
         .await?;
 
+    println!("Configurando o gerenciador de sessões...");
+    let session_store = SqliteStore::new(pool.clone());
+    session_store.migrate().await?;
+    let session_layer = SessionManagerLayer::new(session_store)
+        .with_secure(false);
+
     println!("Configurando as rotas Axum...");
     let app = Router::new()
         .route("/", get(home_handler))
         .route("/health", get(health_handler))
+        // Trainers - auth
+        .route("/trainer/login", get(auth::login_page).post(auth::login_post))
+        .route("/trainer/register", get(auth::register_page).post(auth::register_post))
+        .route("/trainer/dashboard", get(auth::dashboard))
+        .route("/trainer/logout", axum::routing::post(auth::logout))
         // Wiki — Pokémon
         .route("/wiki/pokemon", get(backend::wiki::pokemon_list))
         .route("/wiki/pokemon/{slug}", get(backend::wiki::pokemon_detail))
@@ -48,6 +61,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/wiki/mechanics/status", get(backend::wiki::status_list))
         // Estáticos
         .nest_service("/static", ServeDir::new("static"))
+        .layer(session_layer)
         .with_state(pool);
 
     println!("Servidor rodando localmente em: http://0.0.0.0:3000");

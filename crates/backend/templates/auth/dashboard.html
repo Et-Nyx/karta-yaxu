@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Karta Yaxu{% endblock %}
+
+{% block content %}
+<div class="content-block">
+    <h1>Bem-vindo, {{ username }}!</h1>
+
+    <p>Seu cargo atual: <strong>{{ role }}</strong></p>
+
+    {% if role == "editor" %}
+    <div style="margin-top: 1rem; padding: 1rem; background-color: var(--type-grass); color: white; border-radius: 4px;">
+        <h3>Acesso de Editor</h3>
+        <p>Você tem permissão para editar os dados da Wiki.</p>
+        <ul style="margin-top: 0.5rem; margin-left: 1.5rem;">
+            <li><a href="/editor/pokemon" style="color: white; text-decoration: underline;">Acessar Editor de Pokémon</a></li>
+        </ul>
+    </div>
+    {% else %}
+    <div style="margin-top: 1rem; padding: 1rem; border: 1px solid var(--border); border-radius: 4px;">
+        <p>Como Visualizador, você pode navegar livremente pela Wiki pública.</p>
+    </div>
+    {% endif %}
+
+    <div style="margin-top: 2rem;">
+        <form method="post" action="/trainer/logout">
+            <button type="submit" style="padding: 0.5rem 1rem; background: var(--type-fire); color: red; border: none; border-radius: 4px; cursor: pointer;">
+                Sair
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}
