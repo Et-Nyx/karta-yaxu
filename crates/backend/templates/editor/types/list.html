@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}Editor de Tipos — Karta Yaxu{% endblock %}
+
+{% block content %}
+<div class="editor-header">
+    <h1>Editor: Tipos</h1>
+    <a href="/editor/types/new" class="btn btn-primary">+ Novo Tipo</a>
+</div>
+<div class="types-list">
+    <table class="wiki-table">
+        <thead>
+            <tr>
+                <th>Nome</th>
+                <th>Cor</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for t in types %}
+            <tr>
+                <td style="color: {{ t.hexcolor }}">{{ t.name }}</td>
+                <td><code>{{ t.hexcolor }}</code></td>
+                <td>
+                    <a href="/editor/types/{{ t.name|slugify }}" class="btn btn-sm">Editar</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

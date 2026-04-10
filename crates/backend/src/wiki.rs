@@ -2,14 +2,12 @@ use axum::{extract::{Path, State}, http::StatusCode, response::{Html, IntoRespon
 use sqlx::SqlitePool;
 use askama::Template;
 use engine::models::{Pokemon, Type, Ability, Nature, StatusCondition, Move};
+use tower_sessions::Session;
+use crate::auth;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-mod filters {
-    pub fn slugify<T: std::fmt::Display>(s: T) -> askama::Result<String> {
-        Ok(s.to_string().to_lowercase().replace(' ', "-").replace('\'', ""))
-    }
-}
+use crate::filters;
 
 fn to_slug(name: &str) -> String {
     name.to_lowercase().replace(' ', "-").replace('\'', "")
@@ -26,16 +24,18 @@ fn render(t: impl Template) -> Result<Html<String>, StatusCode> {
 #[template(path = "wiki/pokemon/list.html")]
 struct PokemonListTemplate {
     pokemon: Vec<Pokemon>,
+    user_role: Option<String>,
 }
 
-pub async fn pokemon_list(State(pool): State<SqlitePool>) -> impl IntoResponse {
+pub async fn pokemon_list(session: Session, State(pool): State<SqlitePool>) -> impl IntoResponse {
     let pokemon = sqlx::query_as::<_, Pokemon>(
         "SELECT id, dex_number, name, sprite, sprite_shiny,
                 type1_id, type2_id, hp, atk, def, spa, spd, spe, pokedex_entry
          FROM pokemon ORDER BY dex_number, id"
     ).fetch_all(&pool).await.unwrap_or_default();
 
-    render(PokemonListTemplate { pokemon }).unwrap_or_else(|s| Html(s.to_string()))
+    let user_role = auth::get_user_role(&session).await;
+    render(PokemonListTemplate { pokemon, user_role }).unwrap_or_else(|s| Html(s.to_string()))
 }
 
 #[derive(Template)]
@@ -48,9 +48,11 @@ struct PokemonDetailTemplate {
     evolutions: Vec<Pokemon>,
     forms: Vec<Pokemon>,
     learnset: Vec<(Move, Type, String, Option<i64>)>, // (Golpe, Tipo do golpe, método, nível)
+    user_role: Option<String>,
 }
 
 pub async fn pokemon_detail(
+    session: Session,
     State(pool): State<SqlitePool>,
     Path(slug): Path<String>,
 ) -> impl IntoResponse {
@@ -154,7 +156,8 @@ pub async fn pokemon_detail(
         }
     }
 
-    render(PokemonDetailTemplate { p, type1, type2, abilities, evolutions, forms, learnset })
+    let user_role = auth::get_user_role(&session).await;
+    render(PokemonDetailTemplate { p, type1, type2, abilities, evolutions, forms, learnset, user_role })
         .unwrap_or_else(|s| Html(s.to_string()))
 }
 
@@ -164,14 +167,16 @@ pub async fn pokemon_detail(
 #[template(path = "wiki/types/list.html")]
 struct TypesListTemplate {
     types: Vec<Type>,
+    user_role: Option<String>,
 }
 
-pub async fn types_list(State(pool): State<SqlitePool>) -> impl IntoResponse {
+pub async fn types_list(session: Session, State(pool): State<SqlitePool>) -> impl IntoResponse {
     let types = sqlx::query_as::<_, Type>(
-        "SELECT id, name, hexcolor, icon FROM types ORDER BY id"
+        "SELECT id, name, hexcolor, icon FROM types WHERE id > 0 ORDER BY id"
     ).fetch_all(&pool).await.unwrap_or_default();
 
-    render(TypesListTemplate { types }).unwrap_or_else(|s| Html(s.to_string()))
+    let user_role = auth::get_user_role(&session).await;
+    render(TypesListTemplate { types, user_role }).unwrap_or_else(|s| Html(s.to_string()))
 }
 
 #[derive(Template)]
@@ -180,9 +185,11 @@ struct TypeDetailTemplate {
     t: Type,
     as_attacker: Vec<(Type, f64)>, // (Tipo Defensor, multiplicador)
     as_defender: Vec<(Type, f64)>, // (Tipo Atacante, multiplicador)
+    user_role: Option<String>,
 }
 
 pub async fn type_detail(
+    session: Session,
     State(pool): State<SqlitePool>,
     Path(slug): Path<String>,
 ) -> impl IntoResponse {
@@ -217,7 +224,8 @@ pub async fn type_detail(
     as_attacker.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap().then_with(|| a.0.name.cmp(&b.0.name)));
     as_defender.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap().then_with(|| a.0.name.cmp(&b.0.name)));
 
-    render(TypeDetailTemplate { t, as_attacker, as_defender })
+    let user_role = auth::get_user_role(&session).await;
+    render(TypeDetailTemplate { t, as_attacker, as_defender, user_role })
         .unwrap_or_else(|s| Html(s.to_string()))
 }
 
@@ -227,9 +235,10 @@ pub async fn type_detail(
 #[template(path = "wiki/moves/list.html")]
 struct MovesListTemplate {
     moves: Vec<(Move, Type)>,
+    user_role: Option<String>,
 }
 
-pub async fn moves_list(State(pool): State<SqlitePool>) -> impl IntoResponse {
+pub async fn moves_list(session: Session, State(pool): State<SqlitePool>) -> impl IntoResponse {
     let moves_db = sqlx::query_as::<_, Move>(
         "SELECT id, name, type_id, category, power, accuracy, pp, description FROM moves ORDER BY name"
     ).fetch_all(&pool).await.unwrap_or_default();
@@ -241,7 +250,8 @@ pub async fn moves_list(State(pool): State<SqlitePool>) -> impl IntoResponse {
         (m, t)
     }).collect();
 
-    render(MovesListTemplate { moves }).unwrap_or_else(|s| Html(s.to_string()))
+    let user_role = auth::get_user_role(&session).await;
+    render(MovesListTemplate { moves, user_role }).unwrap_or_else(|s| Html(s.to_string()))
 }
 
 #[derive(Template)]
@@ -250,9 +260,11 @@ struct MoveDetailTemplate {
     m: Move,
     t: Type,
     learnset: Vec<(Pokemon, String, Option<i64>)>,
+    user_role: Option<String>,
 }
 
 pub async fn move_detail(
+    session: Session,
     State(pool): State<SqlitePool>,
     Path(slug): Path<String>,
 ) -> impl IntoResponse {
@@ -283,7 +295,8 @@ pub async fn move_detail(
         }
     }
 
-    render(MoveDetailTemplate { m, t, learnset })
+    let user_role = auth::get_user_role(&session).await;
+    render(MoveDetailTemplate { m, t, learnset, user_role })
         .unwrap_or_else(|s| Html(s.to_string()))
 }
 
@@ -293,14 +306,16 @@ pub async fn move_detail(
 #[template(path = "wiki/abilities/list.html")]
 struct AbilitiesListTemplate {
     abilities: Vec<Ability>,
+    user_role: Option<String>,
 }
 
-pub async fn abilities_list(State(pool): State<SqlitePool>) -> impl IntoResponse {
+pub async fn abilities_list(session: Session, State(pool): State<SqlitePool>) -> impl IntoResponse {
     let abilities = sqlx::query_as::<_, Ability>(
         "SELECT id, name, description FROM abilities ORDER BY name"
     ).fetch_all(&pool).await.unwrap_or_default();
 
-    render(AbilitiesListTemplate { abilities }).unwrap_or_else(|s| Html(s.to_string()))
+    let user_role = auth::get_user_role(&session).await;
+    render(AbilitiesListTemplate { abilities, user_role }).unwrap_or_else(|s| Html(s.to_string()))
 }
 
 #[derive(Template)]
@@ -308,9 +323,11 @@ pub async fn abilities_list(State(pool): State<SqlitePool>) -> impl IntoResponse
 struct AbilityDetailTemplate {
     a: Ability,
     pokemon: Vec<Pokemon>,
+    user_role: Option<String>,
 }
 
 pub async fn ability_detail(
+    session: Session,
     State(pool): State<SqlitePool>,
     Path(slug): Path<String>,
 ) -> impl IntoResponse {
@@ -332,7 +349,8 @@ pub async fn ability_detail(
          ORDER BY p.dex_number"
     ).bind(a.id).fetch_all(&pool).await.unwrap_or_default();
 
-    render(AbilityDetailTemplate { a, pokemon })
+    let user_role = auth::get_user_role(&session).await;
+    render(AbilityDetailTemplate { a, pokemon, user_role })
         .unwrap_or_else(|s| Html(s.to_string()))
 }
 
@@ -342,14 +360,16 @@ pub async fn ability_detail(
 #[template(path = "wiki/mechanics/nature.html")]
 struct NaturesListTemplate {
     natures: Vec<Nature>,
+    user_role: Option<String>,
 }
 
-pub async fn natures_list(State(pool): State<SqlitePool>) -> impl IntoResponse {
+pub async fn natures_list(session: Session, State(pool): State<SqlitePool>) -> impl IntoResponse {
     let natures = sqlx::query_as::<_, Nature>(
         "SELECT id, name, increased_stat, decreased_stat FROM natures ORDER BY name"
     ).fetch_all(&pool).await.unwrap_or_default();
 
-    render(NaturesListTemplate { natures }).unwrap_or_else(|s| Html(s.to_string()))
+    let user_role = auth::get_user_role(&session).await;
+    render(NaturesListTemplate { natures, user_role }).unwrap_or_else(|s| Html(s.to_string()))
 }
 
 // ── Status Conditions ─────────────────────────────────────────────────────────
@@ -358,12 +378,14 @@ pub async fn natures_list(State(pool): State<SqlitePool>) -> impl IntoResponse {
 #[template(path = "wiki/mechanics/status.html")]
 struct StatusListTemplate {
     conditions: Vec<StatusCondition>,
+    user_role: Option<String>,
 }
 
-pub async fn status_list(State(pool): State<SqlitePool>) -> impl IntoResponse {
+pub async fn status_list(session: Session, State(pool): State<SqlitePool>) -> impl IntoResponse {
     let conditions = sqlx::query_as::<_, StatusCondition>(
         "SELECT id, name, description, icon, is_volatile FROM status_conditions ORDER BY is_volatile, name"
     ).fetch_all(&pool).await.unwrap_or_default();
 
-    render(StatusListTemplate { conditions }).unwrap_or_else(|s| Html(s.to_string()))
+    let user_role = auth::get_user_role(&session).await;
+    render(StatusListTemplate { conditions, user_role }).unwrap_or_else(|s| Html(s.to_string()))
 }

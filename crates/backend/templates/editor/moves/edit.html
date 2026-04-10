@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}Editar Move: {{ slug }} — Karta Yaxu{% endblock %}
+
+{% block content %}
+<div class="editor">
+    <h1>Editar Move: {{ slug }}</h1>
+    
+    {% if let Some(error) = error %}
+    <div class="error-message">
+        <strong>Erro ao salvar:</strong> {{ error }}
+    </div>
+    {% endif %}
+
+    <form method="post">
+        <div class="form-group">
+            <textarea name="toml_content" rows="20" class="toml-editor">{{ toml_content }}</textarea>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+            {% if slug == "new" %}
+            <a href="/editor/moves" class="btn btn-secondary">Cancelar</a>
+            {% else %}
+            <a href="/wiki/moves/{{ slug }}" class="btn btn-secondary">Cancelar</a>
+            {% endif %}
+        </div>
+    </form>
+
+    {% if slug != "new" %}
+    <hr style="margin: 2rem 0;">
+    <div class="danger-zone">
+        <h3>Zona de Perigo</h3>
+        <p>Ao deletar este Golpe, ele será removido de todos os learnsets e times.</p>
+        <form action="/editor/moves/{{ slug }}/delete" method="post" onsubmit="return confirm('Tem certeza que deseja deletar este Golpe?');">
+            <button type="submit" class="btn btn-danger">Deletar Golpe</button>
+        </form>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}Início — Karta Yaxu{% endblock %}
+
+{% block content %}
+<div class="home-container">
+    <header class="home-header">
+        <h1>Bem-vindo ao Karta Yaxu</h1>
+        <p>O centro de comando da sua ROM Pokémon.</p>
+    </header>
+
+    {% if let Some(msg) = error %}
+    <div class="error-banner">
+        {{ msg }}
+    </div>
+    {% endif %}
+
+    <div class="home-grid">
+        <a href="/wiki/pokemon" class="home-card">
+            <div class="card-icon">📚</div>
+            <h2>Wiki</h2>
+            <p>Explore a Pokédex, Tipos, Golpes e Mecânicas da sua região.</p>
+        </a>
+
+        <a href="/editor/pokemon" class="home-card">
+            <div class="card-icon">🛠️</div>
+            <h2>Editor</h2>
+            <p>Modifique dados, adicione novos Pokémon e equilibre sua ROM em tempo real.</p>
+        </a>
+    </div>
+</div>
+
+<style>
+.home-container {
+    max-width: 800px;
+    margin: 4rem auto;
+    text-align: center;
+}
+.home-header { margin-bottom: 3rem; }
+.home-header h1 { font-size: 2.5rem; color: var(--text); }
+.home-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+}
+.home-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 2.5rem;
+    text-decoration: none;
+    transition: transform 0.2s, border-color 0.2s;
+}
+.home-card:hover {
+    transform: translateY(-5px);
+    border-color: var(--primary);
+}
+.card-icon { font-size: 3rem; margin-bottom: 1rem; }
+.home-card h2 { margin: 0.5rem 0; color: var(--primary); }
+.home-card p { color: var(--text-muted); line-height: 1.5; }
+.error-banner {
+    background: #fee2e2;
+    color: #b91c1c;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+    border: 1px solid #fecaca;
+}
+</style>
+{% endblock %}

@@ -1,8 +1,8 @@
 use askama::Template;
 use axum::{
-    extract::{State, Form},
+    extract::{State, Form, FromRequestParts},
     response::{Html, IntoResponse, Redirect},
-    http::StatusCode,
+    http::{StatusCode, request::Parts},
 };
 use serde::Deserialize;
 use sqlx::SqlitePool;
@@ -12,17 +12,135 @@ use argon2::{
 };
 use uuid::Uuid;
 use tower_sessions::Session;
+use crate::models::Trainer;
+
+// Extrator que lê a sessão e retorna o trainer atual (ou redireciona)
+pub struct AuthSession(pub Trainer);
+
+impl<S> FromRequestParts<S> for AuthSession
+where
+    State<SqlitePool>: FromRequestParts<S>,
+    S: Send + Sync,
+{
+    type Rejection = Redirect;
+
+    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+        let session = Session::from_request_parts(parts, state)
+            .await
+            .map_err(|_| Redirect::to("/trainer/login"))?;
+
+        let trainer_id: Option<String> = session.get("trainer_id").await.unwrap_or(None);
+
+        if let Some(id) = trainer_id {
+            let State(pool) = State::<SqlitePool>::from_request_parts(parts, state)
+                .await
+                .map_err(|_| Redirect::to("/trainer/login"))?;
+
+            let record = sqlx::query_as::<_, Trainer>(
+                "SELECT * FROM trainers WHERE id = ?"
+            )
+            .bind(id)
+            .fetch_optional(&pool)
+            .await
+            .unwrap_or(None);
+
+            if let Some(trainer) = record {
+                return Ok(AuthSession(trainer));
+            }
+        }
+
+        Err(Redirect::to("/trainer/login"))
+    }
+}
+
+#[derive(Template)]
+#[template(path = "home.html")]
+pub struct HomeTemplate {
+    pub error: Option<String>,
+    pub user_role: Option<String>,
+}
+
+#[derive(Deserialize)]
+pub struct HomeParams {
+    pub error: Option<String>,
+}
+
+pub async fn home_handler(
+    session: Session,
+    axum::extract::Query(params): axum::extract::Query<HomeParams>,
+) -> impl IntoResponse {
+    let msg = params.error.and_then(|e| match e.as_str() {
+        "unauthorized" => Some("Você precisa estar logado para acessar o editor.".to_string()),
+        "forbidden" => Some("Acesso negado: Você não tem permissão de Editor.".to_string()),
+        _ => None,
+    });
+
+    let user_role = get_user_role(&session).await;
+
+    Html(HomeTemplate { error: msg, user_role }.render().unwrap())
+}
+
+// ... (Resto do código até EditorSession) ...
+
+// Extrator com proteção por role
+pub struct EditorSession(pub Trainer);
+
+impl<S> FromRequestParts<S> for EditorSession
+where
+    State<SqlitePool>: FromRequestParts<S>,
+    S: Send + Sync,
+{
+    type Rejection = Redirect;
+
+    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+        // Tenta obter AuthSession, se falhar redireciona para login (via AuthSession)
+        // Mas o usuário pediu para redirecionar para Home com erro.
+        // Vamos fazer a lógica manual aqui para maior controle.
+
+        let session = Session::from_request_parts(parts, state)
+            .await
+            .map_err(|_| Redirect::to("/?error=unauthorized"))?;
+
+        let trainer_id: Option<String> = session.get("trainer_id").await.unwrap_or(None);
+
+        if let Some(id) = trainer_id {
+            let State(pool) = State::<SqlitePool>::from_request_parts(parts, state)
+                .await
+                .map_err(|_| Redirect::to("/?error=unauthorized"))?;
+
+            let record = sqlx::query_as::<_, Trainer>(
+                "SELECT * FROM trainers WHERE id = ?"
+            )
+            .bind(id)
+            .fetch_optional(&pool)
+            .await
+            .unwrap_or(None);
+
+            if let Some(trainer) = record {
+                if trainer.role == "editor" {
+                    return Ok(EditorSession(trainer));
+                } else {
+                    return Err(Redirect::to("/?error=forbidden"));
+                }
+            }
+        }
+
+        Err(Redirect::to("/?error=unauthorized"))
+    }
+}
 
 #[derive(Template)]
 #[template(path = "auth/login.html")]
 pub struct LoginTemplate {
     pub error: Option<String>,
+    pub user_role: Option<String>,
 }
 
 #[derive(Template)]
 #[template(path = "auth/register.html")]
 pub struct RegisterTemplate {
     pub error: Option<String>,
+    pub user_role: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -42,6 +160,10 @@ pub async fn get_logged_in(session: &Session) -> bool {
     session.get::<String>("trainer_id").await.unwrap_or(None).is_some()
 }
 
+pub async fn get_user_role(session: &Session) -> Option<String> {
+    session.get::<String>("trainer_role").await.unwrap_or(None)
+}
+
 fn render(t: impl Template) -> Result<Html<String>, StatusCode> {
     let html = t.render().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     Ok(Html(html))
@@ -51,29 +173,35 @@ pub async fn login_page(session: Session) -> impl IntoResponse {
     if session.get::<String>("trainer_id").await.unwrap_or(None).is_some() {
         return Redirect::to("/trainer/dashboard").into_response();
     }
-    render(LoginTemplate { error: None }).into_response()
+    let user_role = get_user_role(&session).await;
+    render(LoginTemplate { error: None, user_role }).into_response()
 }
 
 pub async fn register_page(session: Session) -> impl IntoResponse {
     if session.get::<String>("trainer_id").await.unwrap_or(None).is_some() {
         return Redirect::to("/trainer/dashboard").into_response();
     }
-    render(RegisterTemplate { error: None }).into_response()
+    let user_role = get_user_role(&session).await;
+    render(RegisterTemplate { error: None, user_role }).into_response()
 }
 
 pub async fn register_post(
     State(pool): State<SqlitePool>,
+    session: Session,
     Form(payload): Form<RegisterForm>,
 ) -> impl IntoResponse {
+    let user_role = get_user_role(&session).await;
     if payload.password != payload.confirm_password {
         return render(RegisterTemplate {
             error: Some("As senhas não coincidem.".to_string()),
+            user_role,
         }).into_response();
     }
 
     if payload.password.len() < 6 {
         return render(RegisterTemplate {
             error: Some("A senha deve ter pelo menos 6 caracteres.".to_string()),
+            user_role,
         }).into_response();
     }
 
@@ -103,6 +231,7 @@ pub async fn register_post(
         Err(sqlx::Error::Database(err)) if err.is_unique_violation() => {
             render(RegisterTemplate {
                 error: Some("Nome de usuário já existe.".to_string()),
+                user_role,
             }).into_response()
         }
         Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
@@ -142,8 +271,10 @@ pub async fn login_post(
         _ => {}
     }
 
+    let user_role = get_user_role(&session).await;
     render(LoginTemplate {
         error: Some("Credenciais inválidas.".to_string()),
+        user_role,
     }).into_response()
 }
 
@@ -153,6 +284,7 @@ pub struct DashboardTemplate {
     pub username: String,
     pub role: String,
     pub logged_in: bool,
+    pub user_role: Option<String>,
 }
 
 // ...
@@ -172,10 +304,12 @@ pub async fn dashboard(
         .unwrap_or(None);
 
         if let Some(trainer) = record {
+            let user_role = get_user_role(&session).await;
             return render(DashboardTemplate {
                 username: trainer.username,
                 role: trainer.role,
                 logged_in: get_logged_in(&session).await,
+                user_role,
             }).into_response();
         }
     }

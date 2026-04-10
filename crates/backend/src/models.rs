@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, sqlx::FromRow)]
 pub struct Trainer {
     pub id: String, // Guid (uuid)
     pub username: String,
@@ -26,7 +26,7 @@ pub struct TeamMember {
     pub pokemon_id: i64,
     pub ability_id: i64,
     pub nature_id: i64,
-    
+
     // Slots opcionais (podem vir nulos do banco de dados)
     pub held_item_id: Option<i64>,
     pub move1_id: Option<i64>,

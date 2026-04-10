@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}Editor de Status — Karta Yaxu{% endblock %}
+
+{% block content %}
+<div class="editor-header">
+    <h1>Editor: Condições de Status</h1>
+    <a href="/editor/status/new" class="btn btn-primary">+ Novo Status</a>
+</div>
+<div class="status-list">
+    <table class="wiki-table">
+        <thead>
+            <tr>
+                <th>Ícone</th>
+                <th>Nome</th>
+                <th>Tipo</th>
+                <th>Descrição</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in status_list %}
+            <tr>
+                <td><img src="/static/icons/status/{{ s.icon }}" alt="{{ s.name }}" style="height: 20px;" onerror="this.style.display='none'"></td>
+                <td>{{ s.name }}</td>
+                <td>
+                    {% if s.is_volatile %}
+                        <span class="badge badge-volatile">Volátil</span>
+                    {% else %}
+                        <span class="badge badge-persistent">Persistente</span>
+                    {% endif %}
+                </td>
+                <td>{{ s.description }}</td>
+                <td>
+                    <a href="/editor/status/{{ s.name|slugify }}" class="btn btn-sm">Editar</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

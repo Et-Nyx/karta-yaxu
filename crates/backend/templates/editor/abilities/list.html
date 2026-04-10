@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}Editor de Habilidades — Karta Yaxu{% endblock %}
+
+{% block content %}
+<div class="editor-header">
+    <h1>Editor: Habilidades</h1>
+    <a href="/editor/abilities/new" class="btn btn-primary">+ Nova Habilidade</a>
+</div>
+<div class="abilities-list">
+    <table class="wiki-table">
+        <thead>
+            <tr>
+                <th>Nome</th>
+                <th>Descrição</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for a in abilities %}
+            <tr>
+                <td>{{ a.name }}</td>
+                <td>{{ a.description }}</td>
+                <td>
+                    <a href="/editor/abilities/{{ a.name|slugify }}" class="btn btn-sm">Editar</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

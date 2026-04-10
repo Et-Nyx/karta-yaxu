@@ -19,10 +19,32 @@
         </ul>
         <hr style="margin: 1rem 0; border: 0; border-top: 1px solid var(--border);">
         <ul>
-            <li><a href="/trainer/dashboard">Dashboard</a></li>
-            <li><a href="/trainer/login">Login</a></li>
-            <li><a href="/trainer/register">Registrar</a></li>
+            {% if let Some(role) = user_role %}
+                <li><a href="/trainer/dashboard">Dashboard</a></li>
+                <li>
+                    <form action="/trainer/logout" method="post" style="display: inline;">
+                        <button type="submit" style="background: none; border: none; color: var(--text); cursor: pointer; padding: 0.5rem 1rem; width: 100%; text-align: left; font-family: inherit; font-size: inherit;">Sair (Logout)</button>
+                    </form>
+                </li>
+            {% else %}
+                <li><a href="/trainer/login">Login</a></li>
+                <li><a href="/trainer/register">Registrar</a></li>
+            {% endif %}
         </ul>
+        {% if let Some(role) = user_role %}
+            {% if role == "editor" %}
+            <hr style="margin: 1rem 0; border: 0; border-top: 1px solid var(--border);">
+            <p style="padding: 0 1rem; font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">Editor</p>
+            <ul>
+                <li><a href="/editor/pokemon">Pokémon</a></li>
+                <li><a href="/editor/moves">Moves</a></li>
+                <li><a href="/editor/types">Tipos</a></li>
+                <li><a href="/editor/abilities">Habilidades</a></li>
+                <li><a href="/editor/natures">Naturezas</a></li>
+                <li><a href="/editor/status">Status</a></li>
+            </ul>
+            {% endif %}
+        {% endif %}
     </nav>
     <main class="content">
         {% block content %}{% endblock %}

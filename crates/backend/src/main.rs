@@ -9,7 +9,7 @@ use std::env;
 use tower_http::services::ServeDir;
 use tower_sessions::SessionManagerLayer;
 use tower_sessions_sqlx_store::SqliteStore;
-use backend::auth;
+use backend::{auth, editor};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -37,13 +37,38 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Configurando as rotas Axum...");
     let app = Router::new()
-        .route("/", get(home_handler))
+        .route("/", get(auth::home_handler))
         .route("/health", get(health_handler))
         // Trainers - auth
         .route("/trainer/login", get(auth::login_page).post(auth::login_post))
         .route("/trainer/register", get(auth::register_page).post(auth::register_post))
         .route("/trainer/dashboard", get(auth::dashboard))
         .route("/trainer/logout", axum::routing::post(auth::logout))
+        // Editor
+        .route("/editor/pokemon", get(editor::pokemon_list))
+        .route("/editor/pokemon/new", get(editor::pokemon_new).post(editor::pokemon_create))
+        .route("/editor/pokemon/{slug}", get(editor::pokemon_edit).post(editor::pokemon_save))
+        .route("/editor/pokemon/{slug}/delete", axum::routing::post(editor::pokemon_delete))
+        .route("/editor/moves", get(editor::move_list))
+        .route("/editor/moves/new", get(editor::move_new).post(editor::move_create))
+        .route("/editor/moves/{slug}", get(editor::move_edit).post(editor::move_save))
+        .route("/editor/moves/{slug}/delete", axum::routing::post(editor::move_delete))
+        .route("/editor/types", get(editor::type_list))
+        .route("/editor/types/new", get(editor::type_new).post(editor::type_create))
+        .route("/editor/types/{slug}", get(editor::type_edit).post(editor::type_save))
+        .route("/editor/types/{slug}/delete", axum::routing::post(editor::type_delete))
+        .route("/editor/abilities", get(editor::ability_list))
+        .route("/editor/abilities/new", get(editor::ability_new).post(editor::ability_create))
+        .route("/editor/abilities/{slug}", get(editor::ability_edit).post(editor::ability_save))
+        .route("/editor/abilities/{slug}/delete", axum::routing::post(editor::ability_delete))
+        .route("/editor/natures", get(editor::nature_list))
+        .route("/editor/natures/new", get(editor::nature_new).post(editor::nature_create))
+        .route("/editor/natures/{slug}", get(editor::nature_edit).post(editor::nature_save))
+        .route("/editor/natures/{slug}/delete", axum::routing::post(editor::nature_delete))
+        .route("/editor/status", get(editor::status_list))
+        .route("/editor/status/new", get(editor::status_new).post(editor::status_create))
+        .route("/editor/status/{slug}", get(editor::status_edit).post(editor::status_save))
+        .route("/editor/status/{slug}/delete", axum::routing::post(editor::status_delete))
         // Wiki — Pokémon
         .route("/wiki/pokemon", get(backend::wiki::pokemon_list))
         .route("/wiki/pokemon/{slug}", get(backend::wiki::pokemon_detail))
@@ -69,10 +94,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     axum::serve(listener, app).await?;
 
     Ok(())
-}
-
-async fn home_handler() -> &'static str {
-    "Bem-vindo ao Backend do Karta Yaxu!"
 }
 
 async fn health_handler() -> &'static str {

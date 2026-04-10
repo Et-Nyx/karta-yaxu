@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}Editar Natureza: {{ slug }} — Karta Yaxu{% endblock %}
+
+{% block content %}
+<div class="editor">
+    <h1>Editar Natureza: {{ slug }}</h1>
+    
+    {% if let Some(error) = error %}
+    <div class="error-message">
+        <strong>Erro ao salvar:</strong> {{ error }}
+    </div>
+    {% endif %}
+
+    <form method="post">
+        <div class="form-group">
+            <textarea name="toml_content" rows="10" class="toml-editor">{{ toml_content }}</textarea>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+            {% if slug == "new" %}
+            <a href="/editor/natures" class="btn btn-secondary">Cancelar</a>
+            {% else %}
+            <a href="/wiki/mechanics/nature" class="btn btn-secondary">Cancelar</a>
+            {% endif %}
+        </div>
+    </form>
+
+    {% if slug != "new" %}
+    <hr style="margin: 2rem 0;">
+    <div class="danger-zone">
+        <h3>Zona de Perigo</h3>
+        <p>Ao deletar esta Natureza, Pokémon em times associados serão resetados para a natureza "Neutre".</p>
+        <form action="/editor/natures/{{ slug }}/delete" method="post" onsubmit="return confirm('Tem certeza que deseja deletar esta Natureza?');">
+            <button type="submit" class="btn btn-danger">Deletar Natureza</button>
+        </form>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

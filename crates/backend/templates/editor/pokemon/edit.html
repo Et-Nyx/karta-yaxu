@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Editar {{ slug }} — Karta Yaxu{% endblock %}
+
+{% block content %}
+<div class="editor">
+    <h1>Editar: {{ slug }}</h1>
+    <p>Edite os dados abaixo no formato TOML.</p>
+    
+    {% if let Some(error) = error %}
+    <div class="error-message">
+        <strong>Erro ao salvar:</strong> {{ error }}
+    </div>
+    {% endif %}
+
+    <form method="post">
+        <div class="form-group">
+            <textarea name="toml_content" rows="20" class="toml-editor">{{ toml_content }}</textarea>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+            {% if slug == "new" %}
+            <a href="/editor/pokemon" class="btn btn-secondary">Cancelar</a>
+            {% else %}
+            <a href="/wiki/pokemon/{{ slug }}" class="btn btn-secondary">Cancelar</a>
+            {% endif %}
+        </div>
+    </form>
+
+    {% if slug != "new" %}
+    <hr style="margin: 2rem 0;">
+    <div class="danger-zone">
+        <h3>Zona de Perigo</h3>
+        <p>Ao deletar este Pokémon, todas as suas evoluções, formas e learnsets serão removidos.</p>
+        <form action="/editor/pokemon/{{ slug }}/delete" method="post" onsubmit="return confirm('Tem certeza que deseja deletar este Pokémon? Esta ação é irreversível.');">
+            <button type="submit" class="btn btn-danger">Deletar Pokémon</button>
+        </form>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

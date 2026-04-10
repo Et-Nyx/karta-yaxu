@@ -142,6 +142,8 @@ pub struct PokemonForm {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "db", derive(sqlx::Type))]
+#[cfg_attr(feature = "db", sqlx(type_name = "TEXT", rename_all = "snake_case"))]
 #[serde(rename_all = "snake_case")]
 pub enum LearnMethod {
     LevelUp,
@@ -153,6 +155,7 @@ pub enum LearnMethod {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "db", derive(sqlx::FromRow))]
 pub struct Learnset {
     pub pokemon_id: i64,
     pub move_id: i64,

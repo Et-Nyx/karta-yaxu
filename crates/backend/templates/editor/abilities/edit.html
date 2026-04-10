@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}Editar Habilidade: {{ slug }} — Karta Yaxu{% endblock %}
+
+{% block content %}
+<div class="editor">
+    <h1>Editar Habilidade: {{ slug }}</h1>
+    
+    {% if let Some(error) = error %}
+    <div class="error-message">
+        <strong>Erro ao salvar:</strong> {{ error }}
+    </div>
+    {% endif %}
+
+    <form method="post">
+        <div class="form-group">
+            <textarea name="toml_content" rows="10" class="toml-editor">{{ toml_content }}</textarea>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+            {% if slug == "new" %}
+            <a href="/editor/abilities" class="btn btn-secondary">Cancelar</a>
+            {% else %}
+            <a href="/wiki/abilities/{{ slug }}" class="btn btn-secondary">Cancelar</a>
+            {% endif %}
+        </div>
+    </form>
+
+    {% if slug != "new" %}
+    <hr style="margin: 2rem 0;">
+    <div class="danger-zone">
+        <h3>Zona de Perigo</h3>
+        <p>Ao deletar esta Habilidade, ela será removida de todos os Pokémon e times.</p>
+        <form action="/editor/abilities/{{ slug }}/delete" method="post" onsubmit="return confirm('Tem certeza que deseja deletar esta Habilidade?');">
+            <button type="submit" class="btn btn-danger">Deletar Habilidade</button>
+        </form>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

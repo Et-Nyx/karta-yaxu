@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}Editor de Pokédex — Karta Yaxu{% endblock %}
+
+{% block content %}
+<div class="editor-header">
+    <h1>Editor: Pokédex</h1>
+    <p>Selecione um Pokémon para editar seus dados via TOML.</p>
+    <a href="/editor/pokemon/new" class="btn btn-primary">+ Novo Pokémon</a>
+</div>
+
+<div class="pokemon-grid">
+{% for p in pokemon %}
+<div class="card editor-card">
+    <img src="/static/sprites/pokemon/{{ p.sprite }}?v=1" alt="{{ p.name }}" onerror="this.style.display='none'">
+    <div class="card-info">
+        <span class="dex-num">#{{ p.dex_number }}</span>
+        <span class="name">{{ p.name }}</span>
+    </div>
+    <div class="card-actions">
+        <a href="/editor/pokemon/{{ p.name|slugify }}" class="btn btn-sm btn-edit">Editar</a>
+        <a href="/wiki/pokemon/{{ p.name|slugify }}" class="btn btn-sm btn-view" target="_blank">Ver na Wiki</a>
+    </div>
+</div>
+{% endfor %}
+</div>
+{% endblock %}
