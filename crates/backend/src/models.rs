@@ -1,11 +1,29 @@
 use serde::{Deserialize, Serialize};
 
+/// Role-based access control for trainers.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, sqlx::Type)]
+#[sqlx(type_name = "TEXT", rename_all = "lowercase")]
+#[serde(rename_all = "lowercase")]
+pub enum TrainerRole {
+    Viewer,
+    Editor,
+}
+
+impl std::fmt::Display for TrainerRole {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TrainerRole::Viewer => write!(f, "viewer"),
+            TrainerRole::Editor => write!(f, "editor"),
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, sqlx::FromRow)]
 pub struct Trainer {
     pub id: String, // Guid (uuid)
     pub username: String,
     pub password_hash: String,
-    pub role: String, // "viewer" | "editor"
+    pub role: TrainerRole,
     pub is_npc: bool,
     pub created_at: String,
 }

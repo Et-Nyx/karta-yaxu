@@ -33,8 +33,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Configurando o gerenciador de sessões...");
     let session_store = SqliteStore::new(pool.clone());
     session_store.migrate().await?;
+
+    let secure_cookie = env::var("SECURE_COOKIE")
+        .map(|v| v == "true")
+        .unwrap_or(false);
+
     let session_layer = SessionManagerLayer::new(session_store)
-        .with_secure(false);
+        .with_secure(secure_cookie)
+        .with_http_only(true)
+        .with_same_site(tower_sessions::cookie::SameSite::Lax);
 
     println!("Configurando as rotas Axum...");
     let app = Router::new()

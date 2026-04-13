@@ -12,7 +12,8 @@ use argon2::{
 };
 use uuid::Uuid;
 use tower_sessions::Session;
-use crate::models::Trainer;
+use crate::models::{Trainer, TrainerRole};
+use crate::error::render;
 
 // Extrator que lê a sessão e retorna o trainer atual (ou redireciona)
 pub struct AuthSession(pub Trainer);
@@ -117,7 +118,7 @@ where
             .unwrap_or(None);
 
             if let Some(trainer) = record {
-                if trainer.role == "editor" {
+                if trainer.role == TrainerRole::Editor {
                     return Ok(EditorSession(trainer));
                 } else {
                     return Err(Redirect::to("/?error=forbidden"));
@@ -164,10 +165,7 @@ pub async fn get_user_role(session: &Session) -> Option<String> {
     session.get::<String>("trainer_role").await.unwrap_or(None)
 }
 
-fn render(t: impl Template) -> Result<Html<String>, StatusCode> {
-    let html = t.render().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    Ok(Html(html))
-}
+
 
 pub async fn login_page(session: Session) -> impl IntoResponse {
     if session.get::<String>("trainer_id").await.unwrap_or(None).is_some() {
@@ -256,14 +254,23 @@ pub async fn login_post(
 
     match record {
         Ok(Some(trainer)) => {
-            let parsed_hash = argon2::PasswordHash::new(&trainer.password_hash)
-                .expect("Hash está malformado");
+            let parsed_hash = match argon2::PasswordHash::new(&trainer.password_hash) {
+                Ok(h) => h,
+                Err(_) => {
+                    eprintln!("[ERROR] Hash malformado para trainer {:?}", trainer.id);
+                    let user_role = get_user_role(&session).await;
+                    return render(LoginTemplate {
+                        error: Some("Erro interno de autenticação.".to_string()),
+                        user_role,
+                    }).into_response();
+                }
+            };
 
             let argon2 = Argon2::default();
 
             if argon2.verify_password(payload.password.as_bytes(), &parsed_hash).is_ok() {
                 session.insert("trainer_id", trainer.id).await.unwrap();
-                session.insert("trainer_role", trainer.role).await.unwrap();
+                session.insert("trainer_role", trainer.role.to_string()).await.unwrap();
 
                 return Redirect::to("/trainer/dashboard").into_response()
             }

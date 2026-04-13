@@ -1,22 +1,11 @@
-use axum::{extract::{Path, State}, http::StatusCode, response::{Html, IntoResponse}};
+use axum::{extract::{Path, State}, response::{Html, IntoResponse}};
 use sqlx::SqlitePool;
 use askama::Template;
 use engine::models::{Pokemon, Type, Ability, Nature, StatusCondition, Move};
 use tower_sessions::Session;
 use crate::auth;
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-use crate::filters;
-
-fn to_slug(name: &str) -> String {
-    name.to_lowercase().replace(' ', "-").replace('\'', "")
-}
-
-fn render(t: impl Template) -> Result<Html<String>, StatusCode> {
-    let html = t.render().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    Ok(Html(html))
-}
+use crate::filters::{self, to_slug};
+use crate::error::render;
 
 #[derive(Template)]
 #[template(path = "wiki/index.html")]
@@ -24,7 +13,7 @@ struct WikiIndexTemplate {
     user_role: Option<String>,
 }
 
-pub async fn index(session: Session) -> Result<Html<String>, StatusCode> {
+pub async fn index(session: Session) -> impl IntoResponse {
     let user_role = auth::get_user_role(&session).await;
     render(WikiIndexTemplate { user_role })
 }
@@ -49,13 +38,16 @@ pub async fn pokemon_list(session: Session, State(pool): State<SqlitePool>) -> i
     
     let mut mapped_pokemon = Vec::new();
     for p in pokemon {
-        let t1 = all_types.iter().find(|t| t.id == p.type1_id).unwrap().clone();
+        let t1 = match all_types.iter().find(|t| t.id == p.type1_id) {
+            Some(t) => t.clone(),
+            None => continue,
+        };
         let t2 = p.type2_id.and_then(|id| all_types.iter().find(|t| t.id == id).cloned());
         mapped_pokemon.push((p, t1, t2));
     }
 
     let user_role = auth::get_user_role(&session).await;
-    render(PokemonListTemplate { pokemon: mapped_pokemon, user_role }).unwrap_or_else(|s| Html(s.to_string()))
+    render(PokemonListTemplate { pokemon: mapped_pokemon, user_role })
 }
 
 #[derive(Template)]
@@ -87,7 +79,7 @@ pub async fn pokemon_detail(
 
     let p = match all.iter().find(|p| to_slug(&p.name) == slug).cloned() {
         Some(p) => p,
-        None => return Html(StatusCode::NOT_FOUND.to_string()),
+        None => return Html("404 — Pokémon não encontrado".to_string()).into_response(),
     };
 
     let types = sqlx::query_as::<_, Type>(
@@ -166,10 +158,10 @@ pub async fn pokemon_detail(
 
     let mut evolutions: Vec<(Pokemon, Type, Option<Type>)> = evo_ids.into_iter()
         .filter_map(|id| all.iter().find(|all_p| all_p.id == id).cloned())
-        .map(|e_p| {
-            let t1 = types.iter().find(|t| t.id == e_p.type1_id).unwrap().clone();
+        .filter_map(|e_p| {
+            let t1 = types.iter().find(|t| t.id == e_p.type1_id)?.clone();
             let t2 = e_p.type2_id.and_then(|id| types.iter().find(|t| t.id == id).cloned());
-            (e_p, t1, t2)
+            Some((e_p, t1, t2))
         })
         .collect();
     evolutions.sort_by_key(|(e, _, _)| e.dex_number);
@@ -182,10 +174,10 @@ pub async fn pokemon_detail(
 
     let mut forms: Vec<(Pokemon, Type, Option<Type>)> = forms_ids.into_iter()
         .filter_map(|id| all.iter().find(|all_p| all_p.id == id).cloned())
-        .map(|f_p| {
-            let t1 = types.iter().find(|t| t.id == f_p.type1_id).unwrap().clone();
+        .filter_map(|f_p| {
+            let t1 = types.iter().find(|t| t.id == f_p.type1_id)?.clone();
             let t2 = f_p.type2_id.and_then(|id| types.iter().find(|t| t.id == id).cloned());
-            (f_p, t1, t2)
+            Some((f_p, t1, t2))
         })
         .collect();
     forms.sort_by_key(|(f, _, _)| f.id);
@@ -215,8 +207,7 @@ pub async fn pokemon_detail(
     let user_role = auth::get_user_role(&session).await;
     render(PokemonDetailTemplate { 
         p, type1, type2, abilities, evolutions, forms, learnset, weaknesses, resistances, immunities, user_role 
-    })
-    .unwrap_or_else(|s| Html(s.to_string()))
+    }).into_response()
 }
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
@@ -234,7 +225,7 @@ pub async fn types_list(session: Session, State(pool): State<SqlitePool>) -> imp
     ).fetch_all(&pool).await.unwrap_or_default();
 
     let user_role = auth::get_user_role(&session).await;
-    render(TypesListTemplate { types, user_role }).unwrap_or_else(|s| Html(s.to_string()))
+    render(TypesListTemplate { types, user_role })
 }
 
 #[derive(Template)]
@@ -255,7 +246,7 @@ pub async fn type_detail(
 
     let t = match all_types.iter().find(|t| to_slug(&t.name) == slug).cloned() {
         Some(t) => t,
-        None => return Html(StatusCode::NOT_FOUND.to_string()),
+        None => return Html("404 — Tipo não encontrado".to_string()).into_response(),
     };
 
     let eff_relations = sqlx::query_as::<_, (i64, i64, f64)>(
@@ -279,12 +270,11 @@ pub async fn type_detail(
     }
 
     // Sort
-    as_attacker.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap().then_with(|| a.0.name.cmp(&b.0.name)));
-    as_defender.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap().then_with(|| a.0.name.cmp(&b.0.name)));
+    as_attacker.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal).then_with(|| a.0.name.cmp(&b.0.name)));
+    as_defender.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal).then_with(|| a.0.name.cmp(&b.0.name)));
 
     let user_role = auth::get_user_role(&session).await;
-    render(TypeDetailTemplate { t, as_attacker, as_defender, user_role })
-        .unwrap_or_else(|s| Html(s.to_string()))
+    render(TypeDetailTemplate { t, as_attacker, as_defender, user_role }).into_response()
 }
 
 // ── Moves ─────────────────────────────────────────────────────────────────────
@@ -303,13 +293,13 @@ pub async fn moves_list(session: Session, State(pool): State<SqlitePool>) -> imp
 
     let types_db = sqlx::query_as::<_, Type>("SELECT id, name, hexcolor, icon FROM types").fetch_all(&pool).await.unwrap_or_default();
 
-    let moves = moves_db.into_iter().map(|m| {
-        let t = types_db.iter().find(|t| t.id == m.type_id).cloned().unwrap();
-        (m, t)
+    let moves = moves_db.into_iter().filter_map(|m| {
+        let t = types_db.iter().find(|t| t.id == m.type_id)?.clone();
+        Some((m, t))
     }).collect();
 
     let user_role = auth::get_user_role(&session).await;
-    render(MovesListTemplate { moves, user_role }).unwrap_or_else(|s| Html(s.to_string()))
+    render(MovesListTemplate { moves, user_role })
 }
 
 #[derive(Template)]
@@ -332,12 +322,15 @@ pub async fn move_detail(
 
     let m = match all_moves.into_iter().find(|m| to_slug(&m.name) == slug) {
         Some(m) => m,
-        None => return Html(StatusCode::NOT_FOUND.to_string()),
+        None => return Html("404 — Move não encontrado".to_string()).into_response(),
     };
 
     let all_types = sqlx::query_as::<_, Type>("SELECT id, name, hexcolor, icon FROM types").fetch_all(&pool).await.unwrap_or_default();
 
-    let t = all_types.iter().find(|t| t.id == m.type_id).cloned().unwrap();
+    let t = match all_types.iter().find(|t| t.id == m.type_id).cloned() {
+        Some(t) => t,
+        None => return Html("Tipo do move não encontrado".to_string()).into_response(),
+    };
 
     let all_pokemon = sqlx::query_as::<_, Pokemon>("SELECT id, dex_number, name, sprite, sprite_shiny, type1_id, type2_id, hp, atk, def, spa, spd, spe, pokedex_entry FROM pokemon")
         .fetch_all(&pool).await.unwrap_or_default();
@@ -349,15 +342,17 @@ pub async fn move_detail(
     let mut learnset = Vec::new();
     for (p_id, method, level) in learn_rels {
         if let Some(p) = all_pokemon.iter().find(|p| p.id == p_id).cloned() {
-            let t1 = all_types.iter().find(|t| t.id == p.type1_id).unwrap().clone();
+            let t1 = match all_types.iter().find(|t| t.id == p.type1_id) {
+                Some(t) => t.clone(),
+                None => continue,
+            };
             let t2 = p.type2_id.and_then(|id| all_types.iter().find(|t| t.id == id).cloned());
             learnset.push(((p, t1, t2), method, level));
         }
     }
 
     let user_role = auth::get_user_role(&session).await;
-    render(MoveDetailTemplate { m, t, learnset, user_role })
-        .unwrap_or_else(|s| Html(s.to_string()))
+    render(MoveDetailTemplate { m, t, learnset, user_role }).into_response()
 }
 
 // ── Habilidades ───────────────────────────────────────────────────────────────
@@ -375,7 +370,7 @@ pub async fn abilities_list(session: Session, State(pool): State<SqlitePool>) ->
     ).fetch_all(&pool).await.unwrap_or_default();
 
     let user_role = auth::get_user_role(&session).await;
-    render(AbilitiesListTemplate { abilities, user_role }).unwrap_or_else(|s| Html(s.to_string()))
+    render(AbilitiesListTemplate { abilities, user_role })
 }
 
 #[derive(Template)]
@@ -397,7 +392,7 @@ pub async fn ability_detail(
 
     let a = match all_abilities.into_iter().find(|a| to_slug(&a.name) == slug) {
         Some(a) => a,
-        None => return Html(StatusCode::NOT_FOUND.to_string()),
+        None => return Html("404 — Habilidade não encontrada".to_string()).into_response(),
     };
 
     let pokemon = sqlx::query_as::<_, Pokemon>(
@@ -413,14 +408,16 @@ pub async fn ability_detail(
 
     let mut mapped_pokemon = Vec::new();
     for p in pokemon {
-        let t1 = types.iter().find(|t| t.id == p.type1_id).unwrap().clone();
+        let t1 = match types.iter().find(|t| t.id == p.type1_id) {
+            Some(t) => t.clone(),
+            None => continue,
+        };
         let t2 = p.type2_id.and_then(|id| types.iter().find(|t| t.id == id).cloned());
         mapped_pokemon.push((p, t1, t2));
     }
 
     let user_role = auth::get_user_role(&session).await;
-    render(AbilityDetailTemplate { a, pokemon: mapped_pokemon, user_role })
-        .unwrap_or_else(|s| Html(s.to_string()))
+    render(AbilityDetailTemplate { a, pokemon: mapped_pokemon, user_role }).into_response()
 }
 
 // ── Naturezas ─────────────────────────────────────────────────────────────────
@@ -438,7 +435,7 @@ pub async fn natures_list(session: Session, State(pool): State<SqlitePool>) -> i
     ).fetch_all(&pool).await.unwrap_or_default();
 
     let user_role = auth::get_user_role(&session).await;
-    render(NaturesListTemplate { natures, user_role }).unwrap_or_else(|s| Html(s.to_string()))
+    render(NaturesListTemplate { natures, user_role })
 }
 
 // ── Status Conditions ─────────────────────────────────────────────────────────
@@ -456,5 +453,5 @@ pub async fn status_list(session: Session, State(pool): State<SqlitePool>) -> im
     ).fetch_all(&pool).await.unwrap_or_default();
 
     let user_role = auth::get_user_role(&session).await;
-    render(StatusListTemplate { conditions, user_role }).unwrap_or_else(|s| Html(s.to_string()))
+    render(StatusListTemplate { conditions, user_role })
 }
