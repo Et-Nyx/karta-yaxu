@@ -548,6 +548,10 @@ direnv allow
 - Tipos como links navegáveis (badges clicáveis em todos os templates)
 - Cache-busting (`?v=1`) em todos os assets de imagem
 - `.prettierignore` protegendo templates Askama de formatadores automáticos
+- Navegação aprimorada com Breadcrumbs dinâmicos Vanilla JS integrados a partir do `base.html`.
+- Sistema de alternância local para sprites Shiny via toggle "Shiny Charm".
+- Reestruturação da UI no layout "Gameboy Edition": cards flex-row fluídos (`.move-card`, `.ability-card`) e grid responsivo de Fraquezas vs Resistências.
+- Centralização do tráfego interno através das Landing Pages raiz `/wiki` e `/editor` para navegação modular sem poluição na barra principal.
 
 ### ✅ Bloco 3 — Autenticação e Editor (concluído)
 

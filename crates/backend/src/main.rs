@@ -46,6 +46,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/trainer/dashboard", get(auth::dashboard))
         .route("/trainer/logout", axum::routing::post(auth::logout))
         // Editor
+        .route("/editor", get(editor::index))
         .route("/editor/pokemon", get(editor::pokemon_list))
         .route("/editor/pokemon/new", get(editor::pokemon_new).post(editor::pokemon_create))
         .route("/editor/pokemon/{slug}", get(editor::pokemon_edit).post(editor::pokemon_save))
@@ -70,6 +71,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/editor/status/new", get(editor::status_new).post(editor::status_create))
         .route("/editor/status/{slug}", get(editor::status_edit).post(editor::status_save))
         .route("/editor/status/{slug}/delete", axum::routing::post(editor::status_delete))
+        // Wiki — Index
+        .route("/wiki", get(backend::wiki::index))
         // Wiki — Pokémon
         .route("/wiki/pokemon", get(backend::wiki::pokemon_list))
         .route("/wiki/pokemon/{slug}", get(backend::wiki::pokemon_detail))

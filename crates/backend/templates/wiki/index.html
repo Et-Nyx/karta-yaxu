@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Wiki — Karta Yaxu{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-4 mt-4">
+    <h1 style="font-size: 24px;">Banco de Dados</h1>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+    <a href="/wiki/pokemon" class="gb-card elevation-2" style="background-color: var(--gb-light); align-items: center; justify-content: center; text-decoration: none;">
+        <h2 style="font-size: 16px; color: var(--primary); margin-bottom: 8px; text-align: center;">Pokédex</h2>
+        <p style="font-size: 8px; color: var(--foreground); line-height: 1.5; text-align: center;">Explore os Pokémon</p>
+    </a>
+    <a href="/wiki/types" class="gb-card elevation-2" style="background-color: var(--gb-light); align-items: center; justify-content: center; text-decoration: none;">
+        <h2 style="font-size: 16px; color: var(--primary); margin-bottom: 8px; text-align: center;">Tipos</h2>
+        <p style="font-size: 8px; color: var(--foreground); line-height: 1.5; text-align: center;">Tabela de Efetividade</p>
+    </a>
+    <a href="/wiki/moves" class="gb-card elevation-2" style="background-color: var(--gb-light); align-items: center; justify-content: center; text-decoration: none;">
+        <h2 style="font-size: 16px; color: var(--primary); margin-bottom: 8px; text-align: center;">Moves</h2>
+        <p style="font-size: 8px; color: var(--foreground); line-height: 1.5; text-align: center;">Lista de Golpes</p>
+    </a>
+    <a href="/wiki/abilities" class="gb-card elevation-2" style="background-color: var(--gb-light); align-items: center; justify-content: center; text-decoration: none;">
+        <h2 style="font-size: 16px; color: var(--primary); margin-bottom: 8px; text-align: center;">Habilidades</h2>
+        <p style="font-size: 8px; color: var(--foreground); line-height: 1.5; text-align: center;">Habilidades Passivas</p>
+    </a>
+    <a href="/wiki/mechanics/nature" class="gb-card elevation-2" style="background-color: var(--gb-light); align-items: center; justify-content: center; text-decoration: none;">
+        <h2 style="font-size: 16px; color: var(--primary); margin-bottom: 8px; text-align: center;">Natures</h2>
+        <p style="font-size: 8px; color: var(--foreground); line-height: 1.5; text-align: center;">Naturezas e Status</p>
+    </a>
+    <a href="/wiki/mechanics/status" class="gb-card elevation-2" style="background-color: var(--gb-light); align-items: center; justify-content: center; text-decoration: none;">
+        <h2 style="font-size: 16px; color: var(--primary); margin-bottom: 8px; text-align: center;">Status</h2>
+        <p style="font-size: 8px; color: var(--foreground); line-height: 1.5; text-align: center;">Condições de Batalha</p>
+    </a>
+</div>
+{% endblock %}

@@ -18,6 +18,17 @@ fn render(t: impl Template) -> Result<Html<String>, StatusCode> {
     Ok(Html(html))
 }
 
+#[derive(Template)]
+#[template(path = "wiki/index.html")]
+struct WikiIndexTemplate {
+    user_role: Option<String>,
+}
+
+pub async fn index(session: Session) -> Result<Html<String>, StatusCode> {
+    let user_role = auth::get_user_role(&session).await;
+    render(WikiIndexTemplate { user_role })
+}
+
 // ── Pokémon ───────────────────────────────────────────────────────────────────
 
 #[derive(Template)]

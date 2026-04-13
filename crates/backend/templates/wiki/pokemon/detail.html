@@ -1,8 +1,7 @@
 {% extends "base.html" %} 
 {% block title %}{{ p.name }} — Karta Yaxu{% endblock %} 
 {% block content %}
-<div style="display: flex; justify-content: space-between; margin-bottom: 24px; align-items: center;">
-    <a href="/wiki/pokemon" class="btn btn-secondary">◀ VOLTAR</a>
+<div style="display: flex; justify-content: flex-end; margin-bottom: 24px; align-items: center;">
     {% if let Some(role) = user_role %}
         {% if role == "editor" %}
         <a href="/editor/pokemon/{{ p.name|slugify }}" class="btn btn-primary" style="background-color: var(--destructive); color: var(--primary-foreground);">✏ EDITAR</a>
@@ -16,8 +15,11 @@
     <div class="badge badge-primary mb-2" style="align-self: flex-start;">#{{ p.dex_number }}</div>
     <h1 style="font-size: 24px; margin-bottom: 16px; word-break: break-all;">{{ p.name }}</h1>
     
-    <div class="sprite-container" style="background-color: var(--gb-lightest); padding: 16px;">
-      <img src="/static/sprites/pokemon/{{ p.sprite }}?v=1" alt="{{ p.name }}" style="width: 100%; height: auto; max-width: 160px; image-rendering: pixelated;" />
+    <div class="sprite-container" style="background-color: var(--gb-lightest); padding: 16px; position: relative;">
+      <button id="shiny-toggle" style="position: absolute; top: 8px; right: 8px; background: none; border: 2px solid transparent; cursor: pointer; padding: 4px; border-radius: 4px; transition: all 0.2s;" title="Toggle Shiny">
+          <img src="/static/icons/items/shiny_charm.png?v=1" alt="Shiny Charm" style="width: 24px; height: 24px; image-rendering: pixelated; display: block;" />
+      </button>
+      <img id="pokemon-sprite" src="/static/sprites/pokemon/{{ p.sprite }}?v=1" data-sprite="{{ p.sprite }}" data-normal="/static/sprites/pokemon/{{ p.sprite }}?v=1" alt="{{ p.name }}" style="width: 100%; height: auto; max-width: 160px; image-rendering: pixelated;" />
     </div>
 
     <!-- Pokedex Entry inside the card -->
@@ -35,44 +37,52 @@
     <div class="mt-4 w-full">
       <h3 style="font-size: 10px; margin-bottom: 8px; opacity: 0.8; padding-bottom: 4px; border-bottom: 2px solid var(--border);">DEFESAS</h3>
       
-      {% if !weaknesses.is_empty() %}
-      <div style="margin-bottom: 12px;">
-         <div style="font-size: 8px; margin-bottom: 6px;">FRACO CONTRA</div>
-         <div class="pkmn-types" style="flex-wrap: wrap; justify-content: flex-start; gap: 4px;">
-           {% for (t, mult) in weaknesses %}
-           <a href="/wiki/types/{{ t.name|slugify }}" class="pkmn-type-badge" style="background-color: {{ t.hexcolor }}; padding-right: 4px; text-decoration: none;">
-             {{ t.name }} <span style="background: var(--gb-darkest); color: var(--gb-lightest); padding: 2px 4px; border-radius: 2px; margin-left: 4px;">{{ mult }}x</span>
-           </a>
-           {% endfor %}
-         </div>
-      </div>
-      {% endif %}
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+        <!-- Coluna Esquerda: Fraquezas -->
+        <div>
+          {% if !weaknesses.is_empty() %}
+          <div style="margin-bottom: 12px;">
+             <div style="font-size: 8px; margin-bottom: 6px;">FRACO CONTRA</div>
+             <div class="pkmn-types" style="flex-direction: column; gap: 4px;">
+               {% for (t, mult) in weaknesses %}
+               <a href="/wiki/types/{{ t.name|slugify }}" class="pkmn-type-badge" style="background-color: {{ t.hexcolor }}; padding-right: 4px; text-decoration: none;">
+                 {{ t.name }} <span style="background: var(--gb-darkest); color: var(--gb-lightest); padding: 2px 4px; border-radius: 2px; margin-left: 4px;">{{ mult }}x</span>
+               </a>
+               {% endfor %}
+             </div>
+          </div>
+          {% endif %}
+        </div>
 
-      {% if !resistances.is_empty() %}
-      <div style="margin-bottom: 12px;">
-         <div style="font-size: 8px; margin-bottom: 6px;">RESISTE A</div>
-         <div class="pkmn-types" style="flex-wrap: wrap; justify-content: flex-start; gap: 4px;">
-           {% for (t, mult) in resistances %}
-           <a href="/wiki/types/{{ t.name|slugify }}" class="pkmn-type-badge" style="background-color: {{ t.hexcolor }}; padding-right: 4px; text-decoration: none;">
-             {{ t.name }} <span style="background: var(--gb-darkest); color: var(--gb-lightest); padding: 2px 4px; border-radius: 2px; margin-left: 4px;">{{ mult }}x</span>
-           </a>
-           {% endfor %}
-         </div>
-      </div>
-      {% endif %}
+        <!-- Coluna Direita: Resistências e Imunidades -->
+        <div>
+          {% if !resistances.is_empty() %}
+          <div style="margin-bottom: 12px;">
+             <div style="font-size: 8px; margin-bottom: 6px;">RESISTE A</div>
+             <div class="pkmn-types" style="flex-direction: column; gap: 4px;">
+               {% for (t, mult) in resistances %}
+               <a href="/wiki/types/{{ t.name|slugify }}" class="pkmn-type-badge" style="background-color: {{ t.hexcolor }}; padding-right: 4px; text-decoration: none;">
+                 {{ t.name }} <span style="background: var(--gb-darkest); color: var(--gb-lightest); padding: 2px 4px; border-radius: 2px; margin-left: 4px;">{{ mult }}x</span>
+               </a>
+               {% endfor %}
+             </div>
+          </div>
+          {% endif %}
 
-      {% if !immunities.is_empty() %}
-      <div style="margin-bottom: 12px;">
-         <div style="font-size: 8px; margin-bottom: 6px;">IMUNE A</div>
-         <div class="pkmn-types" style="flex-wrap: wrap; justify-content: flex-start; gap: 4px;">
-           {% for t in immunities %}
-           <a href="/wiki/types/{{ t.name|slugify }}" class="pkmn-type-badge" style="background-color: {{ t.hexcolor }}; padding-right: 4px; text-decoration: none;">
-             {{ t.name }} <span style="background: var(--gb-darkest); color: var(--gb-lightest); padding: 2px 4px; border-radius: 2px; margin-left: 4px;">0x</span>
-           </a>
-           {% endfor %}
-         </div>
+          {% if !immunities.is_empty() %}
+          <div style="margin-bottom: 12px;">
+             <div style="font-size: 8px; margin-bottom: 6px;">IMUNE A</div>
+             <div class="pkmn-types" style="flex-direction: column; gap: 4px;">
+               {% for t in immunities %}
+               <a href="/wiki/types/{{ t.name|slugify }}" class="pkmn-type-badge" style="background-color: {{ t.hexcolor }}; padding-right: 4px; text-decoration: none;">
+                 {{ t.name }} <span style="background: var(--gb-darkest); color: var(--gb-lightest); padding: 2px 4px; border-radius: 2px; margin-left: 4px;">0x</span>
+               </a>
+               {% endfor %}
+             </div>
+          </div>
+          {% endif %}
+        </div>
       </div>
-      {% endif %}
     </div>
   </div>
 
@@ -100,11 +110,18 @@
       {% if !abilities.is_empty() %}
       <div class="gb-card elevation-1" style="margin-bottom: 16px;">
         <h2 style="font-size: 16px; margin-bottom: 16px;">Habilidades</h2>
-        <ul style="list-style: square; padding-left: 20px; font-size: 10px; line-height: 2;">
+        <div style="display: flex; flex-direction: column; gap: 8px;">
           {% for a in abilities %}
-          <li><a href="/wiki/abilities/{{ a.name|slugify }}"><strong>{{ a.name }}</strong></a> — {{ a.description }}</li>
+          <a href="/wiki/abilities/{{ a.name|slugify }}" class="ability-card">
+              <div class="ability-card-header" style="padding: 8px; width: 100px;">
+                  <div class="ability-card-title">{{ a.name }}</div>
+              </div>
+              <div class="ability-card-body" style="padding: 8px;">
+                  {{ a.description }}
+              </div>
+          </a>
           {% endfor %}
-        </ul>
+        </div>
       </div>
       {% endif %}
       
@@ -160,37 +177,116 @@
       </div>
       {% endif %}
 
-      <!-- Learnset -->
-      {% if !learnset.is_empty() %}
-      <div class="gb-card elevation-1">
-        <h2 style="font-size: 16px; margin-bottom: 16px;">Moves</h2>
-        <div style="overflow-x: auto;">
-          <table style="width: 100%; border-collapse: collapse; font-size: 8px;" class="stats-table">
-            <thead>
-              <tr style="background-color: var(--primary); color: var(--primary-foreground);">
-                <th style="padding: 8px;">Método</th>
-                <th style="padding: 8px;">Move</th>
-                <th style="padding: 8px;">PWR</th>
-                <th style="padding: 8px;">ACC</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for (m, t, method, level) in learnset %}
-              <tr>
-                <td>{% if method == "level_up" %}NV {{ level.unwrap_or(0) }} {% else %}{{ method|upper }}{% endif %}</td>
-                <td><a href="/wiki/moves/{{ m.name|slugify }}">{{ m.name }}</a></td>
-                <td>{% if let Some(p) = m.power %}{{ p }}{% else %}—{% endif %}</td>
-                <td>{% if let Some(a) = m.accuracy %}{{ a }}%{% else %}—{% endif %}</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      </div>
-      {% endif %}
-
   </div>
 </div>
+
+<!-- Learnset -->
+{% if !learnset.is_empty() %}
+<div class="gb-card elevation-1" style="margin-top: 32px;">
+  <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+      <h2 style="font-size: 16px; margin: 0;">Moves</h2>
+      
+      <div class="flex gap-2" style="flex-wrap: wrap; font-size: 10px;">
+        <button class="btn btn-primary method-filter" data-filter="all" style="background-color: var(--gb-light); color: var(--gb-darkest);">Todos</button>
+        <button class="btn btn-primary method-filter" data-filter="level_up">Level</button>
+        <button class="btn btn-primary method-filter" data-filter="machine">TM/HM</button>
+        <button class="btn btn-primary method-filter" data-filter="tutor">Tutor</button>
+        <button class="btn btn-primary method-filter" data-filter="egg">Egg</button>
+      </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 16px;" class="mt-4" id="learnset-container">
+      {% for (m, t, method, level) in learnset %}
+      <a href="/wiki/moves/{{ m.name|slugify }}" class="move-card learnset-move" data-method="{{ method }}">
+          <div class="move-card-header">
+              <div class="move-card-title">{{ m.name }}</div>
+              <div class="pkmn-type-badge" style="background-color: {{ t.hexcolor }}; border-width: 1px; padding: 4px 6px; flex: 0; box-shadow: 1px 1px 0 var(--border);">{{ t.name }}</div>
+          </div>
+          <div class="move-card-body">
+              <div class="move-card-stats">
+                  <div class="move-stat-box">
+                      <div class="move-stat-label">CAT</div>
+                      <div class="move-stat-value">{{ m.category }}</div>
+                  </div>
+                  <div class="move-stat-box">
+                      <div class="move-stat-label">PWR</div>
+                      <div class="move-stat-value">{% if let Some(p) = m.power %}{{ p }}{% else %}—{% endif %}</div>
+                  </div>
+                  <div class="move-stat-box">
+                      <div class="move-stat-label">ACC</div>
+                      <div class="move-stat-value">{% if let Some(a) = m.accuracy %}{{ a }}%{% else %}—{% endif %}</div>
+                  </div>
+                  <div class="move-stat-box">
+                      <div class="move-stat-label">PP</div>
+                      <div class="move-stat-value">{{ m.pp }}</div>
+                  </div>
+              </div>
+          </div>
+          <div class="move-card-actions">
+              <div class="badge" style="background-color: var(--gb-darkest); color: var(--gb-lightest); width: 100%; text-align: center;">
+                  {% if method == "level_up" %}NV {{ level.unwrap_or(0) }} {% else if method == "machine" %}TM{% else %}{{ method|upper }}{% endif %}
+              </div>
+          </div>
+      </a>
+      {% endfor %}
+  </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const filters = document.querySelectorAll(".method-filter");
+    const moves = document.querySelectorAll(".learnset-move");
+
+    if (filters && moves) {
+        filters.forEach(f => {
+            f.addEventListener("click", () => {
+                filters.forEach(btn => {
+                    btn.style.backgroundColor = "var(--primary)";
+                    btn.style.color = "var(--primary-foreground)";
+                });
+                f.style.backgroundColor = "var(--gb-light)";
+                f.style.color = "var(--gb-darkest)";
+
+                const method = f.getAttribute("data-filter");
+                moves.forEach(m => {
+                    if (method === "all" || m.getAttribute("data-method") === method) {
+                        m.style.display = "flex";
+                    } else {
+                        m.style.display = "none";
+                    }
+                });
+            });
+        });
+    }
+
+    // Shiny Toggle logic
+    const shinyBtn = document.getElementById("shiny-toggle");
+    const pkmnSprite = document.getElementById("pokemon-sprite");
+    if (shinyBtn && pkmnSprite) {
+        let isShiny = false;
+
+        const spriteFile = pkmnSprite.getAttribute("data-sprite");
+        const shinySpriteFile = spriteFile.replace(".png", "_shiny.png");
+        const shinyUrl = "/static/sprites/shiny/" + shinySpriteFile + "?v=1";
+        const normalUrl = pkmnSprite.getAttribute("data-normal");
+
+        shinyBtn.addEventListener("click", (e) => {
+            e.preventDefault();
+            isShiny = !isShiny;
+            if (isShiny) {
+                pkmnSprite.src = shinyUrl;
+                shinyBtn.style.border = "2px solid var(--border)";
+                shinyBtn.style.backgroundColor = "var(--gb-light)";
+            } else {
+                pkmnSprite.src = normalUrl;
+                shinyBtn.style.border = "2px solid transparent";
+                shinyBtn.style.backgroundColor = "transparent";
+            }
+        });
+    }
+});
+</script>
+{% endif %}
 
 <style>
   @media (max-width: 768px) {

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Karta Yaxu{% endblock %}</title>
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/style.css?v=2">
 </head>
 <body>
     <header class="gb-header elevation-2">
@@ -16,30 +16,98 @@
             </div>
             <p class="text-xxs tracking-wider opacity-80" style="margin:0; text-transform:uppercase;">Gameboy Edition</p>
             
-            <nav class="flex gap-4 mt-4" style="font-size: 10px; flex-wrap: wrap; justify-content: center;">
-                <a href="/wiki/pokemon" class="btn btn-primary" style="padding: 8px 12px; box-shadow: 2px 2px 0 var(--border);">Pokédex</a>
-                <a href="/wiki/types" class="btn btn-primary" style="padding: 8px 12px; box-shadow: 2px 2px 0 var(--border);">Tipos</a>
-                <a href="/wiki/moves" class="btn btn-primary" style="padding: 8px 12px; box-shadow: 2px 2px 0 var(--border);">Moves</a>
-                <a href="/wiki/abilities" class="btn btn-primary" style="padding: 8px 12px; box-shadow: 2px 2px 0 var(--border);">Habilidades</a>
-                <a href="/wiki/mechanics/nature" class="btn btn-primary" style="padding: 8px 12px; box-shadow: 2px 2px 0 var(--border);">Natures</a>
-                <a href="/wiki/mechanics/status" class="btn btn-primary" style="padding: 8px 12px; box-shadow: 2px 2px 0 var(--border);">Status</a>
-                
-                {% if let Some(role) = user_role %}
-                    <a href="/trainer/dashboard" class="btn btn-primary" style="padding: 8px 12px; box-shadow: 2px 2px 0 var(--border); border-color: var(--gb-darkest); color: var(--gb-darkest); background-color: var(--gb-lightest);">Card</a>
-                    {% if role == "editor" %}
-                    <a href="/editor/pokemon" class="btn btn-primary" style="padding: 8px 12px; box-shadow: 2px 2px 0 var(--border); border-color: var(--destructive);">✏ Editor</a>
+            <nav class="flex mt-4" style="font-size: 10px; flex-wrap: wrap; justify-content: center; gap: 32px;">
+                <!-- Sistema -->
+                <div class="flex gap-4">
+                    <a href="/wiki" class="btn btn-primary" style="padding: 8px 12px; box-shadow: 2px 2px 0 var(--border);">📚 Wiki</a>
+                    {% if let Some(role) = user_role %}
+                        {% if role == "editor" %}
+                        <a href="/editor" class="btn btn-primary" style="padding: 8px 12px; box-shadow: 2px 2px 0 var(--border); border-color: var(--destructive);">🛠 Editor</a>
+                        {% endif %}
                     {% endif %}
-                    <form action="/trainer/logout" method="post" style="display: inline;">
-                        <button type="submit" class="btn btn-primary" style="padding: 8px 12px; box-shadow: 2px 2px 0 var(--border);">Sair</button>
-                    </form>
-                {% else %}
-                    <a href="/trainer/login" class="btn btn-primary" style="padding: 8px 12px; box-shadow: 2px 2px 0 var(--border);">Login</a>
-                {% endif %}
+                </div>
+
+                <!-- Jogador -->
+                <div class="flex gap-4">
+                    {% if let Some(role) = user_role %}
+                        <a href="/trainer/dashboard" class="btn btn-primary" style="padding: 8px 12px; box-shadow: 2px 2px 0 var(--border); border-color: var(--gb-darkest); color: var(--gb-darkest); background-color: var(--gb-lightest);">Card</a>
+                        <form action="/trainer/logout" method="post" style="display: inline;">
+                            <button type="submit" class="btn btn-primary" style="padding: 8px 12px; box-shadow: 2px 2px 0 var(--border);">Sair</button>
+                        </form>
+                    {% else %}
+                        <a href="/trainer/login" class="btn btn-primary" style="padding: 8px 12px; box-shadow: 2px 2px 0 var(--border);">Login</a>
+                    {% endif %}
+                </div>
             </nav>
         </div>
     </header>
 
     <main class="container" style="padding-top: 32px; padding-bottom: 32px; min-height: 50vh;">
+        <!-- Breadcrumbs Automáticos -->
+        <div id="breadcrumbs" class="flex items-center gap-2 mb-6" style="font-size: 10px; font-weight: bold; overflow-x: auto; white-space: nowrap; padding-bottom: 4px;">
+            <a href="javascript:history.back()" style="text-decoration: none; text-transform: uppercase;">Voltar</a> 
+            <span style="opacity: 0.5;">|</span>
+            <a href="/" style="text-decoration: none; text-transform: uppercase;">Início</a>
+        </div>
+        
+        <script>
+            document.addEventListener("DOMContentLoaded", function() {
+                const path = window.location.pathname;
+                const container = document.getElementById("breadcrumbs");
+                
+                if (path !== "/" && path !== "") {
+                    const segments = path.split("/").filter(s => s.length > 0);
+                    let currentUrl = "";
+                    
+                    segments.forEach((segment, index) => {
+                        currentUrl += "/" + segment;
+                        
+                        // Tradução/Formatação comum
+                        let displayName = segment.charAt(0).toUpperCase() + segment.slice(1);
+                        const map = {
+                            "pokemon": "Pokémon",
+                            "mechanics": "Mecânicas",
+                            "abilities": "Habilidades",
+                            "types": "Tipos",
+                            "moves": "Moves",
+                            "natures": "Natures",
+                            "status": "Status"
+                        };
+                        
+                        if (map[segment.toLowerCase()]) {
+                            displayName = map[segment.toLowerCase()];
+                        } else {
+                            // Limpa hífens de slugs dinâmicos
+                            displayName = displayName.replace(/-/g, " ");
+                        }
+
+                        const separator = document.createElement("span");
+                        separator.textContent = ">";
+                        separator.style.opacity = "0.5";
+                        separator.style.margin = "0 4px";
+                        container.appendChild(separator);
+                        
+                        const isLast = index === segments.length - 1;
+                        if (isLast) {
+                            const span = document.createElement("span");
+                            span.textContent = displayName;
+                            span.style.textTransform = "uppercase";
+                            container.appendChild(span);
+                        } else {
+                            const a = document.createElement("a");
+                            a.href = currentUrl;
+                            a.textContent = displayName;
+                            a.style.textDecoration = "none";
+                            a.style.textTransform = "uppercase";
+                            container.appendChild(a);
+                        }
+                    });
+                } else {
+                    container.style.display = "none";
+                }
+            });
+        </script>
+
         {% block content %}{% endblock %}
     </main>
 

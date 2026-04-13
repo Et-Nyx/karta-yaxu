@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Editor — Karta Yaxu{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-4 mt-4">
+    <h1 style="font-size: 24px;">Painel de Edição</h1>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+    <a href="/editor/pokemon" class="gb-card elevation-2" style="background-color: var(--destructive); align-items: center; justify-content: center; text-decoration: none;">
+        <h2 style="font-size: 16px; color: var(--gb-lightest); margin-bottom: 8px; text-align: center;">Pokémon</h2>
+        <p style="font-size: 8px; color: var(--gb-lightest); line-height: 1.5; text-align: center;">Criar e Editar Pokémon</p>
+    </a>
+    <a href="/editor/types" class="gb-card elevation-2" style="background-color: var(--destructive); align-items: center; justify-content: center; text-decoration: none;">
+        <h2 style="font-size: 16px; color: var(--gb-lightest); margin-bottom: 8px; text-align: center;">Tipos</h2>
+        <p style="font-size: 8px; color: var(--gb-lightest); line-height: 1.5; text-align: center;">Equilibrar Efetividades</p>
+    </a>
+    <a href="/editor/moves" class="gb-card elevation-2" style="background-color: var(--destructive); align-items: center; justify-content: center; text-decoration: none;">
+        <h2 style="font-size: 16px; color: var(--gb-lightest); margin-bottom: 8px; text-align: center;">Moves</h2>
+        <p style="font-size: 8px; color: var(--gb-lightest); line-height: 1.5; text-align: center;">Forjar novos Ataques</p>
+    </a>
+    <a href="/editor/abilities" class="gb-card elevation-2" style="background-color: var(--destructive); align-items: center; justify-content: center; text-decoration: none;">
+        <h2 style="font-size: 16px; color: var(--gb-lightest); margin-bottom: 8px; text-align: center;">Habilidades</h2>
+        <p style="font-size: 8px; color: var(--gb-lightest); line-height: 1.5; text-align: center;">Mecânicas Passivas</p>
+    </a>
+    <a href="/editor/natures" class="gb-card elevation-2" style="background-color: var(--destructive); align-items: center; justify-content: center; text-decoration: none;">
+        <h2 style="font-size: 16px; color: var(--gb-lightest); margin-bottom: 8px; text-align: center;">Natures</h2>
+        <p style="font-size: 8px; color: var(--gb-lightest); line-height: 1.5; text-align: center;">Multiplicadores de Status</p>
+    </a>
+    <a href="/editor/status" class="gb-card elevation-2" style="background-color: var(--destructive); align-items: center; justify-content: center; text-decoration: none;">
+        <h2 style="font-size: 16px; color: var(--gb-lightest); margin-bottom: 8px; text-align: center;">Status</h2>
+        <p style="font-size: 8px; color: var(--gb-lightest); line-height: 1.5; text-align: center;">Condições de Batalha</p>
+    </a>
+</div>
+{% endblock %}

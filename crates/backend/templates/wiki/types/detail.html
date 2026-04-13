@@ -1,8 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ t.name }} — Karta Yaxu{% endblock %}
 {% block content %}
-<div style="display: flex; justify-content: space-between; margin-bottom: 24px; align-items: center;">
-    <a href="/wiki/types" class="btn btn-secondary">◀ VOLTAR</a>
+<div style="display: flex; justify-content: flex-end; margin-bottom: 24px; align-items: center;">
     {% if let Some(role) = user_role %}
         {% if role == "editor" %}
         <a href="/editor/types/{{ t.name|slugify }}" class="btn btn-primary" style="background-color: var(--destructive); color: var(--primary-foreground);">✏ EDITAR</a>

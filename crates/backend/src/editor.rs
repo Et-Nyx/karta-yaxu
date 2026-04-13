@@ -12,7 +12,26 @@ use engine::models::{
 use crate::auth::EditorSession;
 use crate::filters;
 
+fn to_slug(name: &str) -> String {
+    name.to_lowercase().replace(' ', "-").replace('\'', "")
+}
+
 use serde::{Deserialize, Serialize};
+
+#[derive(Template)]
+#[template(path = "editor/index.html")]
+struct EditorIndexTemplate {
+    user_role: Option<String>,
+}
+
+pub async fn index(
+    _editor: EditorSession, 
+    session: tower_sessions::Session
+) -> Result<Html<String>, StatusCode> {
+    let user_role = crate::auth::get_user_role(&session).await;
+    let html = EditorIndexTemplate { user_role }.render().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    Ok(Html(html))
+}
 
 #[derive(Serialize, Deserialize)]
 pub struct PokemonFull {
@@ -366,10 +385,21 @@ pub async fn pokemon_delete(
 }
 
 // Moves
+pub struct MoveRow {
+    pub name: String,
+    pub type_id: i64,
+    pub type_name: String,
+    pub type_color: String,
+    pub category: engine::models::MoveCategory,
+    pub power: Option<i64>,
+    pub accuracy: Option<i64>,
+    pub pp: i64,
+}
+
 #[derive(Template)]
 #[template(path = "editor/moves/list.html")]
 pub struct MoveListTemplate {
-    pub moves: Vec<Move>,
+    pub moves: Vec<MoveRow>,
     pub user_role: Option<String>,
 }
 
@@ -377,10 +407,31 @@ pub async fn move_list(
     _session: EditorSession,
     State(pool): State<SqlitePool>,
 ) -> impl IntoResponse {
-    let moves = sqlx::query_as::<_, Move>("SELECT * FROM moves ORDER BY name")
+    let raw_moves = sqlx::query_as::<_, Move>("SELECT * FROM moves ORDER BY name")
         .fetch_all(&pool)
         .await
         .unwrap_or_default();
+    let types = sqlx::query_as::<_, Type>("SELECT * FROM types")
+        .fetch_all(&pool)
+        .await
+        .unwrap_or_default();
+
+    let moves: Vec<MoveRow> = raw_moves.into_iter().map(|m| {
+        let (tname, tcolor) = types.iter()
+            .find(|t| t.id == m.type_id)
+            .map(|t| (t.name.clone(), t.hexcolor.clone()))
+            .unwrap_or(("???".into(), "#888".into()));
+        MoveRow {
+            name: m.name,
+            type_id: m.type_id,
+            type_name: tname,
+            type_color: tcolor,
+            category: m.category,
+            power: m.power,
+            accuracy: m.accuracy,
+            pp: m.pp,
+        }
+    }).collect();
 
     Html(MoveListTemplate { moves, user_role: Some("editor".into()) }.render().unwrap())
 }
@@ -422,11 +473,12 @@ pub async fn move_edit(
     State(pool): State<SqlitePool>,
     Path(slug): Path<String>,
 ) -> impl IntoResponse {
-    let m = sqlx::query_as::<_, Move>("SELECT * FROM moves WHERE name LIKE ?")
-        .bind(&slug)
-        .fetch_optional(&pool)
+    let all_moves = sqlx::query_as::<_, Move>("SELECT * FROM moves")
+        .fetch_all(&pool)
         .await
-        .unwrap_or(None);
+        .unwrap_or_default();
+
+    let m = all_moves.into_iter().find(|m| to_slug(&m.name) == slug);
 
     if let Some(m) = m {
         let toml_content = toml::to_string(&m).unwrap();
@@ -449,7 +501,8 @@ pub async fn move_save(
         }
     };
 
-    let old_m = sqlx::query_as::<_, Move>("SELECT * FROM moves WHERE name LIKE ?").bind(&slug).fetch_one(&pool).await.unwrap();
+    let all_moves = sqlx::query_as::<_, Move>("SELECT * FROM moves").fetch_all(&pool).await.unwrap_or_default();
+    let old_m = all_moves.into_iter().find(|m| to_slug(&m.name) == slug).unwrap();
     let mut new_m = new_m;
     new_m.id = old_m.id; // Evita ID Hijacking
     let diff = format!("{}---{}", toml::to_string(&old_m).unwrap(), payload.toml_content);
@@ -470,7 +523,8 @@ pub async fn move_save(
 }
 
 pub async fn move_delete(_session: EditorSession, State(pool): State<SqlitePool>, Path(slug): Path<String>) -> impl IntoResponse {
-    let m = sqlx::query_as::<_, Move>("SELECT * FROM moves WHERE name LIKE ?").bind(&slug).fetch_optional(&pool).await.unwrap_or(None);
+    let all_moves = sqlx::query_as::<_, Move>("SELECT * FROM moves").fetch_all(&pool).await.unwrap_or_default();
+    let m = all_moves.into_iter().find(|m| to_slug(&m.name) == slug);
     if let Some(m) = m {
         let mut tx = pool.begin().await.unwrap();
         let res = async {
