@@ -16,7 +16,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let db_url = env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite:./data/rom.db".to_string());
 
     let opts = SqliteConnectOptions::from_str(&db_url)?
-        .create_if_missing(true);
+        .create_if_missing(true)
+        .foreign_keys(true);
 
     println!("Conectando ao banco de dados...");
     let pool = SqlitePoolOptions::new()

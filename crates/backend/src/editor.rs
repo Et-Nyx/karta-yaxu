@@ -34,7 +34,7 @@ pub struct TypeFull {
 #[derive(Template)]
 #[template(path = "editor/pokemon/list.html")]
 pub struct PokemonListTemplate {
-    pub pokemon: Vec<Pokemon>,
+    pub pokemon: std::vec::Vec<(engine::models::Pokemon, engine::models::Type, std::option::Option<engine::models::Type>)>,
     pub user_role: Option<String>,
 }
 
@@ -47,7 +47,16 @@ pub async fn pokemon_list(
         .await
         .unwrap_or_default();
 
-    Html(PokemonListTemplate { pokemon, user_role: Some("editor".into()) }.render().unwrap())
+    let all_types = sqlx::query_as::<_, Type>("SELECT * FROM types").fetch_all(&pool).await.unwrap_or_default();
+    
+    let mut mapped_pokemon = Vec::new();
+    for p in pokemon {
+        let t1 = all_types.iter().find(|t| t.id == p.type1_id).unwrap().clone();
+        let t2 = p.type2_id.and_then(|id| all_types.iter().find(|t| t.id == id).cloned());
+        mapped_pokemon.push((p, t1, t2));
+    }
+
+    Html(PokemonListTemplate { pokemon: mapped_pokemon, user_role: Some("editor".into()) }.render().unwrap())
 }
 
 #[derive(Template)]
@@ -117,36 +126,45 @@ pub async fn pokemon_create(
 
     let mut tx = pool.begin().await.unwrap();
 
-    let _ = sqlx::query(
-        r#"
-        INSERT INTO pokemon (id, dex_number, name, sprite, sprite_shiny,
-            type1_id, type2_id, hp, atk, def, spa, spd, spe, pokedex_entry)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        "#
-    )
-    .bind(new_p.id).bind(new_p.dex_number).bind(&new_p.name).bind(&new_p.sprite).bind(&new_p.sprite_shiny)
-    .bind(new_p.type1_id).bind(new_p.type2_id).bind(new_p.hp).bind(new_p.atk).bind(new_p.def)
-    .bind(new_p.spa).bind(new_p.spd).bind(new_p.spe).bind(&new_p.pokedex_entry)
-    .execute(&mut *tx).await;
+    let res = async {
+        sqlx::query(
+            r#"
+            INSERT INTO pokemon (id, dex_number, name, sprite, sprite_shiny,
+                type1_id, type2_id, hp, atk, def, spa, spd, spe, pokedex_entry)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            "#
+        )
+        .bind(new_p.id).bind(new_p.dex_number).bind(&new_p.name).bind(&new_p.sprite).bind(&new_p.sprite_shiny)
+        .bind(new_p.type1_id).bind(new_p.type2_id).bind(new_p.hp).bind(new_p.atk).bind(new_p.def)
+        .bind(new_p.spa).bind(new_p.spd).bind(new_p.spe).bind(&new_p.pokedex_entry)
+        .execute(&mut *tx).await?;
 
-    for a in full.abilities {
-        let _ = sqlx::query("INSERT INTO pokemon_abilities (pokemon_id, ability_id, slot) VALUES (?, ?, ?)")
-            .bind(new_p.id).bind(a.ability_id).bind(a.slot).execute(&mut *tx).await;
-    }
-    for e in full.evolutions {
-        let _ = sqlx::query("INSERT INTO evolutions (from_id, to_id, condition, condition_value) VALUES (?, ?, ?, ?)")
-            .bind(new_p.id).bind(e.to_id).bind(&e.condition).bind(&e.condition_value).execute(&mut *tx).await;
-    }
-    for f in full.forms {
-        let _ = sqlx::query("INSERT INTO pokemon_forms (base_id, form_id, form_name) VALUES (?, ?, ?)")
-            .bind(new_p.id).bind(f.form_id).bind(&f.form_name).execute(&mut *tx).await;
-    }
-    for l in full.learnset {
-        let _ = sqlx::query("INSERT INTO learnset (pokemon_id, move_id, method, level) VALUES (?, ?, ?, ?)")
-            .bind(new_p.id).bind(l.move_id).bind(l.method).bind(l.level).execute(&mut *tx).await;
-    }
+        for a in &full.abilities {
+            sqlx::query("INSERT INTO pokemon_abilities (pokemon_id, ability_id, slot) VALUES (?, ?, ?)")
+                .bind(new_p.id).bind(a.ability_id).bind(a.slot).execute(&mut *tx).await?;
+        }
+        for e in &full.evolutions {
+            sqlx::query("INSERT INTO evolutions (from_id, to_id, condition, condition_value) VALUES (?, ?, ?, ?)")
+                .bind(new_p.id).bind(e.to_id).bind(&e.condition).bind(&e.condition_value).execute(&mut *tx).await?;
+        }
+        for f in &full.forms {
+            sqlx::query("INSERT INTO pokemon_forms (base_id, form_id, form_name) VALUES (?, ?, ?)")
+                .bind(new_p.id).bind(f.form_id).bind(&f.form_name).execute(&mut *tx).await?;
+        }
+        for l in &full.learnset {
+            sqlx::query("INSERT INTO learnset (pokemon_id, move_id, method, level) VALUES (?, ?, ?, ?)")
+                .bind(new_p.id).bind(l.move_id).bind(&l.method).bind(l.level).execute(&mut *tx).await?;
+        }
+        Ok::<_, sqlx::Error>(())
+    }.await;
 
-    let result = tx.commit().await;
+    let result = match res {
+        Ok(_) => tx.commit().await,
+        Err(e) => {
+            let _ = tx.rollback().await;
+            Err(e)
+        }
+    };
 
     match result {
         Ok(_) => {
@@ -225,61 +243,71 @@ pub async fn pokemon_save(
             }.render().unwrap()).into_response();
         }
     };
-    let new_p = full.pokemon;
-
     // Obter dados antigos para o log de edits (pode ser o Pokemon ou o Full, vamos usar o Pokemon base para simplicidade no diff por enquanto)
-    let old_p = sqlx::query_as::<_, Pokemon>("SELECT * FROM pokemon WHERE id = ?")
-        .bind(new_p.id)
+    let old_p = sqlx::query_as::<_, Pokemon>("SELECT * FROM pokemon WHERE name LIKE ?")
+        .bind(&slug)
         .fetch_one(&pool)
         .await
         .unwrap();
+
+    let mut new_p = full.pokemon.clone();
+    new_p.id = old_p.id; // Evita ID Hijacking
+    let full = PokemonFull { pokemon: new_p.clone(), ..full };
 
     let old_toml = toml::to_string(&old_p).unwrap();
     let diff = format!("{}---{}", old_toml, payload.toml_content);
 
     let mut tx = pool.begin().await.unwrap();
 
-    let _ = sqlx::query(
-        r#"
-        UPDATE pokemon
-        SET dex_number = ?, name = ?, sprite = ?, sprite_shiny = ?,
-            type1_id = ?, type2_id = ?, hp = ?, atk = ?, def = ?,
-            spa = ?, spd = ?, spe = ?, pokedex_entry = ?
-        WHERE id = ?
-        "#
-    )
-    .bind(new_p.dex_number).bind(&new_p.name).bind(&new_p.sprite).bind(&new_p.sprite_shiny)
-    .bind(new_p.type1_id).bind(new_p.type2_id).bind(new_p.hp).bind(new_p.atk).bind(new_p.def)
-    .bind(new_p.spa).bind(new_p.spd).bind(new_p.spe).bind(&new_p.pokedex_entry)
-    .bind(new_p.id)
-    .execute(&mut *tx).await;
+    let res = async {
+        sqlx::query(
+            r#"
+            UPDATE pokemon
+            SET dex_number = ?, name = ?, sprite = ?, sprite_shiny = ?,
+                type1_id = ?, type2_id = ?, hp = ?, atk = ?, def = ?,
+                spa = ?, spd = ?, spe = ?, pokedex_entry = ?
+            WHERE id = ?
+            "#
+        )
+        .bind(new_p.dex_number).bind(&new_p.name).bind(&new_p.sprite).bind(&new_p.sprite_shiny)
+        .bind(new_p.type1_id).bind(new_p.type2_id).bind(new_p.hp).bind(new_p.atk).bind(new_p.def)
+        .bind(new_p.spa).bind(new_p.spd).bind(new_p.spe).bind(&new_p.pokedex_entry)
+        .bind(new_p.id)
+        .execute(&mut *tx).await?;
 
-    // Atualizar Relações
-    let _ = sqlx::query("DELETE FROM pokemon_abilities WHERE pokemon_id = ?").bind(new_p.id).execute(&mut *tx).await;
-    for a in full.abilities {
-        let _ = sqlx::query("INSERT INTO pokemon_abilities (pokemon_id, ability_id, slot) VALUES (?, ?, ?)")
-            .bind(new_p.id).bind(a.ability_id).bind(a.slot).execute(&mut *tx).await;
-    }
+        sqlx::query("DELETE FROM pokemon_abilities WHERE pokemon_id = ?").bind(new_p.id).execute(&mut *tx).await?;
+        for a in &full.abilities {
+            sqlx::query("INSERT INTO pokemon_abilities (pokemon_id, ability_id, slot) VALUES (?, ?, ?)")
+                .bind(new_p.id).bind(a.ability_id).bind(a.slot).execute(&mut *tx).await?;
+        }
 
-    let _ = sqlx::query("DELETE FROM evolutions WHERE from_id = ?").bind(new_p.id).execute(&mut *tx).await;
-    for e in full.evolutions {
-        let _ = sqlx::query("INSERT INTO evolutions (from_id, to_id, condition, condition_value) VALUES (?, ?, ?, ?)")
-            .bind(new_p.id).bind(e.to_id).bind(&e.condition).bind(&e.condition_value).execute(&mut *tx).await;
-    }
+        sqlx::query("DELETE FROM evolutions WHERE from_id = ?").bind(new_p.id).execute(&mut *tx).await?;
+        for e in &full.evolutions {
+            sqlx::query("INSERT INTO evolutions (from_id, to_id, condition, condition_value) VALUES (?, ?, ?, ?)")
+                .bind(new_p.id).bind(e.to_id).bind(&e.condition).bind(&e.condition_value).execute(&mut *tx).await?;
+        }
 
-    let _ = sqlx::query("DELETE FROM pokemon_forms WHERE base_id = ?").bind(new_p.id).execute(&mut *tx).await;
-    for f in full.forms {
-        let _ = sqlx::query("INSERT INTO pokemon_forms (base_id, form_id, form_name) VALUES (?, ?, ?)")
-            .bind(new_p.id).bind(f.form_id).bind(&f.form_name).execute(&mut *tx).await;
-    }
+        sqlx::query("DELETE FROM pokemon_forms WHERE base_id = ?").bind(new_p.id).execute(&mut *tx).await?;
+        for f in &full.forms {
+            sqlx::query("INSERT INTO pokemon_forms (base_id, form_id, form_name) VALUES (?, ?, ?)")
+                .bind(new_p.id).bind(f.form_id).bind(&f.form_name).execute(&mut *tx).await?;
+        }
 
-    let _ = sqlx::query("DELETE FROM learnset WHERE pokemon_id = ?").bind(new_p.id).execute(&mut *tx).await;
-    for l in full.learnset {
-        let _ = sqlx::query("INSERT INTO learnset (pokemon_id, move_id, method, level) VALUES (?, ?, ?, ?)")
-            .bind(new_p.id).bind(l.move_id).bind(l.method).bind(l.level).execute(&mut *tx).await;
-    }
+        sqlx::query("DELETE FROM learnset WHERE pokemon_id = ?").bind(new_p.id).execute(&mut *tx).await?;
+        for l in &full.learnset {
+            sqlx::query("INSERT INTO learnset (pokemon_id, move_id, method, level) VALUES (?, ?, ?, ?)")
+                .bind(new_p.id).bind(l.move_id).bind(&l.method).bind(l.level).execute(&mut *tx).await?;
+        }
+        Ok::<_, sqlx::Error>(())
+    }.await;
 
-    let result = tx.commit().await;
+    let result = match res {
+        Ok(_) => tx.commit().await,
+        Err(e) => {
+            let _ = tx.rollback().await;
+            Err(e)
+        }
+    };
 
     match result {
         Ok(_) => {
@@ -312,18 +340,26 @@ pub async fn pokemon_delete(
     if let Some(p) = p {
         let mut tx = pool.begin().await.unwrap();
 
-        // Limpar relações
-        let _ = sqlx::query("DELETE FROM pokemon_abilities WHERE pokemon_id = ?").bind(p.id).execute(&mut *tx).await;
-        let _ = sqlx::query("DELETE FROM evolutions WHERE from_id = ? OR to_id = ?").bind(p.id).bind(p.id).execute(&mut *tx).await;
-        let _ = sqlx::query("DELETE FROM pokemon_forms WHERE base_id = ? OR form_id = ?").bind(p.id).bind(p.id).execute(&mut *tx).await;
-        let _ = sqlx::query("DELETE FROM learnset WHERE pokemon_id = ?").bind(p.id).execute(&mut *tx).await;
-        let _ = sqlx::query("DELETE FROM team_members WHERE pokemon_id = ?").bind(p.id).execute(&mut *tx).await;
+        let res = async {
+            sqlx::query("DELETE FROM pokemon_abilities WHERE pokemon_id = ?").bind(p.id).execute(&mut *tx).await?;
+            sqlx::query("DELETE FROM evolutions WHERE from_id = ? OR to_id = ?").bind(p.id).bind(p.id).execute(&mut *tx).await?;
+            sqlx::query("DELETE FROM pokemon_forms WHERE base_id = ? OR form_id = ?").bind(p.id).bind(p.id).execute(&mut *tx).await?;
+            sqlx::query("DELETE FROM learnset WHERE pokemon_id = ?").bind(p.id).execute(&mut *tx).await?;
+            sqlx::query("DELETE FROM team_members WHERE pokemon_id = ?").bind(p.id).execute(&mut *tx).await?;
+            sqlx::query("DELETE FROM pokemon WHERE id = ?").bind(p.id).execute(&mut *tx).await?;
+            Ok::<_, sqlx::Error>(())
+        }.await;
 
-        // Deletar o pokemon
-        let _ = sqlx::query("DELETE FROM pokemon WHERE id = ?").bind(p.id).execute(&mut *tx).await;
-
-        tx.commit().await.unwrap();
-        Redirect::to("/editor/pokemon").into_response()
+        match res {
+            Ok(_) => {
+                tx.commit().await.unwrap();
+                Redirect::to("/editor/pokemon").into_response()
+            }
+            Err(e) => {
+                let _ = tx.rollback().await;
+                (StatusCode::INTERNAL_SERVER_ERROR, format!("Erro ao deletar: {}", e)).into_response()
+            }
+        }
     } else {
         StatusCode::NOT_FOUND.into_response()
     }
@@ -413,7 +449,9 @@ pub async fn move_save(
         }
     };
 
-    let old_m = sqlx::query_as::<_, Move>("SELECT * FROM moves WHERE id = ?").bind(new_m.id).fetch_one(&pool).await.unwrap();
+    let old_m = sqlx::query_as::<_, Move>("SELECT * FROM moves WHERE name LIKE ?").bind(&slug).fetch_one(&pool).await.unwrap();
+    let mut new_m = new_m;
+    new_m.id = old_m.id; // Evita ID Hijacking
     let diff = format!("{}---{}", toml::to_string(&old_m).unwrap(), payload.toml_content);
 
     let result = sqlx::query("UPDATE moves SET name = ?, type_id = ?, category = ?, power = ?, accuracy = ?, pp = ?, description = ? WHERE id = ?")
@@ -435,14 +473,19 @@ pub async fn move_delete(_session: EditorSession, State(pool): State<SqlitePool>
     let m = sqlx::query_as::<_, Move>("SELECT * FROM moves WHERE name LIKE ?").bind(&slug).fetch_optional(&pool).await.unwrap_or(None);
     if let Some(m) = m {
         let mut tx = pool.begin().await.unwrap();
-        let _ = sqlx::query("DELETE FROM learnset WHERE move_id = ?").bind(m.id).execute(&mut *tx).await;
-        let _ = sqlx::query("UPDATE team_members SET move1_id = NULL WHERE move1_id = ?").bind(m.id).execute(&mut *tx).await;
-        let _ = sqlx::query("UPDATE team_members SET move2_id = NULL WHERE move2_id = ?").bind(m.id).execute(&mut *tx).await;
-        let _ = sqlx::query("UPDATE team_members SET move3_id = NULL WHERE move3_id = ?").bind(m.id).execute(&mut *tx).await;
-        let _ = sqlx::query("UPDATE team_members SET move4_id = NULL WHERE move4_id = ?").bind(m.id).execute(&mut *tx).await;
-        let _ = sqlx::query("DELETE FROM moves WHERE id = ?").bind(m.id).execute(&mut *tx).await;
-        tx.commit().await.unwrap();
-        Redirect::to("/editor/moves").into_response()
+        let res = async {
+            sqlx::query("DELETE FROM learnset WHERE move_id = ?").bind(m.id).execute(&mut *tx).await?;
+            sqlx::query("UPDATE team_members SET move1_id = NULL WHERE move1_id = ?").bind(m.id).execute(&mut *tx).await?;
+            sqlx::query("UPDATE team_members SET move2_id = NULL WHERE move2_id = ?").bind(m.id).execute(&mut *tx).await?;
+            sqlx::query("UPDATE team_members SET move3_id = NULL WHERE move3_id = ?").bind(m.id).execute(&mut *tx).await?;
+            sqlx::query("UPDATE team_members SET move4_id = NULL WHERE move4_id = ?").bind(m.id).execute(&mut *tx).await?;
+            sqlx::query("DELETE FROM moves WHERE id = ?").bind(m.id).execute(&mut *tx).await?;
+            Ok::<_, sqlx::Error>(())
+        }.await;
+        match res {
+            Ok(_) => { tx.commit().await.unwrap(); Redirect::to("/editor/moves").into_response() }
+            Err(e) => { let _ = tx.rollback().await; (StatusCode::INTERNAL_SERVER_ERROR, format!("Erro: {}", e)).into_response() }
+        }
     } else {
         StatusCode::NOT_FOUND.into_response()
     }
@@ -489,15 +532,24 @@ pub async fn type_create(EditorSession(trainer): EditorSession, State(pool): Sta
 
     let mut tx = pool.begin().await.unwrap();
 
-    let _ = sqlx::query("INSERT INTO types (id, name, hexcolor, icon) VALUES (?, ?, ?, ?)")
-        .bind(new_t.id).bind(&new_t.name).bind(&new_t.hexcolor).bind(&new_t.icon).execute(&mut *tx).await;
+    let res = async {
+        sqlx::query("INSERT INTO types (id, name, hexcolor, icon) VALUES (?, ?, ?, ?)")
+            .bind(new_t.id).bind(&new_t.name).bind(&new_t.hexcolor).bind(&new_t.icon).execute(&mut *tx).await?;
 
-    for eff in full.effectiveness {
-        let _ = sqlx::query("INSERT INTO type_effectiveness (attacker_id, defender_id, multiplier) VALUES (?, ?, ?)")
-            .bind(new_t.id).bind(eff.defender_id).bind(eff.multiplier).execute(&mut *tx).await;
-    }
+        for eff in &full.effectiveness {
+            sqlx::query("INSERT INTO type_effectiveness (attacker_id, defender_id, multiplier) VALUES (?, ?, ?)")
+                .bind(new_t.id).bind(eff.defender_id).bind(eff.multiplier).execute(&mut *tx).await?;
+        }
+        Ok::<_, sqlx::Error>(())
+    }.await;
 
-    let result = tx.commit().await;
+    let result = match res {
+        Ok(_) => tx.commit().await,
+        Err(e) => {
+            let _ = tx.rollback().await;
+            Err(e)
+        }
+    };
 
     match result {
         Ok(_) => {
@@ -535,23 +587,33 @@ pub async fn type_save(EditorSession(trainer): EditorSession, State(pool): State
             return Html(TypeEditTemplate { slug, toml_content: payload.toml_content, error: Some(format!("Erro no TOML: {}", e)), user_role: Some("editor".into()) }.render().unwrap()).into_response();
         }
     };
-    let new_t = full.types;
-    let old_t = sqlx::query_as::<_, Type>("SELECT * FROM types WHERE id = ?").bind(new_t.id).fetch_one(&pool).await.unwrap();
+    let old_t = sqlx::query_as::<_, Type>("SELECT * FROM types WHERE name LIKE ?").bind(&slug).fetch_one(&pool).await.unwrap();
+    let mut new_t = full.types;
+    new_t.id = old_t.id; // Evita ID Hijacking
+    let full = TypeFull { types: new_t.clone(), ..full };
     let diff = format!("{}---{}", toml::to_string(&old_t).unwrap(), payload.toml_content);
 
     let mut tx = pool.begin().await.unwrap();
 
-    let _ = sqlx::query("UPDATE types SET name = ?, hexcolor = ?, icon = ? WHERE id = ?")
-        .bind(&new_t.name).bind(&new_t.hexcolor).bind(&new_t.icon).bind(new_t.id).execute(&mut *tx).await;
+    let res = async {
+        sqlx::query("UPDATE types SET name = ?, hexcolor = ?, icon = ? WHERE id = ?")
+            .bind(&new_t.name).bind(&new_t.hexcolor).bind(&new_t.icon).bind(new_t.id).execute(&mut *tx).await?;
 
-    // Atualizar Efetividade (apenas quando atacante)
-    let _ = sqlx::query("DELETE FROM type_effectiveness WHERE attacker_id = ?").bind(new_t.id).execute(&mut *tx).await;
-    for eff in full.effectiveness {
-        let _ = sqlx::query("INSERT INTO type_effectiveness (attacker_id, defender_id, multiplier) VALUES (?, ?, ?)")
-            .bind(new_t.id).bind(eff.defender_id).bind(eff.multiplier).execute(&mut *tx).await;
-    }
+        sqlx::query("DELETE FROM type_effectiveness WHERE attacker_id = ?").bind(new_t.id).execute(&mut *tx).await?;
+        for eff in &full.effectiveness {
+            sqlx::query("INSERT INTO type_effectiveness (attacker_id, defender_id, multiplier) VALUES (?, ?, ?)")
+                .bind(new_t.id).bind(eff.defender_id).bind(eff.multiplier).execute(&mut *tx).await?;
+        }
+        Ok::<_, sqlx::Error>(())
+    }.await;
 
-    let result = tx.commit().await;
+    let result = match res {
+        Ok(_) => tx.commit().await,
+        Err(e) => {
+            let _ = tx.rollback().await;
+            Err(e)
+        }
+    };
 
     match result {
         Ok(_) => {
@@ -570,14 +632,18 @@ pub async fn type_delete(_session: EditorSession, State(pool): State<SqlitePool>
             return (StatusCode::BAD_REQUEST, "Cannot delete the fallback type").into_response();
         }
         let mut tx = pool.begin().await.unwrap();
-        // Fallback para tipo 0
-        let _ = sqlx::query("UPDATE pokemon SET type1_id = 0 WHERE type1_id = ?").bind(t.id).execute(&mut *tx).await;
-        let _ = sqlx::query("UPDATE pokemon SET type2_id = NULL WHERE type2_id = ?").bind(t.id).execute(&mut *tx).await;
-        let _ = sqlx::query("UPDATE moves SET type_id = 0 WHERE type_id = ?").bind(t.id).execute(&mut *tx).await;
-        let _ = sqlx::query("DELETE FROM type_effectiveness WHERE attacker_id = ? OR defender_id = ?").bind(t.id).bind(t.id).execute(&mut *tx).await;
-        let _ = sqlx::query("DELETE FROM types WHERE id = ?").bind(t.id).execute(&mut *tx).await;
-        tx.commit().await.unwrap();
-        Redirect::to("/editor/types").into_response()
+        let res = async {
+            sqlx::query("UPDATE pokemon SET type1_id = 0 WHERE type1_id = ?").bind(t.id).execute(&mut *tx).await?;
+            sqlx::query("UPDATE pokemon SET type2_id = NULL WHERE type2_id = ?").bind(t.id).execute(&mut *tx).await?;
+            sqlx::query("UPDATE moves SET type_id = 0 WHERE type_id = ?").bind(t.id).execute(&mut *tx).await?;
+            sqlx::query("DELETE FROM type_effectiveness WHERE attacker_id = ? OR defender_id = ?").bind(t.id).bind(t.id).execute(&mut *tx).await?;
+            sqlx::query("DELETE FROM types WHERE id = ?").bind(t.id).execute(&mut *tx).await?;
+            Ok::<_, sqlx::Error>(())
+        }.await;
+        match res {
+            Ok(_) => { tx.commit().await.unwrap(); Redirect::to("/editor/types").into_response() }
+            Err(e) => { let _ = tx.rollback().await; (StatusCode::INTERNAL_SERVER_ERROR, format!("Erro ao deletar: {}", e)).into_response() }
+        }
     } else {
         StatusCode::NOT_FOUND.into_response()
     }
@@ -646,7 +712,9 @@ pub async fn ability_save(EditorSession(trainer): EditorSession, State(pool): St
             return Html(AbilityEditTemplate { slug, toml_content: payload.toml_content, error: Some(format!("Erro no TOML: {}", e)), user_role: Some("editor".into()) }.render().unwrap()).into_response();
         }
     };
-    let old_a = sqlx::query_as::<_, Ability>("SELECT * FROM abilities WHERE id = ?").bind(new_a.id).fetch_one(&pool).await.unwrap();
+    let old_a = sqlx::query_as::<_, Ability>("SELECT * FROM abilities WHERE name LIKE ?").bind(&slug).fetch_one(&pool).await.unwrap();
+    let mut new_a = new_a;
+    new_a.id = old_a.id; // Evita ID Hijacking
     let diff = format!("{}---{}", toml::to_string(&old_a).unwrap(), payload.toml_content);
     let result = sqlx::query("UPDATE abilities SET name = ?, description = ? WHERE id = ?")
         .bind(&new_a.name).bind(&new_a.description).bind(new_a.id).execute(&pool).await;
@@ -667,12 +735,16 @@ pub async fn ability_delete(_session: EditorSession, State(pool): State<SqlitePo
             return (StatusCode::BAD_REQUEST, "Cannot delete the fallback ability").into_response();
         }
         let mut tx = pool.begin().await.unwrap();
-        // Fallback para habilidade 0
-        let _ = sqlx::query("UPDATE pokemon_abilities SET ability_id = 0 WHERE ability_id = ?").bind(a.id).execute(&mut *tx).await;
-        let _ = sqlx::query("UPDATE team_members SET ability_id = 0 WHERE ability_id = ?").bind(a.id).execute(&mut *tx).await;
-        let _ = sqlx::query("DELETE FROM abilities WHERE id = ?").bind(a.id).execute(&mut *tx).await;
-        tx.commit().await.unwrap();
-        Redirect::to("/editor/abilities").into_response()
+        let res = async {
+            sqlx::query("UPDATE pokemon_abilities SET ability_id = 0 WHERE ability_id = ?").bind(a.id).execute(&mut *tx).await?;
+            sqlx::query("UPDATE team_members SET ability_id = 0 WHERE ability_id = ?").bind(a.id).execute(&mut *tx).await?;
+            sqlx::query("DELETE FROM abilities WHERE id = ?").bind(a.id).execute(&mut *tx).await?;
+            Ok::<_, sqlx::Error>(())
+        }.await;
+        match res {
+            Ok(_) => { tx.commit().await.unwrap(); Redirect::to("/editor/abilities").into_response() }
+            Err(e) => { let _ = tx.rollback().await; (StatusCode::INTERNAL_SERVER_ERROR, format!("Erro ao deletar: {}", e)).into_response() }
+        }
     } else {
         StatusCode::NOT_FOUND.into_response()
     }
@@ -740,7 +812,9 @@ pub async fn nature_save(EditorSession(trainer): EditorSession, State(pool): Sta
             return Html(NatureEditTemplate { slug, toml_content: payload.toml_content, error: Some(format!("Erro no TOML: {}", e)), user_role: Some("editor".into()) }.render().unwrap()).into_response();
         }
     };
-    let old_n = sqlx::query_as::<_, Nature>("SELECT * FROM natures WHERE id = ?").bind(new_n.id).fetch_one(&pool).await.unwrap();
+    let old_n = sqlx::query_as::<_, Nature>("SELECT * FROM natures WHERE name LIKE ?").bind(&slug).fetch_one(&pool).await.unwrap();
+    let mut new_n = new_n;
+    new_n.id = old_n.id; // Evita ID Hijacking
     let diff = format!("{}---{}", toml::to_string(&old_n).unwrap(), payload.toml_content);
     let result = sqlx::query("UPDATE natures SET name = ?, increased_stat = ?, decreased_stat = ? WHERE id = ?")
         .bind(&new_n.name).bind(&new_n.increased_stat).bind(&new_n.decreased_stat).bind(new_n.id).execute(&pool).await;
@@ -761,11 +835,15 @@ pub async fn nature_delete(_session: EditorSession, State(pool): State<SqlitePoo
             return (StatusCode::BAD_REQUEST, "Cannot delete the fallback nature").into_response();
         }
         let mut tx = pool.begin().await.unwrap();
-        // Fallback para nature 0
-        let _ = sqlx::query("UPDATE team_members SET nature_id = 0 WHERE nature_id = ?").bind(n.id).execute(&mut *tx).await;
-        let _ = sqlx::query("DELETE FROM natures WHERE id = ?").bind(n.id).execute(&mut *tx).await;
-        tx.commit().await.unwrap();
-        Redirect::to("/editor/natures").into_response()
+        let res = async {
+            sqlx::query("UPDATE team_members SET nature_id = 0 WHERE nature_id = ?").bind(n.id).execute(&mut *tx).await?;
+            sqlx::query("DELETE FROM natures WHERE id = ?").bind(n.id).execute(&mut *tx).await?;
+            Ok::<_, sqlx::Error>(())
+        }.await;
+        match res {
+            Ok(_) => { tx.commit().await.unwrap(); Redirect::to("/editor/natures").into_response() }
+            Err(e) => { let _ = tx.rollback().await; (StatusCode::INTERNAL_SERVER_ERROR, format!("Erro ao deletar: {}", e)).into_response() }
+        }
     } else {
         StatusCode::NOT_FOUND.into_response()
     }
@@ -833,7 +911,9 @@ pub async fn status_save(EditorSession(trainer): EditorSession, State(pool): Sta
             return Html(StatusEditTemplate { slug, toml_content: payload.toml_content, error: Some(format!("Erro no TOML: {}", e)), user_role: Some("editor".into()) }.render().unwrap()).into_response();
         }
     };
-    let old_s = sqlx::query_as::<_, StatusCondition>("SELECT * FROM status_conditions WHERE id = ?").bind(new_s.id).fetch_one(&pool).await.unwrap();
+    let old_s = sqlx::query_as::<_, StatusCondition>("SELECT * FROM status_conditions WHERE name LIKE ?").bind(&slug).fetch_one(&pool).await.unwrap();
+    let mut new_s = new_s;
+    new_s.id = old_s.id; // Evita ID Hijacking
     let diff = format!("{}---{}", toml::to_string(&old_s).unwrap(), payload.toml_content);
     let result = sqlx::query("UPDATE status_conditions SET name = ?, description = ?, icon = ?, is_volatile = ? WHERE id = ?")
         .bind(&new_s.name).bind(&new_s.description).bind(&new_s.icon).bind(new_s.is_volatile).bind(new_s.id).execute(&pool).await;

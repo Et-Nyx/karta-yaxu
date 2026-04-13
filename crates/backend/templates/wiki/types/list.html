@@ -1,19 +1,19 @@
-{% extends "base.html" %} {% block title %}Tipos — Karta Yaxu{% endblock %} {%
-block content %}
-<h1>Tipos</h1>
-<div class="types-grid">
+{% extends "base.html" %} 
+{% block title %}Tipos — Karta Yaxu{% endblock %} 
+{% block content %}
+<div class="flex items-center justify-between mb-4 mt-4">
+    <h1 style="font-size: 24px;">Tipos</h1>
+</div>
+<div class="grid-cards" style="grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));">
     {% for t in types %}
-    <a
-        class="type-card"
-        href="/wiki/types/{{ t.name|slugify }}"
-        style="border-color:{{ t.hexcolor }}"
-    >
-        <img
-            src="/static/icons/types/{{ t.icon }}?v=1"
-            alt="{{ t.name }}"
-            onerror="this.style.display = 'none'"
-        />
-        <span style="color:{{ t.hexcolor }}">{{ t.name }}</span>
+    <a href="/wiki/types/{{ t.name|slugify }}" class="type-card" style="border-color: {{ t.hexcolor }};">
+        <div class="type-card-header" style="background-color: {{ t.hexcolor }};">
+            {{ t.name|upper }}
+        </div>
+        <div class="type-card-body flex flex-col justify-center items-center gap-2">
+            <img src="/static/icons/types/{{ t.icon }}?v=1" alt="{{ t.name }}" style="width: 48px; height: 48px; image-rendering: pixelated;" onerror="this.style.display = 'none'" />
+            <code style="font-size: 8px;">HEX: {{ t.hexcolor }}</code>
+        </div>
     </a>
     {% endfor %}
 </div>

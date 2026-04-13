@@ -1,32 +1,25 @@
-{% extends "base.html" %}
-
-{% block title %}Editor de Tipos — Karta Yaxu{% endblock %}
-
+{% extends "base.html" %} 
+{% block title %}Editor de Tipos — Karta Yaxu{% endblock %} 
 {% block content %}
-<div class="editor-header">
-    <h1>Editor: Tipos</h1>
-    <a href="/editor/types/new" class="btn btn-primary">+ Novo Tipo</a>
+<div class="flex items-center justify-between mb-4 mt-4">
+    <h1 style="font-size: 24px;">Editor: Tipos</h1>
+    <a href="/editor/types/new" class="btn btn-primary" style="background-color: var(--primary); color: var(--primary-foreground);">+ NOVO TIPO</a>
 </div>
-<div class="types-list">
-    <table class="wiki-table">
-        <thead>
-            <tr>
-                <th>Nome</th>
-                <th>Cor</th>
-                <th>Ações</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for t in types %}
-            <tr>
-                <td style="color: {{ t.hexcolor }}">{{ t.name }}</td>
-                <td><code>{{ t.hexcolor }}</code></td>
-                <td>
-                    <a href="/editor/types/{{ t.name|slugify }}" class="btn btn-sm">Editar</a>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<div class="grid-cards" style="grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));">
+    {% for t in types %}
+    <div class="type-card" style="border-color: {{ t.hexcolor }};">
+        <div class="type-card-header" style="background-color: {{ t.hexcolor }};">
+            {{ t.name|upper }}
+        </div>
+        <div class="type-card-body flex flex-col justify-center items-center gap-2">
+            <img src="/static/icons/types/{{ t.icon }}?v=1" alt="{{ t.name }}" style="width: 48px; height: 48px; image-rendering: pixelated;" onerror="this.style.display = 'none'" />
+            <code style="font-size: 8px;">{{ t.hexcolor }}</code>
+        </div>
+        <div class="pkmn-actions" style="margin-top: 16px;">
+            <a href="/editor/types/{{ t.name|slugify }}" class="pkmn-btn" style="background-color: var(--destructive); border-color: var(--destructive);">EDITAR</a>
+            <a href="/wiki/types/{{ t.name|slugify }}" class="pkmn-btn" style="background-color: var(--gb-dark); border-color: var(--gb-dark);" target="_blank">WIKI</a>
+        </div>
+    </div>
+    {% endfor %}
 </div>
 {% endblock %}

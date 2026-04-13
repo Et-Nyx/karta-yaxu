@@ -1,38 +1,60 @@
 {% extends "base.html" %}
-{% block title %}{{ t.name }} — Tipos — Karta Yaxu{% endblock %}
+{% block title %}{{ t.name }} — Karta Yaxu{% endblock %}
 {% block content %}
-<div class="type-detail">
-    <h1 class="type-badge" style="background:{{ t.hexcolor }}">
-        <img src="/static/icons/types/{{ t.icon }}?v=1" alt="{{ t.name }}">
-        {{ t.name }}
-    </h1>
-
-    <h2>Como atacante</h2>
-    <p>Dano que o tipo {{ t.name }} causa em outros tipos:</p>
-    <table class="eff-table">
-        <thead><tr><th>Defensor</th><th>Multiplicador</th></tr></thead>
-        <tbody>
-        {% for (def_t, mult) in as_attacker %}
-        <tr>
-            <td><a class="type-badge" href="/wiki/types/{{ def_t.name|slugify }}" style="background:{{ def_t.hexcolor }}">{{ def_t.name }}</a></td>
-            <td class="multiplier">{{ mult }}x</td>
-        </tr>
-        {% endfor %}
-        </tbody>
-    </table>
-
-    <h2>Como defensor</h2>
-    <p>Dano que outros tipos causam em {{ t.name }}:</p>
-    <table class="eff-table">
-        <thead><tr><th>Atacante</th><th>Multiplicador</th></tr></thead>
-        <tbody>
-        {% for (atk_t, mult) in as_defender %}
-        <tr>
-            <td><a class="type-badge" href="/wiki/types/{{ atk_t.name|slugify }}" style="background:{{ atk_t.hexcolor }}">{{ atk_t.name }}</a></td>
-            <td class="multiplier">{{ mult }}x</td>
-        </tr>
-        {% endfor %}
-        </tbody>
-    </table>
+<div style="display: flex; justify-content: space-between; margin-bottom: 24px; align-items: center;">
+    <a href="/wiki/types" class="btn btn-secondary">◀ VOLTAR</a>
+    {% if let Some(role) = user_role %}
+        {% if role == "editor" %}
+        <a href="/editor/types/{{ t.name|slugify }}" class="btn btn-primary" style="background-color: var(--destructive); color: var(--primary-foreground);">✏ EDITAR</a>
+        {% endif %}
+    {% endif %}
 </div>
+
+<div class="gb-card elevation-2 mb-4" style="background-color: var(--gb-lightest); text-align: center; border-color: {{ t.hexcolor }};">
+    <div class="sprite-container" style="margin: 0 auto 16px auto; width: 64px; height: 64px; background: transparent; border: none;">
+        <img src="/static/icons/types/{{ t.icon }}?v=1" alt="{{ t.name }}" style="width: 64px; height: 64px; image-rendering: pixelated;">
+    </div>
+    <h1 class="badge" style="font-size: 16px; background-color: {{ t.hexcolor }}; color: #fff; border-color: var(--gb-darkest);">{{ t.name }}</h1>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px;" class="detail-grid">
+    <div class="gb-card elevation-1">
+        <h2 style="font-size: 16px; margin-bottom: 16px;">Ofensiva</h2>
+        <p style="font-size: 10px; margin-bottom: 12px; line-height: 1.8;">Dano causado por <strong>{{ t.name }}</strong> contra defensores:</p>
+        <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
+            <style>
+             .stats-table th, .stats-table td { padding: 8px; border-bottom: 2px solid var(--border); text-align: left;}
+            </style>
+            <tbody class="stats-table">
+            {% for (def_t, mult) in as_attacker %}
+            <tr>
+                <td><a class="badge" href="/wiki/types/{{ def_t.name|slugify }}" style="background:{{ def_t.hexcolor }}; color:#fff; border-color: var(--border);">{{ def_t.name }}</a></td>
+                <td style="text-align: right;"><strong>{{ mult }}x</strong></td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="gb-card elevation-1">
+        <h2 style="font-size: 16px; margin-bottom: 16px;">Defesa</h2>
+        <p style="font-size: 10px; margin-bottom: 12px; line-height: 1.8;">Dano recebido por <strong>{{ t.name }}</strong> de atacantes:</p>
+        <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
+            <tbody class="stats-table">
+            {% for (atk_t, mult) in as_defender %}
+            <tr>
+                <td><a class="badge" href="/wiki/types/{{ atk_t.name|slugify }}" style="background:{{ atk_t.hexcolor }}; color:#fff; border-color: var(--border);">{{ atk_t.name }}</a></td>
+                <td style="text-align: right;"><strong>{{ mult }}x</strong></td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<style>
+  @media (max-width: 768px) {
+    .detail-grid { grid-template-columns: 1fr !important; }
+  }
+</style>
 {% endblock %}

@@ -1,42 +1,43 @@
 {% extends "base.html" %}
-
 {% block title %}Editor de Naturezas — Karta Yaxu{% endblock %}
-
 {% block content %}
-<div class="editor-header">
-    <h1>Editor: Naturezas</h1>
-    <a href="/editor/natures/new" class="btn btn-primary">+ Nova Natureza</a>
+<div class="flex items-center justify-between mb-4 mt-4">
+    <h1 style="font-size: 24px;">Editor: Naturezas</h1>
+    <a href="/editor/natures/new" class="btn btn-primary" style="background-color: var(--primary); color: var(--primary-foreground);">+ NOVA NATUREZA</a>
 </div>
-<div class="natures-list">
-    <table class="wiki-table">
+<div class="gb-card elevation-1">
+    <table style="width: 100%; border-collapse: collapse; font-size: 10px;" class="stats-table">
         <thead>
-            <tr>
-                <th>Nome</th>
-                <th>Aumenta (+)</th>
-                <th>Diminui (-)</th>
-                <th>Ações</th>
+            <tr style="background-color: var(--primary); color: var(--primary-foreground);">
+                <th style="padding: 12px 8px;">Nome</th>
+                <th style="padding: 12px 8px; color: #8bac0f;">Aumenta (+)</th>
+                <th style="padding: 12px 8px; color: #ff5252;">Diminui (-)</th>
+                <th style="padding: 12px 8px;">Ações</th>
             </tr>
         </thead>
+        <style>
+             .stats-table th, .stats-table td { padding: 12px 8px; border-bottom: 2px solid var(--border); text-align: left; }
+        </style>
         <tbody>
             {% for n in natures %}
             <tr>
-                <td>{{ n.name }}</td>
+                <td><strong>{{ n.name }}</strong></td>
                 <td>
                     {% if let Some(stat) = n.increased_stat %}
-                        {{ stat }}
+                        <strong>{{ stat }}</strong>
                     {% else %}
                         Neutro
                     {% endif %}
                 </td>
                 <td>
                     {% if let Some(stat) = n.decreased_stat %}
-                        {{ stat }}
+                        <strong>{{ stat }}</strong>
                     {% else %}
                         Neutro
                     {% endif %}
                 </td>
                 <td>
-                    <a href="/editor/natures/{{ n.name|slugify }}" class="btn btn-sm">Editar</a>
+                    <a href="/editor/natures/{{ n.name|slugify }}" class="btn" style="background-color: var(--destructive); color: var(--primary-foreground);">EDITAR</a>
                 </td>
             </tr>
             {% endfor %}

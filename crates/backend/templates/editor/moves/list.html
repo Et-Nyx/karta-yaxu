@@ -1,28 +1,35 @@
 {% extends "base.html" %}
-
 {% block title %}Editor de Moves — Karta Yaxu{% endblock %}
-
 {% block content %}
-<div class="editor-header">
-    <h1>Editor: Moves</h1>
-    <a href="/editor/moves/new" class="btn btn-primary">+ Novo Golpe</a>
+<div class="flex items-center justify-between mb-4 mt-4">
+    <h1 style="font-size: 24px;">Editor: Moves</h1>
+    <a href="/editor/moves/new" class="btn btn-primary" style="background-color: var(--primary); color: var(--primary-foreground);">+ NOVO MOVE</a>
 </div>
-<div class="moves-list">
-    <table class="wiki-table">
+<div class="gb-card elevation-1" style="overflow-x: auto;">
+    <table style="width: 100%; border-collapse: collapse; font-size: 10px;" class="stats-table">
         <thead>
-            <tr>
-                <th>Nome</th>
-                <th>Tipo</th>
-                <th>Ações</th>
+            <tr style="background-color: var(--primary); color: var(--primary-foreground);">
+                <th style="padding: 12px 8px;">Nome</th>
+                <th style="padding: 12px 8px;">Tipo</th>
+                <th style="padding: 12px 8px;">Categoria</th>
+                <th style="padding: 12px 8px;">PWR</th>
+                <th style="padding: 12px 8px;">ACC</th>
+                <th style="padding: 12px 8px;">Ações</th>
             </tr>
         </thead>
+        <style>
+             .stats-table th, .stats-table td { padding: 12px 8px; border-bottom: 2px solid var(--border); text-align: left; }
+        </style>
         <tbody>
             {% for m in moves %}
             <tr>
-                <td>{{ m.name }}</td>
-                <td>{{ m.type_id }}</td> {# Poderia mostrar o nome do tipo se desse #}
+                <td><strong>{{ m.name }}</strong></td>
+                <td>ID: {{ m.type_id }}</td>
+                <td>{{ m.category }}</td>
+                <td>{% if let Some(p) = m.power %}{{ p }}{% else %}—{% endif %}</td>
+                <td>{% if let Some(a) = m.accuracy %}{{ a }}%{% else %}—{% endif %}</td>
                 <td>
-                    <a href="/editor/moves/{{ m.name|slugify }}" class="btn btn-sm">Editar</a>
+                    <a href="/editor/moves/{{ m.name|slugify }}" class="btn" style="background-color: var(--destructive); color: var(--primary-foreground);">EDITAR</a>
                 </td>
             </tr>
             {% endfor %}

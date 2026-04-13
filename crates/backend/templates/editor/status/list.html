@@ -1,38 +1,39 @@
 {% extends "base.html" %}
-
 {% block title %}Editor de Status — Karta Yaxu{% endblock %}
-
 {% block content %}
-<div class="editor-header">
-    <h1>Editor: Condições de Status</h1>
-    <a href="/editor/status/new" class="btn btn-primary">+ Novo Status</a>
+<div class="flex items-center justify-between mb-4 mt-4">
+    <h1 style="font-size: 24px;">Editor: Condições de Status</h1>
+    <a href="/editor/status/new" class="btn btn-primary" style="background-color: var(--primary); color: var(--primary-foreground);">+ NOVO STATUS</a>
 </div>
-<div class="status-list">
-    <table class="wiki-table">
+<div class="gb-card elevation-1">
+    <table style="width: 100%; border-collapse: collapse; font-size: 10px;" class="stats-table">
         <thead>
-            <tr>
-                <th>Ícone</th>
-                <th>Nome</th>
-                <th>Tipo</th>
-                <th>Descrição</th>
-                <th>Ações</th>
+            <tr style="background-color: var(--primary); color: var(--primary-foreground);">
+                <th style="padding: 12px 8px;">Ícone</th>
+                <th style="padding: 12px 8px;">Nome</th>
+                <th style="padding: 12px 8px;">Tipo</th>
+                <th style="padding: 12px 8px;">Descrição</th>
+                <th style="padding: 12px 8px;">Ações</th>
             </tr>
         </thead>
+        <style>
+             .stats-table th, .stats-table td { padding: 12px 8px; border-bottom: 2px solid var(--border); text-align: left; }
+        </style>
         <tbody>
             {% for s in status_list %}
             <tr>
-                <td><img src="/static/icons/status/{{ s.icon }}" alt="{{ s.name }}" style="height: 20px;" onerror="this.style.display='none'"></td>
-                <td>{{ s.name }}</td>
+                <td><div class="sprite-container" style="width: 32px; height: 32px; margin: 0; padding: 4px; background: transparent;"><img src="/static/icons/status/{{ s.icon }}" alt="{{ s.name }}" onerror="this.style.display='none'" style="width: 100%; height: 100%; image-rendering: pixelated;"></div></td>
+                <td><strong>{{ s.name }}</strong></td>
                 <td>
                     {% if s.is_volatile %}
-                        <span class="badge badge-volatile">Volátil</span>
+                        <span class="badge" style="background-color: var(--gb-dark); color: var(--gb-lightest);">Volátil</span>
                     {% else %}
-                        <span class="badge badge-persistent">Persistente</span>
+                        <span class="badge" style="background-color: var(--primary); color: var(--primary-foreground);">Persistente</span>
                     {% endif %}
                 </td>
-                <td>{{ s.description }}</td>
+                <td style="line-height: 1.5;">{{ s.description }}</td>
                 <td>
-                    <a href="/editor/status/{{ s.name|slugify }}" class="btn btn-sm">Editar</a>
+                    <a href="/editor/status/{{ s.name|slugify }}" class="btn" style="background-color: var(--destructive); color: var(--primary-foreground);">EDITAR</a>
                 </td>
             </tr>
             {% endfor %}

@@ -1,40 +1,41 @@
 {% extends "base.html" %}
-
 {% block title %}Registro - Karta Yaxu{% endblock %}
 
 {% block content %}
-<div class="content-block">
-    <h1>Novo Trainer</h1>
+<div style="max-width: 400px; margin: 4rem auto;">
+    <div class="gb-card elevation-2">
+        <h1 style="font-size: 20px; text-align: center; margin-bottom: 24px;">NOVO TRAINER</h1>
 
-    {% if let Some(err) = error %}
-    <div style="color: red; margin-bottom: 1rem; padding: 0.5rem; border-radius: 4px;">
-        {{ err }}
+        {% if let Some(err) = error %}
+        <div style="background-color: var(--destructive); color: var(--primary-foreground); padding: 8px; margin-bottom: 16px; border: 2px solid var(--border); font-size: 10px;">
+            {{ err }}
+        </div>
+        {% endif %}
+
+        <form method="post" action="/trainer/register" style="display: flex; flex-direction: column; gap: 16px;">
+            <div>
+                <label for="username" style="display: block; margin-bottom: 8px; font-size: 10px;">USERNAME</label>
+                <input type="text" id="username" name="username" required style="width: 100%; padding: 12px; background-color: var(--gb-light); color: var(--foreground); border: 2px solid var(--border); box-shadow: inset 2px 2px 0 var(--border); font-family: inherit; font-size: 10px;">
+            </div>
+
+            <div>
+                <label for="password" style="display: block; margin-bottom: 8px; font-size: 10px;">SENHA</label>
+                <input type="password" id="password" name="password" required minlength="6" style="width: 100%; padding: 12px; background-color: var(--gb-light); color: var(--foreground); border: 2px solid var(--border); box-shadow: inset 2px 2px 0 var(--border); font-family: inherit; font-size: 10px;">
+            </div>
+
+            <div>
+                <label for="confirm_password" style="display: block; margin-bottom: 8px; font-size: 10px;">CONFIRMAR SENHA</label>
+                <input type="password" id="confirm_password" name="confirm_password" required minlength="6" style="width: 100%; padding: 12px; background-color: var(--gb-light); color: var(--foreground); border: 2px solid var(--border); box-shadow: inset 2px 2px 0 var(--border); font-family: inherit; font-size: 10px;">
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="margin-top: 8px; width: 100%; font-size: 12px; padding: 16px;">
+                REGISTRAR
+            </button>
+        </form>
+
+        <p style="margin-top: 24px; font-size: 8px; text-align: center; line-height: 1.8;">
+            Já tem conta?<br><a href="/trainer/login" style="color: var(--gb-darkest); text-decoration: underline;">Faça login</a>.
+        </p>
     </div>
-    {% endif %}
-
-    <form method="post" action="/trainer/register">
-        <div style="margin-bottom: 1rem;">
-            <label for="username" style="display: block; margin-bottom: 0.5rem;">Username</label>
-            <input type="text" id="username" name="username" required style="width: 100%; padding: 0.5rem; border-radius: 4px; border: 1px solid var(--border);">
-        </div>
-
-        <div style="margin-bottom: 1rem;">
-            <label for="password" style="display: block; margin-bottom: 0.5rem;">Senha</label>
-            <input type="password" id="password" name="password" required minlength="6" style="width: 100%; padding: 0.5rem; border-radius: 4px; border: 1px solid var(--border);">
-        </div>
-
-        <div style="margin-bottom: 1rem;">
-            <label for="confirm_password" style="display: block; margin-bottom: 0.5rem;">Confirmar Senha</label>
-            <input type="password" id="confirm_password" name="confirm_password" required minlength="6" style="width: 100%; padding: 0.5rem; border-radius: 4px; border: 1px solid var(--border);">
-        </div>
-
-        <button type="submit" style="padding: 0.5rem 1rem; background: var(--type-normal); border: none; border-radius: 4px; cursor: pointer;">
-            Registrar
-        </button>
-    </form>
-
-    <p style="margin-top: 1rem;">
-        Já tem conta? <a href="/trainer/login">Faça login</a>.
-    </p>
 </div>
 {% endblock %}

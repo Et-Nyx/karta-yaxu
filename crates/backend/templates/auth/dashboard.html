@@ -3,31 +3,34 @@
 {% block title %}Dashboard - Karta Yaxu{% endblock %}
 
 {% block content %}
-<div class="content-block">
-    <h1>Bem-vindo, {{ username }}!</h1>
+<div style="max-width: 600px; margin: 4rem auto;">
+    <div class="gb-card elevation-2">
+        <h1 style="font-size: 20px; text-align: center; margin-bottom: 24px;">TRAINER CARD</h1>
+        
+        <div style="border-bottom: 2px dashed var(--border); margin-bottom: 16px; padding-bottom: 16px;">
+            <p style="font-size: 10px; margin-bottom: 8px;">NOME: <strong style="color: var(--primary);">{{ username|upper }}</strong></p>
+            <p style="font-size: 10px;">ID: <strong style="color: var(--primary);">{{ role|upper }}</strong></p>
+        </div>
 
-    <p>Seu cargo atual: <strong>{{ role }}</strong></p>
+        {% if role == "editor" %}
+        <div style="margin-top: 16px; padding: 16px; background-color: var(--primary); color: var(--primary-foreground); border: 2px solid var(--border);">
+            <h3 style="font-size: 12px; margin-bottom: 8px;">ACESSO VIP</h3>
+            <p style="font-size: 8px; line-height: 1.8; margin-bottom: 16px;">Permissão de edição global concedida.</p>
+            <a href="/editor/pokemon" class="btn" style="background-color: var(--gb-lightest); color: var(--gb-darkest); width: 100%; text-align: center; border: 2px solid var(--gb-darkest); font-size: 8px;">ACESSAR EDITOR GERAL</a>
+        </div>
+        {% else %}
+        <div style="margin-top: 16px; padding: 16px; border: 2px solid var(--border); background-color: var(--gb-light);">
+            <p style="font-size: 8px; line-height: 1.8;">Permissão padrão. Você pode navegar livremente pela base de dados oficial.</p>
+        </div>
+        {% endif %}
 
-    {% if role == "editor" %}
-    <div style="margin-top: 1rem; padding: 1rem; background-color: var(--type-grass); color: white; border-radius: 4px;">
-        <h3>Acesso de Editor</h3>
-        <p>Você tem permissão para editar os dados da Wiki.</p>
-        <ul style="margin-top: 0.5rem; margin-left: 1.5rem;">
-            <li><a href="/editor/pokemon" style="color: white; text-decoration: underline;">Acessar Editor de Pokémon</a></li>
-        </ul>
-    </div>
-    {% else %}
-    <div style="margin-top: 1rem; padding: 1rem; border: 1px solid var(--border); border-radius: 4px;">
-        <p>Como Visualizador, você pode navegar livremente pela Wiki pública.</p>
-    </div>
-    {% endif %}
-
-    <div style="margin-top: 2rem;">
-        <form method="post" action="/trainer/logout">
-            <button type="submit" style="padding: 0.5rem 1rem; background: var(--type-fire); color: red; border: none; border-radius: 4px; cursor: pointer;">
-                Sair
-            </button>
-        </form>
+        <div style="margin-top: 32px;">
+            <form method="post" action="/trainer/logout">
+                <button type="submit" class="btn" style="width: 100%; background-color: var(--destructive); color: var(--primary-foreground); font-size: 10px;">
+                    SAIR DA SESSÃO
+                </button>
+            </form>
+        </div>
     </div>
 </div>
 {% endblock %}

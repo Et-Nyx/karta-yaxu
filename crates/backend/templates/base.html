@@ -7,47 +7,51 @@
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <nav class="sidebar">
-        <a class="logo" href="/">Karta Yaxu</a>
-        <ul>
-            <li><a href="/wiki/pokemon">Pokédex</a></li>
-            <li><a href="/wiki/types">Tipos</a></li>
-            <li><a href="/wiki/moves">Moves</a></li>
-            <li><a href="/wiki/abilities">Habilidades</a></li>
-            <li><a href="/wiki/mechanics/nature">Naturezas</a></li>
-            <li><a href="/wiki/mechanics/status">Status</a></li>
-        </ul>
-        <hr style="margin: 1rem 0; border: 0; border-top: 1px solid var(--border);">
-        <ul>
-            {% if let Some(role) = user_role %}
-                <li><a href="/trainer/dashboard">Dashboard</a></li>
-                <li>
+    <header class="gb-header elevation-2">
+        <div class="container flex flex-col items-center justify-center">
+            <div class="flex items-center justify-center gap-4 mb-2">
+                <div style="width:12px; height:12px; background-color: var(--destructive); border: 2px solid var(--border); border-radius: 50%;"></div>
+                <h1 style="font-size: 20px; line-height: 1.5; margin: 0;"><a href="/">KARTA YAXU</a></h1>
+                <div style="width:12px; height:12px; background-color: var(--destructive); border: 2px solid var(--border); border-radius: 50%;"></div>
+            </div>
+            <p class="text-xxs tracking-wider opacity-80" style="margin:0; text-transform:uppercase;">Gameboy Edition</p>
+            
+            <nav class="flex gap-4 mt-4" style="font-size: 10px; flex-wrap: wrap; justify-content: center;">
+                <a href="/wiki/pokemon" class="btn btn-primary" style="padding: 8px 12px; box-shadow: 2px 2px 0 var(--border);">Pokédex</a>
+                <a href="/wiki/types" class="btn btn-primary" style="padding: 8px 12px; box-shadow: 2px 2px 0 var(--border);">Tipos</a>
+                <a href="/wiki/moves" class="btn btn-primary" style="padding: 8px 12px; box-shadow: 2px 2px 0 var(--border);">Moves</a>
+                <a href="/wiki/abilities" class="btn btn-primary" style="padding: 8px 12px; box-shadow: 2px 2px 0 var(--border);">Habilidades</a>
+                <a href="/wiki/mechanics/nature" class="btn btn-primary" style="padding: 8px 12px; box-shadow: 2px 2px 0 var(--border);">Natures</a>
+                <a href="/wiki/mechanics/status" class="btn btn-primary" style="padding: 8px 12px; box-shadow: 2px 2px 0 var(--border);">Status</a>
+                
+                {% if let Some(role) = user_role %}
+                    <a href="/trainer/dashboard" class="btn btn-primary" style="padding: 8px 12px; box-shadow: 2px 2px 0 var(--border); border-color: var(--gb-darkest); color: var(--gb-darkest); background-color: var(--gb-lightest);">Card</a>
+                    {% if role == "editor" %}
+                    <a href="/editor/pokemon" class="btn btn-primary" style="padding: 8px 12px; box-shadow: 2px 2px 0 var(--border); border-color: var(--destructive);">✏ Editor</a>
+                    {% endif %}
                     <form action="/trainer/logout" method="post" style="display: inline;">
-                        <button type="submit" style="background: none; border: none; color: var(--text); cursor: pointer; padding: 0.5rem 1rem; width: 100%; text-align: left; font-family: inherit; font-size: inherit;">Sair (Logout)</button>
+                        <button type="submit" class="btn btn-primary" style="padding: 8px 12px; box-shadow: 2px 2px 0 var(--border);">Sair</button>
                     </form>
-                </li>
-            {% else %}
-                <li><a href="/trainer/login">Login</a></li>
-                <li><a href="/trainer/register">Registrar</a></li>
-            {% endif %}
-        </ul>
-        {% if let Some(role) = user_role %}
-            {% if role == "editor" %}
-            <hr style="margin: 1rem 0; border: 0; border-top: 1px solid var(--border);">
-            <p style="padding: 0 1rem; font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">Editor</p>
-            <ul>
-                <li><a href="/editor/pokemon">Pokémon</a></li>
-                <li><a href="/editor/moves">Moves</a></li>
-                <li><a href="/editor/types">Tipos</a></li>
-                <li><a href="/editor/abilities">Habilidades</a></li>
-                <li><a href="/editor/natures">Naturezas</a></li>
-                <li><a href="/editor/status">Status</a></li>
-            </ul>
-            {% endif %}
-        {% endif %}
-    </nav>
-    <main class="content">
+                {% else %}
+                    <a href="/trainer/login" class="btn btn-primary" style="padding: 8px 12px; box-shadow: 2px 2px 0 var(--border);">Login</a>
+                {% endif %}
+            </nav>
+        </div>
+    </header>
+
+    <main class="container" style="padding-top: 32px; padding-bottom: 32px; min-height: 50vh;">
         {% block content %}{% endblock %}
     </main>
+
+    <footer class="gb-footer elevation-1">
+        <div class="container flex flex-col items-center justify-center">
+            <div class="text-xxs tracking-wider opacity-80 mb-2" style="text-transform: uppercase;">A tribute to Pokémon & Gameboy</div>
+            <div class="flex items-center justify-center gap-2 opacity-80" style="font-size: 8px; text-transform: uppercase;">
+                <div style="width:8px; height:8px; background-color: var(--gb-lightest);"></div>
+                <span>Karta Yaxu Retro Edition</span>
+                <div style="width:8px; height:8px; background-color: var(--gb-lightest);"></div>
+            </div>
+        </div>
+    </footer>
 </body>
 </html>

@@ -1,13 +1,29 @@
 {% extends "base.html" %}
 {% block title %}Habilidades — Karta Yaxu{% endblock %}
 {% block content %}
-<h1>Habilidades</h1>
-<ul class="ability-list">
-{% for a in abilities %}
-<li>
-    <a href="/wiki/abilities/{{ a.name|slugify }}"><strong>{{ a.name }}</strong></a>
-    — {{ a.description }}
-</li>
-{% endfor %}
-</ul>
+<div class="flex items-center justify-between mb-4 mt-4">
+    <h1 style="font-size: 24px;">Habilidades</h1>
+</div>
+
+<div class="gb-card elevation-1">
+<table style="width: 100%; border-collapse: collapse; font-size: 10px;" class="stats-table">
+    <thead>
+        <tr style="background-color: var(--primary); color: var(--primary-foreground);">
+            <th style="padding: 12px 8px; width: 25%;">Nome</th>
+            <th style="padding: 12px 8px;">Descrição</th>
+        </tr>
+    </thead>
+    <style>
+         .stats-table th, .stats-table td { padding: 12px 8px; border-bottom: 2px solid var(--border); text-align: left; }
+    </style>
+    <tbody>
+    {% for a in abilities %}
+    <tr>
+        <td><a href="/wiki/abilities/{{ a.name|slugify }}"><strong>{{ a.name }}</strong></a></td>
+        <td style="line-height: 1.6;">{{ a.description }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
 {% endblock %}

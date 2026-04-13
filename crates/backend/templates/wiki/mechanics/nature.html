@@ -1,19 +1,36 @@
 {% extends "base.html" %}
 {% block title %}Naturezas — Karta Yaxu{% endblock %}
 {% block content %}
-<h1>Naturezas</h1>
-<table class="data-table">
+<div class="flex items-center justify-between mb-4 mt-4">
+    <h1 style="font-size: 24px;">Naturezas</h1>
+    {% if let Some(role) = user_role %}
+        {% if role == "editor" %}
+        <a href="/editor/natures" class="btn btn-primary" style="background-color: var(--destructive); color: var(--primary-foreground);">✏ EDITOR</a>
+        {% endif %}
+    {% endif %}
+</div>
+
+<div class="gb-card elevation-1">
+<table style="width: 100%; border-collapse: collapse; font-size: 10px;" class="stats-table">
     <thead>
-        <tr><th>Nome</th><th>Stat +10%</th><th>Stat -10%</th></tr>
+        <tr style="background-color: var(--primary); color: var(--primary-foreground);">
+            <th style="padding: 12px 8px;">Nome</th>
+            <th style="padding: 12px 8px; color: #8bac0f;">Stat +10% (⬆)</th>
+            <th style="padding: 12px 8px; color: #ff5252;">Stat -10% (⬇)</th>
+        </tr>
     </thead>
+    <style>
+         .stats-table th, .stats-table td { padding: 12px 8px; border-bottom: 2px solid var(--border); text-align: left;}
+    </style>
     <tbody>
     {% for n in natures %}
     <tr>
-        <td>{{ n.name }}</td>
-        <td>{% if let Some(s) = n.increased_stat %}{{ s }}{% else %}—{% endif %}</td>
-        <td>{% if let Some(s) = n.decreased_stat %}{{ s }}{% else %}—{% endif %}</td>
+        <td><strong>{{ n.name }}</strong></td>
+        <td>{% if let Some(s) = n.increased_stat %}<strong>{{ s }}</strong>{% else %}—{% endif %}</td>
+        <td>{% if let Some(s) = n.decreased_stat %}<strong>{{ s }}</strong>{% else %}—{% endif %}</td>
     </tr>
     {% endfor %}
     </tbody>
 </table>
+</div>
 {% endblock %}

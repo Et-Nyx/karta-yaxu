@@ -1,148 +1,205 @@
-{% extends "base.html" %} {% block title %}{{ p.name }} — Karta Yaxu{% endblock
-%} {% block content %}
-<div class="pokemon-detail">
-  <header class="poke-header">
-    <img src="/static/sprites/pokemon/{{ p.sprite }}?v=1" alt="{{ p.name }}" />
-    <img
-      src="/static/sprites/shiny/{{ p.sprite_shiny }}?v=1"
-      alt="{{ p.name }} shiny"
-      title="Shiny"
-    />
-    <div>
-      <span class="dex-num">#{{ p.dex_number }}</span>
-      <h1>{{ p.name }}</h1>
-      <div class="types">
-        <a
-          class="type-badge"
-          href="/wiki/types/{{ type1.name|slugify }}"
-          style="background:{{ type1.hexcolor }}"
-          >{{ type1.name }}</a
-        >
-        {% if let Some(t2) = type2 %}
-        <a
-          class="type-badge"
-          href="/wiki/types/{{ t2.name|slugify }}"
-          style="background:{{ t2.hexcolor }}"
-          >{{ t2.name }}</a
-        >
+{% extends "base.html" %} 
+{% block title %}{{ p.name }} — Karta Yaxu{% endblock %} 
+{% block content %}
+<div style="display: flex; justify-content: space-between; margin-bottom: 24px; align-items: center;">
+    <a href="/wiki/pokemon" class="btn btn-secondary">◀ VOLTAR</a>
+    {% if let Some(role) = user_role %}
+        {% if role == "editor" %}
+        <a href="/editor/pokemon/{{ p.name|slugify }}" class="btn btn-primary" style="background-color: var(--destructive); color: var(--primary-foreground);">✏ EDITAR</a>
         {% endif %}
-      </div>
-    </div>
-  </header>
-
-  <p class="pokedex-entry">{{ p.pokedex_entry }}</p>
-
-  <h2>Stats Base</h2>
-  <table class="stats-table">
-    <tr>
-      <th>HP</th>
-      <td>{{ p.hp }}</td>
-    </tr>
-    <tr>
-      <th>Ataque</th>
-      <td>{{ p.atk }}</td>
-    </tr>
-    <tr>
-      <th>Defesa</th>
-      <td>{{ p.def }}</td>
-    </tr>
-    <tr>
-      <th>Atq. Esp.</th>
-      <td>{{ p.spa }}</td>
-    </tr>
-    <tr>
-      <th>Def. Esp.</th>
-      <td>{{ p.spd }}</td>
-    </tr>
-    <tr>
-      <th>Velocidade</th>
-      <td>{{ p.spe }}</td>
-    </tr>
-    <tr>
-      <th>Total</th>
-      <td>
-        <strong>{{ p.hp + p.atk + p.def + p.spa + p.spd + p.spe }}</strong>
-      </td>
-    </tr>
-  </table>
-
-  {% if !abilities.is_empty() %}
-  <h2>Habilidades</h2>
-  <ul class="ability-list">
-    {% for a in abilities %}
-    <li>
-      <a href="/wiki/abilities/{{ a.name|slugify }}">{{ a.name }}</a> — {{
-      a.description }}
-    </li>
-    {% endfor %}
-  </ul>
-  {% endif %} {% if !evolutions.is_empty() %}
-  <h2>Linha Evolutiva</h2>
-  <div class="evo-list">
-    {% for e in evolutions %}
-    <a class="card" href="/wiki/pokemon/{{ e.name|slugify }}" {% if e.id == p.id %}style="border-color: #ffd700; background: #fffde7;"{% endif %}>
-      <img
-        src="/static/sprites/pokemon/{{ e.sprite }}?v=1"
-        alt="{{ e.name }}"
-        onerror="this.style.display = 'none'"
-      />
-      <span>{{ e.name }}</span>
-    </a>
-    {% endfor %}
-  </div>
-  {% endif %} {% if !forms.is_empty() %}
-  <h2>Formas Alternativas</h2>
-  <div class="evo-list">
-    {% for f in forms %}
-    <a class="card" href="/wiki/pokemon/{{ f.name|slugify }}">
-      <img
-        src="/static/sprites/pokemon/{{ f.sprite }}?v=1"
-        alt="{{ f.name }}"
-        onerror="this.style.display = 'none'"
-      />
-      <span>{{ f.name }}</span>
-    </a>
-    {% endfor %}
-  </div>
-  {% endif %} {% if !learnset.is_empty() %}
-  <h2>Moves Aprendidos</h2>
-  <table class="data-table">
-    <thead>
-      <tr>
-        <th>Método / Nível</th>
-        <th>Move</th>
-        <th>Tipo</th>
-        <th>Cat.</th>
-        <th>PWR</th>
-        <th>ACC</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for (m, t, method, level) in learnset %}
-      <tr>
-        <td>
-          {% if method == "level_up" %}Nível {% if let Some(l) = level %}{{
-          l}}{% endif %} {% else if method == "tm" %}TM {% else if method ==
-          "egg" %}Egg {% else if method == "tutor" %}Tutor {% else if method ==
-          "gmax" %}G-Max {% else if method == "max" %}Max {% else %}{{ method
-          }}{% endif %}
-        </td>
-        <td><a href="/wiki/moves/{{ m.name|slugify }}">{{ m.name }}</a></td>
-        <td>
-          <a
-            class="type-badge"
-            href="/wiki/types/{{ t.name|slugify }}"
-            style="background:{{ t.hexcolor }}"
-            >{{ t.name }}</a
-          >
-        </td>
-        <td>{{ m.category }}</td>
-        <td>{% if let Some(p) = m.power %}{{ p }}{% else %}—{% endif %}</td>
-        <td>{% if let Some(a) = m.accuracy %}{{ a }}%{% else %}—{% endif %}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  {% endif %}
+    {% endif %}
 </div>
+
+<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 32px; align-items: start;" class="detail-grid">
+  <!-- Lado Esquerdo: Imagem e Resumo -->
+  <div class="gb-card elevation-2" style="position: sticky; top: 100px;">
+    <div class="badge badge-primary mb-2" style="align-self: flex-start;">#{{ p.dex_number }}</div>
+    <h1 style="font-size: 24px; margin-bottom: 16px; word-break: break-all;">{{ p.name }}</h1>
+    
+    <div class="sprite-container" style="background-color: var(--gb-lightest); padding: 16px;">
+      <img src="/static/sprites/pokemon/{{ p.sprite }}?v=1" alt="{{ p.name }}" style="width: 100%; height: auto; max-width: 160px; image-rendering: pixelated;" />
+    </div>
+
+    <!-- Pokedex Entry inside the card -->
+    <p style="font-size: 10px; line-height: 1.8; margin-top: 16px;">{{ p.pokedex_entry }}</p>
+
+    <!-- Tipos -->
+    <div class="pkmn-types mt-4 w-full" style="width: 100%;">
+      <a class="pkmn-type-badge" href="/wiki/types/{{ type1.name|slugify }}" style="background-color: {{ type1.hexcolor }};">{{ type1.name }}</a>
+      {% if let Some(t2) = type2 %}
+      <a class="pkmn-type-badge" href="/wiki/types/{{ t2.name|slugify }}" style="background-color: {{ t2.hexcolor }};">{{ t2.name }}</a>
+      {% endif %}
+    </div>
+
+    <!-- Defesas -->
+    <div class="mt-4 w-full">
+      <h3 style="font-size: 10px; margin-bottom: 8px; opacity: 0.8; padding-bottom: 4px; border-bottom: 2px solid var(--border);">DEFESAS</h3>
+      
+      {% if !weaknesses.is_empty() %}
+      <div style="margin-bottom: 12px;">
+         <div style="font-size: 8px; margin-bottom: 6px;">FRACO CONTRA</div>
+         <div class="pkmn-types" style="flex-wrap: wrap; justify-content: flex-start; gap: 4px;">
+           {% for (t, mult) in weaknesses %}
+           <a href="/wiki/types/{{ t.name|slugify }}" class="pkmn-type-badge" style="background-color: {{ t.hexcolor }}; padding-right: 4px; text-decoration: none;">
+             {{ t.name }} <span style="background: var(--gb-darkest); color: var(--gb-lightest); padding: 2px 4px; border-radius: 2px; margin-left: 4px;">{{ mult }}x</span>
+           </a>
+           {% endfor %}
+         </div>
+      </div>
+      {% endif %}
+
+      {% if !resistances.is_empty() %}
+      <div style="margin-bottom: 12px;">
+         <div style="font-size: 8px; margin-bottom: 6px;">RESISTE A</div>
+         <div class="pkmn-types" style="flex-wrap: wrap; justify-content: flex-start; gap: 4px;">
+           {% for (t, mult) in resistances %}
+           <a href="/wiki/types/{{ t.name|slugify }}" class="pkmn-type-badge" style="background-color: {{ t.hexcolor }}; padding-right: 4px; text-decoration: none;">
+             {{ t.name }} <span style="background: var(--gb-darkest); color: var(--gb-lightest); padding: 2px 4px; border-radius: 2px; margin-left: 4px;">{{ mult }}x</span>
+           </a>
+           {% endfor %}
+         </div>
+      </div>
+      {% endif %}
+
+      {% if !immunities.is_empty() %}
+      <div style="margin-bottom: 12px;">
+         <div style="font-size: 8px; margin-bottom: 6px;">IMUNE A</div>
+         <div class="pkmn-types" style="flex-wrap: wrap; justify-content: flex-start; gap: 4px;">
+           {% for t in immunities %}
+           <a href="/wiki/types/{{ t.name|slugify }}" class="pkmn-type-badge" style="background-color: {{ t.hexcolor }}; padding-right: 4px; text-decoration: none;">
+             {{ t.name }} <span style="background: var(--gb-darkest); color: var(--gb-lightest); padding: 2px 4px; border-radius: 2px; margin-left: 4px;">0x</span>
+           </a>
+           {% endfor %}
+         </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Lado Direito: Tabelas de Status e Outros -->
+  <div class="flex flex-col gap-4">
+      <div class="gb-card elevation-1" style="margin-bottom: 16px;">
+        <h2 style="font-size: 16px; margin-bottom: 16px;">Stats Base</h2>
+        <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
+          <!-- Using standard HTML table with GB styling -->
+          <style>
+             .stats-table th, .stats-table td { padding: 8px; border-bottom: 2px solid var(--border); text-align: left;}
+          </style>
+          <tbody class="stats-table">
+            <tr><th>HP</th><td>{{ p.hp }}</td></tr>
+            <tr><th>Ataque</th><td>{{ p.atk }}</td></tr>
+            <tr><th>Defesa</th><td>{{ p.def }}</td></tr>
+            <tr><th>Atq. Esp.</th><td>{{ p.spa }}</td></tr>
+            <tr><th>Def. Esp.</th><td>{{ p.spd }}</td></tr>
+            <tr><th>Velocidade</th><td>{{ p.spe }}</td></tr>
+            <tr style="background-color: var(--gb-dark); color: var(--gb-lightest);"><th>TOTAL</th><td><strong>{{ p.hp + p.atk + p.def + p.spa + p.spd + p.spe }}</strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      {% if !abilities.is_empty() %}
+      <div class="gb-card elevation-1" style="margin-bottom: 16px;">
+        <h2 style="font-size: 16px; margin-bottom: 16px;">Habilidades</h2>
+        <ul style="list-style: square; padding-left: 20px; font-size: 10px; line-height: 2;">
+          {% for a in abilities %}
+          <li><a href="/wiki/abilities/{{ a.name|slugify }}"><strong>{{ a.name }}</strong></a> — {{ a.description }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+      
+      <!-- Linha Evolutiva -->
+      {% if !evolutions.is_empty() %}
+      <div class="gb-card elevation-1" style="margin-bottom: 16px;">
+        <h2 style="font-size: 16px; margin-bottom: 16px;">Linha Evolutiva</h2>
+        <div class="grid-cards">
+          {% for (e, t1, t2) in evolutions %}
+          <a class="pkmn-card" href="/wiki/pokemon/{{ e.name|slugify }}" {% if e.id == p.id %}style="background-color: var(--gb-lightest);"{% endif %}>
+            <div class="pkmn-header">
+                <div class="pkmn-id">#{{ e.dex_number }}</div>
+                <div class="pkmn-name">{{ e.name }}</div>
+            </div>
+            <div class="pkmn-sprite-box">
+                <img src="/static/sprites/pokemon/{{ e.sprite }}?v=1" alt="{{ e.name }}" onerror="this.style.display = 'none'" />
+            </div>
+            <div class="pkmn-types">
+                <div class="pkmn-type-badge" style="background-color: {{ t1.hexcolor }};">{{ t1.name }}</div>
+                {% if let Some(t_opt) = t2 %}
+                <div class="pkmn-type-badge" style="background-color: {{ t_opt.hexcolor }};">{{ t_opt.name }}</div>
+                {% endif %}
+            </div>
+          </a>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+      
+      <!-- Formas Alternativas -->
+      {% if !forms.is_empty() %}
+      <div class="gb-card elevation-1" style="margin-bottom: 16px;">
+        <h2 style="font-size: 16px; margin-bottom: 16px;">Formas Alternativas</h2>
+        <div class="grid-cards">
+          {% for (f, t1, t2) in forms %}
+          <a class="pkmn-card" href="/wiki/pokemon/{{ f.name|slugify }}">
+            <div class="pkmn-header">
+                <div class="pkmn-id">#{{ f.dex_number }}</div>
+                <div class="pkmn-name">{{ f.name }}</div>
+            </div>
+            <div class="pkmn-sprite-box">
+                <img src="/static/sprites/pokemon/{{ f.sprite }}?v=1" alt="{{ f.name }}" onerror="this.style.display = 'none'" />
+            </div>
+            <div class="pkmn-types">
+                <div class="pkmn-type-badge" style="background-color: {{ t1.hexcolor }};">{{ t1.name }}</div>
+                {% if let Some(t_opt) = t2 %}
+                <div class="pkmn-type-badge" style="background-color: {{ t_opt.hexcolor }};">{{ t_opt.name }}</div>
+                {% endif %}
+            </div>
+          </a>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Learnset -->
+      {% if !learnset.is_empty() %}
+      <div class="gb-card elevation-1">
+        <h2 style="font-size: 16px; margin-bottom: 16px;">Moves</h2>
+        <div style="overflow-x: auto;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 8px;" class="stats-table">
+            <thead>
+              <tr style="background-color: var(--primary); color: var(--primary-foreground);">
+                <th style="padding: 8px;">Método</th>
+                <th style="padding: 8px;">Move</th>
+                <th style="padding: 8px;">PWR</th>
+                <th style="padding: 8px;">ACC</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for (m, t, method, level) in learnset %}
+              <tr>
+                <td>{% if method == "level_up" %}NV {{ level.unwrap_or(0) }} {% else %}{{ method|upper }}{% endif %}</td>
+                <td><a href="/wiki/moves/{{ m.name|slugify }}">{{ m.name }}</a></td>
+                <td>{% if let Some(p) = m.power %}{{ p }}{% else %}—{% endif %}</td>
+                <td>{% if let Some(a) = m.accuracy %}{{ a }}%{% else %}—{% endif %}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% endif %}
+
+  </div>
+</div>
+
+<style>
+  @media (max-width: 768px) {
+    .detail-grid {
+      grid-template-columns: 1fr !important;
+    }
+    .gb-card[style*="top: 100px"] {
+        position: static !important;
+    }
+  }
+</style>
 {% endblock %}

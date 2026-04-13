@@ -23,7 +23,7 @@ fn render(t: impl Template) -> Result<Html<String>, StatusCode> {
 #[derive(Template)]
 #[template(path = "wiki/pokemon/list.html")]
 struct PokemonListTemplate {
-    pokemon: Vec<Pokemon>,
+    pokemon: std::vec::Vec<(engine::models::Pokemon, engine::models::Type, std::option::Option<engine::models::Type>)>,
     user_role: Option<String>,
 }
 
@@ -34,8 +34,17 @@ pub async fn pokemon_list(session: Session, State(pool): State<SqlitePool>) -> i
          FROM pokemon ORDER BY dex_number, id"
     ).fetch_all(&pool).await.unwrap_or_default();
 
+    let all_types = sqlx::query_as::<_, Type>("SELECT * FROM types").fetch_all(&pool).await.unwrap_or_default();
+    
+    let mut mapped_pokemon = Vec::new();
+    for p in pokemon {
+        let t1 = all_types.iter().find(|t| t.id == p.type1_id).unwrap().clone();
+        let t2 = p.type2_id.and_then(|id| all_types.iter().find(|t| t.id == id).cloned());
+        mapped_pokemon.push((p, t1, t2));
+    }
+
     let user_role = auth::get_user_role(&session).await;
-    render(PokemonListTemplate { pokemon, user_role }).unwrap_or_else(|s| Html(s.to_string()))
+    render(PokemonListTemplate { pokemon: mapped_pokemon, user_role }).unwrap_or_else(|s| Html(s.to_string()))
 }
 
 #[derive(Template)]
@@ -45,9 +54,12 @@ struct PokemonDetailTemplate {
     type1: Type,
     type2: Option<Type>,
     abilities: Vec<Ability>,
-    evolutions: Vec<Pokemon>,
-    forms: Vec<Pokemon>,
+    evolutions: Vec<(Pokemon, Type, Option<Type>)>,
+    forms: Vec<(Pokemon, Type, Option<Type>)>,
     learnset: Vec<(Move, Type, String, Option<i64>)>, // (Golpe, Tipo do golpe, método, nível)
+    weaknesses: Vec<(Type, f64)>,
+    resistances: Vec<(Type, f64)>,
+    immunities: Vec<Type>,
     user_role: Option<String>,
 }
 
@@ -81,6 +93,29 @@ pub async fn pokemon_detail(
          JOIN abilities a ON a.id = pa.ability_id
          WHERE pa.pokemon_id = ? ORDER BY pa.slot"
     ).bind(p.id).fetch_all(&pool).await.unwrap_or_default();
+
+    let eff_relations = sqlx::query_as::<_, (i64, i64, f64)>(
+        "SELECT attacker_id, defender_id, multiplier FROM type_effectiveness"
+    ).fetch_all(&pool).await.unwrap_or_default();
+
+    let mut weaknesses = Vec::new();
+    let mut resistances = Vec::new();
+    let mut immunities = Vec::new();
+
+    for atk_t in &types {
+        let mut mult = 1.0;
+        if let Some((_, _, m)) = eff_relations.iter().find(|(a, d, _)| *a == atk_t.id && *d == type1.id) {
+            mult *= m;
+        }
+        if let Some(t2) = &type2 {
+            if let Some((_, _, m)) = eff_relations.iter().find(|(a, d, _)| *a == atk_t.id && *d == t2.id) {
+                mult *= m;
+            }
+        }
+        if mult > 1.0 { weaknesses.push((atk_t.clone(), mult)); }
+        else if mult == 0.0 { immunities.push(atk_t.clone()); }
+        else if mult < 1.0 { resistances.push((atk_t.clone(), mult)); }
+    }
 
     let all_forms = sqlx::query_as::<_, (i64, i64)>("SELECT base_id, form_id FROM pokemon_forms").fetch_all(&pool).await.unwrap_or_default();
 
@@ -118,10 +153,15 @@ pub async fn pokemon_detail(
         head += 1;
     }
 
-    let mut evolutions: Vec<Pokemon> = evo_ids.into_iter()
+    let mut evolutions: Vec<(Pokemon, Type, Option<Type>)> = evo_ids.into_iter()
         .filter_map(|id| all.iter().find(|all_p| all_p.id == id).cloned())
+        .map(|e_p| {
+            let t1 = types.iter().find(|t| t.id == e_p.type1_id).unwrap().clone();
+            let t2 = e_p.type2_id.and_then(|id| types.iter().find(|t| t.id == id).cloned());
+            (e_p, t1, t2)
+        })
         .collect();
-    evolutions.sort_by_key(|e| e.dex_number);
+    evolutions.sort_by_key(|(e, _, _)| e.dex_number);
 
     let mut forms_ids = vec![true_base_id];
     for &(base, form) in &all_forms {
@@ -129,10 +169,15 @@ pub async fn pokemon_detail(
     }
     forms_ids.retain(|&id| id != p.id); // Remove si mesmo
 
-    let mut forms: Vec<Pokemon> = forms_ids.into_iter()
+    let mut forms: Vec<(Pokemon, Type, Option<Type>)> = forms_ids.into_iter()
         .filter_map(|id| all.iter().find(|all_p| all_p.id == id).cloned())
+        .map(|f_p| {
+            let t1 = types.iter().find(|t| t.id == f_p.type1_id).unwrap().clone();
+            let t2 = f_p.type2_id.and_then(|id| types.iter().find(|t| t.id == id).cloned());
+            (f_p, t1, t2)
+        })
         .collect();
-    forms.sort_by_key(|f| f.id);
+    forms.sort_by_key(|(f, _, _)| f.id);
 
     // Buscar lista de moves para cruzar:
     let all_moves = sqlx::query_as::<_, Move>("SELECT * FROM moves").fetch_all(&pool).await.unwrap_or_default();
@@ -157,8 +202,10 @@ pub async fn pokemon_detail(
     }
 
     let user_role = auth::get_user_role(&session).await;
-    render(PokemonDetailTemplate { p, type1, type2, abilities, evolutions, forms, learnset, user_role })
-        .unwrap_or_else(|s| Html(s.to_string()))
+    render(PokemonDetailTemplate { 
+        p, type1, type2, abilities, evolutions, forms, learnset, weaknesses, resistances, immunities, user_role 
+    })
+    .unwrap_or_else(|s| Html(s.to_string()))
 }
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
@@ -259,7 +306,7 @@ pub async fn moves_list(session: Session, State(pool): State<SqlitePool>) -> imp
 struct MoveDetailTemplate {
     m: Move,
     t: Type,
-    learnset: Vec<(Pokemon, String, Option<i64>)>,
+    learnset: Vec<((Pokemon, Type, Option<Type>), String, Option<i64>)>,
     user_role: Option<String>,
 }
 
@@ -279,7 +326,7 @@ pub async fn move_detail(
 
     let all_types = sqlx::query_as::<_, Type>("SELECT id, name, hexcolor, icon FROM types").fetch_all(&pool).await.unwrap_or_default();
 
-    let t = all_types.into_iter().find(|t| t.id == m.type_id).unwrap();
+    let t = all_types.iter().find(|t| t.id == m.type_id).cloned().unwrap();
 
     let all_pokemon = sqlx::query_as::<_, Pokemon>("SELECT id, dex_number, name, sprite, sprite_shiny, type1_id, type2_id, hp, atk, def, spa, spd, spe, pokedex_entry FROM pokemon")
         .fetch_all(&pool).await.unwrap_or_default();
@@ -291,7 +338,9 @@ pub async fn move_detail(
     let mut learnset = Vec::new();
     for (p_id, method, level) in learn_rels {
         if let Some(p) = all_pokemon.iter().find(|p| p.id == p_id).cloned() {
-            learnset.push((p, method, level));
+            let t1 = all_types.iter().find(|t| t.id == p.type1_id).unwrap().clone();
+            let t2 = p.type2_id.and_then(|id| all_types.iter().find(|t| t.id == id).cloned());
+            learnset.push(((p, t1, t2), method, level));
         }
     }
 
@@ -322,7 +371,7 @@ pub async fn abilities_list(session: Session, State(pool): State<SqlitePool>) ->
 #[template(path = "wiki/abilities/detail.html")]
 struct AbilityDetailTemplate {
     a: Ability,
-    pokemon: Vec<Pokemon>,
+    pokemon: Vec<(Pokemon, Type, Option<Type>)>,
     user_role: Option<String>,
 }
 
@@ -349,8 +398,17 @@ pub async fn ability_detail(
          ORDER BY p.dex_number"
     ).bind(a.id).fetch_all(&pool).await.unwrap_or_default();
 
+    let types = sqlx::query_as::<_, Type>("SELECT id, name, hexcolor, icon FROM types").fetch_all(&pool).await.unwrap_or_default();
+
+    let mut mapped_pokemon = Vec::new();
+    for p in pokemon {
+        let t1 = types.iter().find(|t| t.id == p.type1_id).unwrap().clone();
+        let t2 = p.type2_id.and_then(|id| types.iter().find(|t| t.id == id).cloned());
+        mapped_pokemon.push((p, t1, t2));
+    }
+
     let user_role = auth::get_user_role(&session).await;
-    render(AbilityDetailTemplate { a, pokemon, user_role })
+    render(AbilityDetailTemplate { a, pokemon: mapped_pokemon, user_role })
         .unwrap_or_else(|s| Html(s.to_string()))
 }
 

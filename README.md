@@ -549,13 +549,15 @@ direnv allow
 - Cache-busting (`?v=1`) em todos os assets de imagem
 - `.prettierignore` protegendo templates Askama de formatadores automáticos
 
-### 🔲 Bloco 3 — Autenticação e Editor
+### ✅ Bloco 3 — Autenticação e Editor (concluído)
 
-> Objetivo: sistema de login e painel de edição de dados.
+> Objetivo: sistema de login, controle de painel de edição e blindagem de transações isoladas do banco.
 
-- Implementar autenticação (registro/login com argon2, sessões via `tower-sessions`, middleware de proteção por role)
-- Implementar o editor TOML (`GET /editor/*` serializa DB→TOML, `POST /editor/*` valida e grava)
-- Registrar cada edição na tabela `edits`
+- Autenticação e controle de acesso estritos implementados via `argon2` e `tower-sessions` (`viewer` e `editor`).
+- Editor TOML funcional via rotas `/editor` (serialização DB → TOML e parser TOML → DB em endpoints seguros).
+- Blindagem e rollback automático (`tx.rollback()`) em falhas transacionais complexas.
+- Prevenção ativa de ID Hijacking baseada na validação do slug originário via DB `SELECT`.
+- Habilitação estrita de restrições por chaves estrangeiras (`PRAGMA foreign_keys = ON`) para consistência dos relacionamentos em árvore.
 
 ### 🔲 Bloco 4 — Engine de Batalha
 

@@ -1,38 +1,31 @@
 {% extends "base.html" %}
-
 {% block title %}Editar Tipo: {{ slug }} — Karta Yaxu{% endblock %}
-
 {% block content %}
-<div class="editor">
-    <h1>Editar Tipo: {{ slug }}</h1>
+<div class="gb-card elevation-2" style="max-width: 800px; margin: 2rem auto;">
+    <h1 style="font-size: 20px; text-transform: uppercase; margin-bottom: 8px;">EDITAR: {{ slug }}</h1>
+    <p style="font-size: 10px; margin-bottom: 24px;">Modifique os dados no payload formato TOML abaixo.</p>
     
     {% if let Some(error) = error %}
-    <div class="error-message">
-        <strong>Erro ao salvar:</strong> {{ error }}
+    <div style="background-color: var(--destructive); color: var(--primary-foreground); padding: 16px; margin-bottom: 24px; font-size: 10px; border: 2px solid var(--border);">
+        <strong>ERRO AO SALVAR:</strong> {{ error }}
     </div>
     {% endif %}
 
-    <form method="post">
-        <div class="form-group">
-            <textarea name="toml_content" rows="10" class="toml-editor">{{ toml_content }}</textarea>
-        </div>
-        <div class="form-actions">
-            <button type="submit" class="btn btn-primary">Salvar Alterações</button>
-            {% if slug == "new" %}
-            <a href="/editor/types" class="btn btn-secondary">Cancelar</a>
-            {% else %}
-            <a href="/wiki/types/{{ slug }}" class="btn btn-secondary">Cancelar</a>
-            {% endif %}
+    <form method="post" style="display: flex; flex-direction: column; gap: 16px;">
+        <textarea name="toml_content" rows="10" style="width: 100%; padding: 12px; background-color: var(--gb-darkest); color: var(--gb-lightest); border: 4px solid var(--border); font-family: inherit; font-size: 10px; line-height: 1.5;">{{ toml_content }}</textarea>
+        
+        <div class="flex gap-4 mt-4">
+            <button type="submit" class="btn btn-primary" style="flex: 2; padding: 16px;">SALVAR ALTERAÇÕES</button>
+            <a href="{% if slug == "new" %}/editor/types{% else %}/wiki/types/{{ slug }}{% endif %}" class="btn btn-secondary" style="flex: 1; padding: 16px; text-align: center;">CANCELAR</a>
         </div>
     </form>
 
     {% if slug != "new" %}
-    <hr style="margin: 2rem 0;">
-    <div class="danger-zone">
-        <h3>Zona de Perigo</h3>
-        <p>Ao deletar este Tipo, Pokémon e Golpes associados serão resetados para o tipo "???".</p>
+    <div style="margin-top: 32px; padding-top: 32px; border-top: 4px dashed var(--border);">
+        <h3 style="font-size: 16px; color: var(--destructive); margin-bottom: 8px;">ZONA DE PERIGO</h3>
+        <p style="font-size: 8px; line-height: 1.8; margin-bottom: 16px;">Ao deletar este Tipo, os Pokémon associados irão corromper a dex.</p>
         <form action="/editor/types/{{ slug }}/delete" method="post" onsubmit="return confirm('Tem certeza que deseja deletar este Tipo?');">
-            <button type="submit" class="btn btn-danger">Deletar Tipo</button>
+            <button type="submit" class="btn" style="background-color: var(--destructive); color: var(--primary-foreground);">DELETAR TIPO</button>
         </form>
     </div>
     {% endif %}

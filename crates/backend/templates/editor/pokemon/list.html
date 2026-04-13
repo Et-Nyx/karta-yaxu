@@ -1,25 +1,29 @@
 {% extends "base.html" %}
-
 {% block title %}Editor de Pokédex — Karta Yaxu{% endblock %}
-
 {% block content %}
-<div class="editor-header">
-    <h1>Editor: Pokédex</h1>
-    <p>Selecione um Pokémon para editar seus dados via TOML.</p>
-    <a href="/editor/pokemon/new" class="btn btn-primary">+ Novo Pokémon</a>
+<div class="flex items-center justify-between mb-4 mt-4">
+    <h1 style="font-size: 24px;">Editor: Pokédex</h1>
+    <a href="/editor/pokemon/new" class="btn btn-primary" style="background-color: var(--primary); color: var(--primary-foreground);">+ NOVO POKÉMON</a>
 </div>
-
-<div class="pokemon-grid">
-{% for p in pokemon %}
-<div class="card editor-card">
-    <img src="/static/sprites/pokemon/{{ p.sprite }}?v=1" alt="{{ p.name }}" onerror="this.style.display='none'">
-    <div class="card-info">
-        <span class="dex-num">#{{ p.dex_number }}</span>
-        <span class="name">{{ p.name }}</span>
+<div class="grid-cards">
+{% for (p, t1, t2) in pokemon %}
+<div class="pkmn-card">
+    <div class="pkmn-header">
+        <div class="pkmn-id">#{{ p.dex_number }}</div>
+        <div class="pkmn-name">{{ p.name }}</div>
     </div>
-    <div class="card-actions">
-        <a href="/editor/pokemon/{{ p.name|slugify }}" class="btn btn-sm btn-edit">Editar</a>
-        <a href="/wiki/pokemon/{{ p.name|slugify }}" class="btn btn-sm btn-view" target="_blank">Ver na Wiki</a>
+    <div class="pkmn-sprite-box">
+        <img src="/static/sprites/pokemon/{{ p.sprite }}?v=1" alt="{{ p.name }}" onerror="this.style.display='none'">
+    </div>
+    <div class="pkmn-types">
+        <div class="pkmn-type-badge" style="background-color: {{ t1.hexcolor }};">{{ t1.name }}</div>
+        {% if let Some(t_opt) = t2 %}
+        <div class="pkmn-type-badge" style="background-color: {{ t_opt.hexcolor }};">{{ t_opt.name }}</div>
+        {% endif %}
+    </div>
+    <div class="pkmn-actions">
+        <a href="/editor/pokemon/{{ p.name|slugify }}" class="pkmn-btn" style="background-color: var(--destructive); border-color: var(--destructive);">EDITAR</a>
+        <a href="/wiki/pokemon/{{ p.name|slugify }}" class="pkmn-btn" style="background-color: var(--gb-dark); border-color: var(--gb-dark);" target="_blank">WIKI</a>
     </div>
 </div>
 {% endfor %}

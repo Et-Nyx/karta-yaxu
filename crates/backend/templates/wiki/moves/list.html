@@ -1,25 +1,36 @@
 {% extends "base.html" %}
 {% block title %}Moves — Karta Yaxu{% endblock %}
 {% block content %}
-<h1>Moves</h1>
-<table class="data-table">
-    <thead>
+<div class="flex items-center justify-between mb-4 mt-4">
+    <h1 style="font-size: 24px;">Moves</h1>
+</div>
+<div class="gb-card elevation-1" style="overflow-x: auto;">
+    <table style="width: 100%; border-collapse: collapse; font-size: 10px;" class="stats-table">
+        <thead>
+            <tr style="background-color: var(--primary); color: var(--primary-foreground);">
+                <th style="padding: 12px 8px;">Nome</th>
+                <th style="padding: 12px 8px;">Tipo</th>
+                <th style="padding: 12px 8px;">Categoria</th>
+                <th style="padding: 12px 8px;">PWR</th>
+                <th style="padding: 12px 8px;">ACC</th>
+                <th style="padding: 12px 8px;">PP</th>
+            </tr>
+        </thead>
+        <style>
+             .stats-table th, .stats-table td { padding: 12px 8px; border-bottom: 2px solid var(--border); text-align: left;}
+        </style>
+        <tbody>
+        {% for (m, t) in moves %}
         <tr>
-            <th>Nome</th><th>Tipo</th><th>Categoria</th>
-            <th>Poder</th><th>Precisão</th><th>PP</th>
+            <td><a href="/wiki/moves/{{ m.name|slugify }}"><strong>{{ m.name }}</strong></a></td>
+            <td><a class="badge" href="/wiki/types/{{ t.name|slugify }}" style="background:{{ t.hexcolor }}; color: #fff; border-color: var(--border);">{{ t.name }}</a></td>
+            <td>{{ m.category }}</td>
+            <td>{% if let Some(p) = m.power %}{{ p }}{% else %}—{% endif %}</td>
+            <td>{% if let Some(a) = m.accuracy %}{{ a }}%{% else %}—{% endif %}</td>
+            <td>{{ m.pp }}</td>
         </tr>
-    </thead>
-    <tbody>
-    {% for (m, t) in moves %}
-    <tr>
-        <td><a href="/wiki/moves/{{ m.name|slugify }}">{{ m.name }}</a></td>
-        <td><a class="type-badge" href="/wiki/types/{{ t.name|slugify }}" style="background:{{ t.hexcolor }}">{{ t.name }}</a></td>
-        <td>{{ m.category }}</td>
-        <td>{% if let Some(p) = m.power %}{{ p }}{% else %}—{% endif %}</td>
-        <td>{% if let Some(a) = m.accuracy %}{{ a }}%{% else %}—{% endif %}</td>
-        <td>{{ m.pp }}</td>
-    </tr>
-    {% endfor %}
-    </tbody>
-</table>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
 {% endblock %}

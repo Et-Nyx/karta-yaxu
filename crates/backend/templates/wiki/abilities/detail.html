@@ -1,23 +1,43 @@
-{% extends "base.html" %} {% block title %}{{ a.name }} — Habilidades — Karta
-Yaxu{% endblock %} {% block content %}
-<div class="ability-detail">
-  <h1>{{ a.name }}</h1>
-  <p class="description">{{ a.description }}</p>
+{% extends "base.html" %} 
+{% block title %}{{ a.name }} — Habilidades — Karta Yaxu{% endblock %} 
+{% block content %}
+<div style="display: flex; justify-content: space-between; margin-bottom: 24px; align-items: center;">
+    <a href="/wiki/abilities" class="btn btn-secondary">◀ VOLTAR</a>
+    {% if let Some(role) = user_role %}
+        {% if role == "editor" %}
+        <a href="/editor/abilities/{{ a.name|slugify }}" class="btn btn-primary" style="background-color: var(--destructive); color: var(--primary-foreground);">✏ EDITAR</a>
+        {% endif %}
+    {% endif %}
+</div>
 
-  {% if !pokemon.is_empty() %}
-  <h2>Pokémon com esta habilidade</h2>
-  <div class="pokemon-grid">
-    {% for p in pokemon %}
-    <a class="card" href="/wiki/pokemon/{{ p.name|slugify }}">
-      <img
-        src="/static/sprites/pokemon/{{ p.sprite }}?v=1"
-        alt="{{ p.name }}"
-        onerror="this.style.display = 'none'"
-      />
-      <span>{{ p.name }}</span>
+<div class="gb-card elevation-2 mb-4" style="background-color: var(--gb-lightest);">
+    <h1 style="font-size: 24px; margin-bottom: 12px;">{{ a.name }}</h1>
+    <p style="font-size: 10px; line-height: 1.8; margin-bottom: 8px; border-left: 4px solid var(--primary); padding-left: 12px;">{{ a.description }}</p>
+</div>
+
+{% if !pokemon.is_empty() %}
+<div class="gb-card elevation-1">
+  <h2 style="font-size: 16px; margin-bottom: 16px;">Pokémon com esta habilidade</h2>
+  <div class="grid-cards">
+    {% for (p, t1, t2) in pokemon %}
+    <a class="pkmn-card" href="/wiki/pokemon/{{ p.name|slugify }}">
+      <div class="pkmn-header">
+        <div class="pkmn-id">#{{ p.dex_number }}</div>
+        <div class="pkmn-name">{{ p.name }}</div>
+      </div>
+      <div class="pkmn-sprite-box">
+        <img src="/static/sprites/pokemon/{{ p.sprite }}?v=1" alt="{{ p.name }}" onerror="this.style.display = 'none'" />
+      </div>
+      <div class="pkmn-types">
+        <div class="pkmn-type-badge" style="background-color: {{ t1.hexcolor }};">{{ t1.name }}</div>
+        {% if let Some(t_opt) = t2 %}
+        <div class="pkmn-type-badge" style="background-color: {{ t_opt.hexcolor }};">{{ t_opt.name }}</div>
+        {% endif %}
+      </div>
     </a>
     {% endfor %}
   </div>
-  {% endif %}
 </div>
+{% endif %}
+
 {% endblock %}

@@ -1,25 +1,48 @@
 {% extends "base.html" %}
 {% block title %}Status — Karta Yaxu{% endblock %}
 {% block content %}
-<h1>Condições de Status</h1>
+<div class="flex items-center justify-between mb-4 mt-4">
+    <h1 style="font-size: 24px;">Condições de Status</h1>
+    {% if let Some(role) = user_role %}
+        {% if role == "editor" %}
+        <a href="/editor/status" class="btn btn-primary" style="background-color: var(--destructive); color: var(--primary-foreground);">✏ EDITOR</a>
+        {% endif %}
+    {% endif %}
+</div>
 
-<h2>Principais (Persistentes)</h2>
-<ul class="status-list">
-{% for c in conditions %}{% if !c.is_volatile %}
-<li>
-    <img src="/static/icons/status/{{ c.icon }}?v=1" alt="{{ c.name }}" onerror="this.style.display='none'">
-    <strong>{{ c.name }}</strong> — {{ c.description }}
-</li>
-{% endif %}{% endfor %}
-</ul>
+<div style="display: grid; grid-template-columns: 1fr; gap: 32px;" class="detail-grid">
+    <div class="gb-card elevation-2">
+      <h2 style="font-size: 16px; margin-bottom: 24px;">Principais (Persistentes)</h2>
+      <div style="display: flex; flex-direction: column; gap: 16px;">
+        {% for c in conditions %}{% if !c.is_volatile %}
+        <div class="gb-card elevation-1" style="display: flex; flex-direction: row; align-items: center; gap: 16px; padding: 16px;">
+            <div class="sprite-container" style="width: 48px; height: 48px; margin: 0; flex-shrink: 0;">
+                <img src="/static/icons/status/{{ c.icon }}?v=1" alt="{{ c.name }}" title="{{ c.name }}" onerror="this.style.display='none'" style="width:100%; height:100%; image-rendering:pixelated; object-fit: contain;">
+            </div>
+            <div>
+                <strong style="display: block; font-size: 16px; margin-bottom: 8px;">{{ c.name }}</strong>
+                <span style="font-size: 10px; line-height: 1.6;">{{ c.description }}</span>
+            </div>
+        </div>
+        {% endif %}{% endfor %}
+      </div>
+    </div>
 
-<h2>Voláteis (Temporários)</h2>
-<ul class="status-list">
-{% for c in conditions %}{% if c.is_volatile %}
-<li>
-    <img src="/static/icons/status/{{ c.icon }}?v=1" alt="{{ c.name }}" onerror="this.style.display='none'">
-    <strong>{{ c.name }}</strong> — {{ c.description }}
-</li>
-{% endif %}{% endfor %}
-</ul>
+    <div class="gb-card elevation-1" style="background-color: var(--gb-light);">
+      <h2 style="font-size: 16px; margin-bottom: 24px;">Voláteis (Temporários)</h2>
+      <div style="display: flex; flex-direction: column; gap: 16px;">
+        {% for c in conditions %}{% if c.is_volatile %}
+        <div class="gb-card elevation-1" style="display: flex; flex-direction: row; align-items: center; gap: 16px; padding: 16px;">
+            <div class="sprite-container" style="width: 48px; height: 48px; margin: 0; flex-shrink: 0;">
+                <img src="/static/icons/status/{{ c.icon }}?v=1" alt="{{ c.name }}" title="{{ c.name }}" onerror="this.style.display='none'" style="width:100%; height:100%; image-rendering:pixelated; object-fit: contain;">
+            </div>
+            <div>
+                <strong style="display: block; font-size: 16px; margin-bottom: 8px;">{{ c.name }}</strong>
+                <span style="font-size: 10px; line-height: 1.6;">{{ c.description }}</span>
+            </div>
+        </div>
+        {% endif %}{% endfor %}
+      </div>
+    </div>
+</div>
 {% endblock %}

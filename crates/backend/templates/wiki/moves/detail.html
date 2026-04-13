@@ -1,58 +1,71 @@
-{% extends "base.html" %} {% block title %}{{ m.name }} — Moves — Karta Yaxu{%
-endblock %} {% block content %}
-<div class="move-detail">
-  <h1>{{ m.name }}</h1>
-  <table class="info-table">
-    <tr>
-      <th>Tipo</th>
-      <td>
-        <a
-          class="type-badge"
-          href="/wiki/types/{{ t.name|slugify }}"
-          style="background:{{ t.hexcolor }}"
-          >{{ t.name }}</a
-        >
-      </td>
-    </tr>
-    <tr>
-      <th>Categoria</th>
-      <td>{{ m.category }}</td>
-    </tr>
-    <tr>
-      <th>Poder</th>
-      <td>{% if let Some(p) = m.power %}{{ p }}{% else %}—{% endif %}</td>
-    </tr>
-    <tr>
-      <th>Precisão</th>
-      <td>{% if let Some(a) = m.accuracy %}{{ a }}%{% else %}—{% endif %}</td>
-    </tr>
-    <tr>
-      <th>PP</th>
-      <td>{{ m.pp }}</td>
-    </tr>
-  </table>
-  <p class="description">{{ m.description }}</p>
+{% extends "base.html" %} 
+{% block title %}{{ m.name }} — Moves — Karta Yaxu{% endblock %} 
+{% block content %}
+<div style="display: flex; justify-content: space-between; margin-bottom: 24px; align-items: center;">
+    <a href="/wiki/moves" class="btn btn-secondary">◀ VOLTAR</a>
+    {% if let Some(role) = user_role %}
+        {% if role == "editor" %}
+        <a href="/editor/moves/{{ m.name|slugify }}" class="btn btn-primary" style="background-color: var(--destructive); color: var(--primary-foreground);">✏ EDITAR</a>
+        {% endif %}
+    {% endif %}
+</div>
 
-  {% if !learnset.is_empty() %}
-  <h2>Aprendido por</h2>
-  <div class="pokemon-grid">
-    {% for (p, method, level) in learnset %}
-    <a class="card" href="/wiki/pokemon/{{ p.name|slugify }}">
-      <img
-        src="/static/sprites/pokemon/{{ p.sprite }}?v=1"
-        alt="{{ p.name }}"
-        onerror="this.style.display = 'none'"
-      />
-      <span>{{ p.name }}</span>
-      <span class="method">
-        {% if method == "level_up" %}Nv {% if let Some(lv) = level %}{{ lv }}{%
-        endif %} {% else if method == "tm" %}TM {% else if method == "egg" %}Egg
-        {% else if method == "tutor" %}Tutor {% else if method == "gmax" %}G-Max
-        {% else if method == "max" %}Max {% else %}{{ method }}{% endif %}
-      </span>
+<div class="gb-card elevation-2 mb-4" style="background-color: var(--gb-lightest);">
+    <h1 style="font-size: 24px; margin-bottom: 12px;">{{ m.name }}</h1>
+    <p style="font-size: 10px; line-height: 1.8; margin-bottom: 24px; border-left: 4px solid var(--primary); padding-left: 12px;">{{ m.description }}</p>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px;">
+      <div class="gb-card elevation-1" style="padding: 12px;">
+        <div style="font-size: 8px; opacity: 0.8; margin-bottom: 8px;">TIPO</div>
+        <a class="badge" href="/wiki/types/{{ t.name|slugify }}" style="background:{{ t.hexcolor }}; color: #fff; border-color: var(--border);">{{ t.name }}</a>
+      </div>
+      <div class="gb-card elevation-1" style="padding: 12px;">
+        <div style="font-size: 8px; opacity: 0.8; margin-bottom: 8px;">CATEGORIA</div>
+        <div style="font-size: 16px;">{{ m.category }}</div>
+      </div>
+      <div class="gb-card elevation-1" style="padding: 12px;">
+        <div style="font-size: 8px; opacity: 0.8; margin-bottom: 8px;">PODER</div>
+        <div style="font-size: 16px;">{% if let Some(p) = m.power %}{{ p }}{% else %}—{% endif %}</div>
+      </div>
+      <div class="gb-card elevation-1" style="padding: 12px;">
+        <div style="font-size: 8px; opacity: 0.8; margin-bottom: 8px;">PRECISÃO</div>
+        <div style="font-size: 16px;">{% if let Some(a) = m.accuracy %}{{ a }}%{% else %}—{% endif %}</div>
+      </div>
+      <div class="gb-card elevation-1" style="padding: 12px;">
+        <div style="font-size: 8px; opacity: 0.8; margin-bottom: 8px;">PP</div>
+        <div style="font-size: 16px;">{{ m.pp }}</div>
+      </div>
+    </div>
+</div>
+
+{% if !learnset.is_empty() %}
+<div class="gb-card elevation-1">
+  <h2 style="font-size: 16px; margin-bottom: 16px;">Aprendido por</h2>
+  <div class="grid-cards">
+    {% for entry in learnset %}
+    <a class="pkmn-card" href="/wiki/pokemon/{{ entry.0.0.name|slugify }}">
+      <div class="pkmn-header">
+        <div class="pkmn-id">#{{ entry.0.0.dex_number }}</div>
+        <div class="pkmn-name">{{ entry.0.0.name }}</div>
+      </div>
+      <div class="pkmn-sprite-box">
+        <img src="/static/sprites/pokemon/{{ entry.0.0.sprite }}?v=1" alt="{{ entry.0.0.name }}" onerror="this.style.display = 'none'" />
+      </div>
+      <div class="pkmn-types">
+        <div class="pkmn-type-badge" style="background-color: {{ entry.0.1.hexcolor }};">{{ entry.0.1.name }}</div>
+        {% if let Some(t_opt) = entry.0.2 %}
+        <div class="pkmn-type-badge" style="background-color: {{ t_opt.hexcolor }};">{{ t_opt.name }}</div>
+        {% endif %}
+      </div>
+      <div class="pkmn-actions" style="margin-top: 8px;">
+        <span class="badge" style="width: 100%; text-align: center; background-color: var(--gb-darkest); color: var(--gb-lightest); padding: 6px;">
+          {% if entry.1 == "level_up" %}NV {{ entry.2.unwrap_or(0) }}
+          {% else %}{{ entry.1|upper }}{% endif %}
+        </span>
+      </div>
     </a>
     {% endfor %}
   </div>
-  {% endif %}
 </div>
+{% endif %}
 {% endblock %}

@@ -3,68 +3,30 @@
 {% block title %}Início — Karta Yaxu{% endblock %}
 
 {% block content %}
-<div class="home-container">
-    <header class="home-header">
-        <h1>Bem-vindo ao Karta Yaxu</h1>
-        <p>O centro de comando da sua ROM Pokémon.</p>
-    </header>
+<div style="max-width: 800px; margin: 4rem auto; text-align: center;">
+    <div style="margin-bottom: 3rem;">
+        <h1 style="font-size: 32px; color: var(--primary);">BEM-VINDO AO KARTA YAXU</h1>
+        <p style="font-size: 10px; margin-top: 16px; line-height: 1.8;">O centro de comando retro da sua ROM Pokémon.</p>
+    </div>
 
     {% if let Some(msg) = error %}
-    <div class="error-banner">
-        {{ msg }}
+    <div class="gb-card" style="background-color: var(--destructive); color: var(--primary-foreground); margin-bottom: 24px; padding: 16px; border-color: var(--primary);">
+        <strong style="font-size: 12px;">{{ msg }}</strong>
     </div>
     {% endif %}
 
-    <div class="home-grid">
-        <a href="/wiki/pokemon" class="home-card">
-            <div class="card-icon">📚</div>
-            <h2>Wiki</h2>
-            <p>Explore a Pokédex, Tipos, Golpes e Mecânicas da sua região.</p>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 32px;">
+        <a href="/wiki/pokemon" class="gb-card elevation-2" style="background-color: var(--gb-light); align-items: center; justify-content: center;">
+            <div style="font-size: 48px; margin-bottom: 16px;">📚</div>
+            <h2 style="font-size: 20px; color: var(--primary); margin-bottom: 16px;">WIKI</h2>
+            <p style="font-size: 10px; color: var(--foreground); line-height: 1.5; text-align: center;">Explore a Pokédex, Tipos, Golpes e Mecânicas da sua região.</p>
         </a>
 
-        <a href="/editor/pokemon" class="home-card">
-            <div class="card-icon">🛠️</div>
-            <h2>Editor</h2>
-            <p>Modifique dados, adicione novos Pokémon e equilibre sua ROM em tempo real.</p>
+        <a href="/editor/pokemon" class="gb-card elevation-2" style="background-color: var(--gb-light); align-items: center; justify-content: center;">
+            <div style="font-size: 48px; margin-bottom: 16px;">🛠️</div>
+            <h2 style="font-size: 20px; color: var(--primary); margin-bottom: 16px;">EDITOR</h2>
+            <p style="font-size: 10px; color: var(--foreground); line-height: 1.5; text-align: center;">Modifique dados, adicione novos Pokémon e equilibre sua ROM.</p>
         </a>
     </div>
 </div>
-
-<style>
-.home-container {
-    max-width: 800px;
-    margin: 4rem auto;
-    text-align: center;
-}
-.home-header { margin-bottom: 3rem; }
-.home-header h1 { font-size: 2.5rem; color: var(--text); }
-.home-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 2rem;
-}
-.home-card {
-    background: var(--card-bg);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 2.5rem;
-    text-decoration: none;
-    transition: transform 0.2s, border-color 0.2s;
-}
-.home-card:hover {
-    transform: translateY(-5px);
-    border-color: var(--primary);
-}
-.card-icon { font-size: 3rem; margin-bottom: 1rem; }
-.home-card h2 { margin: 0.5rem 0; color: var(--primary); }
-.home-card p { color: var(--text-muted); line-height: 1.5; }
-.error-banner {
-    background: #fee2e2;
-    color: #b91c1c;
-    padding: 1rem;
-    border-radius: 8px;
-    margin-bottom: 2rem;
-    border: 1px solid #fecaca;
-}
-</style>
 {% endblock %}

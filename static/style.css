@@ -1,24 +1,375 @@
+/* ========================================================
+   Karta Yaxu - Global Stylesheet (GameBoy Edition)
+======================================================== */
+
+@font-face {
+  font-family: 'Press Start 2P';
+  src: url('/static/fonts/press-start-2p.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  /* Gameboy Color Palette */
+  --gb-darkest: #0f380f;
+  --gb-dark: #306230;
+  --gb-light: #8bac0f;
+  --gb-lightest: #9bbc0f;
+
+  /* Semantic Mapping */
+  --background: var(--gb-lightest);
+  --foreground: var(--gb-darkest);
+  --card: var(--gb-light);
+  --card-foreground: var(--gb-darkest);
+  --primary: var(--gb-darkest);
+  --primary-foreground: var(--gb-lightest);
+  --secondary: var(--gb-dark);
+  --secondary-foreground: var(--gb-lightest);
+  --destructive: #8b1e41; /* Retaining red for danger if needed */
+  --border: var(--gb-dark);
+
+  /* Elevation config */
+  --elevation-size: 4px;
+}
+
+/* ========================================================
+   Base Elements
+======================================================== */
+* {
+  box-sizing: border-box;
+}
+
 body {
-  font-family: sans-serif;
-  margin: auto;
-  max-width: 1280px;
+  margin: 0;
+  padding: 0;
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: 'Press Start 2P', monospace;
+  font-size: 16px;
+  line-height: 1.6;
+  
+  /* Retrô Pixel Smoothing Settings */
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+  
+  /* Fundo estilo Dotted Screen */
+  background-image: radial-gradient(circle, rgba(0, 0, 0, 0.05) 1px, transparent 1px);
+  background-size: 8px 8px;
 }
 
-.navbar {
-  background-color: #313236;
-  border-radius: 2px;
-  max-width: 800px;
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 400;
+  margin-top: 0;
+  text-transform: uppercase;
 }
 
-.navbar a {
-  color: #aaa;
+a {
+  color: inherit;
+  text-decoration: none;
+  transition: opacity 0.1s;
+}
+
+a:hover, a:focus {
+  opacity: 0.7;
+  text-decoration: underline;
+}
+
+button {
+  font-family: inherit;
+}
+
+/* ========================================================
+   Layout Utilities
+======================================================== */
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+/* Header & Footer */
+.gb-header {
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+  border-bottom: 8px solid var(--border);
+  padding: 24px 0;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+}
+
+.gb-footer {
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+  border-top: 8px solid var(--border);
+  padding: 32px 0;
+  margin-top: 64px;
+  text-align: center;
+}
+
+/* ========================================================
+   Components (GameBoy Style)
+======================================================== */
+
+/* Elevation Shadows */
+.elevation-1 {
+  border: 2px solid var(--border);
+  box-shadow: var(--elevation-size) var(--elevation-size) 0 var(--border);
+}
+
+.elevation-2 {
+  border: 3px solid var(--border);
+  box-shadow: calc(var(--elevation-size) + 2px) calc(var(--elevation-size) + 2px) 0 var(--border);
+}
+
+/* Card - Para a lista de Pokémon e componentes */
+.gb-card {
+  background-color: var(--card);
+  color: var(--card-foreground);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  text-align: left;
+  border: 4px solid var(--border);
+  transition: all 0.2s ease;
+  box-shadow: 4px 4px 0 var(--border);
+  cursor: pointer;
+}
+
+.gb-card:hover {
+  background-color: var(--gb-lightest);
+  transform: translateY(-4px);
+  box-shadow: 6px 6px 0 var(--border);
+}
+
+.gb-card:active {
+  transform: translateY(0);
+  box-shadow: 2px 2px 0 var(--border);
+}
+
+/* Badge (Id / Typings) */
+.badge {
   display: inline-block;
-  font-size: 15px;
-  padding: 10px;
+  padding: 4px 8px;
+  font-size: 8px;
+  text-transform: uppercase;
+  border: 2px solid var(--border);
+  line-height: 1.2;
+}
+
+.badge-primary {
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.badge-secondary {
+  background-color: var(--secondary);
+  color: var(--secondary-foreground);
+}
+
+/* Imagem Container */
+.sprite-container {
+  width: 100%;
+  aspect-ratio: 1;
+  background-color: var(--gb-lightest);
+  border: 2px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.sprite-container img {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  transition: transform 0.2s;
+}
+
+.gb-card:hover .sprite-container img {
+  transform: scale(1.1);
+}
+
+/* Botões */
+.btn {
+  display: inline-block;
+  padding: 12px 24px;
+  background-color: var(--secondary);
+  color: var(--secondary-foreground);
+  border: 2px solid var(--border);
+  box-shadow: 4px 4px 0 var(--border);
+  cursor: pointer;
+  text-transform: uppercase;
+  font-size: 10px;
+  transition: all 0.1s;
+}
+
+.btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0 var(--border);
+}
+
+.btn-primary {
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+}
+
+/* ========================================================
+   Helpers
+======================================================== */
+.flex { display: flex; }
+.flex-col { flex-direction: column; }
+.items-center { align-items: center; }
+.justify-center { justify-content: center; }
+.justify-between { justify-content: space-between; }
+.gap-2 { gap: 8px; }
+.gap-4 { gap: 16px; }
+.mt-4 { margin-top: 16px; }
+.mb-2 { margin-bottom: 8px; }
+.mb-4 { margin-bottom: 16px; }
+.text-center { text-align: center; }
+
+/* Grids */
+.grid-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+/* Modificadores estéticos de texto do App.tsx */
+.text-xs { font-size: 10px; }
+.text-xxs { font-size: 8px; }
+.tracking-wider { letter-spacing: 0.1em; }
+.opacity-80 { opacity: 0.8; }
+
+/* ========================================================
+   Standard Cards (Pokemon & Type)
+======================================================== */
+
+.pkmn-card {
+  background-color: var(--card);
+  padding: 12px;
+  border: 4px solid var(--border);
+  box-shadow: 4px 4px 0 var(--border);
+  display: flex;
+  flex-direction: column;
+  color: inherit;
+  transition: transform 0.2s, box-shadow 0.2s;
   text-decoration: none;
 }
-
-.navbar a:hover {
-  color: #ffffff;
+.pkmn-card:hover, .pkmn-card:focus {
+  background-color: var(--gb-lightest);
+  transform: translateY(-4px);
+  box-shadow: 6px 6px 0 var(--border);
+  text-decoration: none; /* Override a:hover */
+}
+.pkmn-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.pkmn-id {
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+  padding: 4px 8px;
+  border: 2px solid var(--border);
+  font-size: 8px;
+}
+.pkmn-name {
+  font-size: 10px;
+  text-transform: uppercase;
+  color: var(--primary);
+}
+.pkmn-sprite-box {
+  border: 2px solid var(--border);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  aspect-ratio: 1;
+  background-color: var(--background);
+  margin-bottom: 12px;
+}
+.pkmn-sprite-box img {
+  width: 70%;
+  height: 70%;
+  object-fit: contain;
+  image-rendering: pixelated;
+  transition: transform 0.2s;
+}
+.pkmn-card:hover .pkmn-sprite-box img {
+  transform: scale(1.1);
+}
+.pkmn-types {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: auto; /* Push to bottom if actions are absent */
+}
+.pkmn-type-badge {
+  padding: 6px 10px;
+  font-size: 8px;
+  text-transform: uppercase;
+  border: 2px solid var(--border);
+  color: #fff;
+  flex: 1;
+  text-align: center;
+  box-shadow: 2px 2px 0 var(--border);
+}
+.pkmn-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+.pkmn-btn {
+  flex: 1;
+  text-align: center;
+  font-size: 8px;
+  padding: 8px;
+  border: 2px solid var(--border);
+  color: var(--primary-foreground);
+  box-shadow: 2px 2px 0 var(--border);
+  text-transform: uppercase;
+  background-color: var(--primary);
+}
+.pkmn-btn:hover {
+  opacity: 0.8;
 }
 
+/* TYPE CARD */
+.type-card {
+  display: flex;
+  flex-direction: column;
+  border: 4px solid var(--border);
+  box-shadow: 4px 4px 0 var(--border);
+  padding: 12px;
+  background-color: var(--card);
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.type-card:hover, .type-card:focus {
+  transform: translateY(-4px);
+  box-shadow: 6px 6px 0 var(--border);
+  text-decoration: none;
+}
+.type-card-header {
+  font-size: 12px;
+  text-align: center;
+  color: #fff;
+  padding: 12px;
+  border: 2px solid var(--border);
+  box-shadow: inset 2px 2px 0 rgba(255,255,255,0.2);
+}
+.type-card-body {
+  margin-top: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
