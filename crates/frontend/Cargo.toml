@@ -9,3 +9,25 @@ crate-type = ["cdylib"]
 [dependencies]
 engine = { path = "../engine" }
 wasm-bindgen = "0.2"
+console_error_panic_hook = "0.1"
+
+[dependencies.web-sys]
+version = "0.3"
+features = [
+  "Window",
+  "Document",
+  "Node",
+  "Element",
+  "HtmlElement",
+  "HtmlInputElement",
+  "HtmlImageElement",
+  "HtmlCollection",
+  "NodeList",
+  "KeyboardEvent",
+  "EventTarget",
+  "Event",
+  "EventListener",
+  "HtmlFormElement",
+  "Location",
+  "CssStyleDeclaration",
+]

@@ -137,7 +137,7 @@
                 <div class="pkmn-name">{{ e.name }}</div>
             </div>
             <div class="pkmn-sprite-box">
-                <img src="/static/sprites/pokemon/{{ e.sprite }}?v=1" alt="{{ e.name }}" onerror="this.style.display = 'none'" />
+                <img src="/static/sprites/pokemon/{{ e.sprite }}?v=1" alt="{{ e.name }}" data-fallback="hide" />
             </div>
             <div class="pkmn-types">
                 <div class="pkmn-type-badge" style="background-color: {{ t1.hexcolor }};">{{ t1.name }}</div>
@@ -163,7 +163,7 @@
                 <div class="pkmn-name">{{ f.name }}</div>
             </div>
             <div class="pkmn-sprite-box">
-                <img src="/static/sprites/pokemon/{{ f.sprite }}?v=1" alt="{{ f.name }}" onerror="this.style.display = 'none'" />
+                <img src="/static/sprites/pokemon/{{ f.sprite }}?v=1" alt="{{ f.name }}" data-fallback="hide" />
             </div>
             <div class="pkmn-types">
                 <div class="pkmn-type-badge" style="background-color: {{ t1.hexcolor }};">{{ t1.name }}</div>
@@ -231,61 +231,6 @@
       {% endfor %}
   </div>
 </div>
-
-<script>
-document.addEventListener("DOMContentLoaded", function() {
-    const filters = document.querySelectorAll(".method-filter");
-    const moves = document.querySelectorAll(".learnset-move");
-
-    if (filters && moves) {
-        filters.forEach(f => {
-            f.addEventListener("click", () => {
-                filters.forEach(btn => {
-                    btn.style.backgroundColor = "var(--primary)";
-                    btn.style.color = "var(--primary-foreground)";
-                });
-                f.style.backgroundColor = "var(--gb-light)";
-                f.style.color = "var(--gb-darkest)";
-
-                const method = f.getAttribute("data-filter");
-                moves.forEach(m => {
-                    if (method === "all" || m.getAttribute("data-method") === method) {
-                        m.style.display = "flex";
-                    } else {
-                        m.style.display = "none";
-                    }
-                });
-            });
-        });
-    }
-
-    // Shiny Toggle logic
-    const shinyBtn = document.getElementById("shiny-toggle");
-    const pkmnSprite = document.getElementById("pokemon-sprite");
-    if (shinyBtn && pkmnSprite) {
-        let isShiny = false;
-
-        const spriteFile = pkmnSprite.getAttribute("data-sprite");
-        const shinySpriteFile = spriteFile.replace(".png", "_shiny.png");
-        const shinyUrl = "/static/sprites/shiny/" + shinySpriteFile + "?v=1";
-        const normalUrl = pkmnSprite.getAttribute("data-normal");
-
-        shinyBtn.addEventListener("click", (e) => {
-            e.preventDefault();
-            isShiny = !isShiny;
-            if (isShiny) {
-                pkmnSprite.src = shinyUrl;
-                shinyBtn.style.border = "2px solid var(--border)";
-                shinyBtn.style.backgroundColor = "var(--gb-light)";
-            } else {
-                pkmnSprite.src = normalUrl;
-                shinyBtn.style.border = "2px solid transparent";
-                shinyBtn.style.backgroundColor = "transparent";
-            }
-        });
-    }
-});
-</script>
 {% endif %}
 
 <style>

@@ -20,7 +20,7 @@
         </style>
         <tbody>
             {% for n in natures %}
-            <tr>
+            <tr data-search-name="{{ n.name|lower }}">
                 <td><strong>{{ n.name }}</strong></td>
                 <td>
                     {% if let Some(stat) = n.increased_stat %}

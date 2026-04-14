@@ -21,8 +21,8 @@
         </style>
         <tbody>
             {% for s in status_list %}
-            <tr>
-                <td><div class="sprite-container" style="width: 32px; height: 32px; margin: 0; padding: 4px; background: transparent;"><img src="/static/icons/status/{{ s.icon }}" alt="{{ s.name }}" onerror="this.style.display='none'" style="width: 100%; height: 100%; image-rendering: pixelated;"></div></td>
+            <tr data-search-name="{{ s.name|lower }}">
+                <td><div class="sprite-container" style="width: 32px; height: 32px; margin: 0; padding: 4px; background: transparent;"><img src="/static/icons/status/{{ s.icon }}" alt="{{ s.name }}" data-fallback="hide" style="width: 100%; height: 100%; image-rendering: pixelated;"></div></td>
                 <td><strong>{{ s.name }}</strong></td>
                 <td>
                     {% if s.is_volatile %}

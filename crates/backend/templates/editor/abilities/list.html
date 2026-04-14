@@ -7,7 +7,7 @@
 </div>
 <div style="display: flex; flex-direction: column; gap: 16px;">
     {% for a in abilities %}
-    <div class="ability-card">
+    <div class="ability-card" data-search-name="{{ a.name|lower }}">
         <div class="ability-card-header">
             <div class="ability-card-title">{{ a.name }}</div>
         </div>

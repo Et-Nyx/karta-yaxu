@@ -6,12 +6,12 @@
 </div>
 <div class="grid-cards" style="grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));">
     {% for t in types %}
-    <a href="/wiki/types/{{ t.name|slugify }}" class="type-card" style="border-color: {{ t.hexcolor }};">
+    <a href="/wiki/types/{{ t.name|slugify }}" class="type-card" style="border-color: {{ t.hexcolor }};" data-search-name="{{ t.name|lower }}">
         <div class="type-card-header" style="background-color: {{ t.hexcolor }};">
             {{ t.name|upper }}
         </div>
         <div class="type-card-body flex flex-col justify-center items-center gap-2">
-            <img src="/static/icons/types/{{ t.icon }}?v=1" alt="{{ t.name }}" style="width: 48px; height: 48px; image-rendering: pixelated;" onerror="this.style.display = 'none'" />
+            <img src="/static/icons/types/{{ t.icon }}?v=1" alt="{{ t.name }}" style="width: 48px; height: 48px; image-rendering: pixelated;" data-fallback="hide" />
             <code style="font-size: 8px;">HEX: {{ t.hexcolor }}</code>
         </div>
     </a>

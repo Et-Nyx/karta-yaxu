@@ -4,6 +4,7 @@ pub mod models;
 pub mod seed;
 pub mod editor;
 pub mod error;
+pub mod search;
 
 pub mod filters {
     /// Askama-compatible slugify filter for use in templates.

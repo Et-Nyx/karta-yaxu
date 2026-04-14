@@ -7,7 +7,7 @@
 
 <div style="display: flex; flex-direction: column; gap: 16px;">
     {% for a in abilities %}
-    <a href="/wiki/abilities/{{ a.name|slugify }}" class="ability-card">
+    <a href="/wiki/abilities/{{ a.name|slugify }}" class="ability-card" data-search-name="{{ a.name|lower }}">
         <div class="ability-card-header">
             <div class="ability-card-title">{{ a.name }}</div>
         </div>

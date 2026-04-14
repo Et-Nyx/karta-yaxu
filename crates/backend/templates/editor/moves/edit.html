@@ -24,7 +24,7 @@
     <div style="margin-top: 32px; padding-top: 32px; border-top: 4px dashed var(--border);">
         <h3 style="font-size: 16px; color: var(--destructive); margin-bottom: 8px;">ZONA DE PERIGO</h3>
         <p style="font-size: 8px; line-height: 1.8; margin-bottom: 16px;">Ao deletar este Golpe, ele desaparecerá das Learnsets de todos os Pokémon que o aprendem.</p>
-        <form action="/editor/moves/{{ slug }}/delete" method="post" onsubmit="return confirm('Tem certeza que deseja deletar este Golpe?');">
+        <form action="/editor/moves/{{ slug }}/delete" method="post" data-confirm="Tem certeza que deseja deletar este Golpe?">
             <button type="submit" class="btn" style="background-color: var(--destructive); color: var(--primary-foreground);">DELETAR GOLPE</button>
         </form>
     </div>

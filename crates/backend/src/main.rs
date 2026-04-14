@@ -95,6 +95,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Wiki — Mecânicas
         .route("/wiki/mechanics/nature", get(backend::wiki::natures_list))
         .route("/wiki/mechanics/status", get(backend::wiki::status_list))
+        // Search
+        .route("/search", get(backend::search::search_page))
         // Estáticos
         .nest_service("/static", ServeDir::new("static"))
         .layer(session_layer)

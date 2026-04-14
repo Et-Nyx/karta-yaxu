@@ -1,14 +1,19 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+pub mod breadcrumbs;
+pub mod filters;
+pub mod forms;
+pub mod images;
+pub mod search;
+pub mod shiny;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+use wasm_bindgen::prelude::*;
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
+#[wasm_bindgen(start)]
+pub fn init() {
+    console_error_panic_hook::set_once();
+    breadcrumbs::init();
+    search::init();
+    shiny::init();
+    filters::init();
+    forms::init();
+    images::init();
 }

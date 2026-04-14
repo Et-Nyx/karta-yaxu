@@ -6,28 +6,41 @@
 </div>
 <div style="display: flex; flex-direction: column; gap: 16px;">
     {% for (m, t) in moves %}
-    <a href="/wiki/moves/{{ m.name|slugify }}" class="move-card">
-        <div class="move-card-header">
-            <div class="move-card-title">{{ m.name }}</div>
-            <div class="pkmn-type-badge" style="background-color: {{ t.hexcolor }}; border-width: 1px; padding: 4px 6px; flex: 0; box-shadow: 1px 1px 0 var(--border);">{{ t.name }}</div>
+    <a href="/wiki/moves/{{ m.name|slugify }}" class="result-card result-card--move" data-search-name="{{ m.name|lower }}">
+        <!-- Left Visual Zone -->
+        <div class="result-card__left">
+            {% let cat_str = m.category.to_string() %}
+            {% if cat_str == "Físico" %}
+            <img src="/static/icons/moves/physical.png?v=1" alt="Físico" style="width: 64px; height: 64px; object-fit: contain; image-rendering: pixelated;" data-fallback="hide" />
+            {% else if cat_str == "Especial" %}
+            <img src="/static/icons/moves/special.png?v=1" alt="Especial" style="width: 64px; height: 64px; object-fit: contain; image-rendering: pixelated;" data-fallback="hide" />
+            {% else %}
+            <img src="/static/icons/moves/status.png?v=1" alt="Status" style="width: 64px; height: 64px; object-fit: contain; image-rendering: pixelated;" data-fallback="hide" />
+            {% endif %}
         </div>
-        <div class="move-card-body">
-            <div class="move-card-stats">
-                <div class="move-stat-box">
-                    <div class="move-stat-label">CAT</div>
-                    <div class="move-stat-value">{{ m.category }}</div>
+        
+        <!-- Center Content Zone -->
+        <div class="result-card__center">
+            <div class="result-card__move-content">
+                <div class="result-card__move-info">
+                    <div class="result-card__move-name">{{ m.name }}</div>
+                    <div class="result-card__move-types">
+                        <span class="result-card__type-badge" style="background-color: {{ t.hexcolor }};">{{ t.name }}</span>
+                    </div>
                 </div>
-                <div class="move-stat-box">
-                    <div class="move-stat-label">PWR</div>
-                    <div class="move-stat-value">{% if let Some(p) = m.power %}{{ p }}{% else %}—{% endif %}</div>
-                </div>
-                <div class="move-stat-box">
-                    <div class="move-stat-label">ACC</div>
-                    <div class="move-stat-value">{% if let Some(a) = m.accuracy %}{{ a }}%{% else %}—{% endif %}</div>
-                </div>
-                <div class="move-stat-box">
-                    <div class="move-stat-label">PP</div>
-                    <div class="move-stat-value">{{ m.pp }}</div>
+                <div class="result-card__move-stats">
+                    <div class="result-card__move-stat">
+                        <div class="result-card__move-stat-label">PWR</div>
+                        <div class="result-card__move-stat-value">{% if let Some(p) = m.power %}{{ p }}{% else %}—{% endif %}</div>
+                    </div>
+                    <div class="result-card__move-stat">
+                        <div class="result-card__move-stat-label">ACC</div>
+                        <div class="result-card__move-stat-value">{% if let Some(a) = m.accuracy %}{{ a }}%{% else %}—{% endif %}</div>
+                    </div>
+                    <div class="result-card__move-stat">
+                        <div class="result-card__move-stat-label">PP</div>
+                        <div class="result-card__move-stat-value">{{ m.pp }}</div>
+                    </div>
                 </div>
             </div>
         </div>

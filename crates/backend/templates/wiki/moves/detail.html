@@ -16,11 +16,21 @@
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px;">
       <div class="gb-card elevation-1" style="padding: 12px;">
         <div style="font-size: 8px; opacity: 0.8; margin-bottom: 8px;">TIPO</div>
-        <a class="badge" href="/wiki/types/{{ t.name|slugify }}" style="background:{{ t.hexcolor }}; color: #fff; border-color: var(--border);">{{ t.name }}</a>
+        <a class="badge" href="/wiki/types/{{ t.name|slugify }}" style="background:{{ t.hexcolor }}; color: #fff; border-color: var(--border); display: inline-block; padding: 8px 16px; font-size: 12px; text-align: center; min-width: 80px;">{{ t.name }}</a>
       </div>
       <div class="gb-card elevation-1" style="padding: 12px;">
         <div style="font-size: 8px; opacity: 0.8; margin-bottom: 8px;">CATEGORIA</div>
-        <div style="font-size: 16px;">{{ m.category }}</div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          {% let cat_str = m.category.to_string() %}
+          {% if cat_str == "Físico" %}
+          <img src="/static/icons/moves/physical.png?v=1" alt="Físico" style="width: 48px; height: 48px; object-fit: contain; image-rendering: pixelated;" data-fallback="hide" />
+          {% else if cat_str == "Especial" %}
+          <img src="/static/icons/moves/special.png?v=1" alt="Especial" style="width: 48px; height: 48px; object-fit: contain; image-rendering: pixelated;" data-fallback="hide" />
+          {% else %}
+          <img src="/static/icons/moves/status.png?v=1" alt="Status" style="width: 48px; height: 48px; object-fit: contain; image-rendering: pixelated;" data-fallback="hide" />
+          {% endif %}
+          <div style="font-size: 16px;">{{ m.category }}</div>
+        </div>
       </div>
       <div class="gb-card elevation-1" style="padding: 12px;">
         <div style="font-size: 8px; opacity: 0.8; margin-bottom: 8px;">PODER</div>
@@ -48,7 +58,7 @@
         <div class="pkmn-name">{{ entry.0.0.name }}</div>
       </div>
       <div class="pkmn-sprite-box">
-        <img src="/static/sprites/pokemon/{{ entry.0.0.sprite }}?v=1" alt="{{ entry.0.0.name }}" onerror="this.style.display = 'none'" />
+        <img src="/static/sprites/pokemon/{{ entry.0.0.sprite }}?v=1" alt="{{ entry.0.0.name }}" data-fallback="hide" />
       </div>
       <div class="pkmn-types">
         <div class="pkmn-type-badge" style="background-color: {{ entry.0.1.hexcolor }};">{{ entry.0.1.name }}</div>

@@ -7,33 +7,49 @@
 </div>
 <div style="display: flex; flex-direction: column; gap: 16px;">
     {% for m in moves %}
-    <div class="move-card">
-        <div class="move-card-header">
-            <div class="move-card-title">{{ m.name }}</div>
-            <div class="badge" style="font-size: 8px; background-color: {{ m.type_color }}; color: #fff; border: 2px solid var(--border);">{{ m.type_name }}</div>
+    <div class="result-card result-card--move" data-search-name="{{ m.name|lower }}">
+        <!-- Left Visual Zone -->
+        <div class="result-card__left">
+            {% let cat_str = m.category.to_string() %}
+            {% if cat_str == "Físico" %}
+            <img src="/static/icons/moves/physical.png?v=1" alt="Físico" style="width: 64px; height: 64px; object-fit: contain; image-rendering: pixelated;" data-fallback="hide" />
+            {% else if cat_str == "Especial" %}
+            <img src="/static/icons/moves/special.png?v=1" alt="Especial" style="width: 64px; height: 64px; object-fit: contain; image-rendering: pixelated;" data-fallback="hide" />
+            {% else %}
+            <img src="/static/icons/moves/status.png?v=1" alt="Status" style="width: 64px; height: 64px; object-fit: contain; image-rendering: pixelated;" data-fallback="hide" />
+            {% endif %}
         </div>
-        <div class="move-card-body">
-            <div class="move-card-stats">
-                <div class="move-stat-box">
-                    <div class="move-stat-label">CAT</div>
-                    <div class="move-stat-value">{{ m.category }}</div>
+        
+        <!-- Center Content Zone -->
+        <div class="result-card__center">
+            <div class="result-card__move-content">
+                <div class="result-card__move-info">
+                    <div class="result-card__move-name">{{ m.name }}</div>
+                    <div class="result-card__move-types">
+                        <span class="result-card__type-badge" style="background-color: {{ m.type_color }};">{{ m.type_name }}</span>
+                    </div>
                 </div>
-                <div class="move-stat-box">
-                    <div class="move-stat-label">PWR</div>
-                    <div class="move-stat-value">{% if let Some(p) = m.power %}{{ p }}{% else %}—{% endif %}</div>
-                </div>
-                <div class="move-stat-box">
-                    <div class="move-stat-label">ACC</div>
-                    <div class="move-stat-value">{% if let Some(a) = m.accuracy %}{{ a }}%{% else %}—{% endif %}</div>
-                </div>
-                <div class="move-stat-box">
-                    <div class="move-stat-label">PP</div>
-                    <div class="move-stat-value">{{ m.pp }}</div>
+                <div class="result-card__move-stats">
+                    <div class="result-card__move-stat">
+                        <div class="result-card__move-stat-label">PWR</div>
+                        <div class="result-card__move-stat-value">{% if let Some(p) = m.power %}{{ p }}{% else %}—{% endif %}</div>
+                    </div>
+                    <div class="result-card__move-stat">
+                        <div class="result-card__move-stat-label">ACC</div>
+                        <div class="result-card__move-stat-value">{% if let Some(a) = m.accuracy %}{{ a }}%{% else %}—{% endif %}</div>
+                    </div>
+                    <div class="result-card__move-stat">
+                        <div class="result-card__move-stat-label">PP</div>
+                        <div class="result-card__move-stat-value">{{ m.pp }}</div>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="move-card-actions">
-            <a href="/editor/moves/{{ m.name|slugify }}" class="btn" style="background-color: var(--destructive); color: var(--primary-foreground); padding: 4px 8px; font-size: 8px;">EDITAR</a>
+        
+        <!-- Right Actions Zone -->
+        <div class="result-card__actions" style="display: flex; flex-direction: column; gap: 8px; padding: 12px; border-left: 2px solid var(--gb-darkest); background-color: rgba(0,0,0,0.05);">
+            <a href="/editor/moves/{{ m.name|slugify }}" class="btn" style="background-color: var(--destructive); color: var(--primary-foreground); padding: 6px 12px; font-size: 8px; text-decoration: none; text-align: center;">EDITAR</a>
+            <a href="/wiki/moves/{{ m.name|slugify }}" class="btn" style="background-color: var(--secondary); color: var(--secondary-foreground); padding: 6px 12px; font-size: 8px; text-decoration: none; text-align: center;">WIKI</a>
         </div>
     </div>
     {% endfor %}

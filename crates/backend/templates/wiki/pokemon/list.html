@@ -7,13 +7,13 @@
 
 <div class="grid-cards">
 {% for (p, t1, t2) in pokemon %}
-<a class="pkmn-card" href="/wiki/pokemon/{{ p.name|slugify }}">
+<a class="pkmn-card" href="/wiki/pokemon/{{ p.name|slugify }}" data-search-name="{{ p.name|lower }}">
     <div class="pkmn-header">
         <div class="pkmn-id">#{{ p.dex_number }}</div>
         <div class="pkmn-name">{{ p.name }}</div>
     </div>
     <div class="pkmn-sprite-box">
-        <img src="/static/sprites/pokemon/{{ p.sprite }}?v=1" alt="{{ p.name }}" onerror="this.style.display='none'">
+        <img src="/static/sprites/pokemon/{{ p.sprite }}?v=1" alt="{{ p.name }}" data-fallback="hide">
     </div>
     <div class="pkmn-types">
         <div class="pkmn-type-badge" style="background-color: {{ t1.hexcolor }};">{{ t1.name }}</div>

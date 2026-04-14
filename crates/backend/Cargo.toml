@@ -13,6 +13,7 @@ tower-sessions = "0.14"
 tower-http = { version = "0.6", features = ["fs"] }
 tower-sessions-sqlx-store = { version = "0.15", features = ["sqlite"] }
 serde = { version = "1", features = ["derive"] }
+urlencoding = "2"
 toml = "0.8"
 argon2 = "0.5"
 uuid = { version = "1", features = ["v4"] }

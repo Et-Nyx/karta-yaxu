@@ -24,7 +24,7 @@
     <div style="margin-top: 32px; padding-top: 32px; border-top: 4px dashed var(--border);">
         <h3 style="font-size: 16px; color: var(--destructive); margin-bottom: 8px;">ZONA DE PERIGO</h3>
         <p style="font-size: 8px; line-height: 1.8; margin-bottom: 16px;">A exclusão deste item destruirá ramificações linkadas (evoluções, golpes).</p>
-        <form action="/editor/pokemon/{{ slug }}/delete" method="post" onsubmit="return confirm('ATENÇÃO! Deseja erradicar este arquivo corrompendo a Dex?');">
+        <form action="/editor/pokemon/{{ slug }}/delete" method="post" data-confirm="ATENÇÃO! Deseja erradicar este arquivo corrompendo a Dex?">
             <button type="submit" class="btn" style="background-color: var(--destructive); color: var(--primary-foreground);">DELETAR DEFINITIVAMENTE</button>
         </form>
     </div>

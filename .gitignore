@@ -6,6 +6,7 @@ result*
 
 # WebAssembly
 pkg/
+static/wasm/
 
 # Banco de dados
 *.db*
