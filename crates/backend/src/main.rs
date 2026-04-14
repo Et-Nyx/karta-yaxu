@@ -45,7 +45,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Configurando as rotas Axum...");
     let app = Router::new()
-        .route("/", get(auth::home_handler))
+        .route("/", get(backend::search::search_page))
         .route("/health", get(health_handler))
         // Trainers - auth
         .route("/trainer/login", get(auth::login_page).post(auth::login_post))
@@ -97,6 +97,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/wiki/mechanics/status", get(backend::wiki::status_list))
         // Search
         .route("/search", get(backend::search::search_page))
+        .route("/api/search/suggestions", get(backend::search::search_suggestions))
         // Estáticos
         .nest_service("/static", ServeDir::new("static"))
         .layer(session_layer)

@@ -17,6 +17,7 @@ urlencoding = "2"
 toml = "0.8"
 argon2 = "0.5"
 uuid = { version = "1", features = ["v4"] }
+strsim = "0.11"
 
 [[bin]]
 name = "backend"

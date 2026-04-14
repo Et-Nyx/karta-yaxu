@@ -30,4 +30,5 @@ features = [
   "HtmlFormElement",
   "Location",
   "CssStyleDeclaration",
+  "DomTokenList",
 ]

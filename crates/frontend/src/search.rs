@@ -72,6 +72,19 @@ pub fn init() {
     });
     let _ = body.add_event_listener_with_callback("keydown", global_closure.as_ref().unchecked_ref());
     global_closure.forget();
+
+    if let Some(toggle_btn) = doc.get_element_by_id("facet-toggle") {
+        let toggle_closure = Closure::<dyn Fn()>::new(move || {
+            let d = window().and_then(|w| w.document());
+            if let Some(d) = d {
+                if let Some(facets_el) = d.get_element_by_id("search-facets") {
+                    let _ = facets_el.class_list().toggle("search-facets--open");
+                }
+            }
+        });
+        let _ = toggle_btn.add_event_listener_with_callback("click", toggle_closure.as_ref().unchecked_ref());
+        toggle_closure.forget();
+    }
 }
 
 fn filter_cards(query: &str) {

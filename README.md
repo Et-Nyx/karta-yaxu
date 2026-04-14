@@ -23,11 +23,12 @@ Os arquivos `.toml` do repositório (como os templates) servem como a linguagem 
 | Dados / edição         | TOML                              |
 | Templates HTML         | askama (Rust, compile-time)       |
 | Backend                | Rust + Axum + Tokio               |
+| Busca fuzzy            | strsim (Levenshtein distance)     |
 | Batalhas em tempo real | WebSockets nativos (Axum)         |
 | Banco de dados         | SQLite via sqlx                   |
-| Deploy                 | Fly.io (Docker)                   |
+| Deploy                 | Fly.io (Docker)                  |
 
-Sem frameworks de frontend. Sem bibliotecas de terceiros para WebSocket ou auth — só o ecossistema Rust e protocolos nativos.
+Sem frameworks de frontend. Sem bibliotecas de terceiros para WebSocket ou auth — só o ecossistema Rust e protocolos nativos. Busca fuzzy via crate `strsim` (Levenshtein distance).
 
 ---
 
@@ -61,7 +62,11 @@ karta-yaxu/
 ├── crates/
 │   ├── engine/       # models.rs (Base de Dados) e battle.rs (Lógica de Simulação)
 │   ├── frontend/     # compila para WASM, manipula DOM via wasm-bindgen
+│   │   └── src/
+│   │       └── search.rs  # toggle de facetas mobile, filtro client-side
 │   └── backend/      # Axum + WebSockets + sqlx + askama templates
+│       └── src/
+│           └── search.rs  # busca fuzzy, filtros por tipo/categoria, scoring
 ├── static/
 │   ├── index.html
 │   ├── style.css
@@ -345,6 +350,8 @@ A navegação reflete uma hierarquia de sistema de arquivos. Qualquer usuário c
 
 ```
 /
+├── search              ← busca global (home page)
+│
 ├── wiki/
 │   ├── pokemon/
 │   │   ├── bulbasaur
@@ -358,6 +365,13 @@ A navegação reflete uma hierarquia de sistema de arquivos. Qualquer usuário c
 │       ├── damage-formula
 │       ├── status-conditions
 │       └── ...
+│
+├── search/                ← busca fuzzy com filtros facetados
+│   └── ?q=...&entity_type=...&type_name=...
+│
+├── api/
+│   └── search/
+│       └── suggestions    ← autocomplete JSON
 │
 ├── editor/
 │   ├── pokemon/
@@ -433,6 +447,9 @@ Qualquer pessoa pode se cadastrar como `viewer`. O role `editor` é promovido ma
 
 | Rota                                  | Acesso                         |
 | ------------------------------------- | ------------------------------ |
+| `/` (busca)                           | Público — sem login necessário |
+| `/search`                              | Público — sem login necessário |
+| `/api/search/suggestions`             | Público                        |
 | `/wiki/*`                             | Público — sem login necessário |
 | `/trainer/register`, `/trainer/login` | Público                        |
 | `/trainer/:username`                  | Público                        |
@@ -552,6 +569,12 @@ direnv allow
 - Sistema de alternância local para sprites Shiny via toggle "Shiny Charm".
 - Reestruturação da UI no layout "Gameboy Edition": cards flex-row fluídos (`.move-card`, `.ability-card`) e grid responsivo de Fraquezas vs Resistências.
 - Centralização do tráfego interno através das Landing Pages raiz `/wiki` e `/editor` para navegação modular sem poluição na barra principal.
+- Sistema de busca global com filtros facetados: `/` é a página de busca (home), `/search` com query params (`q`, `entity_type`, `type_name`, `type_name_2`, `category`, `stat`, `fully_evolved`, `only_base_form`, `sort`).
+- Busca fuzzy com Levenshtein distance (crate `strsim`), incluindo busca por dex number (ex: `25` ou `#25` encontra Pikachu) e autocomplete via `/api/search/suggestions`.
+- Sidebar de filtros com radio buttons para Páginas (Pokémon, Moves, Abilities, Types, Natures, Status) e sub-filtros dinâmicos por entidade.
+- Filtros de tipo com checkboxes (máx. 2, lógica AND), filtros Fully Evolved e Base Form como toggles, dropdown customizado para ordenação.
+- Frontend WASM para toggle de facetas mobile e filtro client-side por nome.
+- Estilização Gameboy com font Press Start 2P, cards com bordas/sombras, grids coloridos por tipo e seletores `:has(input:checked)`.
 
 ### ✅ Bloco 3 — Autenticação e Editor (concluído)
 

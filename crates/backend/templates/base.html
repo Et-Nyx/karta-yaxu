@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Karta Yaxu{% endblock %}</title>
-    <link rel="stylesheet" href="/static/style.css?v=2">
+    <link rel="stylesheet" href="/static/style.css?v=3">
 </head>
 <body>
     <header class="gb-header elevation-2">
@@ -44,6 +44,7 @@
                 <form action="/search" method="get" class="gb-search-form">
                     <input id="search-bar" class="gb-search" type="text" name="q" placeholder="Buscar... (/)" autocomplete="off" />
                 </form>
+                <div id="search-suggestions" class="search-suggestions"></div>
             </div>
         </div>
     </header>
@@ -69,6 +70,60 @@
             </div>
         </div>
     </footer>
+
+    <script>
+    (function() {
+        var searchBar = document.getElementById('search-bar');
+        var dropdown = document.getElementById('search-suggestions');
+        if (!searchBar || !dropdown) return;
+        var debounceTimer = null;
+
+        searchBar.addEventListener('input', function() {
+            clearTimeout(debounceTimer);
+            var q = this.value.trim();
+            if (q.length < 2) {
+                dropdown.innerHTML = '';
+                dropdown.classList.remove('search-suggestions--open');
+                return;
+            }
+            debounceTimer = setTimeout(function() {
+                fetch('/api/search/suggestions?q=' + encodeURIComponent(q))
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        dropdown.innerHTML = '';
+                        if (!data || data.length === 0) {
+                            dropdown.classList.remove('search-suggestions--open');
+                            return;
+                        }
+                        dropdown.classList.add('search-suggestions--open');
+                        var entityLabels = {pokemon:'Pokémon',move:'Move',ability:'Ability',type:'Type',nature:'Nature',status:'Status'};
+                        data.forEach(function(s) {
+                            var a = document.createElement('a');
+                            a.href = s.url;
+                            a.className = 'search-suggestion-item';
+                            var iconHtml = s.icon ? '<img src="' + s.icon + '" alt="" class="search-suggestion-icon" />' : '';
+                            a.innerHTML = iconHtml + '<span class="search-suggestion-name">' + s.name + '</span><span class="search-suggestion-type">' + (entityLabels[s.entity_type] || s.entity_type) + '</span>';
+                            dropdown.appendChild(a);
+                        });
+                    })
+                    .catch(function() {});
+            }, 150);
+        });
+
+        searchBar.addEventListener('blur', function() {
+            setTimeout(function() {
+                dropdown.innerHTML = '';
+                dropdown.classList.remove('search-suggestions--open');
+            }, 200);
+        });
+
+        searchBar.addEventListener('focus', function() {
+            if (this.value.trim().length >= 2 && dropdown.children.length > 0) {
+                dropdown.classList.add('search-suggestions--open');
+            }
+        });
+    })();
+    </script>
 
     <script type="module">
         import init from '/static/wasm/karta.js';
