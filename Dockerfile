@@ -31,8 +31,13 @@ RUN apt-get update && apt-get install -y pkg-config libsqlite3-dev && rm -rf /va
 WORKDIR /app
 
 COPY Cargo.toml Cargo.lock ./
+COPY crates/engine/Cargo.toml crates/engine/Cargo.toml
+COPY crates/frontend/Cargo.toml crates/frontend/Cargo.toml
+COPY crates/backend/Cargo.toml crates/backend/Cargo.toml
 COPY crates/engine/ crates/engine/
 COPY crates/backend/ crates/backend/
+# Frontend source is not needed for backend build, but Cargo.toml must exist for workspace resolution
+RUN mkdir -p crates/frontend/src && echo "" > crates/frontend/src/lib.rs
 COPY .sqlx/ .sqlx/
 COPY crates/backend/migrations/ crates/backend/migrations/
 
