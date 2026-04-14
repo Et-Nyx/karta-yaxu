@@ -3,11 +3,11 @@
 # ═══════════════════════════════════════════════
 FROM rust:1-bookworm AS wasm-builder
 
-RUN curl -L https://github.com/wasm-bindgen/wasm-pack/releases/download/v0.13.1/wasm-pack-v0.13.1-aarch64-unknown-linux-musl.tar.gz -o /tmp/wasm-pack.tar.gz \
+RUN curl -L https://github.com/wasm-bindgen/wasm-pack/releases/download/v0.13.1/wasm-pack-v0.13.1-x86_64-unknown-linux-musl.tar.gz -o /tmp/wasm-pack.tar.gz \
     && tar -xzf /tmp/wasm-pack.tar.gz -C /tmp \
-    && mv /tmp/wasm-pack-v0.13.1-aarch64-unknown-linux-musl/wasm-pack /usr/local/bin/wasm-pack \
+    && mv /tmp/wasm-pack-v0.13.1-x86_64-unknown-linux-musl/wasm-pack /usr/local/bin/wasm-pack \
     && chmod +x /usr/local/bin/wasm-pack \
-    && rm -rf /tmp/wasm-pack.tar.gz /tmp/wasm-pack-v0.13.1-aarch64-unknown-linux-musl
+    && rm -rf /tmp/wasm-pack.tar.gz /tmp/wasm-pack-v0.13.1-x86_64-unknown-linux-musl
 
 WORKDIR /app
 

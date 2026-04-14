@@ -593,16 +593,16 @@ direnv allow
 
 ---
 
-## Deploy — Coolify + Oracle Cloud ARM
+## Deploy — Coolify + Oracle Cloud
 
 ### Infraestrutura
 
 | Recurso | Configuração |
 | ------- | ------------ |
-| Plataforma | Oracle Cloud Always Free (ARM Ampere A1) |
+| Plataforma | Oracle Cloud (VM.Standard.E2.2, x86_64) |
 | OS | Ubuntu 24.04 LTS |
 | PaaS | Coolify (self-hosted) |
-| Build | Docker multi-stage (ARM64) via Coolify |
+| Build | Docker multi-stage (x86_64) via Coolify |
 | Banco | SQLite em volume persistente (`/app/data/rom.db`) |
 | Assets | Volume persistente (`/app/static`) |
 | HTTPS | Traefik (incluído no Coolify) + Let's Encrypt automático |
@@ -659,7 +659,7 @@ make docker-run
 ### Setup do Oracle Cloud
 
 1. Criar conta em cloud.oracle.com (Free Tier)
-2. Criar VM ARM Ampere A1 (1-4 OCPU, 6-24 GB RAM) com Ubuntu 24.04
+2. Criar VM (E2 ou A1) com Ubuntu 24.04
 3. Abrir portas 80, 443, 3000 no Security List + iptables
 4. SSH na VM e instalar Coolify:
    ```bash
