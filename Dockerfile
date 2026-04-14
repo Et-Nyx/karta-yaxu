@@ -1,7 +1,7 @@
 # ═══════════════════════════════════════════════
 # Stage 1: Build WASM frontend
 # ═══════════════════════════════════════════════
-FROM --platform=linux/arm64 rust:1-bookworm AS wasm-builder
+FROM rust:1-bookworm AS wasm-builder
 
 RUN curl -L https://github.com/wasm-bindgen/wasm-pack/releases/download/v0.13.1/wasm-pack-v0.13.1-aarch64-unknown-linux-musl.tar.gz -o /tmp/wasm-pack.tar.gz \
     && tar -xzf /tmp/wasm-pack.tar.gz -C /tmp \
@@ -24,7 +24,7 @@ RUN wasm-pack build --target web --out-dir /app/static/wasm --out-name karta --n
 # ═══════════════════════════════════════════════
 # Stage 2: Build backend + seed binaries
 # ═══════════════════════════════════════════════
-FROM --platform=linux/arm64 rust:1-bookworm AS backend-builder
+FROM rust:1-bookworm AS backend-builder
 
 RUN apt-get update && apt-get install -y pkg-config libsqlite3-dev && rm -rf /var/lib/apt/lists/*
 
@@ -43,7 +43,7 @@ RUN cargo build --release -p backend --bin backend --bin seed
 # ═══════════════════════════════════════════════
 # Stage 3: Runtime
 # ═══════════════════════════════════════════════
-FROM --platform=linux/arm64 debian:bookworm-slim
+FROM debian:bookworm-slim
 
 RUN apt-get update && apt-get install -y ca-certificates libsqlite3-0 && rm -rf /var/lib/apt/lists/*
 
