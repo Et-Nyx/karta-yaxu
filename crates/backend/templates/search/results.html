@@ -1,0 +1,294 @@
+{% extends "base.html" %}
+{% block title %}{% if query.is_empty() %}Karta Yaxu{% else %}Buscar "{{ query }}" — Karta Yaxu{% endif %}{% endblock %}
+{% block content %}
+<h1 style="font-size: 20px; margin-bottom: 16px;">{% if query.is_empty() %}Pokédex{% else %}Resultados da Busca{% endif %}</h1>
+
+{% if error.is_some() %}
+<div class="gb-card" style="background-color: var(--destructive); color: var(--primary-foreground); margin-bottom: 24px; padding: 16px; border-color: var(--primary);">
+    <strong style="font-size: 12px;">{{ error.as_deref().unwrap_or_default() }}</strong>
+</div>
+{% endif %}
+
+<div class="search-page-grid">
+    <aside id="search-facets" class="search-facets">
+        <button id="facet-toggle" class="search-facet-toggle">Filtros ▼</button>
+
+        <form method="get" action="/search" id="filter-form">
+            <input type="hidden" name="q" value="{{ query }}" />
+
+            <!-- Páginas (radio) -->
+            <div class="search-facet-section">
+                <h3 class="search-facet-title">Páginas</h3>
+                <div class="search-facet-options search-facet-page-grid">
+                    <label class="search-facet-page-label"><input type="radio" name="entity_type" value="pokemon" {% if selected_entity == "pokemon" %}checked{% endif %} /><span class="search-facet-page-name">Pokémon</span><span class="search-facet-count">{{ pokemon_count }}</span></label>
+                    <label class="search-facet-page-label"><input type="radio" name="entity_type" value="move" {% if selected_entity == "move" %}checked{% endif %} /><span class="search-facet-page-name">Moves</span><span class="search-facet-count">{{ move_count }}</span></label>
+                    <label class="search-facet-page-label"><input type="radio" name="entity_type" value="ability" {% if selected_entity == "ability" %}checked{% endif %} /><span class="search-facet-page-name">Abilities</span><span class="search-facet-count">{{ ability_count }}</span></label>
+                    <label class="search-facet-page-label"><input type="radio" name="entity_type" value="type" {% if selected_entity == "type" %}checked{% endif %} /><span class="search-facet-page-name">Types</span><span class="search-facet-count">{{ type_count }}</span></label>
+                    <label class="search-facet-page-label"><input type="radio" name="entity_type" value="nature" {% if selected_entity == "nature" %}checked{% endif %} /><span class="search-facet-page-name">Natures</span><span class="search-facet-count">{{ nature_count }}</span></label>
+                    <label class="search-facet-page-label"><input type="radio" name="entity_type" value="status" {% if selected_entity == "status" %}checked{% endif %} /><span class="search-facet-page-name">Status</span><span class="search-facet-count">{{ status_count }}</span></label>
+                </div>
+            </div>
+
+            <!-- Type sub-filter (Pokemon: checkboxes max 2, Moves: radio) -->
+            <div data-filter-for="pokemon move" class="filter-group {% if selected_entity != "pokemon" && selected_entity != "move" %}hidden{% endif %}">
+                <div class="search-facet-section">
+                    <h3 class="search-facet-title">Tipo{% if selected_entity == "pokemon" %} <span class="search-facet-hint">(até 2)</span>{% endif %}</h3>
+                    <div class="search-facet-options search-facet-type-grid">
+                        {% for opt in type_options %}
+                        {% if selected_entity == "pokemon" %}
+                        <label class="search-facet-type-label {% if opt.is_active || opt.is_active_2 %}search-facet-type-active{% endif %}" {% if opt.color.is_some() %}style="--type-color: {{ opt.color.as_deref().unwrap_or_default() }};"{% endif %}>
+                            <input type="checkbox" class="type-pokemon-cb" value="{{ opt.value }}" {% if opt.is_active || opt.is_active_2 %}checked{% endif %} />
+                            <span class="search-facet-type-name">{{ opt.label }}</span>
+                            <span class="search-facet-count">{{ opt.count }}</span>
+                        </label>
+                        {% else %}
+                        <label class="search-facet-type-label {% if opt.is_active %}search-facet-type-active{% endif %}" {% if opt.color.is_some() %}style="--type-color: {{ opt.color.as_deref().unwrap_or_default() }};"{% endif %}>
+                            <input type="radio" name="type_name" value="{{ opt.value }}" {% if opt.is_active %}checked{% endif %} />
+                            <span class="search-facet-type-name">{{ opt.label }}</span>
+                            <span class="search-facet-count">{{ opt.count }}</span>
+                        </label>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fully Evolved (Pokemon only) -->
+            <div data-filter-for="pokemon" class="filter-group {% if selected_entity != "pokemon" %}hidden{% endif %}">
+                <div class="search-facet-section">
+                    <label class="search-facet-standalone"><input type="checkbox" name="fully_evolved" value="true" {% if selected_fully_evolved %}checked{% endif %} /><span class="search-facet-standalone-box"></span>Apenas forma final <span class="search-facet-count">{{ fully_evolved_count }}</span></label>
+                    <label class="search-facet-standalone"><input type="checkbox" name="only_base_form" value="true" {% if selected_only_base_form %}checked{% endif %} /><span class="search-facet-standalone-box"></span>Apenas forma base <span class="search-facet-count">{{ base_form_count }}</span></label>
+                </div>
+            </div>
+
+            <!-- Category sub-filter (Moves only) -->
+            <div data-filter-for="move" class="filter-group {% if selected_entity != "move" %}hidden{% endif %}">
+                <div class="search-facet-section">
+                    <h3 class="search-facet-title">Categoria</h3>
+                    <div class="search-facet-options">
+                        {% for opt in category_options %}
+                        <label class="search-facet-radio"><input type="radio" name="category" value="{{ opt.value }}" {% if opt.is_active %}checked{% endif %} /> {{ opt.label }} <span class="search-facet-count">{{ opt.count }}</span></label>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stat sub-filter (Natures only) -->
+            <div data-filter-for="nature" class="filter-group {% if selected_entity != "nature" %}hidden{% endif %}">
+                <div class="search-facet-section">
+                    <h3 class="search-facet-title">Stat</h3>
+                    <div class="search-facet-options search-facet-stat-grid">
+                        {% for opt in stat_options %}
+                        <label class="search-facet-stat-label"><input type="radio" name="stat" value="{{ opt.value }}" {% if opt.is_active %}checked{% endif %} /><span class="search-facet-stat-name">{{ opt.label }}</span><span class="search-facet-count">{{ opt.count }}</span></label>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sort -->
+            <div class="search-facet-section">
+                <h3 class="search-facet-title">Ordenar</h3>
+                <div class="search-sort-dropdown-wrapper">
+                    <button type="button" class="search-sort-trigger" id="sort-trigger">
+                        <span id="sort-selected-text">
+                            {% if selected_sort == "relevance" %}Relevância{% endif %}
+                            {% if selected_sort == "name" %}Nome{% endif %}
+                            {% if selected_sort == "dex" %}Dex #{% endif %}
+                        </span>
+                        <span class="search-sort-arrow">▼</span>
+                    </button>
+                    <input type="hidden" name="sort" id="sort-input" value="{{ selected_sort }}" />
+                    <div class="search-sort-menu" id="sort-menu">
+                        <div class="search-sort-option {% if selected_sort == "relevance" %}active{% endif %}" data-value="relevance">Relevância</div>
+                        <div class="search-sort-option {% if selected_sort == "name" %}active{% endif %}" data-value="name">Nome</div>
+                        <div class="search-sort-option {% if selected_sort == "dex" %}active{% endif %}" data-value="dex">Dex #</div>
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" class="search-facet-apply">Aplicar Filtros</button>
+            <a href="/search" class="search-facet-clear">Limpar Tudo</a>
+        </form>
+    </aside>
+
+    <section class="search-results-main">
+        <div class="search-sort-bar">
+            <p class="search-result-count">{{ result_count }} resultado{% if result_count != 1 %}s{% endif %}{% if !query.is_empty() %} para "{{ query }}"{% endif %}</p>
+        </div>
+
+        {% for result in results %}
+        <a href="{{ result.url }}" class="result-card result-card--{{ result.entity_type }}" data-search-name="{{ result.name|lower }}">
+            <!-- Left Visual Zone -->
+            <div class="result-card__left">
+                {% if result.icon.is_some() %}
+                    <img src="{{ result.icon.as_deref().unwrap_or_default() }}" alt="" data-fallback="hide" />
+                {% else if result.entity_type == "type" %}
+                    <span class="result-card__type-icon">●</span>
+                {% else %}
+                    <span class="result-card__placeholder">?</span>
+                {% endif %}
+            </div>
+            
+            <!-- Center Content Zone -->
+            <div class="result-card__center">
+                {% if result.entity_type == "pokemon" %}
+                    <div class="result-card__pokemon-info">
+                        <div class="result-card__pokemon-header">
+                            {% if result.badge.is_some() %}
+                            <span class="result-card__dex">{{ result.badge.as_deref().unwrap_or_default() }}</span>
+                            {% endif %}
+                            <span class="result-card__name">{{ result.name }}</span>
+                        </div>
+                        <div class="result-card__types">
+                            {% if result.type1.is_some() %}
+                            <span class="result-card__type-badge" style="background-color: {{ result.type1_color.as_deref().unwrap_or_default() }};">{{ result.type1.as_deref().unwrap_or_default() }}</span>
+                            {% endif %}
+                            {% if result.type2.is_some() %}
+                            <span class="result-card__type-badge" style="background-color: {{ result.type2_color.as_deref().unwrap_or_default() }};">{{ result.type2.as_deref().unwrap_or_default() }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                {% else if result.entity_type == "type" %}
+                    <div class="result-card__type-bar" style="background-color: {{ result.badge_color.as_deref().unwrap_or_default() }}; color: #fff;">
+                        {{ result.name }}
+                    </div>
+                    
+                {% else if result.entity_type == "ability" %}
+                    <div class="result-card__ability-name">{{ result.name }}</div>
+                    <div class="result-card__ability-desc">{{ result.snippet }}</div>
+                    
+                {% else if result.entity_type == "move" %}
+                    <div class="result-card__move-content">
+                        <div class="result-card__move-info">
+                            <div class="result-card__move-name">{{ result.name }}</div>
+                            {% if result.type1.is_some() %}
+                            <div class="result-card__move-types">
+                                <span class="result-card__type-badge" style="background-color: {{ result.type1_color.as_deref().unwrap_or_default() }};">{{ result.type1.as_deref().unwrap_or_default() }}</span>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="result-card__move-stats">
+                            <div class="result-card__move-stat">
+                                <div class="result-card__move-stat-label">PWR</div>
+                                <div class="result-card__move-stat-value">{% if result.power.is_some() %}{{ result.power.unwrap() }}{% else %}-{% endif %}</div>
+                            </div>
+                            <div class="result-card__move-stat">
+                                <div class="result-card__move-stat-label">ACC</div>
+                                <div class="result-card__move-stat-value">{% if result.accuracy.is_some() %}{{ result.accuracy.unwrap() }}%{% else %}-{% endif %}</div>
+                            </div>
+                            <div class="result-card__move-stat">
+                                <div class="result-card__move-stat-label">PP</div>
+                                <div class="result-card__move-stat-value">{% if result.pp.is_some() %}{{ result.pp.unwrap() }}{% else %}-{% endif %}</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                {% else if result.entity_type == "nature" %}
+                    <div class="result-card__nature-name">{{ result.name }}</div>
+                    <div class="result-card__nature-stats">{{ result.snippet }}</div>
+                    
+                {% else if result.entity_type == "status" %}
+                    <div class="result-card__status-name">{{ result.name }}</div>
+                    <div class="result-card__status-desc">{{ result.snippet }}</div>
+                {% endif %}
+            </div>
+            
+            <!-- Category Label -->
+            <span class="result-card__label">{{ result.entity_label }}</span>
+        </a>
+        {% endfor %}
+
+        {% if results.is_empty() %}
+        <div class="gb-card elevation-1" style="text-align: center; padding: 32px;">
+            <p style="font-size: 12px;">Nenhum resultado encontrado.</p>
+            <p style="font-size: 10px; opacity: 0.7;">Tente buscar com outros termos ou remova filtros.</p>
+        </div>
+        {% endif %}
+    </section>
+</div>
+
+<script>
+(function() {
+    function updateVisibility() {
+        var selected = document.querySelector('input[name="entity_type"]:checked');
+        var value = selected ? selected.value : 'pokemon';
+        document.querySelectorAll('[data-filter-for]').forEach(function(group) {
+            var entities = group.getAttribute('data-filter-for').split(' ');
+            var isActive = entities.indexOf(value) >= 0;
+            group.classList.toggle('hidden', !isActive);
+            group.querySelectorAll('input, select').forEach(function(input) {
+                input.disabled = !isActive;
+            });
+        });
+    }
+
+    document.querySelectorAll('input[name="entity_type"]').forEach(function(radio) {
+        radio.addEventListener('change', updateVisibility);
+    });
+
+    document.querySelectorAll('.type-pokemon-cb').forEach(function(cb) {
+        cb.addEventListener('change', function() {
+            var checked = document.querySelectorAll('.type-pokemon-cb:checked');
+            if (checked.length > 2) {
+                this.checked = false;
+            }
+        });
+    });
+
+    // On form submit, assign names to the Pokemon type checkboxes
+    var form = document.getElementById('filter-form');
+    if (form) {
+        form.addEventListener('submit', function() {
+            var checked = document.querySelectorAll('.type-pokemon-cb:checked');
+            // Remove existing names first
+            document.querySelectorAll('.type-pokemon-cb').forEach(function(cb) {
+                cb.removeAttribute('name');
+            });
+            // Assign names: first checked = type_name, second = type_name_2
+            if (checked.length >= 1) checked[0].setAttribute('name', 'type_name');
+            if (checked.length >= 2) checked[1].setAttribute('name', 'type_name_2');
+        });
+    }
+
+    updateVisibility();
+
+    // Custom Sort Dropdown
+    var sortTrigger = document.getElementById('sort-trigger');
+    var sortMenu = document.getElementById('sort-menu');
+    var sortInput = document.getElementById('sort-input');
+    var sortSelectedText = document.getElementById('sort-selected-text');
+    var sortOptions = document.querySelectorAll('.search-sort-option');
+
+    if (sortTrigger && sortMenu) {
+        sortTrigger.addEventListener('click', function(e) {
+            e.stopPropagation();
+            sortMenu.classList.toggle('open');
+        });
+
+        sortOptions.forEach(function(option) {
+            option.addEventListener('click', function() {
+                var value = this.getAttribute('data-value');
+                var text = this.textContent;
+                
+                sortInput.value = value;
+                sortSelectedText.textContent = text;
+                
+                sortOptions.forEach(function(opt) {
+                    opt.classList.remove('active');
+                });
+                this.classList.add('active');
+                
+                sortMenu.classList.remove('open');
+            });
+        });
+
+        document.addEventListener('click', function(e) {
+            if (!sortTrigger.contains(e.target) && !sortMenu.contains(e.target)) {
+                sortMenu.classList.remove('open');
+            }
+        });
+    }
+})();
+</script>
+{% endblock %}

@@ -2,7 +2,8 @@
 /target/
 
 # Nix
-result*
+/result
+/result-*
 
 # WebAssembly
 pkg/
