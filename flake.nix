@@ -29,7 +29,7 @@
             wasm-pack
             cargo-watch
             sqlx-cli
-            flyctl
+            docker
             mdbook
             pkg-config
             openssl

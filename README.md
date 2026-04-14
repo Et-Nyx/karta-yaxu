@@ -534,16 +534,6 @@ direnv allow
 
 ---
 
-## Deploy — Fly.io
-
-- Projeto empacotado via **Dockerfile** que compila o backend Rust
-- `fly deploy` sobe o container em ~30 segundos
-- WebSockets persistentes suportados nativamente (sem configuração extra)
-- Volume persistente para o arquivo SQLite
-- HTTPS e roteamento gerenciados pelo Fly automaticamente
-
----
-
 ## Ordem de Desenvolvimento
 
 ### ✅ Bloco 1 — Fundação Operacional (concluído)
@@ -601,8 +591,82 @@ direnv allow
 - Implementar `crate frontend` com `wasm-bindgen` (validação TOML, preview de damage calc)
 - Implementar WebSockets no backend (sala de batalha, matchmaking, loop de turno)
 
-### 🔲 Bloco 6 — Deploy
+---
 
-- Criar Dockerfile multi-stage (build → runtime mínimo)
-- Criar `fly.toml` com volume persistente para `rom.db`
+## Deploy — Coolify + Oracle Cloud ARM
+
+### Infraestrutura
+
+| Recurso | Configuração |
+| ------- | ------------ |
+| Plataforma | Oracle Cloud Always Free (ARM Ampere A1) |
+| OS | Ubuntu 24.04 LTS |
+| PaaS | Coolify (self-hosted) |
+| Build | Docker multi-stage (ARM64) via Coolify |
+| Banco | SQLite em volume persistente (`/app/data/rom.db`) |
+| Assets | Volume persistente (`/app/static`) |
+| HTTPS | Traefik (incluído no Coolify) + Let's Encrypt automático |
+
+### Dockerfile
+
+O `Dockerfile` usa três estágios:
+
+1. **wasm-builder** — compila o frontend para WASM com `wasm-pack`
+2. **backend-builder** — compila o backend e o seed com `SQLX_OFFLINE=true`
+3. **runtime** — imagem mínima `debian:bookworm-slim` com os binários, templates TOML, migrations e `entrypoint.sh`
+
+### Auto-seed
+
+Na inicialização, `main.rs` verifica `SELECT COUNT(*) FROM pokemon`. Se o banco estiver vazio, o seed corre automaticamente antes de iniciar o servidor. O binário `seed` também está disponível para re-seed manual via terminal do Coolify:
+
+```bash
+# Re-seed manual (via terminal do Coolify)
+/app/seed
+```
+
+### Variáveis de Ambiente
+
+| Variável | Valor no Deploy | Descrição |
+| -------- | --------------- | --------- |
+| `DATABASE_URL` | `sqlite:/app/data/rom.db` | Caminho do banco SQLite |
+| `SEED_DATA_PATH` | `/app/data/template` | Templates TOML para o seed |
+| `RUST_LOG` | `info` | Nível de log |
+| `SECURE_COOKIE` | `true` | Cookies HTTPS em produção |
+| `PORT` | `3000` | Porta do servidor |
+
+### Volumes Persistentes
+
+| Caminho | Conteúdo | Tamanho |
+| ------- | --------- | ------- |
+| `/app/data` | `rom.db`, sessões | 1 GB |
+| `/app/static` | sprites, ícones, CSS, WASM | 1 GB |
+
+O `entrypoint.sh` copia os assets padrão da imagem para `/app/static/` caso o volume esteja vazio (primeiro boot).
+
+### Comandos de Deploy
+
+```bash
+# Build e teste local (x86)
+make docker-build
+
+# Rodar localmente com volumes
+make docker-run
+
+# No Coolify: conectar ao repo GitHub, apontar para o Dockerfile
+# Coolify faz build, deploy e renovação de certificado automaticamente
+```
+
+### Setup do Oracle Cloud
+
+1. Criar conta em cloud.oracle.com (Free Tier)
+2. Criar VM ARM Ampere A1 (1-4 OCPU, 6-24 GB RAM) com Ubuntu 24.04
+3. Abrir portas 80, 443, 3000 no Security List + iptables
+4. SSH na VM e instalar Coolify:
+   ```bash
+   curl -fsSL https://cdn.coollabs.io/coolify/install.sh | bash
+   ```
+5. No painel do Coolify: criar aplicação, conectar ao repo, configurar variáveis de ambiente e volumes, deploy
+
+### CI (futuro)
+
 - CI básico (GitHub Actions): `cargo test`, `cargo clippy`, `cargo fmt --check`

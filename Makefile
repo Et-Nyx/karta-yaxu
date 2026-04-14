@@ -1,4 +1,4 @@
-.PHONY: wasm build dev clean check
+.PHONY: wasm build dev clean check docker-build docker-run seed-db
 
 wasm:
 	wasm-pack build --target web --out-dir ../../static/wasm --out-name karta --no-typescript crates/frontend/
@@ -15,6 +15,24 @@ check:
 dev: wasm
 	cargo watch -p backend --bin backend
 
+seed-db:
+	cargo run -p backend --bin seed
+
 clean:
 	cargo clean
 	rm -rf static/wasm
+
+docker-build:
+	docker build -t karta-yaxu .
+
+docker-run:
+	docker run \
+		-p 3000:3000 \
+		-v karta-yaxu-data:/app/data \
+		-v karta-yaxu-static:/app/static \
+		-e DATABASE_URL=sqlite:/app/data/rom.db \
+		-e SEED_DATA_PATH=/app/data/template \
+		-e RUST_LOG=info \
+		-e PORT=3000 \
+		--name karta-yaxu \
+		karta-yaxu

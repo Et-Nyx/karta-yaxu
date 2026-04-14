@@ -1,0 +1,50 @@
+# Rust build artifacts
+target/
+
+# WebAssembly (rebuilt in Docker)
+static/wasm/
+
+# Database
+data/*.db*
+
+# Nix
+result*
+
+# Environment
+.env
+
+# Editors
+.zed/
+.vscode/
+.idea/
+.DS_Store
+*.sw?
+
+# Git
+.git/
+.gitignore
+
+# Docker
+Dockerfile
+.dockerignore
+
+# Documentation
+README.md
+coolify.md
+
+# CI
+.github/
+
+# Fly (legacy)
+fly.toml
+
+# Nix
+flake.nix
+flake.lock
+rust-toolchain.toml
+/default.nix
+
+# SQLx offline cache is needed at build time but not runtime
+# (.sqlx/ is intentionally NOT excluded — needed for cargo build)
+
+# Cargo lock is needed for reproducible builds (NOT excluded)

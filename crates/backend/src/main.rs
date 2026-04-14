@@ -9,11 +9,15 @@ use std::env;
 use tower_http::services::ServeDir;
 use tower_sessions::SessionManagerLayer;
 use tower_sessions_sqlx_store::SqliteStore;
-use backend::{auth, editor};
+use backend::{auth, editor, seed};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let db_url = env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite:./data/rom.db".to_string());
+    let port: u16 = env::var("PORT")
+        .ok()
+        .and_then(|p| p.parse().ok())
+        .unwrap_or(3000);
 
     let opts = SqliteConnectOptions::from_str(&db_url)?
         .create_if_missing(true)
@@ -29,6 +33,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     sqlx::migrate!("./migrations")
         .run(&pool)
         .await?;
+
+    let pokemon_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM pokemon")
+        .fetch_one(&pool)
+        .await
+        .unwrap_or(0);
+
+    if pokemon_count == 0 {
+        println!("Banco vazio — executando seed automático...");
+        seed::run_seed_cli(&pool).await?;
+    } else {
+        println!("Banco já populado ({} pokemon), seed pulado.", pokemon_count);
+    }
 
     println!("Configurando o gerenciador de sessões...");
     let session_store = SqliteStore::new(pool.clone());
@@ -103,8 +119,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .layer(session_layer)
         .with_state(pool);
 
-    println!("Servidor rodando localmente em: http://0.0.0.0:3000");
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await?;
+    let addr = format!("0.0.0.0:{}", port);
+    println!("Servidor rodando em: http://{}", addr);
+    let listener = tokio::net::TcpListener::bind(&addr).await?;
     axum::serve(listener, app).await?;
 
     Ok(())
