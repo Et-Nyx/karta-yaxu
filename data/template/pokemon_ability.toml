@@ -1,19 +1,1981 @@
 [[pokemon_ability]]
 pokemon_id = 1
-ability_id = 1
+ability_id = 65
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 1
+ability_id = 34
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 2
+ability_id = 65
 slot = 1
 
 [[pokemon_ability]]
 pokemon_id = 2
-ability_id = 1
+ability_id = 34
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 3
+ability_id = 65
 slot = 1
 
 [[pokemon_ability]]
 pokemon_id = 3
+ability_id = 34
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 4
+ability_id = 66
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 4
+ability_id = 94
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 5
+ability_id = 66
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 5
+ability_id = 94
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 6
+ability_id = 66
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 6
+ability_id = 94
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 7
+ability_id = 67
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 7
+ability_id = 44
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 8
+ability_id = 67
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 8
+ability_id = 44
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 9
+ability_id = 67
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 9
+ability_id = 44
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 10
+ability_id = 19
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 10
+ability_id = 50
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 11
+ability_id = 61
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 12
+ability_id = 14
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 12
+ability_id = 110
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 13
+ability_id = 19
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 13
+ability_id = 50
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 14
+ability_id = 61
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 15
+ability_id = 68
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 15
+ability_id = 97
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 16
+ability_id = 51
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 16
+ability_id = 77
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 16
+ability_id = 145
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 17
+ability_id = 51
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 17
+ability_id = 77
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 17
+ability_id = 145
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 18
+ability_id = 51
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 18
+ability_id = 77
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 18
+ability_id = 145
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 19
+ability_id = 50
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 19
+ability_id = 62
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 19
+ability_id = 55
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 20
+ability_id = 50
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 20
+ability_id = 62
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 20
+ability_id = 55
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 21
+ability_id = 51
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 21
+ability_id = 97
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 22
+ability_id = 51
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 22
+ability_id = 97
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 23
+ability_id = 22
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 23
+ability_id = 61
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 23
+ability_id = 127
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 24
+ability_id = 22
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 24
+ability_id = 61
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 24
+ability_id = 127
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 25
+ability_id = 9
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 25
+ability_id = 31
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 26
+ability_id = 9
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 26
+ability_id = 31
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 27
+ability_id = 8
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 27
+ability_id = 146
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 28
+ability_id = 8
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 28
+ability_id = 146
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 29
+ability_id = 38
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 29
+ability_id = 79
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 29
+ability_id = 55
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 30
+ability_id = 38
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 30
+ability_id = 79
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 30
+ability_id = 55
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 31
+ability_id = 38
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 31
+ability_id = 79
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 31
+ability_id = 125
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 32
+ability_id = 38
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 32
+ability_id = 79
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 32
+ability_id = 55
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 33
+ability_id = 38
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 33
+ability_id = 79
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 33
+ability_id = 55
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 34
+ability_id = 38
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 34
+ability_id = 79
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 34
+ability_id = 125
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 35
+ability_id = 56
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 35
+ability_id = 98
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 35
+ability_id = 132
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 36
+ability_id = 56
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 36
+ability_id = 98
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 36
+ability_id = 109
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 37
+ability_id = 18
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 37
+ability_id = 70
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 38
+ability_id = 18
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 38
+ability_id = 70
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 39
+ability_id = 56
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 39
+ability_id = 172
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 39
+ability_id = 132
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 40
+ability_id = 56
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 40
+ability_id = 172
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 40
+ability_id = 119
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 41
+ability_id = 39
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 41
+ability_id = 151
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 42
+ability_id = 39
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 42
+ability_id = 151
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 43
+ability_id = 34
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 43
+ability_id = 50
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 44
+ability_id = 34
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 44
+ability_id = 1
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 45
+ability_id = 34
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 45
+ability_id = 27
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 46
+ability_id = 27
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 46
+ability_id = 87
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 46
+ability_id = 6
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 47
+ability_id = 27
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 47
+ability_id = 87
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 47
+ability_id = 6
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 48
+ability_id = 14
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 48
+ability_id = 110
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 48
+ability_id = 50
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 49
+ability_id = 19
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 49
+ability_id = 110
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 49
+ability_id = 147
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 50
+ability_id = 8
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 50
+ability_id = 71
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 50
+ability_id = 159
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 51
+ability_id = 8
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 51
+ability_id = 71
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 51
+ability_id = 159
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 52
+ability_id = 53
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 52
+ability_id = 101
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 52
+ability_id = 127
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 53
+ability_id = 7
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 53
+ability_id = 101
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 53
+ability_id = 127
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 54
+ability_id = 6
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 54
+ability_id = 13
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 54
+ability_id = 33
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 55
+ability_id = 6
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 55
+ability_id = 13
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 55
+ability_id = 33
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 56
+ability_id = 72
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 56
+ability_id = 83
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 56
+ability_id = 128
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 57
+ability_id = 72
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 57
+ability_id = 83
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 57
+ability_id = 128
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 58
+ability_id = 22
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 58
+ability_id = 18
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 58
+ability_id = 154
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 59
+ability_id = 22
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 59
+ability_id = 18
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 59
+ability_id = 154
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 60
+ability_id = 11
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 60
+ability_id = 6
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 60
+ability_id = 33
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 61
+ability_id = 11
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 61
+ability_id = 6
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 61
+ability_id = 33
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 62
+ability_id = 11
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 62
+ability_id = 6
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 62
+ability_id = 33
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 63
+ability_id = 28
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 63
+ability_id = 39
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 63
+ability_id = 98
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 64
+ability_id = 28
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 64
+ability_id = 39
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 64
+ability_id = 98
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 65
+ability_id = 28
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 65
+ability_id = 39
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 65
+ability_id = 98
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 66
+ability_id = 62
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 66
+ability_id = 99
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 66
+ability_id = 80
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 67
+ability_id = 62
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 67
+ability_id = 99
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 67
+ability_id = 80
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 68
+ability_id = 62
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 68
+ability_id = 99
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 68
+ability_id = 80
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 69
+ability_id = 34
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 69
+ability_id = 82
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 70
+ability_id = 34
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 70
+ability_id = 82
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 71
+ability_id = 34
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 71
+ability_id = 82
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 72
+ability_id = 29
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 72
+ability_id = 64
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 72
+ability_id = 44
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 73
+ability_id = 29
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 73
+ability_id = 64
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 73
+ability_id = 44
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 74
+ability_id = 69
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 74
+ability_id = 5
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 74
+ability_id = 8
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 75
+ability_id = 69
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 75
+ability_id = 5
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 75
+ability_id = 8
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 76
+ability_id = 69
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 76
+ability_id = 5
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 76
+ability_id = 8
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 77
+ability_id = 50
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 77
+ability_id = 18
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 77
+ability_id = 49
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 78
+ability_id = 50
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 78
+ability_id = 18
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 78
+ability_id = 49
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 79
+ability_id = 12
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 79
+ability_id = 20
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 79
+ability_id = 144
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 80
+ability_id = 12
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 80
+ability_id = 20
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 80
+ability_id = 144
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 81
+ability_id = 42
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 81
+ability_id = 5
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 81
+ability_id = 148
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 82
+ability_id = 42
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 82
+ability_id = 5
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 82
+ability_id = 148
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 83
+ability_id = 51
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 83
+ability_id = 39
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 83
+ability_id = 128
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 84
+ability_id = 50
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 84
+ability_id = 48
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 84
+ability_id = 77
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 85
+ability_id = 50
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 85
+ability_id = 48
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 85
+ability_id = 77
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 86
+ability_id = 47
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 86
+ability_id = 93
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 86
+ability_id = 115
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 87
+ability_id = 47
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 87
+ability_id = 93
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 87
+ability_id = 115
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 88
 ability_id = 1
 slot = 1
 
 [[pokemon_ability]]
+pokemon_id = 88
+ability_id = 60
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 88
+ability_id = 143
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 89
+ability_id = 1
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 89
+ability_id = 60
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 89
+ability_id = 143
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 90
+ability_id = 75
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 90
+ability_id = 92
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 90
+ability_id = 142
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 91
+ability_id = 75
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 91
+ability_id = 92
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 91
+ability_id = 142
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 92
+ability_id = 26
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 93
+ability_id = 26
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 94
+ability_id = 130
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 95
+ability_id = 69
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 95
+ability_id = 5
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 95
+ability_id = 133
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 96
+ability_id = 15
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 96
+ability_id = 108
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 96
+ability_id = 39
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 97
+ability_id = 15
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 97
+ability_id = 108
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 97
+ability_id = 39
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 98
+ability_id = 52
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 98
+ability_id = 75
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 98
+ability_id = 125
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 99
+ability_id = 52
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 99
+ability_id = 75
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 99
+ability_id = 125
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 100
+ability_id = 43
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 100
+ability_id = 9
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 100
+ability_id = 106
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 101
+ability_id = 43
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 101
+ability_id = 9
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 101
+ability_id = 106
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 102
+ability_id = 34
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 102
+ability_id = 139
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 103
+ability_id = 34
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 103
+ability_id = 139
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 104
+ability_id = 69
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 104
+ability_id = 31
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 104
+ability_id = 4
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 105
+ability_id = 69
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 105
+ability_id = 31
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 105
+ability_id = 4
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 106
+ability_id = 7
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 106
+ability_id = 120
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 106
+ability_id = 84
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 107
+ability_id = 51
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 107
+ability_id = 89
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 107
+ability_id = 39
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 108
+ability_id = 20
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 108
+ability_id = 12
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 108
+ability_id = 13
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 109
+ability_id = 26
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 109
+ability_id = 256
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 109
+ability_id = 1
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 110
+ability_id = 26
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 110
+ability_id = 256
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 110
+ability_id = 1
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 111
+ability_id = 31
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 111
+ability_id = 69
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 111
+ability_id = 120
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 112
+ability_id = 31
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 112
+ability_id = 69
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 112
+ability_id = 120
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 113
+ability_id = 30
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 113
+ability_id = 32
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 113
+ability_id = 131
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 114
+ability_id = 34
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 114
+ability_id = 102
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 114
+ability_id = 144
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 115
+ability_id = 48
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 115
+ability_id = 113
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 115
+ability_id = 39
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 116
+ability_id = 33
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 116
+ability_id = 97
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 116
+ability_id = 6
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 117
+ability_id = 38
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 117
+ability_id = 97
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 117
+ability_id = 6
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 118
+ability_id = 33
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 118
+ability_id = 41
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 118
+ability_id = 31
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 119
+ability_id = 33
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 119
+ability_id = 41
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 119
+ability_id = 31
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 120
+ability_id = 35
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 120
+ability_id = 30
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 120
+ability_id = 148
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 121
+ability_id = 35
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 121
+ability_id = 30
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 121
+ability_id = 148
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 122
+ability_id = 43
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 122
+ability_id = 111
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 122
+ability_id = 101
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 123
+ability_id = 68
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 123
+ability_id = 101
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 123
+ability_id = 80
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 124
+ability_id = 12
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 124
+ability_id = 108
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 124
+ability_id = 87
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 125
+ability_id = 9
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 125
+ability_id = 72
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 126
+ability_id = 49
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 126
+ability_id = 72
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 127
+ability_id = 52
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 127
+ability_id = 104
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 127
+ability_id = 153
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 128
+ability_id = 22
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 128
+ability_id = 83
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 128
+ability_id = 125
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 129
+ability_id = 33
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 129
+ability_id = 155
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 130
+ability_id = 22
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 130
+ability_id = 153
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 131
+ability_id = 11
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 131
+ability_id = 75
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 131
+ability_id = 93
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 132
+ability_id = 7
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 132
+ability_id = 150
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 133
+ability_id = 50
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 133
+ability_id = 91
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 133
+ability_id = 107
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 134
+ability_id = 11
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 134
+ability_id = 93
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 135
+ability_id = 10
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 135
+ability_id = 95
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 136
+ability_id = 18
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 136
+ability_id = 62
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 137
+ability_id = 36
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 137
+ability_id = 88
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 137
+ability_id = 148
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 138
+ability_id = 33
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 138
+ability_id = 75
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 138
+ability_id = 133
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 139
+ability_id = 33
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 139
+ability_id = 75
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 139
+ability_id = 133
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 140
+ability_id = 33
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 140
+ability_id = 4
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 140
+ability_id = 133
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 141
+ability_id = 33
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 141
+ability_id = 4
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 141
+ability_id = 133
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 142
+ability_id = 69
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 142
+ability_id = 46
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 142
+ability_id = 127
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 143
+ability_id = 17
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 143
+ability_id = 47
+slot = 2
+
+[[pokemon_ability]]
+pokemon_id = 143
+ability_id = 82
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 144
+ability_id = 46
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 144
+ability_id = 81
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 145
+ability_id = 46
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 145
+ability_id = 9
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 146
+ability_id = 46
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 146
+ability_id = 49
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 147
+ability_id = 61
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 147
+ability_id = 63
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 148
+ability_id = 61
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 148
+ability_id = 63
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 149
+ability_id = 39
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 149
+ability_id = 136
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 150
+ability_id = 46
+slot = 1
+
+[[pokemon_ability]]
+pokemon_id = 150
+ability_id = 127
+slot = 3
+
+[[pokemon_ability]]
+pokemon_id = 151
+ability_id = 28
+slot = 1
+
+# ── Alternate Form abilities ──
+
+[[pokemon_ability]]
 pokemon_id = 2003
-ability_id = 2
+ability_id = 47
 slot = 1

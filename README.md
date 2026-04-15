@@ -26,9 +26,9 @@ Os arquivos `.toml` do repositório (como os templates) servem como a linguagem 
 | Busca fuzzy            | strsim (Levenshtein distance)     |
 | Batalhas em tempo real | WebSockets nativos (Axum)         |
 | Banco de dados         | SQLite via sqlx                   |
-| Deploy                 | Fly.io (Docker)                  |
+| Deploy                 | Coolify + Oracle Cloud (Docker)  |
 
-Sem frameworks de frontend. Sem bibliotecas de terceiros para WebSocket ou auth — só o ecossistema Rust e protocolos nativos. Busca fuzzy via crate `strsim` (Levenshtein distance).
+Sem frameworks de frontend. Sem bibliotecas de terceiros para WebSocket ou auth — só o ecossistema Rust e protocolos nativos. Busca fuzzy via crate `strsim` (Levenshtein distance). Deploy via Docker no Coolify.
 
 ---
 
@@ -670,3 +670,103 @@ make docker-run
 ### CI (futuro)
 
 - CI básico (GitHub Actions): `cargo test`, `cargo clippy`, `cargo fmt --check`
+
+---
+
+## Manutenção e Operações
+
+### Deploy de atualizações
+
+1. Push para `master` no GitLab
+2. No Coolify: clicar **Deploy** na aplicação
+3. Aguardar ~5-10 min (compilação Rust + WASM no build)
+4. Coolify faz rollout automático — sem downtime
+
+### Re-seed do banco
+
+O app auto-seeda no primeiro boot (quando `pokemon` está vazio). Para re-seed manual:
+
+```bash
+# Via terminal do Coolify (ou docker exec na VM)
+/app/seed
+```
+
+O seed usa `INSERT OR REPLACE` — é não-destrutivo para dados já presentes.
+
+### Atualizar assets estáticos (sprites, ícones, CSS)
+
+O volume `/app/static` é persistente e só recebe os assets da imagem no primeiro boot. Após alterar sprites ou CSS:
+
+1. Push das alterações para `master`
+2. Deploy no Coolify
+3. Limpar o conteúdo do volume estático e re-deploy, OU copiar manualmente:
+
+```bash
+# Na VM, copiar da imagem para o volume:
+docker cp <container>:/app/static-reference/. /caminho/do/volume/
+```
+
+### Backups do banco
+
+SQLite é um arquivo único no volume persistente:
+
+```bash
+# Backup na VM:
+docker inspect <container> | grep /app/data   # encontrar o path do volume
+cp /path/to/volume/rom.db ~/rom-backup-$(date +%Y%m%d).db
+```
+
+### Variáveis de ambiente em produção
+
+| Variável | Valor | Quando alterar |
+| -------- | ----- | -------------- |
+| `DATABASE_URL` | `sqlite:/app/data/rom.db` | Nunca |
+| `SEED_DATA_PATH` | `/app/data/template` | Nunca |
+| `RUST_LOG` | `info` | Mudar para `debug` para logs detalhados |
+| `SECURE_COOKIE` | `true` | `false` se não usar HTTPS |
+| `PORT` | `3000` | Nunca |
+
+### Domínio customizado
+
+1. No Coolify → aplicação → **Domains**, adicionar o domínio (ex: `kartayaxu.com`)
+2. Adicionar registro DNS A apontando para `163.176.179.147`
+3. Coolify provisiona automaticamente o certificado Let's Encrypt
+4. Confirmar que `SECURE_COOKIE=true` está configurado
+
+### Adicionar novos dados (Pokémon, moves, tipos)
+
+1. Editar os arquivos TOML em `data/template/`
+2. Push para `master` e deploy no Coolify
+3. Os novos templates são incluídos na imagem, mas o banco não é atualizado automaticamente
+4. Rodar `/app/seed` via terminal do Coolify para aplicar as mudanças
+
+### Comandos úteis na VM
+
+```bash
+# Ver logs em tempo real
+docker logs -f <container-name>
+
+# Status dos containers
+docker ps
+
+# Reiniciar a aplicação
+docker restart <container-name>
+
+# Entrar no container
+docker exec -it <container-name> /bin/sh
+
+# Ver uso de disco dos volumes
+docker system df
+```
+
+### Troubleshooting
+
+| Problema | Solução |
+| -------- | ------- |
+| Build falha no Coolify | Verificar logs de deploy para o erro específico |
+| App inacessível | Verificar iptables: `sudo iptables -L INPUT -n` — portas 80, 443, 3000 devem estar abertas |
+| Health check falha | O container precisa de `curl` (já incluído na imagem) |
+| Banco locked | Reiniciar container via Coolify |
+| Assets desatualizados | Limpar volume `/app/static` e re-deploy |
+| VM da Oracle reclaimada | Oracle avisa por email — fazer login e criar nova VM, instalar Coolify, re-deploy |
+| `wasm-pack` falha no build | Verificar se a arquitetura do binário bate com a VM (x86_64 vs ARM64) |

@@ -18,3 +18,6 @@ static/wasm/
 .idea/
 .DS_Store
 *.sw?
+
+# PokeAPI cache
+scripts/.cache/

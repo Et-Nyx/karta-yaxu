@@ -1,48 +1,2979 @@
 [[move]]
 id = 1
+name = "Pound"
+type_id = 1
+category = "physical"
+power = 40
+accuracy = 100
+pp = 35
+description = "A physical attack delivered with a long tail or a foreleg, etc."
+
+[[move]]
+id = 2
+name = "Karate Chop"
+type_id = 2
+category = "physical"
+power = 50
+accuracy = 100
+pp = 25
+description = "The foe is attacked with a sharp chop. It has a high critical-hit ratio."
+
+[[move]]
+id = 3
+name = "Double Slap"
+type_id = 1
+category = "physical"
+power = 15
+accuracy = 85
+pp = 10
+description = "The foe is slapped repeatedly, back and forth, two to five times."
+
+[[move]]
+id = 4
+name = "Comet Punch"
+type_id = 1
+category = "physical"
+power = 18
+accuracy = 85
+pp = 15
+description = "The foe is hit with a flurry of punches that strike two to five times."
+
+[[move]]
+id = 5
+name = "Mega Punch"
+type_id = 1
+category = "physical"
+power = 80
+accuracy = 85
+pp = 20
+description = "The foe is slugged by a punch thrown with muscle-packed power."
+
+[[move]]
+id = 6
+name = "Pay Day"
+type_id = 1
+category = "physical"
+power = 40
+accuracy = 100
+pp = 20
+description = "Numerous coins are hurled at the foe. Money is earned after battle."
+
+[[move]]
+id = 7
+name = "Fire Punch"
+type_id = 10
+category = "physical"
+power = 75
+accuracy = 100
+pp = 15
+description = "The foe is punched with a fiery fist. It may leave the foe with a burn."
+
+[[move]]
+id = 8
+name = "Ice Punch"
+type_id = 15
+category = "physical"
+power = 75
+accuracy = 100
+pp = 15
+description = "The foe is punched with an icy fist. It may leave the foe frozen."
+
+[[move]]
+id = 9
+name = "Thunder Punch"
+type_id = 13
+category = "physical"
+power = 75
+accuracy = 100
+pp = 15
+description = "The foe is punched with an electrified fist. It may leave the foe paralyzed."
+
+[[move]]
+id = 10
+name = "Scratch"
+type_id = 1
+category = "physical"
+power = 40
+accuracy = 100
+pp = 35
+description = "Hard, pointed, and sharp claws rake the foe."
+
+[[move]]
+id = 11
+name = "Vice Grip"
+type_id = 1
+category = "physical"
+power = 55
+accuracy = 100
+pp = 30
+description = "Huge, impressive pincers grip and squeeze the foe."
+
+[[move]]
+id = 12
+name = "Guillotine"
+type_id = 1
+category = "physical"
+accuracy = 30
+pp = 5
+description = "A vicious tearing attack with pincers. The foe will faint if it hits."
+
+[[move]]
+id = 13
+name = "Razor Wind"
+type_id = 1
+category = "special"
+power = 80
+accuracy = 100
+pp = 10
+description = "Blades of wind hit the foe on the 2nd turn. It has a high critical-hit ratio."
+
+[[move]]
+id = 14
+name = "Swords Dance"
+type_id = 1
+category = "status"
+pp = 20
+description = "A frenetic dance of fighting. It sharply raises the ATTACK stat."
+
+[[move]]
+id = 15
+name = "Cut"
+type_id = 1
+category = "physical"
+power = 50
+accuracy = 95
+pp = 30
+description = "A basic attack. It can be used to cut down thin trees and grass."
+
+[[move]]
+id = 16
+name = "Gust"
+type_id = 3
+category = "special"
+power = 40
+accuracy = 100
+pp = 35
+description = "Strikes the foe with a gust of wind whipped up by wings."
+
+[[move]]
+id = 17
+name = "Wing Attack"
+type_id = 3
+category = "physical"
+power = 60
+accuracy = 100
+pp = 35
+description = "The foe is struck with large, imposing wings spread wide."
+
+[[move]]
+id = 18
+name = "Whirlwind"
+type_id = 1
+category = "status"
+pp = 20
+description = "The foe is made to switch out with an ally. In the wild, the battle ends."
+
+[[move]]
+id = 19
+name = "Fly"
+type_id = 3
+category = "physical"
+power = 90
+accuracy = 95
+pp = 15
+description = "A 2-turn move that hits on the 2nd turn. Use it to fly to any known town."
+
+[[move]]
+id = 20
+name = "Bind"
+type_id = 1
+category = "physical"
+power = 15
+accuracy = 85
+pp = 20
+description = "A long body or tentacles are used to bind the foe for two to five turns."
+
+[[move]]
+id = 21
+name = "Slam"
+type_id = 1
+category = "physical"
+power = 80
+accuracy = 75
+pp = 20
+description = "The foe is struck with a long tail, vines, etc."
+
+[[move]]
+id = 22
 name = "Vine Whip"
 type_id = 12
 category = "physical"
 power = 45
 accuracy = 100
 pp = 25
-description = "The target is struck with slender, whiplike vines to inflict damage."
+description = "The foe is struck with slender, whip­ like vines."
 
 [[move]]
-id = 2
+id = 23
+name = "Stomp"
+type_id = 1
+category = "physical"
+power = 65
+accuracy = 100
+pp = 20
+description = "The foe is stomped with a big foot. It may make the foe flinch."
+
+[[move]]
+id = 24
+name = "Double Kick"
+type_id = 2
+category = "physical"
+power = 30
+accuracy = 100
+pp = 30
+description = "Two legs are used to quickly kick the foe twice in one turn."
+
+[[move]]
+id = 25
+name = "Mega Kick"
+type_id = 1
+category = "physical"
+power = 120
+accuracy = 75
+pp = 5
+description = "The foe is attacked by a kick fired with muscle-packed power."
+
+[[move]]
+id = 26
+name = "Jump Kick"
+type_id = 2
+category = "physical"
+power = 100
+accuracy = 95
+pp = 10
+description = "The user jumps up high, then kicks. If it misses, the user hurts itself."
+
+[[move]]
+id = 27
+name = "Rolling Kick"
+type_id = 2
+category = "physical"
+power = 60
+accuracy = 85
+pp = 15
+description = "A quick kick from a rolling spin. It may make the foe flinch."
+
+[[move]]
+id = 28
+name = "Sand Attack"
+type_id = 5
+category = "status"
+accuracy = 100
+pp = 15
+description = "A lot of sand is hurled in the foe’s face, reducing its accuracy."
+
+[[move]]
+id = 29
+name = "Headbutt"
+type_id = 1
+category = "physical"
+power = 70
+accuracy = 100
+pp = 15
+description = "The user sticks its head out and rams. It may make the foe flinch."
+
+[[move]]
+id = 30
+name = "Horn Attack"
+type_id = 1
+category = "physical"
+power = 65
+accuracy = 100
+pp = 25
+description = "The foe is jabbed with a sharply pointed horn to inflict damage."
+
+[[move]]
+id = 31
+name = "Fury Attack"
+type_id = 1
+category = "physical"
+power = 15
+accuracy = 85
+pp = 20
+description = "The foe is jabbed repeatedly with a horn or beak two to five times."
+
+[[move]]
+id = 32
+name = "Horn Drill"
+type_id = 1
+category = "physical"
+accuracy = 30
+pp = 5
+description = "The horn is rotated like a drill to ram. The foe will faint if it hits."
+
+[[move]]
+id = 33
+name = "Tackle"
+type_id = 1
+category = "physical"
+power = 40
+accuracy = 100
+pp = 35
+description = "A physical attack in which the user charges, full body, into the foe."
+
+[[move]]
+id = 34
+name = "Body Slam"
+type_id = 1
+category = "physical"
+power = 85
+accuracy = 100
+pp = 15
+description = "The user drops its full body on the foe. It may leave the foe paralyzed."
+
+[[move]]
+id = 35
+name = "Wrap"
+type_id = 1
+category = "physical"
+power = 15
+accuracy = 90
+pp = 20
+description = "A long body or vines are used to wrap the foe for two to five turns."
+
+[[move]]
+id = 36
+name = "Take Down"
+type_id = 1
+category = "physical"
+power = 90
+accuracy = 85
+pp = 20
+description = "A reckless, full- body charge attack that also hurts the user a little."
+
+[[move]]
+id = 37
+name = "Thrash"
+type_id = 1
+category = "physical"
+power = 120
+accuracy = 100
+pp = 10
+description = "The user rampages about for two to three turns, then becomes confused."
+
+[[move]]
+id = 38
+name = "Double Edge"
+type_id = 1
+category = "physical"
+power = 120
+accuracy = 100
+pp = 15
+description = "A reckless, life- risking tackle that also hurts the user a little."
+
+[[move]]
+id = 39
+name = "Tail Whip"
+type_id = 1
+category = "status"
+accuracy = 100
+pp = 30
+description = "The user wags its tail cutely, making the foe lower its DEFENSE stat."
+
+[[move]]
+id = 40
+name = "Poison Sting"
+type_id = 4
+category = "physical"
+power = 15
+accuracy = 100
+pp = 35
+description = "The foe is stabbed with a toxic barb, etc. It may poison the foe."
+
+[[move]]
+id = 41
+name = "Twineedle"
+type_id = 7
+category = "physical"
+power = 25
+accuracy = 100
+pp = 20
+description = "The foe is stabbed twice with foreleg stingers. It may poison the foe."
+
+[[move]]
+id = 42
+name = "Pin Missile"
+type_id = 7
+category = "physical"
+power = 25
+accuracy = 95
+pp = 20
+description = "Sharp pins are shot at the foe and hit two to five times at once."
+
+[[move]]
+id = 43
+name = "Leer"
+type_id = 1
+category = "status"
+accuracy = 100
+pp = 30
+description = "The foe is given an intimidating look that lowers its DEFENSE stat."
+
+[[move]]
+id = 44
+name = "Bite"
+type_id = 17
+category = "physical"
+power = 60
+accuracy = 100
+pp = 25
+description = "The user bites with vicious fangs. It may make the foe flinch."
+
+[[move]]
+id = 45
+name = "Growl"
+type_id = 1
+category = "status"
+accuracy = 100
+pp = 40
+description = "The user growls in a cute way, making the foe lower its ATTACK stat."
+
+[[move]]
+id = 46
+name = "Roar"
+type_id = 1
+category = "status"
+pp = 20
+description = "The foe is made to switch out with an ally. In the wild, the battle ends."
+
+[[move]]
+id = 47
+name = "Sing"
+type_id = 1
+category = "status"
+accuracy = 55
+pp = 15
+description = "A soothing song in a calming voice lulls the foe into a deep slumber."
+
+[[move]]
+id = 48
+name = "Supersonic"
+type_id = 1
+category = "status"
+accuracy = 55
+pp = 20
+description = "The user generates odd sound waves. It may confuse the foe."
+
+[[move]]
+id = 49
+name = "Sonic Boom"
+type_id = 1
+category = "special"
+accuracy = 90
+pp = 20
+description = "The foe is hit with a shock wave that always inflicts 20- HP damage."
+
+[[move]]
+id = 50
+name = "Disable"
+type_id = 1
+category = "status"
+accuracy = 100
+pp = 20
+description = "For a few turns, it prevents the foe from using the move it last used."
+
+[[move]]
+id = 51
+name = "Acid"
+type_id = 4
+category = "special"
+power = 40
+accuracy = 100
+pp = 30
+description = "The foe is sprayed with a harsh, hide- melting acid that may lower DEFENSE."
+
+[[move]]
+id = 52
+name = "Ember"
+type_id = 10
+category = "special"
+power = 40
+accuracy = 100
+pp = 25
+description = "The foe is attacked with small flames. The foe may suffer a burn."
+
+[[move]]
+id = 53
+name = "Flamethrower"
+type_id = 10
+category = "special"
+power = 90
+accuracy = 100
+pp = 15
+description = "The foe is scorched with intense flames. The foe may suffer a burn."
+
+[[move]]
+id = 54
+name = "Mist"
+type_id = 15
+category = "status"
+pp = 30
+description = "The ally party is protected by a mist that prevents stat reductions."
+
+[[move]]
+id = 55
+name = "Water Gun"
+type_id = 11
+category = "special"
+power = 40
+accuracy = 100
+pp = 25
+description = "The foe is struck with a lot of water expelled forcibly from the mouth."
+
+[[move]]
+id = 56
+name = "Hydro Pump"
+type_id = 11
+category = "special"
+power = 110
+accuracy = 80
+pp = 5
+description = "A high volume of water is blasted at the foe under great pressure."
+
+[[move]]
+id = 57
+name = "Surf"
+type_id = 11
+category = "special"
+power = 90
+accuracy = 100
+pp = 15
+description = "A big wave crashes down on the foe. Can also be used for crossing water."
+
+[[move]]
+id = 58
+name = "Ice Beam"
+type_id = 15
+category = "special"
+power = 90
+accuracy = 100
+pp = 10
+description = "The foe is struck with an icy beam. It may freeze the foe solid."
+
+[[move]]
+id = 59
+name = "Blizzard"
+type_id = 15
+category = "special"
+power = 110
+accuracy = 70
+pp = 5
+description = "The foe is blasted with a blizzard. It may freeze the foe solid."
+
+[[move]]
+id = 60
+name = "Psybeam"
+type_id = 14
+category = "special"
+power = 65
+accuracy = 100
+pp = 20
+description = "A peculiar ray is shot at the foe. It may leave the foe confused."
+
+[[move]]
+id = 61
+name = "Bubble Beam"
+type_id = 11
+category = "special"
+power = 65
+accuracy = 100
+pp = 20
+description = "A spray of bubbles strikes the foe. It may lower the foe’s SPEED stat."
+
+[[move]]
+id = 62
+name = "Aurora Beam"
+type_id = 15
+category = "special"
+power = 65
+accuracy = 100
+pp = 20
+description = "A rainbow-colored attack beam. It may lower the foe’s ATTACK stat."
+
+[[move]]
+id = 63
+name = "Hyper Beam"
+type_id = 1
+category = "special"
+power = 150
+accuracy = 90
+pp = 5
+description = "A severely damaging attack that makes the user rest on the next turn."
+
+[[move]]
+id = 64
+name = "Peck"
+type_id = 3
+category = "physical"
+power = 35
+accuracy = 100
+pp = 35
+description = "The foe is jabbed with a sharply pointed beak or horn."
+
+[[move]]
+id = 65
+name = "Drill Peck"
+type_id = 3
+category = "physical"
+power = 80
+accuracy = 100
+pp = 20
+description = "A corkscrewing attack with the sharp beak acting as a drill."
+
+[[move]]
+id = 66
+name = "Submission"
+type_id = 2
+category = "physical"
+power = 80
+accuracy = 80
+pp = 20
+description = "A reckless, full- body throw attack that also hurts the user a little."
+
+[[move]]
+id = 67
+name = "Low Kick"
+type_id = 2
+category = "physical"
+accuracy = 100
+pp = 20
+description = "A low, tripping kick that inflicts more damage on heavier foes."
+
+[[move]]
+id = 68
+name = "Counter"
+type_id = 2
+category = "physical"
+accuracy = 100
+pp = 20
+description = "A retaliation move that counters any physical hit with double the damage."
+
+[[move]]
+id = 69
+name = "Seismic Toss"
+type_id = 2
+category = "physical"
+accuracy = 100
+pp = 20
+description = "A gravity-fed throw that causes damage matching the user’s level."
+
+[[move]]
+id = 70
+name = "Strength"
+type_id = 1
+category = "physical"
+power = 80
+accuracy = 100
+pp = 15
+description = "The foe is slugged at maximum power. Can also be used to move boulders."
+
+[[move]]
+id = 71
+name = "Absorb"
+type_id = 12
+category = "special"
+power = 20
+accuracy = 100
+pp = 25
+description = "An attack that absorbs half the damage it inflicted to restore HP."
+
+[[move]]
+id = 72
+name = "Mega Drain"
+type_id = 12
+category = "special"
+power = 40
+accuracy = 100
+pp = 15
+description = "A tough attack that drains half the damage it inflicted to restore HP."
+
+[[move]]
+id = 73
+name = "Leech Seed"
+type_id = 12
+category = "status"
+accuracy = 90
+pp = 10
+description = "A seed is planted on the foe to steal some HP for the user on every turn."
+
+[[move]]
+id = 74
+name = "Growth"
+type_id = 1
+category = "status"
+pp = 20
+description = "The user’s body is forced to grow, raising the SP. ATK stat."
+
+[[move]]
+id = 75
 name = "Razor Leaf"
 type_id = 12
 category = "physical"
 power = 55
 accuracy = 95
 pp = 25
-description = "Sharp-edged leaves are launched to slash at the opposing Pokemon. Critical hits land more easily."
+description = "The foe is hit with a cutting leaf. It has a high critical-hit ratio."
 
 [[move]]
-id = 3
+id = 76
 name = "Solar Beam"
 type_id = 12
 category = "special"
 power = 120
 accuracy = 100
 pp = 10
-description = "In this two-turn attack, the user gathers light, then blasts a bundled beam on the next turn."
+description = "A 2-turn move that blasts the foe with absorbed energy in the 2nd turn."
 
 [[move]]
-id = 4
-name = "Leech Seed"
+id = 77
+name = "Poison Powder"
+type_id = 4
+category = "status"
+accuracy = 75
+pp = 35
+description = "A cloud of toxic dust is scattered. It may poison the foe."
+
+[[move]]
+id = 78
+name = "Stun Spore"
 type_id = 12
+category = "status"
+accuracy = 75
+pp = 30
+description = "Paralyzing dust is scattered wildly. It may paralyze the foe."
+
+[[move]]
+id = 79
+name = "Sleep Powder"
+type_id = 12
+category = "status"
+accuracy = 75
+pp = 15
+description = "A sleep-inducing dust is scattered in high volume around a foe."
+
+[[move]]
+id = 80
+name = "Petal Dance"
+type_id = 12
+category = "special"
+power = 120
+accuracy = 100
+pp = 10
+description = "The user attacks with petals for two to three turns, then gets confused."
+
+[[move]]
+id = 81
+name = "String Shot"
+type_id = 7
+category = "status"
+accuracy = 95
+pp = 40
+description = "The foe is bound with strings shot from the mouth to reduce its SPEED."
+
+[[move]]
+id = 82
+name = "Dragon Rage"
+type_id = 16
+category = "special"
+accuracy = 100
+pp = 10
+description = "The foe is hit with a shock wave that always inflicts 40- HP damage."
+
+[[move]]
+id = 83
+name = "Fire Spin"
+type_id = 10
+category = "special"
+power = 35
+accuracy = 85
+pp = 15
+description = "The foe is trapped in an intense spiral of fire that rages two to five turns."
+
+[[move]]
+id = 84
+name = "Thunder Shock"
+type_id = 13
+category = "special"
+power = 40
+accuracy = 100
+pp = 30
+description = "An electric shock attack that may also leave the foe paralyzed."
+
+[[move]]
+id = 85
+name = "Thunderbolt"
+type_id = 13
+category = "special"
+power = 90
+accuracy = 100
+pp = 15
+description = "A strong electrical attack that may also leave the foe paralyzed."
+
+[[move]]
+id = 86
+name = "Thunder Wave"
+type_id = 13
+category = "status"
+accuracy = 90
+pp = 20
+description = "A weak electric shock that is sure to cause paralysis if it hits."
+
+[[move]]
+id = 87
+name = "Thunder"
+type_id = 13
+category = "special"
+power = 110
+accuracy = 70
+pp = 10
+description = "A brutal lightning attack that may also leave the foe paralyzed."
+
+[[move]]
+id = 88
+name = "Rock Throw"
+type_id = 6
+category = "physical"
+power = 50
+accuracy = 90
+pp = 15
+description = "The foe is attacked with a shower of small, easily thrown rocks."
+
+[[move]]
+id = 89
+name = "Earthquake"
+type_id = 5
+category = "physical"
+power = 100
+accuracy = 100
+pp = 10
+description = "An earthquake that strikes all POKéMON in battle excluding the user."
+
+[[move]]
+id = 90
+name = "Fissure"
+type_id = 5
+category = "physical"
+accuracy = 30
+pp = 5
+description = "The foe is dropped into a fissure. The foe faints if it hits."
+
+[[move]]
+id = 91
+name = "Dig"
+type_id = 5
+category = "physical"
+power = 80
+accuracy = 100
+pp = 10
+description = "An attack that hits on the 2nd turn. Can also be used to exit dungeons."
+
+[[move]]
+id = 92
+name = "Toxic"
+type_id = 4
 category = "status"
 accuracy = 90
 pp = 10
-description = "A seed is planted on the target. It steals some HP from the target every turn."
+description = "A move that badly poisons the foe. Its poison damage worsens every turn."
 
 [[move]]
-id = 5
-name = "G-Max Vine Lash"
+id = 93
+name = "Confusion"
+type_id = 14
+category = "special"
+power = 50
+accuracy = 100
+pp = 25
+description = "A weak telekinetic attack that may also leave the foe confused."
+
+[[move]]
+id = 94
+name = "Psychic"
+type_id = 14
+category = "special"
+power = 90
+accuracy = 100
+pp = 10
+description = "A strong telekinetic attack. It may also lower the foe’s SP. DEF stat."
+
+[[move]]
+id = 95
+name = "Hypnosis"
+type_id = 14
+category = "status"
+accuracy = 60
+pp = 20
+description = "Hypnotic suggestion is used to make the foe fall into a deep sleep."
+
+[[move]]
+id = 96
+name = "Meditate"
+type_id = 14
+category = "status"
+pp = 40
+description = "The user meditates to awaken its power and raise its ATTACK stat."
+
+[[move]]
+id = 97
+name = "Agility"
+type_id = 14
+category = "status"
+pp = 30
+description = "The user relaxes and lightens its body to sharply boost its SPEED."
+
+[[move]]
+id = 98
+name = "Quick Attack"
+type_id = 1
+category = "physical"
+power = 40
+accuracy = 100
+pp = 30
+description = "An almost invisibly fast attack that is certain to strike first."
+
+[[move]]
+id = 99
+name = "Rage"
+type_id = 1
+category = "physical"
+power = 20
+accuracy = 100
+pp = 20
+description = "An attack that becomes stronger each time the user is hit in battle."
+
+[[move]]
+id = 100
+name = "Teleport"
+type_id = 14
+category = "status"
+pp = 20
+description = "Use it to flee from any wild POKéMON. Also warps to the last POKé CENTER."
+
+[[move]]
+id = 101
+name = "Night Shade"
+type_id = 8
+category = "special"
+accuracy = 100
+pp = 15
+description = "An attack with a mirage that inflicts damage matching the user’s level."
+
+[[move]]
+id = 102
+name = "Mimic"
+type_id = 1
+category = "status"
+pp = 10
+description = "The user copies the move last used by the foe for the rest of the battle."
+
+[[move]]
+id = 103
+name = "Screech"
+type_id = 1
+category = "status"
+accuracy = 85
+pp = 40
+description = "An ear-splitting screech is emitted to sharply reduce the foe’s DEFENSE."
+
+[[move]]
+id = 104
+name = "Double Team"
+type_id = 1
+category = "status"
+pp = 15
+description = "The user creates illusory copies of itself to raise its evasiveness."
+
+[[move]]
+id = 105
+name = "Recover"
+type_id = 1
+category = "status"
+pp = 5
+description = "A self-healing move that restores HP by up to half of the user’s maximum HP."
+
+[[move]]
+id = 106
+name = "Harden"
+type_id = 1
+category = "status"
+pp = 30
+description = "The user stiffens all the muscles in its body to raise its DEFENSE stat."
+
+[[move]]
+id = 107
+name = "Minimize"
+type_id = 1
+category = "status"
+pp = 10
+description = "The user compresses all the cells in its body to raise its evasiveness."
+
+[[move]]
+id = 108
+name = "Smokescreen"
+type_id = 1
+category = "status"
+accuracy = 100
+pp = 20
+description = "An obscuring cloud of smoke or ink reduces the foe’s accuracy."
+
+[[move]]
+id = 109
+name = "Confuse Ray"
+type_id = 8
+category = "status"
+accuracy = 100
+pp = 10
+description = "The foe is exposed to a sinister ray that triggers confusion."
+
+[[move]]
+id = 110
+name = "Withdraw"
+type_id = 11
+category = "status"
+pp = 40
+description = "The user withdraws its body in its hard shell, raising its DEFENSE stat."
+
+[[move]]
+id = 111
+name = "Defense Curl"
+type_id = 1
+category = "status"
+pp = 40
+description = "The user curls up to conceal weak spots and raise its DEFENSE stat."
+
+[[move]]
+id = 112
+name = "Barrier"
+type_id = 14
+category = "status"
+pp = 20
+description = "The user creates a sturdy wall that sharply raises its DEFENSE stat."
+
+[[move]]
+id = 113
+name = "Light Screen"
+type_id = 14
+category = "status"
+pp = 30
+description = "A wall of light cuts damage from SP. ATK attacks for five turns."
+
+[[move]]
+id = 114
+name = "Haze"
+type_id = 15
+category = "status"
+pp = 30
+description = "Eliminates all stat changes among all POKéMON engaged in battle."
+
+[[move]]
+id = 115
+name = "Reflect"
+type_id = 14
+category = "status"
+pp = 20
+description = "A wall of light cuts damage from physical attacks for five turns."
+
+[[move]]
+id = 116
+name = "Focus Energy"
+type_id = 1
+category = "status"
+pp = 30
+description = "The user takes a deep breath and focuses to raise its critical-hit ratio."
+
+[[move]]
+id = 118
+name = "Metronome"
+type_id = 1
+category = "status"
+pp = 10
+description = "Waggles a finger and stimulates the brain into using any move at random."
+
+[[move]]
+id = 119
+name = "Mirror Move"
+type_id = 3
+category = "status"
+pp = 20
+description = "The user counters the move last used by the foe with the same move."
+
+[[move]]
+id = 120
+name = "Self Destruct"
+type_id = 1
+category = "physical"
+power = 200
+accuracy = 100
+pp = 5
+description = "The user blows up to inflict severe damage, even making itself faint."
+
+[[move]]
+id = 121
+name = "Egg Bomb"
+type_id = 1
+category = "physical"
+power = 100
+accuracy = 75
+pp = 10
+description = "A large egg is hurled with great force at the foe to inflict damage."
+
+[[move]]
+id = 122
+name = "Lick"
+type_id = 8
+category = "physical"
+power = 30
+accuracy = 100
+pp = 30
+description = "The foe is licked and hit with a long tongue. It may also paralyze."
+
+[[move]]
+id = 123
+name = "Smog"
+type_id = 4
+category = "special"
+power = 30
+accuracy = 70
+pp = 20
+description = "The foe is attacked with exhaust gases. It may also poison the foe."
+
+[[move]]
+id = 124
+name = "Sludge"
+type_id = 4
+category = "special"
+power = 65
+accuracy = 100
+pp = 20
+description = "Toxic sludge is hurled at the foe. It may poison the target."
+
+[[move]]
+id = 125
+name = "Bone Club"
+type_id = 5
+category = "physical"
+power = 65
+accuracy = 85
+pp = 20
+description = "The foe is clubbed with a bone held in hand. It may make the foe flinch."
+
+[[move]]
+id = 126
+name = "Fire Blast"
+type_id = 10
+category = "special"
+power = 110
+accuracy = 85
+pp = 5
+description = "The foe is hit with an intense flame. It may leave the target with a burn."
+
+[[move]]
+id = 127
+name = "Waterfall"
+type_id = 11
+category = "physical"
+power = 80
+accuracy = 100
+pp = 15
+description = "A powerful charge attack. It can also be used to climb a waterfall."
+
+[[move]]
+id = 128
+name = "Clamp"
+type_id = 11
+category = "physical"
+power = 35
+accuracy = 85
+pp = 15
+description = "The foe is clamped and squeezed by the user’s shell for two to five turns."
+
+[[move]]
+id = 129
+name = "Swift"
+type_id = 1
+category = "special"
+power = 60
+pp = 20
+description = "Star-shaped rays that never miss are fired at all foes in battle."
+
+[[move]]
+id = 130
+name = "Skull Bash"
+type_id = 1
+category = "physical"
+power = 130
+accuracy = 100
+pp = 10
+description = "The user raises its DEFENSE in the 1st turn, then attacks in the 2nd turn."
+
+[[move]]
+id = 131
+name = "Spike Cannon"
+type_id = 1
+category = "physical"
+power = 20
+accuracy = 100
+pp = 15
+description = "Sharp spikes are fired at the foe to strike two to five times."
+
+[[move]]
+id = 132
+name = "Constrict"
+type_id = 1
+category = "physical"
+power = 10
+accuracy = 100
+pp = 35
+description = "The foe is attacked with long tentacles or vines. It may lower SPEED."
+
+[[move]]
+id = 133
+name = "Amnesia"
+type_id = 14
+category = "status"
+pp = 20
+description = "Forgets about something and sharply raises SP. DEF."
+
+[[move]]
+id = 134
+name = "Kinesis"
+type_id = 14
+category = "status"
+accuracy = 80
+pp = 15
+description = "The user distracts the foe by bending a spoon. It may lower accuracy."
+
+[[move]]
+id = 135
+name = "Soft Boiled"
+type_id = 1
+category = "status"
+pp = 5
+description = "Heals the user by up to half its full HP. It can be used to heal an ally."
+
+[[move]]
+id = 136
+name = "High Jump Kick"
+type_id = 2
+category = "physical"
+power = 130
+accuracy = 90
+pp = 10
+description = "A strong jumping knee kick. If it misses, the user is hurt."
+
+[[move]]
+id = 137
+name = "Glare"
+type_id = 1
+category = "status"
+accuracy = 100
+pp = 30
+description = "The user intimidates the foe with the design on its belly to cause paralysis."
+
+[[move]]
+id = 138
+name = "Dream Eater"
+type_id = 14
+category = "special"
+power = 100
+accuracy = 100
+pp = 15
+description = "Absorbs half the damage it inflicted on a sleeping foe to restore HP."
+
+[[move]]
+id = 139
+name = "Poison Gas"
+type_id = 4
+category = "status"
+accuracy = 90
+pp = 40
+description = "The foe is sprayed with a cloud of toxic gas that may poison the foe."
+
+[[move]]
+id = 140
+name = "Barrage"
+type_id = 1
+category = "physical"
+power = 15
+accuracy = 85
+pp = 20
+description = "Round objects are hurled at the foe to strike two to five times."
+
+[[move]]
+id = 141
+name = "Leech Life"
+type_id = 7
+category = "physical"
+power = 80
+accuracy = 100
+pp = 10
+description = "An attack that absorbs half the damage it inflicted to restore HP."
+
+[[move]]
+id = 142
+name = "Lovely Kiss"
+type_id = 1
+category = "status"
+accuracy = 75
+pp = 10
+description = "The user forces a kiss on the foe with a scary face that induces sleep."
+
+[[move]]
+id = 143
+name = "Sky Attack"
+type_id = 3
+category = "physical"
+power = 140
+accuracy = 90
+pp = 5
+description = "A 2nd-turn attack move with a high critical-hit ratio. The foe may flinch."
+
+[[move]]
+id = 144
+name = "Transform"
+type_id = 1
+category = "status"
+pp = 10
+description = "The user transforms into a copy of the foe with even the same move set."
+
+[[move]]
+id = 145
+name = "Bubble"
+type_id = 11
+category = "special"
+power = 40
+accuracy = 100
+pp = 30
+description = "A spray of bubbles hits the foe. It may lower the foe’s SPEED stat."
+
+[[move]]
+id = 146
+name = "Dizzy Punch"
+type_id = 1
+category = "physical"
+power = 70
+accuracy = 100
+pp = 10
+description = "The foe is hit with a rhythmic punch that may leave it confused."
+
+[[move]]
+id = 147
+name = "Spore"
+type_id = 12
+category = "status"
+accuracy = 100
+pp = 15
+description = "The user scatters bursts of fine spores that induce sleep."
+
+[[move]]
+id = 148
+name = "Flash"
+type_id = 1
+category = "status"
+accuracy = 100
+pp = 20
+description = "A blast of light that cuts the foe’s accuracy. It also illuminates caves."
+
+[[move]]
+id = 149
+name = "Psywave"
+type_id = 14
+category = "special"
+accuracy = 100
+pp = 15
+description = "The foe is attacked with an odd, hot energy wave that varies in intensity."
+
+[[move]]
+id = 150
+name = "Splash"
+type_id = 1
+category = "status"
+pp = 40
+description = "The user just flops and splashes around without having any effect."
+
+[[move]]
+id = 151
+name = "Acid Armor"
+type_id = 4
+category = "status"
+pp = 20
+description = "The user alters its cells to liquefy itself and sharply raise DEFENSE."
+
+[[move]]
+id = 152
+name = "Crabhammer"
+type_id = 11
+category = "physical"
+power = 100
+accuracy = 90
+pp = 10
+description = "A large pincer is used to hammer the foe. It has a high critical-hit ratio."
+
+[[move]]
+id = 153
+name = "Explosion"
+type_id = 1
+category = "physical"
+power = 250
+accuracy = 100
+pp = 5
+description = "The user explodes to inflict terrible damage even while fainting itself."
+
+[[move]]
+id = 154
+name = "Fury Swipes"
+type_id = 1
+category = "physical"
+power = 18
+accuracy = 80
+pp = 15
+description = "The foe is raked with sharp claws or scythes two to five times."
+
+[[move]]
+id = 155
+name = "Bonemerang"
+type_id = 5
+category = "physical"
+power = 50
+accuracy = 90
+pp = 10
+description = "The user throws a bone that hits the foe once, then once again on return."
+
+[[move]]
+id = 156
+name = "Rest"
+type_id = 14
+category = "status"
+pp = 5
+description = "The user sleeps for two turns to fully restore HP and heal any status problem."
+
+[[move]]
+id = 157
+name = "Rock Slide"
+type_id = 6
+category = "physical"
+power = 75
+accuracy = 90
+pp = 10
+description = "Large boulders are hurled at the foe. It may make the foe flinch."
+
+[[move]]
+id = 158
+name = "Hyper Fang"
+type_id = 1
+category = "physical"
+power = 80
+accuracy = 90
+pp = 15
+description = "The foe is attacked with sharp fangs. It may make the foe flinch."
+
+[[move]]
+id = 159
+name = "Sharpen"
+type_id = 1
+category = "status"
+pp = 30
+description = "The user reduces its polygon count to sharpen edges and raise ATTACK."
+
+[[move]]
+id = 160
+name = "Conversion"
+type_id = 1
+category = "status"
+pp = 30
+description = "The user changes its type to match the type of one of its moves."
+
+[[move]]
+id = 161
+name = "Tri Attack"
+type_id = 1
+category = "special"
+power = 80
+accuracy = 100
+pp = 10
+description = "A simultaneous 3-beam attack that may paralyze, burn, or freeze the foe."
+
+[[move]]
+id = 162
+name = "Super Fang"
+type_id = 1
+category = "physical"
+accuracy = 90
+pp = 10
+description = "The user attacks with sharp fangs and halves the foe’s HP."
+
+[[move]]
+id = 163
+name = "Slash"
+type_id = 1
+category = "physical"
+power = 70
+accuracy = 100
+pp = 20
+description = "The foe is slashed with claws, etc. It has a high critical-hit ratio."
+
+[[move]]
+id = 164
+name = "Substitute"
+type_id = 1
+category = "status"
+pp = 10
+description = "The user creates a decoy using one- quarter of its full HP."
+
+[[move]]
+id = 168
+name = "Thief"
+type_id = 17
+category = "physical"
+power = 60
+accuracy = 100
+pp = 25
+description = "An attack that may take the foe’s held item if the user isn’t holding one."
+
+[[move]]
+id = 170
+name = "Mind Reader"
+type_id = 1
+category = "status"
+pp = 5
+description = "The user predicts the foe’s action to ensure its next attack hits."
+
+[[move]]
+id = 171
+name = "Nightmare"
+type_id = 8
+category = "status"
+accuracy = 100
+pp = 15
+description = "A sleeping foe is shown a nightmare that inflicts some damage every turn."
+
+[[move]]
+id = 172
+name = "Flame Wheel"
+type_id = 10
+category = "physical"
+power = 60
+accuracy = 100
+pp = 25
+description = "The user makes a fiery charge at the foe. It may cause a burn."
+
+[[move]]
+id = 173
+name = "Snore"
+type_id = 1
+category = "special"
+power = 50
+accuracy = 100
+pp = 15
+description = "An attack that can be used only while asleep. It may cause flinching."
+
+[[move]]
+id = 174
+name = "Curse"
+type_id = 8
+category = "status"
+pp = 10
+description = "A move that works differently for the GHOST-type and all the other types."
+
+[[move]]
+id = 175
+name = "Flail"
+type_id = 1
+category = "physical"
+accuracy = 100
+pp = 15
+description = "A desperate attack that becomes more powerful the less HP the user has."
+
+[[move]]
+id = 176
+name = "Conversion 2"
+type_id = 1
+category = "status"
+pp = 30
+description = "The user changes type to make itself resistant to the last attack it took."
+
+[[move]]
+id = 179
+name = "Reversal"
+type_id = 2
+category = "physical"
+accuracy = 100
+pp = 15
+description = "An all-out attack that becomes more powerful the less HP the user has."
+
+[[move]]
+id = 180
+name = "Spite"
+type_id = 8
+category = "status"
+accuracy = 100
+pp = 10
+description = "A move that cuts 2 to 5 PP from the move last used by the foe."
+
+[[move]]
+id = 181
+name = "Powder Snow"
+type_id = 15
+category = "special"
+power = 40
+accuracy = 100
+pp = 25
+description = "Blasts the foe with a snowy gust. It may cause freezing."
+
+[[move]]
+id = 182
+name = "Protect"
+type_id = 1
+category = "status"
+pp = 10
+description = "Enables the user to evade all attacks. It may fail if used in succession."
+
+[[move]]
+id = 183
+name = "Mach Punch"
+type_id = 2
+category = "physical"
+power = 40
+accuracy = 100
+pp = 30
+description = "A punch thrown at blinding speed. It is certain to strike first."
+
+[[move]]
+id = 184
+name = "Scary Face"
+type_id = 1
+category = "status"
+accuracy = 100
+pp = 10
+description = "Frightens the foe with a scary face to sharply reduce its SPEED."
+
+[[move]]
+id = 185
+name = "Feint Attack"
+type_id = 17
+category = "physical"
+power = 60
+pp = 20
+description = "The user draws up close to the foe disarmingly, then hits without fail."
+
+[[move]]
+id = 187
+name = "Belly Drum"
+type_id = 1
+category = "status"
+pp = 10
+description = "The user maximizes its ATTACK stat at the cost of half its full HP."
+
+[[move]]
+id = 188
+name = "Sludge Bomb"
+type_id = 4
+category = "special"
+power = 90
+accuracy = 100
+pp = 10
+description = "Filthy sludge is hurled at the foe. It may poison the target."
+
+[[move]]
+id = 189
+name = "Mud Slap"
+type_id = 5
+category = "special"
+power = 20
+accuracy = 100
+pp = 10
+description = "Mud is hurled in the foe’s face to inflict damage and lower its accuracy."
+
+[[move]]
+id = 190
+name = "Octazooka"
+type_id = 11
+category = "special"
+power = 65
+accuracy = 85
+pp = 10
+description = "Ink is blasted in the foe’s face or eyes to damage and lower accuracy."
+
+[[move]]
+id = 191
+name = "Spikes"
+type_id = 5
+category = "status"
+pp = 20
+description = "A trap of spikes is laid around the foe’s party to hurt foes switching in."
+
+[[move]]
+id = 192
+name = "Zap Cannon"
+type_id = 13
+category = "special"
+power = 120
+accuracy = 50
+pp = 5
+description = "An electric blast is fired like a cannon to inflict damage and paralyze."
+
+[[move]]
+id = 193
+name = "Foresight"
+type_id = 1
+category = "status"
+pp = 40
+description = "Completely negates the foe’s efforts to heighten its ability to evade."
+
+[[move]]
+id = 194
+name = "Destiny Bond"
+type_id = 8
+category = "status"
+pp = 5
+description = "If the user faints, the foe delivering the final hit also faints."
+
+[[move]]
+id = 195
+name = "Perish Song"
+type_id = 1
+category = "status"
+pp = 5
+description = "Any battler that hears this faints in three turns unless it switches."
+
+[[move]]
+id = 196
+name = "Icy Wind"
+type_id = 15
+category = "special"
+power = 55
+accuracy = 95
+pp = 15
+description = "A chilling wind is used to attack. It also lowers the SPEED stat."
+
+[[move]]
+id = 197
+name = "Detect"
+type_id = 2
+category = "status"
+pp = 5
+description = "Enables the user to evade all attacks. It may fail if used in succession."
+
+[[move]]
+id = 198
+name = "Bone Rush"
+type_id = 5
+category = "physical"
+power = 25
+accuracy = 90
+pp = 10
+description = "The user strikes the foe with a bone in hand two to five times."
+
+[[move]]
+id = 199
+name = "Lock On"
+type_id = 1
+category = "status"
+pp = 5
+description = "The user locks on to the foe, making the next move sure to hit."
+
+[[move]]
+id = 200
+name = "Outrage"
+type_id = 16
+category = "physical"
+power = 120
+accuracy = 100
+pp = 10
+description = "The user thrashes about for two to three turns, then becomes confused."
+
+[[move]]
+id = 201
+name = "Sandstorm"
+type_id = 6
+category = "status"
+pp = 10
+description = "A 5-turn sandstorm that damages all types except ROCK, GROUND, and STEEL."
+
+[[move]]
+id = 202
+name = "Giga Drain"
+type_id = 12
+category = "special"
+power = 75
+accuracy = 100
+pp = 10
+description = "A harsh attack that absorbs half the damage it inflicted to restore HP."
+
+[[move]]
+id = 203
+name = "Endure"
+type_id = 1
+category = "status"
+pp = 10
+description = "The user endures any hit with 1 HP left. It may fail if used in succession."
+
+[[move]]
+id = 204
+name = "Charm"
+type_id = 18
+category = "status"
+accuracy = 100
+pp = 20
+description = "The foe is charmed by the user’s cute appeals, sharply cutting its ATTACK."
+
+[[move]]
+id = 205
+name = "Rollout"
+type_id = 6
+category = "physical"
+power = 30
+accuracy = 90
+pp = 20
+description = "A 5-turn rolling attack that becomes stronger each time it hits."
+
+[[move]]
+id = 206
+name = "False Swipe"
+type_id = 1
+category = "physical"
+power = 40
+accuracy = 100
+pp = 40
+description = "A restrained attack that always leaves the foe with at least 1 HP."
+
+[[move]]
+id = 207
+name = "Swagger"
+type_id = 1
+category = "status"
+accuracy = 85
+pp = 15
+description = "A move that makes the foe confused, but also sharply raises its ATTACK."
+
+[[move]]
+id = 209
+name = "Spark"
+type_id = 13
+category = "physical"
+power = 65
+accuracy = 100
+pp = 20
+description = "An electrically charged tackle that may also paralyze the foe."
+
+[[move]]
+id = 210
+name = "Fury Cutter"
+type_id = 7
+category = "physical"
+power = 40
+accuracy = 95
+pp = 20
+description = "An attack that grows stronger on each successive hit."
+
+[[move]]
+id = 211
+name = "Steel Wing"
+type_id = 9
+category = "physical"
+power = 70
+accuracy = 90
+pp = 25
+description = "The foe is hit with wings of steel. It may also raise the user’s DEFENSE."
+
+[[move]]
+id = 212
+name = "Mean Look"
+type_id = 1
+category = "status"
+pp = 5
+description = "The foe is fixed with a mean look that prevents it from escaping."
+
+[[move]]
+id = 213
+name = "Attract"
+type_id = 1
+category = "status"
+accuracy = 100
+pp = 15
+description = "If it is the other gender, the foe is made infatuated and unlikely to attack."
+
+[[move]]
+id = 214
+name = "Sleep Talk"
+type_id = 1
+category = "status"
+pp = 10
+description = "While asleep, the user randomly uses one of the moves it knows."
+
+[[move]]
+id = 215
+name = "Heal Bell"
+type_id = 1
+category = "status"
+pp = 5
+description = "A soothing bell chimes to heal the status problems of all allies."
+
+[[move]]
+id = 216
+name = "Return"
+type_id = 1
+category = "physical"
+accuracy = 100
+pp = 20
+description = "This attack move grows more powerful the more the user likes its TRAINER."
+
+[[move]]
+id = 217
+name = "Present"
+type_id = 1
+category = "physical"
+accuracy = 90
+pp = 15
+description = "The foe is given a booby-trapped gift. It restores HP sometimes, however."
+
+[[move]]
+id = 218
+name = "Frustration"
+type_id = 1
+category = "physical"
+accuracy = 100
+pp = 20
+description = "This attack move grows more powerful the less the user likes its TRAINER."
+
+[[move]]
+id = 219
+name = "Safeguard"
+type_id = 1
+category = "status"
+pp = 25
+description = "It protects the user’s party from all status problems for five turns."
+
+[[move]]
+id = 220
+name = "Pain Split"
+type_id = 1
+category = "status"
+pp = 20
+description = "The user adds its HP to the foe’s HP, then equally shares the total HP."
+
+[[move]]
+id = 222
+name = "Magnitude"
+type_id = 5
+category = "physical"
+accuracy = 100
+pp = 30
+description = "A ground-shaking attack against all standing POKéMON. Its power varies."
+
+[[move]]
+id = 223
+name = "Dynamic Punch"
+type_id = 2
+category = "physical"
+power = 100
+accuracy = 50
+pp = 5
+description = "The foe is punched with the user’s full power. It confuses the foe if it hits."
+
+[[move]]
+id = 224
+name = "Megahorn"
+type_id = 7
+category = "physical"
+power = 120
+accuracy = 85
+pp = 10
+description = "A brutal ramming attack delivered with a tough and impressive horn."
+
+[[move]]
+id = 225
+name = "Dragon Breath"
+type_id = 16
+category = "special"
+power = 60
+accuracy = 100
+pp = 20
+description = "The foe is hit with an incredible blast of breath that may also paralyze."
+
+[[move]]
+id = 226
+name = "Baton Pass"
+type_id = 1
+category = "status"
+pp = 40
+description = "The user switches out, passing along any stat changes to the new battler."
+
+[[move]]
+id = 227
+name = "Encore"
+type_id = 1
+category = "status"
+accuracy = 100
+pp = 5
+description = "Makes the foe use the move it last used repeatedly for two to six turns."
+
+[[move]]
+id = 228
+name = "Pursuit"
+type_id = 17
+category = "physical"
+power = 40
+accuracy = 100
+pp = 20
+description = "An attack move that works especially well on a foe that is switching out."
+
+[[move]]
+id = 229
+name = "Rapid Spin"
+type_id = 1
+category = "physical"
+power = 50
+accuracy = 100
+pp = 40
+description = "An attack that frees the user from BIND, WRAP, LEECH SEED, and SPIKES."
+
+[[move]]
+id = 230
+name = "Sweet Scent"
+type_id = 1
+category = "status"
+accuracy = 100
+pp = 20
+description = "Allures the foe to reduce evasiveness. It also attracts wild POKéMON."
+
+[[move]]
+id = 231
+name = "Iron Tail"
+type_id = 9
+category = "physical"
+power = 100
+accuracy = 75
+pp = 15
+description = "An attack with a steel-hard tail. It may lower the foe’s DEFENSE stat."
+
+[[move]]
+id = 232
+name = "Metal Claw"
+type_id = 9
+category = "physical"
+power = 50
+accuracy = 95
+pp = 35
+description = "The foe is attacked with steel claws. It may also raise the user’s ATTACK."
+
+[[move]]
+id = 233
+name = "Vital Throw"
+type_id = 2
+category = "physical"
+power = 70
+pp = 10
+description = "Makes the user attack after the foe. In return, it will not miss."
+
+[[move]]
+id = 235
+name = "Synthesis"
+type_id = 12
+category = "status"
+pp = 5
+description = "Restores the user’s HP. The amount of HP regained varies with the weather."
+
+[[move]]
+id = 236
+name = "Moonlight"
+type_id = 18
+category = "status"
+pp = 5
+description = "Restores the user’s HP. The amount of HP regained varies with the weather."
+
+[[move]]
+id = 237
+name = "Hidden Power"
+type_id = 1
+category = "special"
+power = 60
+accuracy = 100
+pp = 15
+description = "An attack that varies in type and intensity depending on the user."
+
+[[move]]
+id = 238
+name = "Cross Chop"
+type_id = 2
+category = "physical"
+power = 100
+accuracy = 80
+pp = 5
+description = "The foe is hit with double chops. It has a high critical-hit ratio."
+
+[[move]]
+id = 239
+name = "Twister"
+type_id = 16
+category = "special"
+power = 40
+accuracy = 100
+pp = 20
+description = "A vicious twister attacks the foe. It may make the foe flinch."
+
+[[move]]
+id = 240
+name = "Rain Dance"
+type_id = 11
+category = "status"
+pp = 5
+description = "A heavy rain falls for five turns, powering up WATER- type moves."
+
+[[move]]
+id = 241
+name = "Sunny Day"
+type_id = 10
+category = "status"
+pp = 5
+description = "The sun blazes for five turns, powering up FIRE-type moves."
+
+[[move]]
+id = 242
+name = "Crunch"
+type_id = 17
+category = "physical"
+power = 80
+accuracy = 100
+pp = 15
+description = "The foe is crunched with sharp fangs. It may lower the foe’s SP. DEF."
+
+[[move]]
+id = 243
+name = "Mirror Coat"
+type_id = 14
+category = "special"
+accuracy = 100
+pp = 20
+description = "A retaliation move that pays back the foe’s special attack double."
+
+[[move]]
+id = 244
+name = "Psych Up"
+type_id = 1
+category = "status"
+pp = 10
+description = "The user hypnotizes itself into copying any stat change made by the foe."
+
+[[move]]
+id = 245
+name = "Extreme Speed"
+type_id = 1
+category = "physical"
+power = 80
+accuracy = 100
+pp = 5
+description = "A blindingly speedy charge attack that always goes before any other."
+
+[[move]]
+id = 246
+name = "Ancient Power"
+type_id = 6
+category = "special"
+power = 60
+accuracy = 100
+pp = 5
+description = "An ancient power is used to attack. It may also raise all the user’s stats."
+
+[[move]]
+id = 247
+name = "Shadow Ball"
+type_id = 8
+category = "special"
+power = 80
+accuracy = 100
+pp = 15
+description = "A shadowy blob is hurled at the foe. May also lower the foe’s SP. DEF."
+
+[[move]]
+id = 248
+name = "Future Sight"
+type_id = 14
+category = "special"
+power = 120
+accuracy = 100
+pp = 10
+description = "Two turns after this move is used, the foe is attacked psychically."
+
+[[move]]
+id = 249
+name = "Rock Smash"
+type_id = 2
+category = "physical"
+power = 40
+accuracy = 100
+pp = 15
+description = "An attack that may also cut DEFENSE. It can also smash cracked boulders."
+
+[[move]]
+id = 251
+name = "Beat Up"
+type_id = 17
+category = "physical"
+accuracy = 100
+pp = 10
+description = "All party POKéMON join in the attack. The more allies, the more damage."
+
+[[move]]
+id = 252
+name = "Fake Out"
+type_id = 1
+category = "physical"
+power = 40
+accuracy = 100
+pp = 10
+description = "An attack that hits first and causes flinching. Usable only on 1st turn."
+
+[[move]]
+id = 253
+name = "Uproar"
+type_id = 1
+category = "special"
+power = 90
+accuracy = 100
+pp = 10
+description = "The user attacks in an uproar that prevents sleep for two to five turns."
+
+[[move]]
+id = 254
+name = "Stockpile"
+type_id = 1
+category = "status"
+pp = 20
+description = "The user charges up power for use later. It can be used three times."
+
+[[move]]
+id = 255
+name = "Spit Up"
+type_id = 1
+category = "special"
+accuracy = 100
+pp = 10
+description = "The power built using STOCKPILE is released at once for attack."
+
+[[move]]
+id = 256
+name = "Swallow"
+type_id = 1
+category = "status"
+pp = 10
+description = "The energy it built using STOCKPILE is absorbed to restore HP."
+
+[[move]]
+id = 257
+name = "Heat Wave"
+type_id = 10
+category = "special"
+power = 95
+accuracy = 90
+pp = 10
+description = "The user exhales a heated breath to attack. It may also inflict a burn."
+
+[[move]]
+id = 258
+name = "Hail"
+type_id = 15
+category = "status"
+pp = 10
+description = "A hailstorm lasting five turns damages all POKéMON except the ICE-type."
+
+[[move]]
+id = 259
+name = "Torment"
+type_id = 17
+category = "status"
+accuracy = 100
+pp = 15
+description = "It enrages the foe, making it incapable of using the same move successively."
+
+[[move]]
+id = 260
+name = "Flatter"
+type_id = 17
+category = "status"
+accuracy = 100
+pp = 15
+description = "Flattery is used to confuse the foe, but its SP. ATK also rises."
+
+[[move]]
+id = 261
+name = "Will O Wisp"
+type_id = 10
+category = "status"
+accuracy = 85
+pp = 15
+description = "A sinister, bluish white flame is shot at the foe to inflict a burn."
+
+[[move]]
+id = 262
+name = "Memento"
+type_id = 17
+category = "status"
+accuracy = 100
+pp = 10
+description = "The user faints, but sharply lowers the foe’s ATTACK and SP. ATK."
+
+[[move]]
+id = 263
+name = "Facade"
+type_id = 1
+category = "physical"
+power = 70
+accuracy = 100
+pp = 20
+description = "An attack that is boosted if user is burned, poisoned, or paralyzed."
+
+[[move]]
+id = 264
+name = "Focus Punch"
+type_id = 2
+category = "physical"
+power = 150
+accuracy = 100
+pp = 20
+description = "An attack that is executed last. The user flinches if hit beforehand."
+
+[[move]]
+id = 265
+name = "Smelling Salts"
+type_id = 1
+category = "physical"
+power = 70
+accuracy = 100
+pp = 10
+description = "Doubly effective on a paralyzed foe, but it also cures the foe’s paralysis."
+
+[[move]]
+id = 266
+name = "Follow Me"
+type_id = 1
+category = "status"
+pp = 20
+description = "The user draws attention to itself, making foes attack only the user."
+
+[[move]]
+id = 267
+name = "Nature Power"
+type_id = 1
+category = "status"
+pp = 20
+description = "An attack that changes type depending on the user’s location."
+
+[[move]]
+id = 268
+name = "Charge"
+type_id = 13
+category = "status"
+pp = 20
+description = "The user charges power to boost the ELECTRIC move it uses next."
+
+[[move]]
+id = 269
+name = "Taunt"
+type_id = 17
+category = "status"
+accuracy = 100
+pp = 20
+description = "The foe is taunted into a rage that allows it to use only attack moves."
+
+[[move]]
+id = 270
+name = "Helping Hand"
+type_id = 1
+category = "status"
+pp = 20
+description = "A move that boosts the power of the ally’s attack in a battle."
+
+[[move]]
+id = 271
+name = "Trick"
+type_id = 14
+category = "status"
+accuracy = 100
+pp = 10
+description = "A move that tricks the foe into trading held items with the user."
+
+[[move]]
+id = 272
+name = "Role Play"
+type_id = 14
+category = "status"
+pp = 10
+description = "The user mimics the foe completely and copies the foe’s ability."
+
+[[move]]
+id = 273
+name = "Wish"
+type_id = 1
+category = "status"
+pp = 10
+description = "A self-healing move that restores half the full HP on the next turn."
+
+[[move]]
+id = 274
+name = "Assist"
+type_id = 1
+category = "status"
+pp = 20
+description = "The user randomly picks and uses a move of an allied POKéMON."
+
+[[move]]
+id = 275
+name = "Ingrain"
+type_id = 12
+category = "status"
+pp = 20
+description = "The user lays roots that restore HP on every turn. It can’t switch out."
+
+[[move]]
+id = 276
+name = "Superpower"
+type_id = 2
+category = "physical"
+power = 120
+accuracy = 100
+pp = 5
+description = "A powerful attack, but it also lowers the user’s ATTACK and DEFENSE stats."
+
+[[move]]
+id = 278
+name = "Recycle"
+type_id = 1
+category = "status"
+pp = 10
+description = "A move that recycles a used item for use once more."
+
+[[move]]
+id = 279
+name = "Revenge"
+type_id = 2
+category = "physical"
+power = 60
+accuracy = 100
+pp = 10
+description = "An attack move that gains in intensity if the target has hurt the user."
+
+[[move]]
+id = 280
+name = "Brick Break"
+type_id = 2
+category = "physical"
+power = 75
+accuracy = 100
+pp = 15
+description = "An attack that also breaks any barrier like LIGHT SCREEN and REFLECT."
+
+[[move]]
+id = 281
+name = "Yawn"
+type_id = 1
+category = "status"
+pp = 10
+description = "A huge yawn lulls the foe into falling asleep on the next turn."
+
+[[move]]
+id = 282
+name = "Knock Off"
+type_id = 17
+category = "physical"
+power = 65
+accuracy = 100
+pp = 20
+description = "Knocks down the foe’s held item to prevent its use during the battle."
+
+[[move]]
+id = 283
+name = "Endeavor"
+type_id = 1
+category = "physical"
+accuracy = 100
+pp = 5
+description = "Gains power the fewer HP the user has compared with the foe."
+
+[[move]]
+id = 285
+name = "Skill Swap"
+type_id = 14
+category = "status"
+pp = 10
+description = "The user employs its psychic power to swap abilities with the foe."
+
+[[move]]
+id = 286
+name = "Imprison"
+type_id = 14
+category = "status"
+pp = 10
+description = "Prevents foes from using any move that is also known by the user."
+
+[[move]]
+id = 287
+name = "Refresh"
+type_id = 1
+category = "status"
+pp = 20
+description = "A self-healing move that cures the user of a poisoning, burn, or paralysis."
+
+[[move]]
+id = 288
+name = "Grudge"
+type_id = 8
+category = "status"
+pp = 5
+description = "If the user faints, this move deletes the PP of the move that finished it."
+
+[[move]]
+id = 289
+name = "Snatch"
+type_id = 17
+category = "status"
+pp = 10
+description = "Steals the effects of the foe’s healing or status- changing move."
+
+[[move]]
+id = 290
+name = "Secret Power"
+type_id = 1
+category = "physical"
+power = 70
+accuracy = 100
+pp = 20
+description = "An attack that may have an additional effect that varies with the terrain."
+
+[[move]]
+id = 291
+name = "Dive"
+type_id = 11
+category = "physical"
+power = 80
+accuracy = 100
+pp = 10
+description = "The user dives underwater on the first turn and strikes next turn."
+
+[[move]]
+id = 293
+name = "Camouflage"
+type_id = 1
+category = "status"
+pp = 20
+description = "Alters the user’s type depending on the location’s terrain."
+
+[[move]]
+id = 297
+name = "Feather Dance"
+type_id = 3
+category = "status"
+accuracy = 100
+pp = 15
+description = "The foe is covered with a mass of down that sharply cuts the ATTACK stat."
+
+[[move]]
+id = 300
+name = "Mud Sport"
+type_id = 5
+category = "status"
+pp = 15
+description = "Weakens ELECTRIC- type attacks while the user is in the battle."
+
+[[move]]
+id = 301
+name = "Ice Ball"
+type_id = 15
+category = "physical"
+power = 30
+accuracy = 90
+pp = 20
+description = "A 5-turn rolling attack that becomes stronger each time it rolls."
+
+[[move]]
+id = 304
+name = "Hyper Voice"
+type_id = 1
+category = "special"
+power = 90
+accuracy = 100
+pp = 10
+description = "The user lets loose a horribly loud shout with the power to damage."
+
+[[move]]
+id = 305
+name = "Poison Fang"
+type_id = 4
+category = "physical"
+power = 50
+accuracy = 100
+pp = 15
+description = "The foe is bitten with toxic fangs. It may also badly poison the foe."
+
+[[move]]
+id = 306
+name = "Crush Claw"
+type_id = 1
+category = "physical"
+power = 75
+accuracy = 95
+pp = 10
+description = "The foe is attacked with sharp claws. It may also lower the foe’s DEFENSE."
+
+[[move]]
+id = 307
+name = "Blast Burn"
+type_id = 10
+category = "special"
+power = 150
+accuracy = 90
+pp = 5
+description = "The foe is hit with a huge explosion. The user can’t move on the next turn."
+
+[[move]]
+id = 308
+name = "Hydro Cannon"
+type_id = 11
+category = "special"
+power = 150
+accuracy = 90
+pp = 5
+description = "The foe is hit with a watery cannon. The user can’t move on the next turn."
+
+[[move]]
+id = 309
+name = "Meteor Mash"
+type_id = 9
+category = "physical"
+power = 90
+accuracy = 90
+pp = 10
+description = "The foe is hit with a hard, fast punch. It may also raise the user’s ATTACK."
+
+[[move]]
+id = 310
+name = "Astonish"
+type_id = 8
+category = "physical"
+power = 30
+accuracy = 100
+pp = 15
+description = "An attack using a startling shout. It also may make the foe flinch."
+
+[[move]]
+id = 312
+name = "Aromatherapy"
+type_id = 12
+category = "status"
+pp = 5
+description = "A soothing scent is released to heal all status problems in the user’s party."
+
+[[move]]
+id = 313
+name = "Fake Tears"
+type_id = 17
+category = "status"
+accuracy = 100
+pp = 20
+description = "The user feigns crying to sharply lower the foe’s SP. DEF stat."
+
+[[move]]
+id = 314
+name = "Air Cutter"
+type_id = 3
+category = "special"
+power = 60
+accuracy = 95
+pp = 25
+description = "The foe is hit with razor-like wind. It has a high critical-hit ratio."
+
+[[move]]
+id = 315
+name = "Overheat"
+type_id = 10
+category = "special"
+power = 130
+accuracy = 90
+pp = 5
+description = "An intense attack that also sharply reduces the user’s SP. ATK stat."
+
+[[move]]
+id = 316
+name = "Odor Sleuth"
+type_id = 1
+category = "status"
+pp = 40
+description = "Completely negates the foe’s efforts to heighten its ability to evade."
+
+[[move]]
+id = 317
+name = "Rock Tomb"
+type_id = 6
+category = "physical"
+power = 60
+accuracy = 95
+pp = 15
+description = "Boulders are hurled at the foe. It also lowers the foe’s SPEED if it hits."
+
+[[move]]
+id = 318
+name = "Silver Wind"
+type_id = 7
+category = "special"
+power = 60
+accuracy = 100
+pp = 5
+description = "The foe is attacked with a silver dust. It may raise all the user’s stats."
+
+[[move]]
+id = 319
+name = "Metal Sound"
+type_id = 9
+category = "status"
+accuracy = 85
+pp = 40
+description = "A horrible metallic screech is used to sharply lower the foe’s SP. DEF."
+
+[[move]]
+id = 320
+name = "Grass Whistle"
+type_id = 12
+category = "status"
+accuracy = 55
+pp = 15
+description = "A pleasant melody is played to lull the foe into a deep sleep."
+
+[[move]]
+id = 321
+name = "Tickle"
+type_id = 1
+category = "status"
+accuracy = 100
+pp = 20
+description = "The foe is made to laugh, reducing its ATTACK and DEFENSE stats."
+
+[[move]]
+id = 322
+name = "Cosmic Power"
+type_id = 14
+category = "status"
+pp = 20
+description = "The user absorbs a mystic power to raise its DEFENSE and SP. DEF."
+
+[[move]]
+id = 324
+name = "Signal Beam"
+type_id = 7
+category = "special"
+power = 75
+accuracy = 100
+pp = 15
+description = "The foe is hit with a flashing beam that may also cause confusion."
+
+[[move]]
+id = 325
+name = "Shadow Punch"
+type_id = 8
+category = "physical"
+power = 60
+pp = 20
+description = "The user throws a punch from the shadows. It cannot be evaded."
+
+[[move]]
+id = 327
+name = "Sky Uppercut"
+type_id = 2
+category = "physical"
+power = 85
+accuracy = 90
+pp = 15
+description = "The user attacks with an uppercut thrown skywards with force."
+
+[[move]]
+id = 328
+name = "Sand Tomb"
+type_id = 5
+category = "physical"
+power = 35
+accuracy = 85
+pp = 15
+description = "The foe is trapped inside a painful sandstorm for two to five turns."
+
+[[move]]
+id = 329
+name = "Sheer Cold"
+type_id = 15
+category = "special"
+accuracy = 30
+pp = 5
+description = "The foe is attacked with ultimate cold that causes fainting if it hits."
+
+[[move]]
+id = 331
+name = "Bullet Seed"
+type_id = 12
+category = "physical"
+power = 25
+accuracy = 100
+pp = 30
+description = "The user shoots seeds at the foe. Two to five seeds are shot at once."
+
+[[move]]
+id = 332
+name = "Aerial Ace"
+type_id = 3
+category = "physical"
+power = 60
+pp = 20
+description = "An extremely fast attack against one target. It can’t be evaded."
+
+[[move]]
+id = 333
+name = "Icicle Spear"
+type_id = 15
+category = "physical"
+power = 25
+accuracy = 100
+pp = 30
+description = "Sharp icicles are fired at the foe. It strikes two to five times."
+
+[[move]]
+id = 335
+name = "Block"
+type_id = 1
+category = "status"
+pp = 5
+description = "The user blocks the foe’s way with arms spread wide to prevent escape."
+
+[[move]]
+id = 336
+name = "Howl"
+type_id = 1
+category = "status"
+pp = 40
+description = "The user howls to raise its spirit and boost its ATTACK stat."
+
+[[move]]
+id = 337
+name = "Dragon Claw"
+type_id = 16
+category = "physical"
+power = 80
+accuracy = 100
+pp = 15
+description = "Sharp, huge claws hook and slash the foe quickly and with great power."
+
+[[move]]
+id = 338
+name = "Frenzy Plant"
 type_id = 12
 category = "special"
 power = 150
-accuracy = 100
+accuracy = 90
 pp = 5
-description = "A Grass-type attack that Gigantamax Venusaur use. This move continues to deal damage to opponents for four turns."
+description = "The foe is hit with an enormous branch. The user can’t move on the next turn."
+
+[[move]]
+id = 339
+name = "Bulk Up"
+type_id = 2
+category = "status"
+pp = 20
+description = "The user bulks up its body to boost both its ATTACK and DEFENSE stats."
+
+[[move]]
+id = 340
+name = "Bounce"
+type_id = 3
+category = "physical"
+power = 85
+accuracy = 85
+pp = 5
+description = "The user bounces on the foe on the 2nd turn. It may paralyze the foe."
+
+[[move]]
+id = 341
+name = "Mud Shot"
+type_id = 5
+category = "special"
+power = 55
+accuracy = 95
+pp = 15
+description = "The user attacks by hurling mud. It also reduces the foe’s SPEED."
+
+[[move]]
+id = 343
+name = "Covet"
+type_id = 1
+category = "physical"
+power = 60
+accuracy = 100
+pp = 25
+description = "A cutely executed attack that also steals the foe’s hold item."
+
+[[move]]
+id = 345
+name = "Magical Leaf"
+type_id = 12
+category = "special"
+power = 60
+pp = 20
+description = "The foe is attacked with a strange leaf that cannot be evaded."
+
+[[move]]
+id = 346
+name = "Water Sport"
+type_id = 11
+category = "status"
+pp = 15
+description = "Weakens FIRE-type attacks while the user is in the battle."
+
+[[move]]
+id = 347
+name = "Calm Mind"
+type_id = 14
+category = "status"
+pp = 20
+description = "The user focuses its mind to raise the SP. ATK and SP. DEF stats."
+
+[[move]]
+id = 349
+name = "Dragon Dance"
+type_id = 16
+category = "status"
+pp = 20
+description = "A mystic, powerful dance that boosts the user’s ATTACK and SPEED stats."
+
+[[move]]
+id = 350
+name = "Rock Blast"
+type_id = 6
+category = "physical"
+power = 25
+accuracy = 90
+pp = 10
+description = "The user hurls two to five hard rocks at the foe to attack."
+
+[[move]]
+id = 351
+name = "Shock Wave"
+type_id = 13
+category = "special"
+power = 60
+pp = 20
+description = "A rapid jolt of electricity strikes the foe. It can’t be evaded."
+
+[[move]]
+id = 352
+name = "Water Pulse"
+type_id = 11
+category = "special"
+power = 60
+accuracy = 100
+pp = 20
+description = "An attack with a pulsing blast of water. It may also confuse the foe."

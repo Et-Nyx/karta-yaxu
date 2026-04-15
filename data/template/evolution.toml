@@ -9,3 +9,432 @@ from_id = 2
 to_id = 3
 condition = "level"
 condition_value = "32"
+
+[[evolution]]
+from_id = 4
+to_id = 5
+condition = "level"
+condition_value = "16"
+
+[[evolution]]
+from_id = 5
+to_id = 6
+condition = "level"
+condition_value = "36"
+
+[[evolution]]
+from_id = 7
+to_id = 8
+condition = "level"
+condition_value = "16"
+
+[[evolution]]
+from_id = 8
+to_id = 9
+condition = "level"
+condition_value = "36"
+
+[[evolution]]
+from_id = 10
+to_id = 11
+condition = "level"
+condition_value = "7"
+
+[[evolution]]
+from_id = 11
+to_id = 12
+condition = "level"
+condition_value = "10"
+
+[[evolution]]
+from_id = 13
+to_id = 14
+condition = "level"
+condition_value = "7"
+
+[[evolution]]
+from_id = 14
+to_id = 15
+condition = "level"
+condition_value = "10"
+
+[[evolution]]
+from_id = 16
+to_id = 17
+condition = "level"
+condition_value = "18"
+
+[[evolution]]
+from_id = 17
+to_id = 18
+condition = "level"
+condition_value = "36"
+
+[[evolution]]
+from_id = 19
+to_id = 20
+condition = "level"
+condition_value = "20"
+
+[[evolution]]
+from_id = 21
+to_id = 22
+condition = "level"
+condition_value = "20"
+
+[[evolution]]
+from_id = 23
+to_id = 24
+condition = "level"
+condition_value = "22"
+
+[[evolution]]
+from_id = 25
+to_id = 26
+condition = "item"
+condition_value = "Thunder Stone"
+
+[[evolution]]
+from_id = 27
+to_id = 28
+condition = "level"
+condition_value = "22"
+
+[[evolution]]
+from_id = 29
+to_id = 30
+condition = "level"
+condition_value = "16"
+
+[[evolution]]
+from_id = 30
+to_id = 31
+condition = "item"
+condition_value = "Moon Stone"
+
+[[evolution]]
+from_id = 32
+to_id = 33
+condition = "level"
+condition_value = "16"
+
+[[evolution]]
+from_id = 33
+to_id = 34
+condition = "item"
+condition_value = "Moon Stone"
+
+[[evolution]]
+from_id = 35
+to_id = 36
+condition = "item"
+condition_value = "Moon Stone"
+
+[[evolution]]
+from_id = 37
+to_id = 38
+condition = "item"
+condition_value = "Fire Stone"
+
+[[evolution]]
+from_id = 39
+to_id = 40
+condition = "item"
+condition_value = "Moon Stone"
+
+[[evolution]]
+from_id = 41
+to_id = 42
+condition = "level"
+condition_value = "22"
+
+[[evolution]]
+from_id = 43
+to_id = 44
+condition = "level"
+condition_value = "21"
+
+[[evolution]]
+from_id = 44
+to_id = 45
+condition = "item"
+condition_value = "Leaf Stone"
+
+[[evolution]]
+from_id = 46
+to_id = 47
+condition = "level"
+condition_value = "24"
+
+[[evolution]]
+from_id = 48
+to_id = 49
+condition = "level"
+condition_value = "31"
+
+[[evolution]]
+from_id = 50
+to_id = 51
+condition = "level"
+condition_value = "26"
+
+[[evolution]]
+from_id = 52
+to_id = 53
+condition = "level"
+condition_value = "28"
+
+[[evolution]]
+from_id = 54
+to_id = 55
+condition = "level"
+condition_value = "33"
+
+[[evolution]]
+from_id = 56
+to_id = 57
+condition = "level"
+condition_value = "28"
+
+[[evolution]]
+from_id = 58
+to_id = 59
+condition = "item"
+condition_value = "Fire Stone"
+
+[[evolution]]
+from_id = 60
+to_id = 61
+condition = "level"
+condition_value = "25"
+
+[[evolution]]
+from_id = 61
+to_id = 62
+condition = "item"
+condition_value = "Water Stone"
+
+[[evolution]]
+from_id = 63
+to_id = 64
+condition = "level"
+condition_value = "16"
+
+[[evolution]]
+from_id = 64
+to_id = 65
+condition = "trade"
+
+[[evolution]]
+from_id = 66
+to_id = 67
+condition = "level"
+condition_value = "28"
+
+[[evolution]]
+from_id = 67
+to_id = 68
+condition = "trade"
+
+[[evolution]]
+from_id = 69
+to_id = 70
+condition = "level"
+condition_value = "21"
+
+[[evolution]]
+from_id = 70
+to_id = 71
+condition = "item"
+condition_value = "Leaf Stone"
+
+[[evolution]]
+from_id = 72
+to_id = 73
+condition = "level"
+condition_value = "30"
+
+[[evolution]]
+from_id = 74
+to_id = 75
+condition = "level"
+condition_value = "25"
+
+[[evolution]]
+from_id = 75
+to_id = 76
+condition = "trade"
+
+[[evolution]]
+from_id = 77
+to_id = 78
+condition = "level"
+condition_value = "40"
+
+[[evolution]]
+from_id = 79
+to_id = 80
+condition = "level"
+condition_value = "37"
+
+[[evolution]]
+from_id = 81
+to_id = 82
+condition = "level"
+condition_value = "30"
+
+[[evolution]]
+from_id = 84
+to_id = 85
+condition = "level"
+condition_value = "31"
+
+[[evolution]]
+from_id = 86
+to_id = 87
+condition = "level"
+condition_value = "34"
+
+[[evolution]]
+from_id = 88
+to_id = 89
+condition = "level"
+condition_value = "38"
+
+[[evolution]]
+from_id = 90
+to_id = 91
+condition = "item"
+condition_value = "Water Stone"
+
+[[evolution]]
+from_id = 92
+to_id = 93
+condition = "level"
+condition_value = "25"
+
+[[evolution]]
+from_id = 93
+to_id = 94
+condition = "trade"
+
+[[evolution]]
+from_id = 96
+to_id = 97
+condition = "level"
+condition_value = "26"
+
+[[evolution]]
+from_id = 98
+to_id = 99
+condition = "level"
+condition_value = "28"
+
+[[evolution]]
+from_id = 100
+to_id = 101
+condition = "level"
+condition_value = "30"
+
+[[evolution]]
+from_id = 102
+to_id = 103
+condition = "item"
+condition_value = "Leaf Stone"
+
+[[evolution]]
+from_id = 104
+to_id = 105
+condition = "level"
+condition_value = "28"
+
+[[evolution]]
+from_id = 109
+to_id = 110
+condition = "level"
+condition_value = "35"
+
+[[evolution]]
+from_id = 111
+to_id = 112
+condition = "level"
+condition_value = "42"
+
+[[evolution]]
+from_id = 116
+to_id = 117
+condition = "level"
+condition_value = "32"
+
+[[evolution]]
+from_id = 118
+to_id = 119
+condition = "level"
+condition_value = "33"
+
+[[evolution]]
+from_id = 120
+to_id = 121
+condition = "item"
+condition_value = "Water Stone"
+
+[[evolution]]
+from_id = 129
+to_id = 130
+condition = "level"
+condition_value = "20"
+
+[[evolution]]
+from_id = 133
+to_id = 134
+condition = "item"
+condition_value = "Water Stone"
+
+[[evolution]]
+from_id = 133
+to_id = 135
+condition = "item"
+condition_value = "Thunder Stone"
+
+[[evolution]]
+from_id = 133
+to_id = 136
+condition = "item"
+condition_value = "Fire Stone"
+
+[[evolution]]
+from_id = 138
+to_id = 139
+condition = "level"
+condition_value = "40"
+
+[[evolution]]
+from_id = 140
+to_id = 141
+condition = "level"
+condition_value = "40"
+
+[[evolution]]
+from_id = 147
+to_id = 148
+condition = "level"
+condition_value = "30"
+
+[[evolution]]
+from_id = 148
+to_id = 149
+condition = "level"
+condition_value = "55"
+
+# ── Alternate Form evolutions (manually curated) ──
+
+[[evolution]]
+from_id = 3
+to_id = 2003
+condition = "mega"
+condition_value = "Venusaurite"
+
+[[evolution]]
+from_id = 3
+to_id = 3003
+condition = "gmax"

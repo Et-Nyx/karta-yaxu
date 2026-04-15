@@ -1,5 +1,139 @@
 [[nature]]
 id = 1
+name = "Hardy"
+
+[[nature]]
+id = 2
+name = "Bold"
+increased_stat = "def"
+decreased_stat = "atk"
+
+[[nature]]
+id = 3
 name = "Modest"
 increased_stat = "spa"
 decreased_stat = "atk"
+
+[[nature]]
+id = 4
+name = "Calm"
+increased_stat = "spd"
+decreased_stat = "atk"
+
+[[nature]]
+id = 5
+name = "Timid"
+increased_stat = "spe"
+decreased_stat = "atk"
+
+[[nature]]
+id = 6
+name = "Lonely"
+increased_stat = "atk"
+decreased_stat = "def"
+
+[[nature]]
+id = 7
+name = "Docile"
+
+[[nature]]
+id = 8
+name = "Mild"
+increased_stat = "spa"
+decreased_stat = "def"
+
+[[nature]]
+id = 9
+name = "Gentle"
+increased_stat = "spd"
+decreased_stat = "def"
+
+[[nature]]
+id = 10
+name = "Hasty"
+increased_stat = "spe"
+decreased_stat = "def"
+
+[[nature]]
+id = 11
+name = "Adamant"
+increased_stat = "atk"
+decreased_stat = "spa"
+
+[[nature]]
+id = 12
+name = "Impish"
+increased_stat = "def"
+decreased_stat = "spa"
+
+[[nature]]
+id = 13
+name = "Bashful"
+
+[[nature]]
+id = 14
+name = "Careful"
+increased_stat = "spd"
+decreased_stat = "spa"
+
+[[nature]]
+id = 15
+name = "Rash"
+increased_stat = "spa"
+decreased_stat = "spd"
+
+[[nature]]
+id = 16
+name = "Jolly"
+increased_stat = "spe"
+decreased_stat = "spa"
+
+[[nature]]
+id = 17
+name = "Naughty"
+increased_stat = "atk"
+decreased_stat = "spd"
+
+[[nature]]
+id = 18
+name = "Lax"
+increased_stat = "def"
+decreased_stat = "spd"
+
+[[nature]]
+id = 19
+name = "Quirky"
+
+[[nature]]
+id = 20
+name = "Naive"
+increased_stat = "spe"
+decreased_stat = "spd"
+
+[[nature]]
+id = 21
+name = "Brave"
+increased_stat = "atk"
+decreased_stat = "spe"
+
+[[nature]]
+id = 22
+name = "Relaxed"
+increased_stat = "def"
+decreased_stat = "spe"
+
+[[nature]]
+id = 23
+name = "Quiet"
+increased_stat = "spa"
+decreased_stat = "spe"
+
+[[nature]]
+id = 24
+name = "Sassy"
+increased_stat = "spd"
+decreased_stat = "spe"
+
+[[nature]]
+id = 25
+name = "Serious"

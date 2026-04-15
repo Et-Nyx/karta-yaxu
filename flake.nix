@@ -33,6 +33,7 @@
             mdbook
             pkg-config
             openssl
+            python3
           ];
 
           shellHook = ''

@@ -12,7 +12,7 @@ def = 49
 spa = 65
 spd = 65
 spe = 45
-pokedex_entry = "A strange seed was planted on its back at birth."
+pokedex_entry = "There is a plant seed on its back right from the day this POKéMON is born. The seed slowly grows larger."
 
 [[pokemon]]
 id = 2
@@ -28,7 +28,7 @@ def = 63
 spa = 80
 spd = 80
 spe = 60
-pokedex_entry = "When the bulb on its back grows large, it appears to lose the ability to stand on its hind legs."
+pokedex_entry = "There is a plant bulb on its back. When it absorbs nutrients, the bulb is said to blossom into a large flower."
 
 [[pokemon]]
 id = 3
@@ -44,7 +44,2293 @@ def = 83
 spa = 100
 spd = 100
 spe = 80
-pokedex_entry = "The plant blooms when it is absorbing solar energy. It stays on the move to seek sunlight."
+pokedex_entry = "A bewitching aroma wafts from its flower. The fragrance becalms those engaged in a battle."
+
+[[pokemon]]
+id = 4
+dex_number = 4
+name = "Charmander"
+sprite = "charmander.png"
+sprite_shiny = "charmander_shiny.png"
+type1_id = 10
+hp = 39
+atk = 52
+def = 43
+spa = 60
+spd = 50
+spe = 65
+pokedex_entry = "From the time it is born, a flame burns at the tip of its tail. Its life would end if the flame were to go out."
+
+[[pokemon]]
+id = 5
+dex_number = 5
+name = "Charmeleon"
+sprite = "charmeleon.png"
+sprite_shiny = "charmeleon_shiny.png"
+type1_id = 10
+hp = 58
+atk = 64
+def = 58
+spa = 80
+spd = 65
+spe = 80
+pokedex_entry = "It lashes about with its tail to knock down its foe. It then tears up the fallen opponent with sharp claws."
+
+[[pokemon]]
+id = 6
+dex_number = 6
+name = "Charizard"
+sprite = "charizard.png"
+sprite_shiny = "charizard_shiny.png"
+type1_id = 10
+type2_id = 3
+hp = 78
+atk = 84
+def = 78
+spa = 109
+spd = 85
+spe = 100
+pokedex_entry = "Its wings can carry this POKéMON close to an altitude of 4,600 feet. It blows out fire at very high temperatures."
+
+[[pokemon]]
+id = 7
+dex_number = 7
+name = "Squirtle"
+sprite = "squirtle.png"
+sprite_shiny = "squirtle_shiny.png"
+type1_id = 11
+hp = 44
+atk = 48
+def = 65
+spa = 50
+spd = 64
+spe = 43
+pokedex_entry = "When it retracts its long neck into its shell, it squirts out water with vigorous force."
+
+[[pokemon]]
+id = 8
+dex_number = 8
+name = "Wartortle"
+sprite = "wartortle.png"
+sprite_shiny = "wartortle_shiny.png"
+type1_id = 11
+hp = 59
+atk = 63
+def = 80
+spa = 65
+spd = 80
+spe = 58
+pokedex_entry = "This POKéMON is very popular as a pet. Its fur-covered tail is a symbol of its longevity."
+
+[[pokemon]]
+id = 9
+dex_number = 9
+name = "Blastoise"
+sprite = "blastoise.png"
+sprite_shiny = "blastoise_shiny.png"
+type1_id = 11
+hp = 79
+atk = 83
+def = 100
+spa = 85
+spd = 105
+spe = 78
+pokedex_entry = "It crushes its foe under its heavy body to cause fainting. In a pinch, it will withdraw inside its shell."
+
+[[pokemon]]
+id = 10
+dex_number = 10
+name = "Caterpie"
+sprite = "caterpie.png"
+sprite_shiny = "caterpie_shiny.png"
+type1_id = 7
+hp = 45
+atk = 30
+def = 35
+spa = 20
+spd = 20
+spe = 45
+pokedex_entry = "It is covered with a green skin. When it grows, it sheds the skin, covers itself with silk, and becomes a cocoon."
+
+[[pokemon]]
+id = 11
+dex_number = 11
+name = "Metapod"
+sprite = "metapod.png"
+sprite_shiny = "metapod_shiny.png"
+type1_id = 7
+hp = 50
+atk = 20
+def = 55
+spa = 25
+spd = 25
+spe = 30
+pokedex_entry = "Even though it is encased in a sturdy shell, the body inside is tender. It can’t withstand a harsh attack."
+
+[[pokemon]]
+id = 12
+dex_number = 12
+name = "Butterfree"
+sprite = "butterfree.png"
+sprite_shiny = "butterfree_shiny.png"
+type1_id = 7
+type2_id = 3
+hp = 60
+atk = 45
+def = 50
+spa = 90
+spd = 80
+spe = 70
+pokedex_entry = "The wings are protected by rain-repellent dust. As a result, this POKéMON can fly about even in rain."
+
+[[pokemon]]
+id = 13
+dex_number = 13
+name = "Weedle"
+sprite = "weedle.png"
+sprite_shiny = "weedle_shiny.png"
+type1_id = 7
+type2_id = 4
+hp = 40
+atk = 35
+def = 30
+spa = 20
+spd = 20
+spe = 50
+pokedex_entry = "Often found in forests and grasslands. It has a sharp, toxic barb of around two inches on top of its head."
+
+[[pokemon]]
+id = 14
+dex_number = 14
+name = "Kakuna"
+sprite = "kakuna.png"
+sprite_shiny = "kakuna_shiny.png"
+type1_id = 7
+type2_id = 4
+hp = 45
+atk = 25
+def = 50
+spa = 25
+spd = 25
+spe = 35
+pokedex_entry = "This POKéMON is in a temporary stage while making its body. It is almost completely unable to move on its own."
+
+[[pokemon]]
+id = 15
+dex_number = 15
+name = "Beedrill"
+sprite = "beedrill.png"
+sprite_shiny = "beedrill_shiny.png"
+type1_id = 7
+type2_id = 4
+hp = 65
+atk = 90
+def = 40
+spa = 45
+spd = 80
+spe = 75
+pokedex_entry = "May appear in a swarm. Flies at violent speeds, all the while stabbing with the toxic stinger on its rear."
+
+[[pokemon]]
+id = 16
+dex_number = 16
+name = "Pidgey"
+sprite = "pidgey.png"
+sprite_shiny = "pidgey_shiny.png"
+type1_id = 1
+type2_id = 3
+hp = 40
+atk = 45
+def = 40
+spa = 35
+spd = 35
+spe = 56
+pokedex_entry = "Does not like to fight. It hides in tall grass and so on, foraging for food such as small bugs."
+
+[[pokemon]]
+id = 17
+dex_number = 17
+name = "Pidgeotto"
+sprite = "pidgeotto.png"
+sprite_shiny = "pidgeotto_shiny.png"
+type1_id = 1
+type2_id = 3
+hp = 63
+atk = 60
+def = 55
+spa = 50
+spd = 50
+spe = 71
+pokedex_entry = "The claws on its feet are well developed. It can carry prey such as an EXEGGCUTE to its nest over 60 miles away."
+
+[[pokemon]]
+id = 18
+dex_number = 18
+name = "Pidgeot"
+sprite = "pidgeot.png"
+sprite_shiny = "pidgeot_shiny.png"
+type1_id = 1
+type2_id = 3
+hp = 83
+atk = 80
+def = 75
+spa = 70
+spd = 70
+spe = 101
+pokedex_entry = "It spreads its gorgeous wings widely to intimidate enemies. It races through the skies at Mach-2 speed."
+
+[[pokemon]]
+id = 19
+dex_number = 19
+name = "Rattata"
+sprite = "rattata.png"
+sprite_shiny = "rattata_shiny.png"
+type1_id = 1
+hp = 30
+atk = 56
+def = 35
+spa = 25
+spd = 35
+spe = 72
+pokedex_entry = "Its fangs are long and very sharp. They grow continuously, so it gnaws on hard things to whittle them down."
+
+[[pokemon]]
+id = 20
+dex_number = 20
+name = "Raticate"
+sprite = "raticate.png"
+sprite_shiny = "raticate_shiny.png"
+type1_id = 1
+hp = 55
+atk = 81
+def = 60
+spa = 50
+spd = 70
+spe = 97
+pokedex_entry = "Its rear feet have three toes each. They are webbed, enabling it to swim across rivers."
+
+[[pokemon]]
+id = 21
+dex_number = 21
+name = "Spearow"
+sprite = "spearow.png"
+sprite_shiny = "spearow_shiny.png"
+type1_id = 1
+type2_id = 3
+hp = 40
+atk = 60
+def = 30
+spa = 31
+spd = 31
+spe = 70
+pokedex_entry = "It busily flits around here and there. Even if it is frail, it can be a tough foe that uses MIRROR MOVE."
+
+[[pokemon]]
+id = 22
+dex_number = 22
+name = "Fearow"
+sprite = "fearow.png"
+sprite_shiny = "fearow_shiny.png"
+type1_id = 1
+type2_id = 3
+hp = 65
+atk = 90
+def = 65
+spa = 61
+spd = 61
+spe = 100
+pokedex_entry = "Its huge and magnificent wings can keep it aloft in the sky. It can remain flying a whole day without landing."
+
+[[pokemon]]
+id = 23
+dex_number = 23
+name = "Ekans"
+sprite = "ekans.png"
+sprite_shiny = "ekans_shiny.png"
+type1_id = 4
+hp = 35
+atk = 60
+def = 44
+spa = 40
+spd = 54
+spe = 55
+pokedex_entry = "A very common sight in grassland, etc. It flicks its tongue in and out to sense danger in its surroundings."
+
+[[pokemon]]
+id = 24
+dex_number = 24
+name = "Arbok"
+sprite = "arbok.png"
+sprite_shiny = "arbok_shiny.png"
+type1_id = 4
+hp = 60
+atk = 95
+def = 69
+spa = 65
+spd = 79
+spe = 80
+pokedex_entry = "The pattern on its belly appears to be a frightening face. Weak foes will flee just at the sight of the pattern."
+
+[[pokemon]]
+id = 25
+dex_number = 25
+name = "Pikachu"
+sprite = "pikachu.png"
+sprite_shiny = "pikachu_shiny.png"
+type1_id = 13
+hp = 35
+atk = 55
+def = 40
+spa = 50
+spd = 50
+spe = 90
+pokedex_entry = "It has small electric sacs on both its cheeks. If threatened, it looses electric charges from the sacs."
+
+[[pokemon]]
+id = 26
+dex_number = 26
+name = "Raichu"
+sprite = "raichu.png"
+sprite_shiny = "raichu_shiny.png"
+type1_id = 13
+hp = 60
+atk = 90
+def = 55
+spa = 90
+spd = 80
+spe = 110
+pokedex_entry = "Its electric charges can reach even 100,000 volts. Careless contact can cause even an Indian elephant to faint."
+
+[[pokemon]]
+id = 27
+dex_number = 27
+name = "Sandshrew"
+sprite = "sandshrew.png"
+sprite_shiny = "sandshrew_shiny.png"
+type1_id = 5
+hp = 50
+atk = 75
+def = 85
+spa = 20
+spd = 30
+spe = 40
+pokedex_entry = "It burrows and lives underground. If threatened, it curls itself up into a ball for protection."
+
+[[pokemon]]
+id = 28
+dex_number = 28
+name = "Sandslash"
+sprite = "sandslash.png"
+sprite_shiny = "sandslash_shiny.png"
+type1_id = 5
+hp = 75
+atk = 100
+def = 110
+spa = 45
+spd = 55
+spe = 65
+pokedex_entry = "It is adept at attacking with the spines on its back and its sharp claws while quickly scurrying about."
+
+[[pokemon]]
+id = 29
+dex_number = 29
+name = "Nidoran♀"
+sprite = "nidoran-f.png"
+sprite_shiny = "nidoran-f_shiny.png"
+type1_id = 4
+hp = 55
+atk = 47
+def = 52
+spa = 40
+spd = 40
+spe = 41
+pokedex_entry = "Though small, it must be treated with caution because of its powerfully toxic barbs. The female has smaller horns."
+
+[[pokemon]]
+id = 30
+dex_number = 30
+name = "Nidorina"
+sprite = "nidorina.png"
+sprite_shiny = "nidorina_shiny.png"
+type1_id = 4
+hp = 70
+atk = 62
+def = 67
+spa = 55
+spd = 55
+spe = 56
+pokedex_entry = "The female has a gentle temperament. It emits ultrasonic cries that have the power to befuddle foes."
+
+[[pokemon]]
+id = 31
+dex_number = 31
+name = "Nidoqueen"
+sprite = "nidoqueen.png"
+sprite_shiny = "nidoqueen_shiny.png"
+type1_id = 4
+type2_id = 5
+hp = 90
+atk = 92
+def = 87
+spa = 75
+spd = 85
+spe = 76
+pokedex_entry = "The body is covered by stiff, needle- like scales. If it becomes excited, the needles bristle outwards."
+
+[[pokemon]]
+id = 32
+dex_number = 32
+name = "Nidoran♂"
+sprite = "nidoran-m.png"
+sprite_shiny = "nidoran-m_shiny.png"
+type1_id = 4
+hp = 46
+atk = 57
+def = 40
+spa = 40
+spd = 40
+spe = 50
+pokedex_entry = "Its large ears are flapped like wings when it is listening to distant sounds. It extends toxic barbs when angered."
+
+[[pokemon]]
+id = 33
+dex_number = 33
+name = "Nidorino"
+sprite = "nidorino.png"
+sprite_shiny = "nidorino_shiny.png"
+type1_id = 4
+hp = 61
+atk = 72
+def = 57
+spa = 55
+spd = 55
+spe = 65
+pokedex_entry = "It is easily angered. By swinging its well- developed horn wildly, it can even punch through diamond."
+
+[[pokemon]]
+id = 34
+dex_number = 34
+name = "Nidoking"
+sprite = "nidoking.png"
+sprite_shiny = "nidoking_shiny.png"
+type1_id = 4
+type2_id = 5
+hp = 81
+atk = 102
+def = 77
+spa = 85
+spd = 75
+spe = 85
+pokedex_entry = "It is recognized by its rock-hard hide and its extended horn. Be careful with the horn as it contains venom."
+
+[[pokemon]]
+id = 35
+dex_number = 35
+name = "Clefairy"
+sprite = "clefairy.png"
+sprite_shiny = "clefairy_shiny.png"
+type1_id = 18
+hp = 70
+atk = 45
+def = 48
+spa = 60
+spd = 65
+spe = 35
+pokedex_entry = "Its adorable appearance makes it popular as a pet. However, it is rare and difficult to find."
+
+[[pokemon]]
+id = 36
+dex_number = 36
+name = "Clefable"
+sprite = "clefable.png"
+sprite_shiny = "clefable_shiny.png"
+type1_id = 18
+hp = 95
+atk = 70
+def = 73
+spa = 95
+spd = 90
+spe = 60
+pokedex_entry = "It has an acute sense of hearing. It can easily hear a pin being dropped nearly 1,100 yards away."
+
+[[pokemon]]
+id = 37
+dex_number = 37
+name = "Vulpix"
+sprite = "vulpix.png"
+sprite_shiny = "vulpix_shiny.png"
+type1_id = 10
+hp = 38
+atk = 41
+def = 40
+spa = 50
+spd = 65
+spe = 65
+pokedex_entry = "While young, it has six gorgeous tails. When it grows, several new tails are sprouted."
+
+[[pokemon]]
+id = 38
+dex_number = 38
+name = "Ninetales"
+sprite = "ninetales.png"
+sprite_shiny = "ninetales_shiny.png"
+type1_id = 10
+hp = 73
+atk = 76
+def = 75
+spa = 81
+spd = 100
+spe = 100
+pokedex_entry = "It has nine long tails and fur that gleams gold. It is said to live for 1,000 years."
+
+[[pokemon]]
+id = 39
+dex_number = 39
+name = "Jigglypuff"
+sprite = "jigglypuff.png"
+sprite_shiny = "jigglypuff_shiny.png"
+type1_id = 1
+type2_id = 18
+hp = 115
+atk = 45
+def = 20
+spa = 45
+spd = 25
+spe = 20
+pokedex_entry = "It captivates foes with its huge, round eyes, then lulls them to sleep by singing a soothing melody."
+
+[[pokemon]]
+id = 40
+dex_number = 40
+name = "Wigglytuff"
+sprite = "wigglytuff.png"
+sprite_shiny = "wigglytuff_shiny.png"
+type1_id = 1
+type2_id = 18
+hp = 140
+atk = 70
+def = 45
+spa = 85
+spd = 50
+spe = 45
+pokedex_entry = "Its fur is extremely fine, dense, and supple. The exquisitely pleasant fur conveys an image of luxury."
+
+[[pokemon]]
+id = 41
+dex_number = 41
+name = "Zubat"
+sprite = "zubat.png"
+sprite_shiny = "zubat_shiny.png"
+type1_id = 4
+type2_id = 3
+hp = 40
+atk = 45
+def = 35
+spa = 30
+spd = 40
+spe = 55
+pokedex_entry = "It has no eyes. Instead, it relies on its ultrasonic cries for echo location to flit about in darkness."
+
+[[pokemon]]
+id = 42
+dex_number = 42
+name = "Golbat"
+sprite = "golbat.png"
+sprite_shiny = "golbat_shiny.png"
+type1_id = 4
+type2_id = 3
+hp = 75
+atk = 80
+def = 70
+spa = 65
+spd = 75
+spe = 90
+pokedex_entry = "It clamps down on its prey with needle- sharp fangs and drains over 10 ounces of blood in one gulp."
+
+[[pokemon]]
+id = 43
+dex_number = 43
+name = "Oddish"
+sprite = "oddish.png"
+sprite_shiny = "oddish_shiny.png"
+type1_id = 12
+type2_id = 4
+hp = 45
+atk = 50
+def = 55
+spa = 75
+spd = 65
+spe = 30
+pokedex_entry = "Its scientific name is “Oddium Wanderus.” At night, it is said to walk nearly 1,000 feet on its two roots."
+
+[[pokemon]]
+id = 44
+dex_number = 44
+name = "Gloom"
+sprite = "gloom.png"
+sprite_shiny = "gloom_shiny.png"
+type1_id = 12
+type2_id = 4
+hp = 60
+atk = 65
+def = 70
+spa = 85
+spd = 75
+spe = 40
+pokedex_entry = "Its pistils exude an incredibly foul odor. The horrid stench can cause fainting at a distance of 1.25 miles."
+
+[[pokemon]]
+id = 45
+dex_number = 45
+name = "Vileplume"
+sprite = "vileplume.png"
+sprite_shiny = "vileplume_shiny.png"
+type1_id = 12
+type2_id = 4
+hp = 75
+atk = 80
+def = 85
+spa = 110
+spd = 90
+spe = 50
+pokedex_entry = "Its petals are the largest in the world. It fiendishly scatters allergy-causing pollen from its petals."
+
+[[pokemon]]
+id = 46
+dex_number = 46
+name = "Paras"
+sprite = "paras.png"
+sprite_shiny = "paras_shiny.png"
+type1_id = 7
+type2_id = 12
+hp = 35
+atk = 70
+def = 55
+spa = 45
+spd = 55
+spe = 25
+pokedex_entry = "Growing out of the bug’s back are mushrooms called tochukaso. The mushrooms grow with the bug host."
+
+[[pokemon]]
+id = 47
+dex_number = 47
+name = "Parasect"
+sprite = "parasect.png"
+sprite_shiny = "parasect_shiny.png"
+type1_id = 7
+type2_id = 12
+hp = 60
+atk = 95
+def = 80
+spa = 60
+spd = 80
+spe = 30
+pokedex_entry = "It scatters toxic spores from the mushroom cap. In China, the spores are used as herbal medicine."
+
+[[pokemon]]
+id = 48
+dex_number = 48
+name = "Venonat"
+sprite = "venonat.png"
+sprite_shiny = "venonat_shiny.png"
+type1_id = 7
+type2_id = 4
+hp = 60
+atk = 55
+def = 50
+spa = 40
+spd = 55
+spe = 45
+pokedex_entry = "Its eyes act as radar, enabling it to be active in darkness. The eyes can also shoot powerful beams."
+
+[[pokemon]]
+id = 49
+dex_number = 49
+name = "Venomoth"
+sprite = "venomoth.png"
+sprite_shiny = "venomoth_shiny.png"
+type1_id = 7
+type2_id = 4
+hp = 70
+atk = 65
+def = 60
+spa = 90
+spd = 75
+spe = 90
+pokedex_entry = "The wings are covered with dustlike scales. Every time it flaps its wings, it looses highly toxic dust."
+
+[[pokemon]]
+id = 50
+dex_number = 50
+name = "Diglett"
+sprite = "diglett.png"
+sprite_shiny = "diglett_shiny.png"
+type1_id = 5
+hp = 10
+atk = 55
+def = 25
+spa = 35
+spd = 45
+spe = 95
+pokedex_entry = "It burrows through the ground at a shallow depth. It leaves raised earth in its wake, making it easy to spot."
+
+[[pokemon]]
+id = 51
+dex_number = 51
+name = "Dugtrio"
+sprite = "dugtrio.png"
+sprite_shiny = "dugtrio_shiny.png"
+type1_id = 5
+hp = 35
+atk = 100
+def = 50
+spa = 50
+spd = 70
+spe = 120
+pokedex_entry = "In battle, it digs through the ground and strikes the unsuspecting foe from an unexpected direction."
+
+[[pokemon]]
+id = 52
+dex_number = 52
+name = "Meowth"
+sprite = "meowth.png"
+sprite_shiny = "meowth_shiny.png"
+type1_id = 1
+hp = 40
+atk = 45
+def = 35
+spa = 40
+spd = 40
+spe = 90
+pokedex_entry = "All it does is sleep during the daytime. At night, it patrols its territory with its eyes aglow."
+
+[[pokemon]]
+id = 53
+dex_number = 53
+name = "Persian"
+sprite = "persian.png"
+sprite_shiny = "persian_shiny.png"
+type1_id = 1
+hp = 65
+atk = 70
+def = 60
+spa = 65
+spd = 65
+spe = 115
+pokedex_entry = "Has a vicious temperament. Beware if it raises its tail straight up. It is a signal that it is about to pounce and bite."
+
+[[pokemon]]
+id = 54
+dex_number = 54
+name = "Psyduck"
+sprite = "psyduck.png"
+sprite_shiny = "psyduck_shiny.png"
+type1_id = 11
+hp = 50
+atk = 52
+def = 48
+spa = 65
+spd = 50
+spe = 55
+pokedex_entry = "It is constantly wracked by a headache. When the headache turns intense, it begins using mysterious powers."
+
+[[pokemon]]
+id = 55
+dex_number = 55
+name = "Golduck"
+sprite = "golduck.png"
+sprite_shiny = "golduck_shiny.png"
+type1_id = 11
+hp = 80
+atk = 82
+def = 78
+spa = 95
+spd = 80
+spe = 85
+pokedex_entry = "The forelegs are webbed, helping to make it an adept swimmer. It can be seen swimming elegantly in lakes, etc."
+
+[[pokemon]]
+id = 56
+dex_number = 56
+name = "Mankey"
+sprite = "mankey.png"
+sprite_shiny = "mankey_shiny.png"
+type1_id = 2
+hp = 40
+atk = 80
+def = 35
+spa = 35
+spd = 45
+spe = 70
+pokedex_entry = "Light and agile on its feet, and ferocious in temperament. When angered, it flies into an uncontrollable frenzy."
+
+[[pokemon]]
+id = 57
+dex_number = 57
+name = "Primeape"
+sprite = "primeape.png"
+sprite_shiny = "primeape_shiny.png"
+type1_id = 2
+hp = 65
+atk = 105
+def = 60
+spa = 60
+spd = 70
+spe = 95
+pokedex_entry = "It is always outrageously furious. If it gives chase, it will tenaciously track the target no matter how far."
+
+[[pokemon]]
+id = 58
+dex_number = 58
+name = "Growlithe"
+sprite = "growlithe.png"
+sprite_shiny = "growlithe_shiny.png"
+type1_id = 10
+hp = 55
+atk = 70
+def = 45
+spa = 70
+spd = 50
+spe = 60
+pokedex_entry = "Very friendly and faithful to people. It will try to repel enemies by barking and biting."
+
+[[pokemon]]
+id = 59
+dex_number = 59
+name = "Arcanine"
+sprite = "arcanine.png"
+sprite_shiny = "arcanine_shiny.png"
+type1_id = 10
+hp = 90
+atk = 110
+def = 80
+spa = 100
+spd = 80
+spe = 95
+pokedex_entry = "A POKéMON that is described in Chinese legends. It is said to race at an unbelievable speed."
+
+[[pokemon]]
+id = 60
+dex_number = 60
+name = "Poliwag"
+sprite = "poliwag.png"
+sprite_shiny = "poliwag_shiny.png"
+type1_id = 11
+hp = 40
+atk = 50
+def = 40
+spa = 40
+spd = 40
+spe = 90
+pokedex_entry = "Its slick black skin is thin and damp. A part of its internal organs can be seen through the skin as a spiral pattern."
+
+[[pokemon]]
+id = 61
+dex_number = 61
+name = "Poliwhirl"
+sprite = "poliwhirl.png"
+sprite_shiny = "poliwhirl_shiny.png"
+type1_id = 11
+hp = 65
+atk = 65
+def = 65
+spa = 50
+spd = 50
+spe = 90
+pokedex_entry = "Its two legs are well developed. Even though it can live on the ground, it prefers living in water."
+
+[[pokemon]]
+id = 62
+dex_number = 62
+name = "Poliwrath"
+sprite = "poliwrath.png"
+sprite_shiny = "poliwrath_shiny.png"
+type1_id = 11
+type2_id = 2
+hp = 90
+atk = 95
+def = 95
+spa = 70
+spd = 90
+spe = 70
+pokedex_entry = "An adept swimmer, it knows the front crawl, butterfly, and more. It is faster than the best human swimmers."
+
+[[pokemon]]
+id = 63
+dex_number = 63
+name = "Abra"
+sprite = "abra.png"
+sprite_shiny = "abra_shiny.png"
+type1_id = 14
+hp = 25
+atk = 20
+def = 15
+spa = 105
+spd = 55
+spe = 90
+pokedex_entry = "It sleeps for 18 hours a day. It uses a variety of extrasensory powers even while asleep."
+
+[[pokemon]]
+id = 64
+dex_number = 64
+name = "Kadabra"
+sprite = "kadabra.png"
+sprite_shiny = "kadabra_shiny.png"
+type1_id = 14
+hp = 40
+atk = 35
+def = 30
+spa = 120
+spd = 70
+spe = 105
+pokedex_entry = "It happened one morning - a boy with extrasensory powers awoke in bed transformed into KADABRA."
+
+[[pokemon]]
+id = 65
+dex_number = 65
+name = "Alakazam"
+sprite = "alakazam.png"
+sprite_shiny = "alakazam_shiny.png"
+type1_id = 14
+hp = 55
+atk = 50
+def = 45
+spa = 135
+spd = 95
+spe = 120
+pokedex_entry = "It does not like physical attacks very much. Instead, it freely uses extra­ sensory powers to defeat foes."
+
+[[pokemon]]
+id = 66
+dex_number = 66
+name = "Machop"
+sprite = "machop.png"
+sprite_shiny = "machop_shiny.png"
+type1_id = 2
+hp = 70
+atk = 80
+def = 50
+spa = 35
+spd = 35
+spe = 35
+pokedex_entry = "Its whole body is composed of muscles. Even though it’s the size of a human child, it can hurl 100 grown-ups."
+
+[[pokemon]]
+id = 67
+dex_number = 67
+name = "Machoke"
+sprite = "machoke.png"
+sprite_shiny = "machoke_shiny.png"
+type1_id = 2
+hp = 80
+atk = 100
+def = 70
+spa = 50
+spd = 60
+spe = 45
+pokedex_entry = "Its formidable body never gets tired. It helps people by doing work such as the moving of heavy goods."
+
+[[pokemon]]
+id = 68
+dex_number = 68
+name = "Machamp"
+sprite = "machamp.png"
+sprite_shiny = "machamp_shiny.png"
+type1_id = 2
+hp = 90
+atk = 130
+def = 80
+spa = 65
+spd = 85
+spe = 55
+pokedex_entry = "Its four ruggedly developed arms can launch a flurry of 1,000 punches in just two seconds."
+
+[[pokemon]]
+id = 69
+dex_number = 69
+name = "Bellsprout"
+sprite = "bellsprout.png"
+sprite_shiny = "bellsprout_shiny.png"
+type1_id = 12
+type2_id = 4
+hp = 50
+atk = 75
+def = 35
+spa = 70
+spd = 30
+spe = 40
+pokedex_entry = "Its bud looks like a human face. Because of the bud, it is rumored to be a type of legendary mandrake plant."
+
+[[pokemon]]
+id = 70
+dex_number = 70
+name = "Weepinbell"
+sprite = "weepinbell.png"
+sprite_shiny = "weepinbell_shiny.png"
+type1_id = 12
+type2_id = 4
+hp = 65
+atk = 90
+def = 50
+spa = 85
+spd = 45
+spe = 55
+pokedex_entry = "The leafy parts act as cutters for slashing foes. It spits a fluid that dissolves everything."
+
+[[pokemon]]
+id = 71
+dex_number = 71
+name = "Victreebel"
+sprite = "victreebel.png"
+sprite_shiny = "victreebel_shiny.png"
+type1_id = 12
+type2_id = 4
+hp = 80
+atk = 105
+def = 65
+spa = 100
+spd = 70
+spe = 70
+pokedex_entry = "Lures prey into its mouth with a honeylike aroma. The helpless prey is melted with a dissolving fluid."
+
+[[pokemon]]
+id = 72
+dex_number = 72
+name = "Tentacool"
+sprite = "tentacool.png"
+sprite_shiny = "tentacool_shiny.png"
+type1_id = 11
+type2_id = 4
+hp = 40
+atk = 40
+def = 35
+spa = 50
+spd = 100
+spe = 70
+pokedex_entry = "Its eyes are as transparent as crystals. From them, it shoots mysterious beams of light."
+
+[[pokemon]]
+id = 73
+dex_number = 73
+name = "Tentacruel"
+sprite = "tentacruel.png"
+sprite_shiny = "tentacruel_shiny.png"
+type1_id = 11
+type2_id = 4
+hp = 80
+atk = 70
+def = 65
+spa = 80
+spd = 120
+spe = 100
+pokedex_entry = "It has 80 tentacles that move about freely. They can sting, causing poisoning and sharp, stabbing pain."
+
+[[pokemon]]
+id = 74
+dex_number = 74
+name = "Geodude"
+sprite = "geodude.png"
+sprite_shiny = "geodude_shiny.png"
+type1_id = 6
+type2_id = 5
+hp = 40
+atk = 80
+def = 100
+spa = 30
+spd = 30
+spe = 20
+pokedex_entry = "Its round form makes it easy to pick up. Some people have used them to hurl at each other in a snowball fight."
+
+[[pokemon]]
+id = 75
+dex_number = 75
+name = "Graveler"
+sprite = "graveler.png"
+sprite_shiny = "graveler_shiny.png"
+type1_id = 6
+type2_id = 5
+hp = 55
+atk = 95
+def = 115
+spa = 45
+spd = 45
+spe = 35
+pokedex_entry = "Be careful while hiking on mountain trails. GRAVELER may come rolling down the path without slowing."
+
+[[pokemon]]
+id = 76
+dex_number = 76
+name = "Golem"
+sprite = "golem.png"
+sprite_shiny = "golem_shiny.png"
+type1_id = 6
+type2_id = 5
+hp = 80
+atk = 120
+def = 130
+spa = 55
+spd = 65
+spe = 45
+pokedex_entry = "It is enclosed in a hard shell that is as rugged as slabs of rock. It sheds skin once a year to grow larger."
+
+[[pokemon]]
+id = 77
+dex_number = 77
+name = "Ponyta"
+sprite = "ponyta.png"
+sprite_shiny = "ponyta_shiny.png"
+type1_id = 10
+hp = 50
+atk = 85
+def = 55
+spa = 65
+spd = 65
+spe = 90
+pokedex_entry = "Its body is light, and its legs are incredibly powerful. It can clear Ayers Rock in one leap."
+
+[[pokemon]]
+id = 78
+dex_number = 78
+name = "Rapidash"
+sprite = "rapidash.png"
+sprite_shiny = "rapidash_shiny.png"
+type1_id = 10
+hp = 65
+atk = 100
+def = 70
+spa = 80
+spd = 80
+spe = 105
+pokedex_entry = "It can gallop at a top speed of 150 miles per hour. It can race as fast as a bullet train while ablaze."
+
+[[pokemon]]
+id = 79
+dex_number = 79
+name = "Slowpoke"
+sprite = "slowpoke.png"
+sprite_shiny = "slowpoke_shiny.png"
+type1_id = 11
+type2_id = 14
+hp = 90
+atk = 65
+def = 65
+spa = 40
+spd = 40
+spe = 15
+pokedex_entry = "It is always vacantly lost in thought, but no one knows what it is thinking about. It is good at fishing with its tail."
+
+[[pokemon]]
+id = 80
+dex_number = 80
+name = "Slowbro"
+sprite = "slowbro.png"
+sprite_shiny = "slowbro_shiny.png"
+type1_id = 11
+type2_id = 14
+hp = 95
+atk = 75
+def = 110
+spa = 100
+spd = 80
+spe = 30
+pokedex_entry = "When a SLOWPOKE went hunting in the sea, its tail was bitten by a SHELLDER. That made it evolve into SLOWBRO."
+
+[[pokemon]]
+id = 81
+dex_number = 81
+name = "Magnemite"
+sprite = "magnemite.png"
+sprite_shiny = "magnemite_shiny.png"
+type1_id = 13
+type2_id = 9
+hp = 25
+atk = 35
+def = 70
+spa = 95
+spd = 55
+spe = 45
+pokedex_entry = "It moves while constantly hovering. It discharges THUNDER WAVE and so on from the units at its sides."
+
+[[pokemon]]
+id = 82
+dex_number = 82
+name = "Magneton"
+sprite = "magneton.png"
+sprite_shiny = "magneton_shiny.png"
+type1_id = 13
+type2_id = 9
+hp = 50
+atk = 60
+def = 95
+spa = 120
+spd = 70
+spe = 70
+pokedex_entry = "A linked cluster formed of several MAGNEMITE. It discharges powerful magnetic waves at high voltage."
+
+[[pokemon]]
+id = 83
+dex_number = 83
+name = "Farfetch'd"
+sprite = "farfetchd.png"
+sprite_shiny = "farfetchd_shiny.png"
+type1_id = 1
+type2_id = 3
+hp = 52
+atk = 90
+def = 55
+spa = 58
+spd = 62
+spe = 60
+pokedex_entry = "It always walks about with a plant stalk clamped in its beak. The stalk is used for building its nest."
+
+[[pokemon]]
+id = 84
+dex_number = 84
+name = "Doduo"
+sprite = "doduo.png"
+sprite_shiny = "doduo_shiny.png"
+type1_id = 1
+type2_id = 3
+hp = 35
+atk = 85
+def = 45
+spa = 35
+spd = 35
+spe = 75
+pokedex_entry = "A two-headed POKéMON that was discovered as a sudden mutation. It runs at a pace of over 60 miles per hour."
+
+[[pokemon]]
+id = 85
+dex_number = 85
+name = "Dodrio"
+sprite = "dodrio.png"
+sprite_shiny = "dodrio_shiny.png"
+type1_id = 1
+type2_id = 3
+hp = 60
+atk = 110
+def = 70
+spa = 60
+spd = 60
+spe = 110
+pokedex_entry = "An odd species that is rarely found. The three heads respectively represent joy, sadness, and anger."
+
+[[pokemon]]
+id = 86
+dex_number = 86
+name = "Seel"
+sprite = "seel.png"
+sprite_shiny = "seel_shiny.png"
+type1_id = 11
+hp = 65
+atk = 45
+def = 55
+spa = 45
+spd = 70
+spe = 45
+pokedex_entry = "Covered with light blue fur, its hide is thick and tough. It is active in bitter cold of minus 40 degrees Fahrenheit."
+
+[[pokemon]]
+id = 87
+dex_number = 87
+name = "Dewgong"
+sprite = "dewgong.png"
+sprite_shiny = "dewgong_shiny.png"
+type1_id = 11
+type2_id = 15
+hp = 90
+atk = 70
+def = 80
+spa = 70
+spd = 95
+spe = 70
+pokedex_entry = "Its body is covered with a pure white fur. The colder the weather, the more active it becomes."
+
+[[pokemon]]
+id = 88
+dex_number = 88
+name = "Grimer"
+sprite = "grimer.png"
+sprite_shiny = "grimer_shiny.png"
+type1_id = 4
+hp = 80
+atk = 80
+def = 50
+spa = 40
+spd = 50
+spe = 25
+pokedex_entry = "Sludge exposed to X rays from the moon transformed into GRIMER. It loves feeding on filthy things."
+
+[[pokemon]]
+id = 89
+dex_number = 89
+name = "Muk"
+sprite = "muk.png"
+sprite_shiny = "muk_shiny.png"
+type1_id = 4
+hp = 105
+atk = 105
+def = 75
+spa = 65
+spd = 100
+spe = 50
+pokedex_entry = "It is usually undetectable because it blends in with the ground. Touching it can cause terrible poisoning."
+
+[[pokemon]]
+id = 90
+dex_number = 90
+name = "Shellder"
+sprite = "shellder.png"
+sprite_shiny = "shellder_shiny.png"
+type1_id = 11
+hp = 30
+atk = 65
+def = 100
+spa = 45
+spd = 25
+spe = 40
+pokedex_entry = "It is encased in a shell that is harder than diamond. Inside, however, it is surprisingly tender."
+
+[[pokemon]]
+id = 91
+dex_number = 91
+name = "Cloyster"
+sprite = "cloyster.png"
+sprite_shiny = "cloyster_shiny.png"
+type1_id = 11
+type2_id = 15
+hp = 50
+atk = 95
+def = 180
+spa = 85
+spd = 45
+spe = 70
+pokedex_entry = "Its shell is extremely hard. It cannot be shattered, even with a bomb. The shell opens only when it is attacking."
+
+[[pokemon]]
+id = 92
+dex_number = 92
+name = "Gastly"
+sprite = "gastly.png"
+sprite_shiny = "gastly_shiny.png"
+type1_id = 8
+type2_id = 4
+hp = 30
+atk = 35
+def = 30
+spa = 100
+spd = 35
+spe = 80
+pokedex_entry = "A being that exists as a thin gas. It can topple an Indian elephant by enveloping the prey in two seconds."
+
+[[pokemon]]
+id = 93
+dex_number = 93
+name = "Haunter"
+sprite = "haunter.png"
+sprite_shiny = "haunter_shiny.png"
+type1_id = 8
+type2_id = 4
+hp = 45
+atk = 50
+def = 45
+spa = 115
+spd = 55
+spe = 95
+pokedex_entry = "If you get the feeling of being watched in darkness when nobody is around, HAUNTER is there."
+
+[[pokemon]]
+id = 94
+dex_number = 94
+name = "Gengar"
+sprite = "gengar.png"
+sprite_shiny = "gengar_shiny.png"
+type1_id = 8
+type2_id = 4
+hp = 60
+atk = 65
+def = 60
+spa = 130
+spd = 75
+spe = 110
+pokedex_entry = "It is said to emerge from darkness to steal the lives of those who become lost in mountains."
+
+[[pokemon]]
+id = 95
+dex_number = 95
+name = "Onix"
+sprite = "onix.png"
+sprite_shiny = "onix_shiny.png"
+type1_id = 6
+type2_id = 5
+hp = 35
+atk = 45
+def = 160
+spa = 30
+spd = 45
+spe = 70
+pokedex_entry = "It usually lives underground. It searches for food while boring its way through the ground at 50 miles per hour."
+
+[[pokemon]]
+id = 96
+dex_number = 96
+name = "Drowzee"
+sprite = "drowzee.png"
+sprite_shiny = "drowzee_shiny.png"
+type1_id = 14
+hp = 60
+atk = 48
+def = 45
+spa = 43
+spd = 90
+spe = 42
+pokedex_entry = "A descendent of the legendary animal baku, which is said to eat dreams. It is skilled at hypnotism."
+
+[[pokemon]]
+id = 97
+dex_number = 97
+name = "Hypno"
+sprite = "hypno.png"
+sprite_shiny = "hypno_shiny.png"
+type1_id = 14
+hp = 85
+atk = 73
+def = 70
+spa = 73
+spd = 115
+spe = 67
+pokedex_entry = "It carries a pendulum-like device. There once was an incident in which it took away a child it hypnotized."
+
+[[pokemon]]
+id = 98
+dex_number = 98
+name = "Krabby"
+sprite = "krabby.png"
+sprite_shiny = "krabby_shiny.png"
+type1_id = 11
+hp = 30
+atk = 105
+def = 90
+spa = 25
+spd = 25
+spe = 50
+pokedex_entry = "It can be found near the sea. The large pincers grow back if they are torn out of their sockets."
+
+[[pokemon]]
+id = 99
+dex_number = 99
+name = "Kingler"
+sprite = "kingler.png"
+sprite_shiny = "kingler_shiny.png"
+type1_id = 11
+hp = 55
+atk = 130
+def = 115
+spa = 50
+spd = 50
+spe = 75
+pokedex_entry = "Its large and hard pincer has 10,000- horsepower strength. However, being so big, it is unwieldy to move."
+
+[[pokemon]]
+id = 100
+dex_number = 100
+name = "Voltorb"
+sprite = "voltorb.png"
+sprite_shiny = "voltorb_shiny.png"
+type1_id = 13
+hp = 40
+atk = 30
+def = 50
+spa = 55
+spd = 55
+spe = 100
+pokedex_entry = "A life-form whose identity is unknown. It is said to SCREECH or suddenly SELFDESTRUCT."
+
+[[pokemon]]
+id = 101
+dex_number = 101
+name = "Electrode"
+sprite = "electrode.png"
+sprite_shiny = "electrode_shiny.png"
+type1_id = 13
+hp = 60
+atk = 50
+def = 70
+spa = 80
+spd = 80
+spe = 150
+pokedex_entry = "It explodes in response to even minor stimuli. It is feared, with the nickname of “The Bomb Ball.”"
+
+[[pokemon]]
+id = 102
+dex_number = 102
+name = "Exeggcute"
+sprite = "exeggcute.png"
+sprite_shiny = "exeggcute_shiny.png"
+type1_id = 12
+type2_id = 14
+hp = 60
+atk = 40
+def = 80
+spa = 60
+spd = 45
+spe = 40
+pokedex_entry = "Even though it appears to be eggs of some sort, it was discovered to be a life- form more like plant seeds."
+
+[[pokemon]]
+id = 103
+dex_number = 103
+name = "Exeggutor"
+sprite = "exeggutor.png"
+sprite_shiny = "exeggutor_shiny.png"
+type1_id = 12
+type2_id = 14
+hp = 95
+atk = 95
+def = 85
+spa = 125
+spd = 75
+spe = 55
+pokedex_entry = "It is called “The Walking Tropical Rainforest.” Each of the nuts has a face and a will of its own."
+
+[[pokemon]]
+id = 104
+dex_number = 104
+name = "Cubone"
+sprite = "cubone.png"
+sprite_shiny = "cubone_shiny.png"
+type1_id = 5
+hp = 50
+atk = 50
+def = 95
+spa = 40
+spd = 50
+spe = 35
+pokedex_entry = "It wears the skull of its dead mother on its head. When it becomes lonesome, it is said to cry loudly."
+
+[[pokemon]]
+id = 105
+dex_number = 105
+name = "Marowak"
+sprite = "marowak.png"
+sprite_shiny = "marowak_shiny.png"
+type1_id = 5
+hp = 60
+atk = 80
+def = 110
+spa = 50
+spd = 80
+spe = 45
+pokedex_entry = "It is small and was originally very weak. Its temperament turned ferocious when it began using bones."
+
+[[pokemon]]
+id = 106
+dex_number = 106
+name = "Hitmonlee"
+sprite = "hitmonlee.png"
+sprite_shiny = "hitmonlee_shiny.png"
+type1_id = 2
+hp = 50
+atk = 120
+def = 53
+spa = 35
+spd = 110
+spe = 87
+pokedex_entry = "The legs freely contract and stretch. The stretchy legs allow it to hit a distant foe with a rising kick."
+
+[[pokemon]]
+id = 107
+dex_number = 107
+name = "Hitmonchan"
+sprite = "hitmonchan.png"
+sprite_shiny = "hitmonchan_shiny.png"
+type1_id = 2
+hp = 50
+atk = 105
+def = 79
+spa = 35
+spd = 110
+spe = 76
+pokedex_entry = "The spirit of a pro boxer has infused this POKéMON. It throws punches that are faster than a bullet train."
+
+[[pokemon]]
+id = 108
+dex_number = 108
+name = "Lickitung"
+sprite = "lickitung.png"
+sprite_shiny = "lickitung_shiny.png"
+type1_id = 1
+hp = 90
+atk = 55
+def = 75
+spa = 60
+spd = 75
+spe = 30
+pokedex_entry = "Its tongue is twice the length of its body. It can be moved like an arm for grabbing food and attacking."
+
+[[pokemon]]
+id = 109
+dex_number = 109
+name = "Koffing"
+sprite = "koffing.png"
+sprite_shiny = "koffing_shiny.png"
+type1_id = 4
+hp = 40
+atk = 65
+def = 95
+spa = 60
+spd = 45
+spe = 35
+pokedex_entry = "Its thin, balloon-like body is inflated by horribly toxic gases. It reeks when it is nearby."
+
+[[pokemon]]
+id = 110
+dex_number = 110
+name = "Weezing"
+sprite = "weezing.png"
+sprite_shiny = "weezing_shiny.png"
+type1_id = 4
+hp = 65
+atk = 90
+def = 120
+spa = 85
+spd = 70
+spe = 60
+pokedex_entry = "Very rarely, a sudden mutation can result in two small KOFFING twins becoming conjoined as a WEEZING."
+
+[[pokemon]]
+id = 111
+dex_number = 111
+name = "Rhyhorn"
+sprite = "rhyhorn.png"
+sprite_shiny = "rhyhorn_shiny.png"
+type1_id = 5
+type2_id = 6
+hp = 80
+atk = 85
+def = 95
+spa = 30
+spd = 30
+spe = 25
+pokedex_entry = "Strong, but not too bright, this POKéMON can shatter even a skyscraper with its charging TACKLES."
+
+[[pokemon]]
+id = 112
+dex_number = 112
+name = "Rhydon"
+sprite = "rhydon.png"
+sprite_shiny = "rhydon_shiny.png"
+type1_id = 5
+type2_id = 6
+hp = 105
+atk = 130
+def = 120
+spa = 45
+spd = 45
+spe = 40
+pokedex_entry = "It begins walking on its hind legs after evolution. It can punch holes through boulders with its horn."
+
+[[pokemon]]
+id = 113
+dex_number = 113
+name = "Chansey"
+sprite = "chansey.png"
+sprite_shiny = "chansey_shiny.png"
+type1_id = 1
+hp = 250
+atk = 5
+def = 5
+spa = 35
+spd = 105
+spe = 50
+pokedex_entry = "It lays several eggs a day. The eggs are apparently rich in nutrients and extremely delicious."
+
+[[pokemon]]
+id = 114
+dex_number = 114
+name = "Tangela"
+sprite = "tangela.png"
+sprite_shiny = "tangela_shiny.png"
+type1_id = 12
+hp = 65
+atk = 55
+def = 115
+spa = 100
+spd = 40
+spe = 60
+pokedex_entry = "Blue plant vines cloak the POKéMON’s identity in a tangled mass. It entangles anything that gets close."
+
+[[pokemon]]
+id = 115
+dex_number = 115
+name = "Kangaskhan"
+sprite = "kangaskhan.png"
+sprite_shiny = "kangaskhan_shiny.png"
+type1_id = 1
+hp = 105
+atk = 95
+def = 80
+spa = 40
+spd = 80
+spe = 90
+pokedex_entry = "The female raises its offspring in a pouch on its belly. It is skilled at attacking using COMET PUNCH."
+
+[[pokemon]]
+id = 116
+dex_number = 116
+name = "Horsea"
+sprite = "horsea.png"
+sprite_shiny = "horsea_shiny.png"
+type1_id = 11
+hp = 30
+atk = 40
+def = 70
+spa = 70
+spd = 25
+spe = 60
+pokedex_entry = "It maintains balance using its tail, which is wound up like a coil. It may spray ink from its mouth."
+
+[[pokemon]]
+id = 117
+dex_number = 117
+name = "Seadra"
+sprite = "seadra.png"
+sprite_shiny = "seadra_shiny.png"
+type1_id = 11
+hp = 55
+atk = 65
+def = 95
+spa = 95
+spd = 45
+spe = 85
+pokedex_entry = "Its body bristles with sharp spikes. Carelessly trying to touch it could cause fainting from the spikes."
+
+[[pokemon]]
+id = 118
+dex_number = 118
+name = "Goldeen"
+sprite = "goldeen.png"
+sprite_shiny = "goldeen_shiny.png"
+type1_id = 11
+hp = 45
+atk = 67
+def = 60
+spa = 35
+spd = 50
+spe = 63
+pokedex_entry = "Its dorsal and pectoral fins are strongly developed like muscles. It can swim at a speed of five knots."
+
+[[pokemon]]
+id = 119
+dex_number = 119
+name = "Seaking"
+sprite = "seaking.png"
+sprite_shiny = "seaking_shiny.png"
+type1_id = 11
+hp = 80
+atk = 92
+def = 65
+spa = 65
+spd = 80
+spe = 68
+pokedex_entry = "The horn on its head is sharp like a drill. It bores a hole in a boulder to make its nest."
+
+[[pokemon]]
+id = 120
+dex_number = 120
+name = "Staryu"
+sprite = "staryu.png"
+sprite_shiny = "staryu_shiny.png"
+type1_id = 11
+hp = 30
+atk = 45
+def = 55
+spa = 70
+spd = 55
+spe = 85
+pokedex_entry = "It appears in large numbers by seashores. At night, its central core flashes with a red light."
+
+[[pokemon]]
+id = 121
+dex_number = 121
+name = "Starmie"
+sprite = "starmie.png"
+sprite_shiny = "starmie_shiny.png"
+type1_id = 11
+type2_id = 14
+hp = 60
+atk = 75
+def = 85
+spa = 100
+spd = 85
+spe = 115
+pokedex_entry = "This POKéMON has a geometric body. Because of its body, the locals suspect that it is an alien creature."
+
+[[pokemon]]
+id = 122
+dex_number = 122
+name = "Mr. Mime"
+sprite = "mr-mime.png"
+sprite_shiny = "mr-mime_shiny.png"
+type1_id = 14
+type2_id = 18
+hp = 40
+atk = 45
+def = 65
+spa = 100
+spd = 120
+spe = 90
+pokedex_entry = "It is adept at conning people. It is said to be able to create walls out of thin air by miming."
+
+[[pokemon]]
+id = 123
+dex_number = 123
+name = "Scyther"
+sprite = "scyther.png"
+sprite_shiny = "scyther_shiny.png"
+type1_id = 7
+type2_id = 3
+hp = 70
+atk = 110
+def = 80
+spa = 55
+spd = 80
+spe = 105
+pokedex_entry = "It tears and shreds prey with its wickedly sharp scythes. It very rarely spreads its wings to fly."
+
+[[pokemon]]
+id = 124
+dex_number = 124
+name = "Jynx"
+sprite = "jynx.png"
+sprite_shiny = "jynx_shiny.png"
+type1_id = 15
+type2_id = 14
+hp = 65
+atk = 50
+def = 35
+spa = 115
+spd = 95
+spe = 95
+pokedex_entry = "It speaks using a language that sounds human. Research is under way to determine what is being said."
+
+[[pokemon]]
+id = 125
+dex_number = 125
+name = "Electabuzz"
+sprite = "electabuzz.png"
+sprite_shiny = "electabuzz_shiny.png"
+type1_id = 13
+hp = 65
+atk = 83
+def = 57
+spa = 95
+spd = 85
+spe = 105
+pokedex_entry = "It loves to feed on strong electricity. It occasionally appears around large power plants and so on."
+
+[[pokemon]]
+id = 126
+dex_number = 126
+name = "Magmar"
+sprite = "magmar.png"
+sprite_shiny = "magmar_shiny.png"
+type1_id = 10
+hp = 65
+atk = 95
+def = 57
+spa = 100
+spd = 85
+spe = 93
+pokedex_entry = "Found near the mouth of a volcano. This fire-breather’s body temperature is nearly 2,200 degrees Fahrenheit."
+
+[[pokemon]]
+id = 127
+dex_number = 127
+name = "Pinsir"
+sprite = "pinsir.png"
+sprite_shiny = "pinsir_shiny.png"
+type1_id = 7
+hp = 65
+atk = 125
+def = 100
+spa = 55
+spd = 70
+spe = 85
+pokedex_entry = "Its two long pincer horns are powerful. Once they grip an enemy, they won’t release until the foe is torn."
+
+[[pokemon]]
+id = 128
+dex_number = 128
+name = "Tauros"
+sprite = "tauros.png"
+sprite_shiny = "tauros_shiny.png"
+type1_id = 1
+hp = 75
+atk = 100
+def = 95
+spa = 40
+spd = 70
+spe = 110
+pokedex_entry = "When it is about to TACKLE, it whips its body repeatedly with its three long tails."
+
+[[pokemon]]
+id = 129
+dex_number = 129
+name = "Magikarp"
+sprite = "magikarp.png"
+sprite_shiny = "magikarp_shiny.png"
+type1_id = 11
+hp = 20
+atk = 10
+def = 55
+spa = 15
+spd = 20
+spe = 80
+pokedex_entry = "It is virtually worthless in terms of both power and speed. It is the most weak and pathetic POKéMON in the world."
+
+[[pokemon]]
+id = 130
+dex_number = 130
+name = "Gyarados"
+sprite = "gyarados.png"
+sprite_shiny = "gyarados_shiny.png"
+type1_id = 11
+type2_id = 3
+hp = 95
+atk = 125
+def = 79
+spa = 60
+spd = 100
+spe = 81
+pokedex_entry = "It has an extremely aggressive nature. The HYPER BEAM it shoots from its mouth totally incinerates all targets."
+
+[[pokemon]]
+id = 131
+dex_number = 131
+name = "Lapras"
+sprite = "lapras.png"
+sprite_shiny = "lapras_shiny.png"
+type1_id = 11
+type2_id = 15
+hp = 130
+atk = 85
+def = 80
+spa = 85
+spd = 95
+spe = 60
+pokedex_entry = "Its high intelligence enables it to understand human speech. It likes to ferry people on its back."
+
+[[pokemon]]
+id = 132
+dex_number = 132
+name = "Ditto"
+sprite = "ditto.png"
+sprite_shiny = "ditto_shiny.png"
+type1_id = 1
+hp = 48
+atk = 48
+def = 48
+spa = 48
+spd = 48
+spe = 48
+pokedex_entry = "It can freely recombine its own cellular structure to transform into other life- forms."
+
+[[pokemon]]
+id = 133
+dex_number = 133
+name = "Eevee"
+sprite = "eevee.png"
+sprite_shiny = "eevee_shiny.png"
+type1_id = 1
+hp = 55
+atk = 55
+def = 50
+spa = 45
+spd = 65
+spe = 55
+pokedex_entry = "An extremely rare POKéMON that may evolve in a number of different ways depending on stimuli."
+
+[[pokemon]]
+id = 134
+dex_number = 134
+name = "Vaporeon"
+sprite = "vaporeon.png"
+sprite_shiny = "vaporeon_shiny.png"
+type1_id = 11
+hp = 130
+atk = 65
+def = 60
+spa = 110
+spd = 95
+spe = 65
+pokedex_entry = "Its body’s cellular structure is similar to the molecular composition of water. It can melt invisibly in water."
+
+[[pokemon]]
+id = 135
+dex_number = 135
+name = "Jolteon"
+sprite = "jolteon.png"
+sprite_shiny = "jolteon_shiny.png"
+type1_id = 13
+hp = 65
+atk = 65
+def = 60
+spa = 110
+spd = 95
+spe = 130
+pokedex_entry = "If it is angered or startled, the fur all over its body bristles like sharp needles that pierce foes."
+
+[[pokemon]]
+id = 136
+dex_number = 136
+name = "Flareon"
+sprite = "flareon.png"
+sprite_shiny = "flareon_shiny.png"
+type1_id = 10
+hp = 65
+atk = 130
+def = 60
+spa = 95
+spd = 110
+spe = 65
+pokedex_entry = "It has a flame bag inside its body. After inhaling deeply, it blows out flames of nearly 3,100 degrees Fahrenheit."
+
+[[pokemon]]
+id = 137
+dex_number = 137
+name = "Porygon"
+sprite = "porygon.png"
+sprite_shiny = "porygon_shiny.png"
+type1_id = 1
+hp = 65
+atk = 60
+def = 70
+spa = 85
+spd = 75
+spe = 40
+pokedex_entry = "Using the most advanced technologies, scientists finally succeeded in making the first artificial POKéMON."
+
+[[pokemon]]
+id = 138
+dex_number = 138
+name = "Omanyte"
+sprite = "omanyte.png"
+sprite_shiny = "omanyte_shiny.png"
+type1_id = 6
+type2_id = 11
+hp = 35
+atk = 40
+def = 100
+spa = 90
+spd = 55
+spe = 35
+pokedex_entry = "A prehistoric POKéMON that lived in the primordial sea, it swims by twisting its 10 tentacles about."
+
+[[pokemon]]
+id = 139
+dex_number = 139
+name = "Omastar"
+sprite = "omastar.png"
+sprite_shiny = "omastar_shiny.png"
+type1_id = 6
+type2_id = 11
+hp = 70
+atk = 60
+def = 125
+spa = 115
+spd = 70
+spe = 55
+pokedex_entry = "Its tentacles are highly developed as if they are hands and feet. As soon as it ensnares prey, it bites."
+
+[[pokemon]]
+id = 140
+dex_number = 140
+name = "Kabuto"
+sprite = "kabuto.png"
+sprite_shiny = "kabuto_shiny.png"
+type1_id = 6
+type2_id = 11
+hp = 30
+atk = 80
+def = 90
+spa = 55
+spd = 45
+spe = 55
+pokedex_entry = "This POKéMON was regenerated from the fossil of an ancient creature. It protects itself with a hard shell."
+
+[[pokemon]]
+id = 141
+dex_number = 141
+name = "Kabutops"
+sprite = "kabutops.png"
+sprite_shiny = "kabutops_shiny.png"
+type1_id = 6
+type2_id = 11
+hp = 60
+atk = 115
+def = 105
+spa = 65
+spd = 70
+spe = 80
+pokedex_entry = "It swims freely through water. It catches prey with its scythe-like arms and drains the victim’s fluids."
+
+[[pokemon]]
+id = 142
+dex_number = 142
+name = "Aerodactyl"
+sprite = "aerodactyl.png"
+sprite_shiny = "aerodactyl_shiny.png"
+type1_id = 6
+type2_id = 3
+hp = 80
+atk = 105
+def = 65
+spa = 60
+spd = 75
+spe = 130
+pokedex_entry = "It was regenerated from a dinosaur’s genetic matter that was found in amber. It flies with high-pitched cries."
+
+[[pokemon]]
+id = 143
+dex_number = 143
+name = "Snorlax"
+sprite = "snorlax.png"
+sprite_shiny = "snorlax_shiny.png"
+type1_id = 1
+hp = 160
+atk = 110
+def = 65
+spa = 65
+spd = 110
+spe = 30
+pokedex_entry = "It is not satisfied unless it eats over 880 pounds of food every day. When it is done eating, it goes promptly to sleep."
+
+[[pokemon]]
+id = 144
+dex_number = 144
+name = "Articuno"
+sprite = "articuno.png"
+sprite_shiny = "articuno_shiny.png"
+type1_id = 15
+type2_id = 3
+hp = 90
+atk = 85
+def = 100
+spa = 95
+spd = 125
+spe = 85
+pokedex_entry = "One of the legendary bird POKéMON. With its long tail trailing behind, its flying form is magnificent."
+
+[[pokemon]]
+id = 145
+dex_number = 145
+name = "Zapdos"
+sprite = "zapdos.png"
+sprite_shiny = "zapdos_shiny.png"
+type1_id = 13
+type2_id = 3
+hp = 90
+atk = 90
+def = 85
+spa = 125
+spd = 90
+spe = 100
+pokedex_entry = "One of the legendary bird POKéMON. While it is flying, it makes crackling and snapping sounds."
+
+[[pokemon]]
+id = 146
+dex_number = 146
+name = "Moltres"
+sprite = "moltres.png"
+sprite_shiny = "moltres_shiny.png"
+type1_id = 10
+type2_id = 3
+hp = 90
+atk = 100
+def = 90
+spa = 125
+spd = 85
+spe = 90
+pokedex_entry = "One of the legendary bird POKéMON. Those seeing it are overwhelmed by its orange wings that seem to be on fire."
+
+[[pokemon]]
+id = 147
+dex_number = 147
+name = "Dratini"
+sprite = "dratini.png"
+sprite_shiny = "dratini_shiny.png"
+type1_id = 16
+hp = 41
+atk = 64
+def = 45
+spa = 50
+spd = 50
+spe = 50
+pokedex_entry = "Even the young can exceed 6.5 feet in length. It grows larger by repeatedly shedding skin."
+
+[[pokemon]]
+id = 148
+dex_number = 148
+name = "Dragonair"
+sprite = "dragonair.png"
+sprite_shiny = "dragonair_shiny.png"
+type1_id = 16
+hp = 61
+atk = 84
+def = 65
+spa = 70
+spd = 70
+spe = 70
+pokedex_entry = "It is said to live in seas and lakes. Even though it has no wings, it has been seen flying occasionally."
+
+[[pokemon]]
+id = 149
+dex_number = 149
+name = "Dragonite"
+sprite = "dragonite.png"
+sprite_shiny = "dragonite_shiny.png"
+type1_id = 16
+type2_id = 3
+hp = 91
+atk = 134
+def = 95
+spa = 100
+spd = 100
+spe = 80
+pokedex_entry = "It can fly in spite of its big and bulky physique. It circles the globe in just 16 hours."
+
+[[pokemon]]
+id = 150
+dex_number = 150
+name = "Mewtwo"
+sprite = "mewtwo.png"
+sprite_shiny = "mewtwo_shiny.png"
+type1_id = 14
+hp = 106
+atk = 110
+def = 90
+spa = 154
+spd = 90
+spe = 130
+pokedex_entry = "A POKéMON whose genetic code was repeatedly recombined for research. It turned vicious as a result."
+
+[[pokemon]]
+id = 151
+dex_number = 151
+name = "Mew"
+sprite = "mew.png"
+sprite_shiny = "mew_shiny.png"
+type1_id = 14
+hp = 100
+atk = 100
+def = 100
+spa = 100
+spd = 100
+spe = 100
+pokedex_entry = "A POKéMON of South America that was thought to have been extinct. It is very intelligent and learns any move."
+
+# ── Alternate Forms (manually curated) ──
 
 [[pokemon]]
 id = 2003

@@ -1,6 +1,41 @@
 [[status_condition]]
 id = 1
 name = "Burn"
-description = "Causa dano fixo a cada turno e corta o dano físico pela metade."
+description = "Deals 1/8 max HP damage each turn and halves physical attack damage."
 icon = "brn.png"
+is_volatile = false
+
+[[status_condition]]
+id = 2
+name = "Freeze"
+description = "The Pokémon is frozen solid and cannot move. There is a 20% chance of thawing each turn."
+icon = "frz.png"
+is_volatile = false
+
+[[status_condition]]
+id = 3
+name = "Paralysis"
+description = "Speed is reduced by 50% and each turn there is a 25% chance the Pokémon cannot move."
+icon = "par.png"
+is_volatile = false
+
+[[status_condition]]
+id = 4
+name = "Poison"
+description = "Deals 1/8 max HP damage at the end of each turn."
+icon = "psn.png"
+is_volatile = false
+
+[[status_condition]]
+id = 5
+name = "Bad Poison"
+description = "Damage increases each turn: 1/16, 2/16, 3/16... of max HP."
+icon = "tox.png"
+is_volatile = false
+
+[[status_condition]]
+id = 6
+name = "Sleep"
+description = "The Pokémon cannot move for 1-3 turns."
+icon = "slp.png"
 is_volatile = false
