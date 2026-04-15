@@ -105,3 +105,9 @@ id = 18
 name = "Fairy"
 hexcolor = "#EF70EF"
 icon = "fairy.png"
+
+[[type]]
+id = 19
+name = "Stellar"
+hexcolor = "#83cfc5"
+icon = "stellar.png"

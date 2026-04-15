@@ -239,17 +239,18 @@ ALOLAN_FORMS = [
 
 # --- Galarian Forms ---
 GALARIAN_FORMS = [
-    ("meowth-galar",     "Galarian Meowth",       52, 0),
-    ("ponyta-galar",     "Galarian Ponyta",       77, 0),
-    ("rapidash-galar",   "Galarian Rapidash",     78, 0),
-    ("slowpoke-galar",   "Galarian Slowpoke",      79, 0),
-    ("slowbro-galar",    "Galarian Slowbro",       80, 0),
-    ("farfetchd-galar",  "Galarian Farfetch'd",    83, 0),
-    ("weezing-galar",    "Galarian Weezing",      110, 0),
-    ("mr-mime-galar",    "Galarian Mr. Mime",     122, 0),
-    ("articuno-galar",   "Galarian Articuno",     144, 0),
-    ("zapdos-galar",     "Galarian Zapdos",       145, 0),
-    ("moltres-galar",    "Galarian Moltres",       146, 0),
+    ("meowth-galar", "Galarian Meowth", 52, 0),
+    ("ponyta-galar", "Galarian Ponyta", 77, 0),
+    ("rapidash-galar", "Galarian Rapidash", 78, 0),
+    ("slowpoke-galar", "Galarian Slowpoke", 79, 0),
+    ("slowbro-galar", "Galarian Slowbro", 80, 0),
+    ("slowking-galar", "Galarian Slowking", 199, 0),
+    ("farfetchd-galar", "Galarian Farfetch'd", 83, 0),
+    ("weezing-galar", "Galarian Weezing", 110, 0),
+    ("mr-mime-galar", "Galarian Mr. Mime", 122, 0),
+    ("articuno-galar", "Galarian Articuno", 144, 0),
+    ("zapdos-galar", "Galarian Zapdos", 145, 0),
+    ("moltres-galar", "Galarian Moltres", 146, 0),
 ]
 
 # --- Hisuian Forms ---
@@ -312,10 +313,9 @@ CROSS_GEN_EVOLUTIONS = [
 
 # --- Regional Evolutions (from Galarian forms) ---
 REGIONAL_EVOLUTIONS = [
-    ("perrserker",       "Perrserker",        862, "sword-shield"),
-    ("sirfetchd",        "Sirfetch'd",         865, "sword-shield"),
-    ("mr-rime",          "Mr. Rime",           866, "sword-shield"),
-    ("slowking-galar",   "Galarian Slowking",  991, "sword-shield"),
+    ("perrserker", "Perrserker", 862, "sword-shield"),
+    ("sirfetchd", "Sirfetch'd", 865, "sword-shield"),
+    ("mr-rime", "Mr. Rime", 866, "sword-shield"),
 ]
 
 # --- Convergent Species ---
@@ -378,7 +378,7 @@ EVOLUTION_LINKS = [
     (40520, 862, "level", "28"),
     (40830, 865, "level", "25"),
     (41220, 866, "level", "42"),
-    (40790, 991, "trade", "Galarica Wreath"),
+    (40790, 41990, "trade", "Galarica Wreath"),
 ]
 
 # --- Regional form evolution links ---
@@ -445,8 +445,16 @@ def fetch_form_pokemon(slug, display_name, form_id_val, base_dex, category):
         hidden = ab.get("is_hidden", False)
         abilities.append((ab_id, slot, hidden))
 
-    sprite_url = poke_data["sprites"].get("front_default", "")
-    sprite_shiny_url = poke_data["sprites"].get("front_shiny", "")
+    sprite_url = (
+        poke_data["sprites"].get("front_default")
+        or poke_data["sprites"].get("other", {}).get("official-artwork", {}).get("front_default", "")
+        or ""
+    )
+    sprite_shiny_url = (
+        poke_data["sprites"].get("front_shiny")
+        or poke_data["sprites"].get("other", {}).get("official-artwork", {}).get("front_shiny", "")
+        or ""
+    )
 
     species_data = fetch_json(f"{POKEAPI_BASE}/pokemon-species/{poke_data['species']['name']}")
     pokedex_entry = ""
@@ -519,8 +527,16 @@ def fetch_new_species_pokemon(slug, display_name, national_dex, version_group):
     if not pokedex_entry:
         pokedex_entry = display_name
 
-    sprite_url = poke_data["sprites"].get("front_default", "")
-    sprite_shiny_url = poke_data["sprites"].get("front_shiny", "")
+    sprite_url = (
+        poke_data["sprites"].get("front_default")
+        or poke_data["sprites"].get("other", {}).get("official-artwork", {}).get("front_default", "")
+        or ""
+    )
+    sprite_shiny_url = (
+        poke_data["sprites"].get("front_shiny")
+        or poke_data["sprites"].get("other", {}).get("official-artwork", {}).get("front_shiny", "")
+        or ""
+    )
 
     learnset_data = fetch_learnset(slug, version_group)
 
@@ -697,8 +713,16 @@ def fetch_gmax_as_form(slug, display_name, form_id_val, base_dex):
         for ab in poke_data["abilities"]:
             ab_id = int(ab["ability"]["url"].rstrip("/").split("/")[-1])
             abilities.append((ab_id, ab["slot"], ab.get("is_hidden", False)))
-        sprite_url = poke_data["sprites"].get("front_default", "")
-        sprite_shiny_url = poke_data["sprites"].get("front_shiny", "")
+        sprite_url = (
+            poke_data["sprites"].get("front_default")
+            or poke_data["sprites"].get("other", {}).get("official-artwork", {}).get("front_default", "")
+            or ""
+        )
+        sprite_shiny_url = (
+            poke_data["sprites"].get("front_shiny")
+            or poke_data["sprites"].get("other", {}).get("official-artwork", {}).get("front_shiny", "")
+            or ""
+        )
     except urllib.error.HTTPError:
         base_slug = slug.replace("-gmax", "")
         try:

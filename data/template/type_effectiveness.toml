@@ -8,7 +8,7 @@ multiplier = 0.5
 [[type_effectiveness]]
 attacker_id = 1
 defender_id = 8
-multiplier = 0
+multiplier = 0.0
 
 # Normal -> Steel
 [[type_effectiveness]]
@@ -20,7 +20,7 @@ multiplier = 0.5
 [[type_effectiveness]]
 attacker_id = 2
 defender_id = 1
-multiplier = 2
+multiplier = 2.0
 
 # Fighting -> Flying
 [[type_effectiveness]]
@@ -38,7 +38,7 @@ multiplier = 0.5
 [[type_effectiveness]]
 attacker_id = 2
 defender_id = 6
-multiplier = 2
+multiplier = 2.0
 
 # Fighting -> Bug
 [[type_effectiveness]]
@@ -50,25 +50,31 @@ multiplier = 0.5
 [[type_effectiveness]]
 attacker_id = 2
 defender_id = 8
-multiplier = 0
+multiplier = 0.0
 
 # Fighting -> Steel
 [[type_effectiveness]]
 attacker_id = 2
 defender_id = 9
-multiplier = 2
+multiplier = 2.0
+
+# Fighting -> Psychic
+[[type_effectiveness]]
+attacker_id = 2
+defender_id = 14
+multiplier = 0.5
 
 # Fighting -> Ice
 [[type_effectiveness]]
 attacker_id = 2
 defender_id = 15
-multiplier = 2
+multiplier = 2.0
 
 # Fighting -> Dark
 [[type_effectiveness]]
 attacker_id = 2
 defender_id = 17
-multiplier = 2
+multiplier = 2.0
 
 # Fighting -> Fairy
 [[type_effectiveness]]
@@ -80,7 +86,7 @@ multiplier = 0.5
 [[type_effectiveness]]
 attacker_id = 3
 defender_id = 2
-multiplier = 2
+multiplier = 2.0
 
 # Flying -> Rock
 [[type_effectiveness]]
@@ -92,7 +98,7 @@ multiplier = 0.5
 [[type_effectiveness]]
 attacker_id = 3
 defender_id = 7
-multiplier = 2
+multiplier = 2.0
 
 # Flying -> Steel
 [[type_effectiveness]]
@@ -104,7 +110,7 @@ multiplier = 0.5
 [[type_effectiveness]]
 attacker_id = 3
 defender_id = 12
-multiplier = 2
+multiplier = 2.0
 
 # Flying -> Electric
 [[type_effectiveness]]
@@ -140,37 +146,37 @@ multiplier = 0.5
 [[type_effectiveness]]
 attacker_id = 4
 defender_id = 9
-multiplier = 0
+multiplier = 0.0
 
 # Poison -> Grass
 [[type_effectiveness]]
 attacker_id = 4
 defender_id = 12
-multiplier = 2
+multiplier = 2.0
 
 # Poison -> Fairy
 [[type_effectiveness]]
 attacker_id = 4
 defender_id = 18
-multiplier = 2
+multiplier = 2.0
 
 # Ground -> Flying
 [[type_effectiveness]]
 attacker_id = 5
 defender_id = 3
-multiplier = 0
+multiplier = 0.0
 
 # Ground -> Poison
 [[type_effectiveness]]
 attacker_id = 5
 defender_id = 4
-multiplier = 2
+multiplier = 2.0
 
 # Ground -> Rock
 [[type_effectiveness]]
 attacker_id = 5
 defender_id = 6
-multiplier = 2
+multiplier = 2.0
 
 # Ground -> Bug
 [[type_effectiveness]]
@@ -182,13 +188,13 @@ multiplier = 0.5
 [[type_effectiveness]]
 attacker_id = 5
 defender_id = 9
-multiplier = 2
+multiplier = 2.0
 
 # Ground -> Fire
 [[type_effectiveness]]
 attacker_id = 5
 defender_id = 10
-multiplier = 2
+multiplier = 2.0
 
 # Ground -> Grass
 [[type_effectiveness]]
@@ -200,7 +206,7 @@ multiplier = 0.5
 [[type_effectiveness]]
 attacker_id = 5
 defender_id = 13
-multiplier = 2
+multiplier = 2.0
 
 # Rock -> Fighting
 [[type_effectiveness]]
@@ -212,7 +218,7 @@ multiplier = 0.5
 [[type_effectiveness]]
 attacker_id = 6
 defender_id = 3
-multiplier = 2
+multiplier = 2.0
 
 # Rock -> Ground
 [[type_effectiveness]]
@@ -224,7 +230,7 @@ multiplier = 0.5
 [[type_effectiveness]]
 attacker_id = 6
 defender_id = 7
-multiplier = 2
+multiplier = 2.0
 
 # Rock -> Steel
 [[type_effectiveness]]
@@ -236,13 +242,13 @@ multiplier = 0.5
 [[type_effectiveness]]
 attacker_id = 6
 defender_id = 10
-multiplier = 2
+multiplier = 2.0
 
 # Rock -> Ice
 [[type_effectiveness]]
 attacker_id = 6
 defender_id = 15
-multiplier = 2
+multiplier = 2.0
 
 # Bug -> Fighting
 [[type_effectiveness]]
@@ -284,19 +290,19 @@ multiplier = 0.5
 [[type_effectiveness]]
 attacker_id = 7
 defender_id = 12
-multiplier = 2
+multiplier = 2.0
 
 # Bug -> Psychic
 [[type_effectiveness]]
 attacker_id = 7
 defender_id = 14
-multiplier = 2
+multiplier = 2.0
 
 # Bug -> Dark
 [[type_effectiveness]]
 attacker_id = 7
 defender_id = 17
-multiplier = 2
+multiplier = 2.0
 
 # Bug -> Fairy
 [[type_effectiveness]]
@@ -308,19 +314,19 @@ multiplier = 0.5
 [[type_effectiveness]]
 attacker_id = 8
 defender_id = 1
-multiplier = 0
+multiplier = 0.0
 
 # Ghost -> Ghost
 [[type_effectiveness]]
 attacker_id = 8
 defender_id = 8
-multiplier = 2
+multiplier = 2.0
 
 # Ghost -> Psychic
 [[type_effectiveness]]
 attacker_id = 8
 defender_id = 14
-multiplier = 2
+multiplier = 2.0
 
 # Ghost -> Dark
 [[type_effectiveness]]
@@ -332,7 +338,7 @@ multiplier = 0.5
 [[type_effectiveness]]
 attacker_id = 9
 defender_id = 6
-multiplier = 2
+multiplier = 2.0
 
 # Steel -> Steel
 [[type_effectiveness]]
@@ -362,13 +368,13 @@ multiplier = 0.5
 [[type_effectiveness]]
 attacker_id = 9
 defender_id = 15
-multiplier = 2
+multiplier = 2.0
 
 # Steel -> Fairy
 [[type_effectiveness]]
 attacker_id = 9
 defender_id = 18
-multiplier = 2
+multiplier = 2.0
 
 # Fire -> Rock
 [[type_effectiveness]]
@@ -380,13 +386,13 @@ multiplier = 0.5
 [[type_effectiveness]]
 attacker_id = 10
 defender_id = 7
-multiplier = 2
+multiplier = 2.0
 
 # Fire -> Steel
 [[type_effectiveness]]
 attacker_id = 10
 defender_id = 9
-multiplier = 2
+multiplier = 2.0
 
 # Fire -> Fire
 [[type_effectiveness]]
@@ -404,13 +410,13 @@ multiplier = 0.5
 [[type_effectiveness]]
 attacker_id = 10
 defender_id = 12
-multiplier = 2
+multiplier = 2.0
 
 # Fire -> Ice
 [[type_effectiveness]]
 attacker_id = 10
 defender_id = 15
-multiplier = 2
+multiplier = 2.0
 
 # Fire -> Dragon
 [[type_effectiveness]]
@@ -422,19 +428,19 @@ multiplier = 0.5
 [[type_effectiveness]]
 attacker_id = 11
 defender_id = 5
-multiplier = 2
+multiplier = 2.0
 
 # Water -> Rock
 [[type_effectiveness]]
 attacker_id = 11
 defender_id = 6
-multiplier = 2
+multiplier = 2.0
 
 # Water -> Fire
 [[type_effectiveness]]
 attacker_id = 11
 defender_id = 10
-multiplier = 2
+multiplier = 2.0
 
 # Water -> Water
 [[type_effectiveness]]
@@ -470,13 +476,13 @@ multiplier = 0.5
 [[type_effectiveness]]
 attacker_id = 12
 defender_id = 5
-multiplier = 2
+multiplier = 2.0
 
 # Grass -> Rock
 [[type_effectiveness]]
 attacker_id = 12
 defender_id = 6
-multiplier = 2
+multiplier = 2.0
 
 # Grass -> Bug
 [[type_effectiveness]]
@@ -500,7 +506,7 @@ multiplier = 0.5
 [[type_effectiveness]]
 attacker_id = 12
 defender_id = 11
-multiplier = 2
+multiplier = 2.0
 
 # Grass -> Grass
 [[type_effectiveness]]
@@ -518,19 +524,19 @@ multiplier = 0.5
 [[type_effectiveness]]
 attacker_id = 13
 defender_id = 3
-multiplier = 2
+multiplier = 2.0
 
 # Electric -> Ground
 [[type_effectiveness]]
 attacker_id = 13
 defender_id = 5
-multiplier = 0
+multiplier = 0.0
 
 # Electric -> Water
 [[type_effectiveness]]
 attacker_id = 13
 defender_id = 11
-multiplier = 2
+multiplier = 2.0
 
 # Electric -> Grass
 [[type_effectiveness]]
@@ -554,13 +560,13 @@ multiplier = 0.5
 [[type_effectiveness]]
 attacker_id = 14
 defender_id = 2
-multiplier = 2
+multiplier = 2.0
 
 # Psychic -> Poison
 [[type_effectiveness]]
 attacker_id = 14
 defender_id = 4
-multiplier = 2
+multiplier = 2.0
 
 # Psychic -> Steel
 [[type_effectiveness]]
@@ -578,19 +584,19 @@ multiplier = 0.5
 [[type_effectiveness]]
 attacker_id = 14
 defender_id = 17
-multiplier = 0
+multiplier = 0.0
 
 # Ice -> Flying
 [[type_effectiveness]]
 attacker_id = 15
 defender_id = 3
-multiplier = 2
+multiplier = 2.0
 
 # Ice -> Ground
 [[type_effectiveness]]
 attacker_id = 15
 defender_id = 5
-multiplier = 2
+multiplier = 2.0
 
 # Ice -> Steel
 [[type_effectiveness]]
@@ -614,7 +620,7 @@ multiplier = 0.5
 [[type_effectiveness]]
 attacker_id = 15
 defender_id = 12
-multiplier = 2
+multiplier = 2.0
 
 # Ice -> Ice
 [[type_effectiveness]]
@@ -626,7 +632,7 @@ multiplier = 0.5
 [[type_effectiveness]]
 attacker_id = 15
 defender_id = 16
-multiplier = 2
+multiplier = 2.0
 
 # Dragon -> Steel
 [[type_effectiveness]]
@@ -638,13 +644,13 @@ multiplier = 0.5
 [[type_effectiveness]]
 attacker_id = 16
 defender_id = 16
-multiplier = 2
+multiplier = 2.0
 
 # Dragon -> Fairy
 [[type_effectiveness]]
 attacker_id = 16
 defender_id = 18
-multiplier = 0
+multiplier = 0.0
 
 # Dark -> Fighting
 [[type_effectiveness]]
@@ -656,13 +662,13 @@ multiplier = 0.5
 [[type_effectiveness]]
 attacker_id = 17
 defender_id = 8
-multiplier = 2
+multiplier = 2.0
 
 # Dark -> Psychic
 [[type_effectiveness]]
 attacker_id = 17
 defender_id = 14
-multiplier = 2
+multiplier = 2.0
 
 # Dark -> Dark
 [[type_effectiveness]]
@@ -680,7 +686,7 @@ multiplier = 0.5
 [[type_effectiveness]]
 attacker_id = 18
 defender_id = 2
-multiplier = 2
+multiplier = 2.0
 
 # Fairy -> Poison
 [[type_effectiveness]]
@@ -704,11 +710,10 @@ multiplier = 0.5
 [[type_effectiveness]]
 attacker_id = 18
 defender_id = 16
-multiplier = 2
+multiplier = 2.0
 
 # Fairy -> Dark
 [[type_effectiveness]]
 attacker_id = 18
 defender_id = 17
-multiplier = 2
-
+multiplier = 2.0

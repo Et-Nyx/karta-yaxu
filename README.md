@@ -140,6 +140,59 @@ Os arquivos `.toml` em `data/template/` são a fonte de verdade dos dados estát
 
 ---
 
+## Scripts de Dados — Fetching de Pokémon
+
+Três scripts em Python populam os templates TOML em `data/template/`. Eles devem ser executados nesta ordem:
+
+```bash
+# 1. Adiciona tipos (inclui o tipo Stellar) e efetividades
+python3 scripts/fetch_types.py
+
+# 2. Gera os 151 Pokémon base (Gen 1) + todos os dados relacionados
+python3 scripts/fetch_pokeapi.py
+
+# 3. Adiciona formas alternativas (Mega, Gmax, Regionais, etc.)
+python3 scripts/fetch_extras.py
+
+# 4. Popula o banco com tudo
+cargo run -p backend --bin seed
+```
+
+### `fetch_pokeapi.py` — Gen 1 (151 Pokémon)
+
+Busca dados de `pokeapi.co` para os 151 Pokémon originais de Fire Red/Leaf Green. Gera todos os arquivos `data/template/*.toml` do zero. Sprites vão para `static/sprites/pokemon/`.
+
+### `fetch_types.py` — Tipos e Efetividades
+
+Busca dados de `pokeapi.co` para os 19 tipos padrão e suas relações de efetividade. Atualiza `type.toml` e `type_effectiveness.toml` de forma incremental — apenas adiciona tipos/efetividades novos, preservando entradas existentes. Inclui o tipo **Stellar** (Gen 9, id=19).
+
+### `fetch_extras.py` — Formas Alternativas e Novas Espécies (~113 entradas)
+
+Adiciona ao banco existente via **append** nos arquivos TOML (exceto `pokemon_form.toml` que é regravado). Cobre:
+
+| Categoria | Exemplos | IDs |
+|---|---|---|
+| Mega Evolução (Gen 6) | Mega Venusaur, Mega Charizard X/Y | `10000 + dex×10 + v` |
+| Mega Evolução (Legends: Z-A) | Mega Raichu X/Y, Mega Clefable | `10000 + dex×10 + v` |
+| Gigantamax | Gmax Venusaur, Gmax Charizard | `20000 + dex×10 + v` |
+| Formas Alolan | Alolan Raichu, Alolan Marowak | `30000 + dex×10 + v` |
+| Formas Galarian | Galarian Weezing, Galarian Slowpoke | `40000 + dex×10 + v` |
+| Formas Hisuian | Hisuian Arcanine, Hisuian Voltorb | `50000 + dex×10 + v` |
+| Formas Paldean | Paldean Tauros (3 raças) | `60000 + dex×10 + v` |
+| Pré-evoluções | Pichu, Cleffa, Munchlax | National Dex (172, 173, 446...) |
+| Evoluções cross-gen | Crobat, Scizor, Porygon2 | National Dex (169, 212, 233...) |
+| Evoluções regionais | Perrserker, Sirfetch'd, Mr. Rime | National Dex (862, 865, 866...) |
+| Espécies convergentes | Toedscool, Wiglett | National Dex (948, 960...) |
+| Formas Paradox | Scream Tail, Sandy Shocks | National Dex (985, 989...) |
+
+**Fórmula de ID:** `id = offset + base_dex × 10 + variant_index`
+
+A coluna `dex_number` permanece igual ao Pokémon base (agrupamento visual na wiki), mas o `id` é único. Cada base tem espaço para até 10 variantes (`×10`), evitando colisões mesmo com múltiplas formas.
+
+**Sprites:** O script baixa de `raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/`. Quando o sprite padrão não existe (ex: Megas de Legends: Z-A), faz fallback automático para `other/official-artwork/`. Isso garante que todos os Forms tenham ao menos uma imagem — se PokeAPI adicionar sprites padrão no futuro, basta rodar o script novamente para atualizar.
+
+---
+
 ## Schema do Banco de Dados
 
 ### Type
@@ -240,11 +293,21 @@ PRIMARY KEY (base_id, form_id)
 
 Cada forma alternativa e Mega Evolução é um registro independente em `pokemon` (com seus próprios stats, tipos e sprites), ligado à forma base via `pokemon_forms`. Mega Evoluções ficam fora da tabela `evolutions`, mantendo a query de evoluções finais limpa.
 
-*Convenção de Continuidade (ID):* O projeto mapeia variações usando um sistema de saltos baseado no ID principal original do Pokémon de forma previsível:
-- **`+ 2000`** = Mega Evolução (Ex: Venusaur é *#3*, Mega Venusaur é *2003*)
-- **`+ 3000`** = Formas Especiais (Gigantamax, Dynamax, Formas Regionais)
+*Convenção de Continuidade (ID):* O projeto mapeia variações usando uma fórmula determinística `offset + dex × 10 + variant`:
 
-Independente do pulo do `.id`, o banco mantém a coluna separada `.dex_number` intocada entre todas as formas para agrupar visualmente na Wiki Oficial sem furar a continuidade da Pokedex.
+| Categoria | Offset | Exemplo |
+|---|---|---|
+| Mega Evolução (Gen 6 + Z-A) | `10_000` | Mega Venusaur = `10030`, Mega Charizard X = `10060`, Mega Charizard Y = `10061` |
+| Gigantamax | `20_000` | Gmax Venusaur = `20030`, Gmax Charizard = `20060` |
+| Formas Alolan | `30_000` | Alolan Raichu = `30260`, Alolan Marowak = `31050` |
+| Formas Galarian | `40_000` | Galarian Meowth = `40520`, Galarian Slowpoke = `40790`, Galarian Slowking = `41990` |
+| Formas Hisuian | `50_000` | Hisuian Growlithe = `50580`, Hisuian Voltorb = `51000` |
+| Formas Paldean | `60_000` | Paldean Tauros Combat = `61280`, Blaze = `61281`, Aqua = `61282` |
+| Novas espécies (babies, cross-gen, etc.) | `0` | Pichu = `172`, Crobat = `169`, Sylveon = `700` |
+
+Cada base Pokémon tem até 10 slots de variante (`×10`), evitando colisões mesmo com múltiplas formas (ex: Charizard X/Y). Novas espécies usam o National Dex diretamente.
+
+A coluna `dex_number` permanece igual ao Pokémon base em todas as formas alternativas (agrupamento visual na wiki), mas o `id` é único.
 
 *Herança de Propriedades entre Formas:* Formas alternativas que não possuem entradas próprias no banco herdam automaticamente as propriedades da forma base:
 - Sem evoluções próprias → herda a linha evolutiva da base (BFS a partir da raiz)

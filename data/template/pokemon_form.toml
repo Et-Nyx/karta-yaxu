@@ -279,6 +279,11 @@ form_id = 40800
 form_name = "Galarian"
 
 [[pokemon_form]]
+base_id = 199
+form_id = 41990
+form_name = "Galarian"
+
+[[pokemon_form]]
 base_id = 83
 form_id = 40830
 form_name = "Galarian"
