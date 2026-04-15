@@ -543,8 +543,980 @@ condition = "mega"
 condition_value = "Victreebelite"
 
 [[evolution]]
-from_id = 120
-to_id = 11200
+from_id = 121
+to_id = 11210
+condition = "mega"
+condition_value = "Starmieite"
+
+[[evolution]]
+from_id = 149
+to_id = 11490
+condition = "mega"
+condition_value = "Dragoniteite"
+
+[[evolution]]
+from_id = 3
+to_id = 20030
+condition = "gmax"
+
+[[evolution]]
+from_id = 6
+to_id = 20060
+condition = "gmax"
+
+[[evolution]]
+from_id = 9
+to_id = 20090
+condition = "gmax"
+
+[[evolution]]
+from_id = 12
+to_id = 20120
+condition = "gmax"
+
+[[evolution]]
+from_id = 25
+to_id = 20250
+condition = "gmax"
+
+[[evolution]]
+from_id = 52
+to_id = 20520
+condition = "gmax"
+
+[[evolution]]
+from_id = 68
+to_id = 20680
+condition = "gmax"
+
+[[evolution]]
+from_id = 94
+to_id = 20940
+condition = "gmax"
+
+[[evolution]]
+from_id = 99
+to_id = 20990
+condition = "gmax"
+
+[[evolution]]
+from_id = 131
+to_id = 21310
+condition = "gmax"
+
+[[evolution]]
+from_id = 133
+to_id = 21330
+condition = "gmax"
+
+[[evolution]]
+from_id = 143
+to_id = 21430
+condition = "gmax"
+
+[[evolution]]
+from_id = 172
+to_id = 25
+condition = "happiness"
+
+[[evolution]]
+from_id = 173
+to_id = 35
+condition = "happiness"
+
+[[evolution]]
+from_id = 174
+to_id = 39
+condition = "happiness"
+
+[[evolution]]
+from_id = 236
+to_id = 106
+condition = "level"
+condition_value = "20"
+
+[[evolution]]
+from_id = 236
+to_id = 107
+condition = "level"
+condition_value = "20"
+
+[[evolution]]
+from_id = 236
+to_id = 237
+condition = "level"
+condition_value = "20"
+
+[[evolution]]
+from_id = 238
+to_id = 124
+condition = "level"
+condition_value = "30"
+
+[[evolution]]
+from_id = 239
+to_id = 125
+condition = "level"
+condition_value = "30"
+
+[[evolution]]
+from_id = 240
+to_id = 126
+condition = "level"
+condition_value = "30"
+
+[[evolution]]
+from_id = 446
+to_id = 143
+condition = "happiness"
+
+[[evolution]]
+from_id = 440
+to_id = 113
+condition = "item"
+condition_value = "Oval Stone"
+
+[[evolution]]
+from_id = 439
+to_id = 122
+condition = "level"
+condition_value = "15"
+
+[[evolution]]
+from_id = 42
+to_id = 169
+condition = "happiness"
+
+[[evolution]]
+from_id = 44
+to_id = 182
+condition = "item"
+condition_value = "Sun Stone"
+
+[[evolution]]
+from_id = 61
+to_id = 186
+condition = "trade"
+condition_value = "King's Rock"
+
+[[evolution]]
+from_id = 79
+to_id = 199
+condition = "trade"
+condition_value = "King's Rock"
+
+[[evolution]]
+from_id = 95
+to_id = 208
+condition = "trade"
+condition_value = "Metal Coat"
+
+[[evolution]]
+from_id = 117
+to_id = 230
+condition = "trade"
+condition_value = "Dragon Scale"
+
+[[evolution]]
+from_id = 123
+to_id = 212
+condition = "trade"
+condition_value = "Metal Coat"
+
+[[evolution]]
+from_id = 123
+to_id = 900
+condition = "item"
+condition_value = "Black Augurite"
+
+[[evolution]]
+from_id = 133
+to_id = 196
+condition = "happiness"
+condition_value = "day"
+
+[[evolution]]
+from_id = 133
+to_id = 197
+condition = "happiness"
+condition_value = "night"
+
+[[evolution]]
+from_id = 133
+to_id = 470
+condition = "item"
+condition_value = "Leaf Stone"
+
+[[evolution]]
+from_id = 133
+to_id = 471
+condition = "item"
+condition_value = "Ice Stone"
+
+[[evolution]]
+from_id = 133
+to_id = 700
+condition = "affection"
+condition_value = "Fairy move"
+
+[[evolution]]
+from_id = 137
+to_id = 233
+condition = "trade"
+condition_value = "Upgrade"
+
+[[evolution]]
+from_id = 233
+to_id = 469
+condition = "trade"
+condition_value = "Dubious Disc"
+
+[[evolution]]
+from_id = 113
+to_id = 242
+condition = "happiness"
+
+[[evolution]]
+from_id = 82
+to_id = 462
+condition = "item"
+condition_value = "Thunder Stone"
+
+[[evolution]]
+from_id = 108
+to_id = 463
+condition = "level"
+condition_value = "33"
+
+[[evolution]]
+from_id = 112
+to_id = 464
+condition = "trade"
+condition_value = "Protector"
+
+[[evolution]]
+from_id = 114
+to_id = 465
+condition = "level"
+condition_value = "34"
+
+[[evolution]]
+from_id = 125
+to_id = 466
+condition = "trade"
+condition_value = "Electirizer"
+
+[[evolution]]
+from_id = 126
+to_id = 467
+condition = "trade"
+condition_value = "Magmarizer"
+
+[[evolution]]
+from_id = 57
+to_id = 979
+condition = "level"
+condition_value = "35"
+
+[[evolution]]
+from_id = 40520
+to_id = 862
+condition = "level"
+condition_value = "28"
+
+[[evolution]]
+from_id = 40830
+to_id = 865
+condition = "level"
+condition_value = "25"
+
+[[evolution]]
+from_id = 41220
+to_id = 866
+condition = "level"
+condition_value = "42"
+
+[[evolution]]
+from_id = 40790
+to_id = 41990
+condition = "trade"
+condition_value = "Galarica Wreath"
+
+[[evolution]]
+from_id = 30190
+to_id = 30200
+condition = "level"
+condition_value = "20"
+
+[[evolution]]
+from_id = 30270
+to_id = 30280
+condition = "item"
+condition_value = "Ice Stone"
+
+[[evolution]]
+from_id = 30370
+to_id = 30380
+condition = "item"
+condition_value = "Ice Stone"
+
+[[evolution]]
+from_id = 30500
+to_id = 30510
+condition = "level"
+condition_value = "26"
+
+[[evolution]]
+from_id = 30520
+to_id = 30530
+condition = "happiness"
+
+[[evolution]]
+from_id = 30740
+to_id = 30750
+condition = "level"
+condition_value = "25"
+
+[[evolution]]
+from_id = 30750
+to_id = 30760
+condition = "trade"
+
+[[evolution]]
+from_id = 30880
+to_id = 30890
+condition = "level"
+condition_value = "38"
+
+[[evolution]]
+from_id = 25
+to_id = 30260
+condition = "item"
+condition_value = "Thunder Stone"
+
+[[evolution]]
+from_id = 102
+to_id = 31030
+condition = "item"
+condition_value = "Leaf Stone"
+
+[[evolution]]
+from_id = 104
+to_id = 31050
+condition = "level"
+condition_value = "28"
+
+[[evolution]]
+from_id = 40790
+to_id = 40800
+condition = "item"
+condition_value = "Galarica Cuff"
+
+# ── Extra evolution links (generated by fetch_extras.py) ──
+
+[[evolution]]
+from_id = 3
+to_id = 10030
+condition = "mega"
+condition_value = "Venusaurite"
+
+[[evolution]]
+from_id = 6
+to_id = 10060
+condition = "mega"
+condition_value = "Charizardite X"
+
+[[evolution]]
+from_id = 6
+to_id = 10061
+condition = "mega"
+condition_value = "Charizardite Y"
+
+[[evolution]]
+from_id = 9
+to_id = 10090
+condition = "mega"
+condition_value = "Blastoisinite"
+
+[[evolution]]
+from_id = 15
+to_id = 10150
+condition = "mega"
+condition_value = "Beedrillite"
+
+[[evolution]]
+from_id = 18
+to_id = 10180
+condition = "mega"
+condition_value = "Pidgeotite"
+
+[[evolution]]
+from_id = 65
+to_id = 10650
+condition = "mega"
+condition_value = "Alakazite"
+
+[[evolution]]
+from_id = 80
+to_id = 10800
+condition = "mega"
+condition_value = "Slowbronite"
+
+[[evolution]]
+from_id = 94
+to_id = 10940
+condition = "mega"
+condition_value = "Gengarite"
+
+[[evolution]]
+from_id = 115
+to_id = 11150
+condition = "mega"
+condition_value = "Kangaskhanite"
+
+[[evolution]]
+from_id = 127
+to_id = 11270
+condition = "mega"
+condition_value = "Pinsirite"
+
+[[evolution]]
+from_id = 130
+to_id = 11300
+condition = "mega"
+condition_value = "Gyaradosite"
+
+[[evolution]]
+from_id = 142
+to_id = 11420
+condition = "mega"
+condition_value = "Aerodactylite"
+
+[[evolution]]
+from_id = 150
+to_id = 11500
+condition = "mega"
+condition_value = "Mewtwonite X"
+
+[[evolution]]
+from_id = 150
+to_id = 11501
+condition = "mega"
+condition_value = "Mewtwonite Y"
+
+[[evolution]]
+from_id = 26
+to_id = 10260
+condition = "mega"
+condition_value = "Raichunite X"
+
+[[evolution]]
+from_id = 26
+to_id = 10261
+condition = "mega"
+condition_value = "Raichunite Y"
+
+[[evolution]]
+from_id = 36
+to_id = 10360
+condition = "mega"
+condition_value = "Clefablite"
+
+[[evolution]]
+from_id = 71
+to_id = 10710
+condition = "mega"
+condition_value = "Victreebelite"
+
+[[evolution]]
+from_id = 121
+to_id = 11210
+condition = "mega"
+condition_value = "Starmieite"
+
+[[evolution]]
+from_id = 149
+to_id = 11490
+condition = "mega"
+condition_value = "Dragoniteite"
+
+[[evolution]]
+from_id = 3
+to_id = 20030
+condition = "gmax"
+
+[[evolution]]
+from_id = 6
+to_id = 20060
+condition = "gmax"
+
+[[evolution]]
+from_id = 9
+to_id = 20090
+condition = "gmax"
+
+[[evolution]]
+from_id = 12
+to_id = 20120
+condition = "gmax"
+
+[[evolution]]
+from_id = 25
+to_id = 20250
+condition = "gmax"
+
+[[evolution]]
+from_id = 52
+to_id = 20520
+condition = "gmax"
+
+[[evolution]]
+from_id = 68
+to_id = 20680
+condition = "gmax"
+
+[[evolution]]
+from_id = 94
+to_id = 20940
+condition = "gmax"
+
+[[evolution]]
+from_id = 99
+to_id = 20990
+condition = "gmax"
+
+[[evolution]]
+from_id = 131
+to_id = 21310
+condition = "gmax"
+
+[[evolution]]
+from_id = 133
+to_id = 21330
+condition = "gmax"
+
+[[evolution]]
+from_id = 143
+to_id = 21430
+condition = "gmax"
+
+[[evolution]]
+from_id = 172
+to_id = 25
+condition = "happiness"
+
+[[evolution]]
+from_id = 173
+to_id = 35
+condition = "happiness"
+
+[[evolution]]
+from_id = 174
+to_id = 39
+condition = "happiness"
+
+[[evolution]]
+from_id = 236
+to_id = 106
+condition = "level"
+condition_value = "20"
+
+[[evolution]]
+from_id = 236
+to_id = 107
+condition = "level"
+condition_value = "20"
+
+[[evolution]]
+from_id = 236
+to_id = 237
+condition = "level"
+condition_value = "20"
+
+[[evolution]]
+from_id = 238
+to_id = 124
+condition = "level"
+condition_value = "30"
+
+[[evolution]]
+from_id = 239
+to_id = 125
+condition = "level"
+condition_value = "30"
+
+[[evolution]]
+from_id = 240
+to_id = 126
+condition = "level"
+condition_value = "30"
+
+[[evolution]]
+from_id = 446
+to_id = 143
+condition = "happiness"
+
+[[evolution]]
+from_id = 440
+to_id = 113
+condition = "item"
+condition_value = "Oval Stone"
+
+[[evolution]]
+from_id = 439
+to_id = 122
+condition = "level"
+condition_value = "15"
+
+[[evolution]]
+from_id = 42
+to_id = 169
+condition = "happiness"
+
+[[evolution]]
+from_id = 44
+to_id = 182
+condition = "item"
+condition_value = "Sun Stone"
+
+[[evolution]]
+from_id = 61
+to_id = 186
+condition = "trade"
+condition_value = "King's Rock"
+
+[[evolution]]
+from_id = 79
+to_id = 199
+condition = "trade"
+condition_value = "King's Rock"
+
+[[evolution]]
+from_id = 95
+to_id = 208
+condition = "trade"
+condition_value = "Metal Coat"
+
+[[evolution]]
+from_id = 117
+to_id = 230
+condition = "trade"
+condition_value = "Dragon Scale"
+
+[[evolution]]
+from_id = 123
+to_id = 212
+condition = "trade"
+condition_value = "Metal Coat"
+
+[[evolution]]
+from_id = 123
+to_id = 900
+condition = "item"
+condition_value = "Black Augurite"
+
+[[evolution]]
+from_id = 133
+to_id = 196
+condition = "happiness"
+condition_value = "day"
+
+[[evolution]]
+from_id = 133
+to_id = 197
+condition = "happiness"
+condition_value = "night"
+
+[[evolution]]
+from_id = 133
+to_id = 470
+condition = "item"
+condition_value = "Leaf Stone"
+
+[[evolution]]
+from_id = 133
+to_id = 471
+condition = "item"
+condition_value = "Ice Stone"
+
+[[evolution]]
+from_id = 133
+to_id = 700
+condition = "affection"
+condition_value = "Fairy move"
+
+[[evolution]]
+from_id = 137
+to_id = 233
+condition = "trade"
+condition_value = "Upgrade"
+
+[[evolution]]
+from_id = 233
+to_id = 469
+condition = "trade"
+condition_value = "Dubious Disc"
+
+[[evolution]]
+from_id = 113
+to_id = 242
+condition = "happiness"
+
+[[evolution]]
+from_id = 82
+to_id = 462
+condition = "item"
+condition_value = "Thunder Stone"
+
+[[evolution]]
+from_id = 108
+to_id = 463
+condition = "level"
+condition_value = "33"
+
+[[evolution]]
+from_id = 112
+to_id = 464
+condition = "trade"
+condition_value = "Protector"
+
+[[evolution]]
+from_id = 114
+to_id = 465
+condition = "level"
+condition_value = "34"
+
+[[evolution]]
+from_id = 125
+to_id = 466
+condition = "trade"
+condition_value = "Electirizer"
+
+[[evolution]]
+from_id = 126
+to_id = 467
+condition = "trade"
+condition_value = "Magmarizer"
+
+[[evolution]]
+from_id = 57
+to_id = 979
+condition = "level"
+condition_value = "35"
+
+[[evolution]]
+from_id = 40520
+to_id = 862
+condition = "level"
+condition_value = "28"
+
+[[evolution]]
+from_id = 40830
+to_id = 865
+condition = "level"
+condition_value = "25"
+
+[[evolution]]
+from_id = 41220
+to_id = 866
+condition = "level"
+condition_value = "42"
+
+[[evolution]]
+from_id = 40790
+to_id = 41990
+condition = "trade"
+condition_value = "Galarica Wreath"
+
+[[evolution]]
+from_id = 30190
+to_id = 30200
+condition = "level"
+condition_value = "20"
+
+[[evolution]]
+from_id = 30270
+to_id = 30280
+condition = "item"
+condition_value = "Ice Stone"
+
+[[evolution]]
+from_id = 30370
+to_id = 30380
+condition = "item"
+condition_value = "Ice Stone"
+
+[[evolution]]
+from_id = 30500
+to_id = 30510
+condition = "level"
+condition_value = "26"
+
+[[evolution]]
+from_id = 30520
+to_id = 30530
+condition = "happiness"
+
+[[evolution]]
+from_id = 30740
+to_id = 30750
+condition = "level"
+condition_value = "25"
+
+[[evolution]]
+from_id = 30750
+to_id = 30760
+condition = "trade"
+
+[[evolution]]
+from_id = 30880
+to_id = 30890
+condition = "level"
+condition_value = "38"
+
+[[evolution]]
+from_id = 25
+to_id = 30260
+condition = "item"
+condition_value = "Thunder Stone"
+
+[[evolution]]
+from_id = 102
+to_id = 31030
+condition = "item"
+condition_value = "Leaf Stone"
+
+[[evolution]]
+from_id = 104
+to_id = 31050
+condition = "level"
+condition_value = "28"
+
+[[evolution]]
+from_id = 40790
+to_id = 40800
+condition = "item"
+condition_value = "Galarica Cuff"
+
+# ── Extra evolution links (generated by fetch_extras.py) ──
+
+[[evolution]]
+from_id = 3
+to_id = 10030
+condition = "mega"
+condition_value = "Venusaurite"
+
+[[evolution]]
+from_id = 6
+to_id = 10060
+condition = "mega"
+condition_value = "Charizardite X"
+
+[[evolution]]
+from_id = 6
+to_id = 10061
+condition = "mega"
+condition_value = "Charizardite Y"
+
+[[evolution]]
+from_id = 9
+to_id = 10090
+condition = "mega"
+condition_value = "Blastoisinite"
+
+[[evolution]]
+from_id = 15
+to_id = 10150
+condition = "mega"
+condition_value = "Beedrillite"
+
+[[evolution]]
+from_id = 18
+to_id = 10180
+condition = "mega"
+condition_value = "Pidgeotite"
+
+[[evolution]]
+from_id = 65
+to_id = 10650
+condition = "mega"
+condition_value = "Alakazite"
+
+[[evolution]]
+from_id = 80
+to_id = 10800
+condition = "mega"
+condition_value = "Slowbronite"
+
+[[evolution]]
+from_id = 94
+to_id = 10940
+condition = "mega"
+condition_value = "Gengarite"
+
+[[evolution]]
+from_id = 115
+to_id = 11150
+condition = "mega"
+condition_value = "Kangaskhanite"
+
+[[evolution]]
+from_id = 127
+to_id = 11270
+condition = "mega"
+condition_value = "Pinsirite"
+
+[[evolution]]
+from_id = 130
+to_id = 11300
+condition = "mega"
+condition_value = "Gyaradosite"
+
+[[evolution]]
+from_id = 142
+to_id = 11420
+condition = "mega"
+condition_value = "Aerodactylite"
+
+[[evolution]]
+from_id = 150
+to_id = 11500
+condition = "mega"
+condition_value = "Mewtwonite X"
+
+[[evolution]]
+from_id = 150
+to_id = 11501
+condition = "mega"
+condition_value = "Mewtwonite Y"
+
+[[evolution]]
+from_id = 26
+to_id = 10260
+condition = "mega"
+condition_value = "Raichunite X"
+
+[[evolution]]
+from_id = 26
+to_id = 10261
+condition = "mega"
+condition_value = "Raichunite Y"
+
+[[evolution]]
+from_id = 36
+to_id = 10360
+condition = "mega"
+condition_value = "Clefablite"
+
+[[evolution]]
+from_id = 71
+to_id = 10710
+condition = "mega"
+condition_value = "Victreebelite"
+
+[[evolution]]
+from_id = 121
+to_id = 11210
 condition = "mega"
 condition_value = "Starmieite"
 

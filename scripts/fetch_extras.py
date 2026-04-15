@@ -193,7 +193,7 @@ MEGAS_ZA = [
     ("raichu-mega-y",    "Mega Raichu Y",      26, 1, "Raichunite Y"),
     ("clefable-mega",    "Mega Clefable",       36, 0, "Clefablite"),
     ("victreebel-mega",  "Mega Victreebel",     71, 0, "Victreebelite"),
-    ("starmie-mega",     "Mega Starmie",       120, 0, "Starmieite"),
+    ("starmie-mega",     "Mega Starmie",       121, 0, "Starmieite"),
     ("dragonite-mega",   "Mega Dragonite",     149, 0, "Dragoniteite"),
 ]
 

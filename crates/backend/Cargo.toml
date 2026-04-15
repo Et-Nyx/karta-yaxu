@@ -16,6 +16,8 @@ serde = { version = "1", features = ["derive"] }
 urlencoding = "2"
 toml = "0.8"
 argon2 = "0.5"
+rpassword = "7"
+dialoguer = "0.11"
 uuid = { version = "1", features = ["v4"] }
 strsim = "0.11"
 
@@ -26,3 +28,7 @@ path = "src/main.rs"
 [[bin]]
 name = "seed"
 path = "src/bin/seed.rs"
+
+[[bin]]
+name = "create_trainer"
+path = "src/bin/create_trainer.rs"

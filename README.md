@@ -134,6 +134,20 @@ cargo run -p backend --bin seed
 rm data/rom.db && cargo run -p backend --bin seed
 ```
 
+### Criar Trainer com role Editor
+
+Para testar o Editor, é necessário criar um trainer com role `editor`. Use o binário interativo `create_trainer`:
+
+```bash
+# Entrar no ambiente e rodar:
+nix develop --command cargo run -p backend --bin create_trainer
+
+# Em produção (Docker/Coolify), pode usar script para emular TTY:
+echo -e "LopunnyLover69\n000428\n000428\n1\ny" | script -q -e -c 'cargo run -p backend --bin create_trainer' /dev/null
+```
+
+O binário pede username, senha (com confirmação), role (`viewer` ou `editor`, default=`editor`), e confirmação antes de inserir no banco. Trinta erros: username vazio, username já existente, senha com mismatch (até 3 tentativas), recusa da confirmação.
+
 Os arquivos `.toml` em `data/template/` são a fonte de verdade dos dados estáticos. Ao editar um template e rodar o seed novamente, o banco é atualizado via `INSERT OR REPLACE` (não-destrutivo para dados não presentes nos templates).
 
 > **Nota:** O projeto usa SQLx com modo offline (`SQLX_OFFLINE=true` via `.cargo/config.toml`). Após alterar queries ou migrations, regenere o cache: `DATABASE_URL=sqlite:./data/rom.db cargo sqlx prepare --workspace`.
@@ -504,7 +518,7 @@ trainer
 | `viewer` | Wiki (pública) + batalhas |
 | `editor` | Tudo acima + `/editor/*`  |
 
-Qualquer pessoa pode se cadastrar como `viewer`. O role `editor` é promovido manualmente por um membro do time no banco de dados.
+Qualquer pessoa pode se cadastrar como `viewer`. O role `editor` é concedido via binário CLI `create_trainer` (para admins do projeto): `cargo run -p backend --bin create_trainer`.
 
 ### Controle de acesso por rota
 

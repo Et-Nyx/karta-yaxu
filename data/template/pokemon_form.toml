@@ -94,8 +94,8 @@ form_id = 10710
 form_name = "Mega"
 
 [[pokemon_form]]
-base_id = 120
-form_id = 11200
+base_id = 121
+form_id = 11210
 form_name = "Mega"
 
 [[pokemon_form]]
