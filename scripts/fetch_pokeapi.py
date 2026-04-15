@@ -504,10 +504,9 @@ def download_sprites(pokemon_list: list):
 
 # ── TOML Generation ─────────────────────────────────────────────────────────
 
-def write_pokemon_toml(pokemon_list: list):
-    """Generate pokemon.toml including Mega/Gmax forms."""
+def write_pokemon_toml(pokemon_list):
+    """Generate pokemon.toml for Gen 1 Pokémon."""
     lines = []
-
     for p in pokemon_list:
         lines.append("[[pokemon]]")
         lines.append(f'id = {p["id"]}')
@@ -526,12 +525,11 @@ def write_pokemon_toml(pokemon_list: list):
         lines.append(f'spe = {p["spe"]}')
         lines.append(f'pokedex_entry = "{p["pokedex_entry"]}"')
         lines.append("")
-
     (DATA_DIR / "pokemon.toml").write_text("\n".join(lines))
-    print(f"  ✓ pokemon.toml ({len(pokemon_list) + 2} entries)")
+    print(f"  pokemon.toml ({len(pokemon_list)} entries)")
 
 
-def write_ability_toml(abilities: list):
+def write_ability_toml(abilities):
     lines = []
     for a in abilities:
         lines.append("[[ability]]")
@@ -540,10 +538,10 @@ def write_ability_toml(abilities: list):
         lines.append(f'description = "{a["description"]}"')
         lines.append("")
     (DATA_DIR / "ability.toml").write_text("\n".join(lines))
-    print(f"  ✓ ability.toml ({len(abilities)} entries)")
+    print(f"  ability.toml ({len(abilities)} entries)")
 
 
-def write_move_toml(moves: list):
+def write_move_toml(moves):
     lines = []
     for m in moves:
         lines.append("[[move]]")
@@ -559,10 +557,10 @@ def write_move_toml(moves: list):
         lines.append(f'description = "{m["description"]}"')
         lines.append("")
     (DATA_DIR / "move.toml").write_text("\n".join(lines))
-    print(f"  ✓ move.toml ({len(moves)} entries)")
+    print(f"  move.toml ({len(moves)} entries)")
 
 
-def write_nature_toml(natures: list):
+def write_nature_toml(natures):
     lines = []
     for n in natures:
         lines.append("[[nature]]")
@@ -574,10 +572,10 @@ def write_nature_toml(natures: list):
             lines.append(f'decreased_stat = "{n["decreased_stat"]}"')
         lines.append("")
     (DATA_DIR / "nature.toml").write_text("\n".join(lines))
-    print(f"  ✓ nature.toml ({len(natures)} entries)")
+    print(f"  nature.toml ({len(natures)} entries)")
 
 
-def write_evolution_toml(evolutions: list):
+def write_evolution_toml(evolutions):
     lines = []
     for e in evolutions:
         lines.append("[[evolution]]")
@@ -587,27 +585,11 @@ def write_evolution_toml(evolutions: list):
         if e["condition_value"]:
             lines.append(f'condition_value = "{e["condition_value"]}"')
         lines.append("")
-
-    # Append Mega/Gmax evolution entries
-    lines.append("# ── Alternate Form evolutions (manually curated) ──")
-    lines.append("")
-    lines.append("[[evolution]]")
-    lines.append("from_id = 3")
-    lines.append("to_id = 2003")
-    lines.append('condition = "mega"')
-    lines.append('condition_value = "Venusaurite"')
-    lines.append("")
-    lines.append("[[evolution]]")
-    lines.append("from_id = 3")
-    lines.append("to_id = 3003")
-    lines.append('condition = "gmax"')
-    lines.append("")
-
     (DATA_DIR / "evolution.toml").write_text("\n".join(lines))
-    print(f"  ✓ evolution.toml ({len(evolutions) + 2} entries)")
+    print(f"  evolution.toml ({len(evolutions)} entries)")
 
 
-def write_learnset_toml(learnsets: list):
+def write_learnset_toml(learnsets):
     lines = []
     for pokemon_id, move_id, method, level in learnsets:
         lines.append("[[learnset]]")
@@ -618,10 +600,10 @@ def write_learnset_toml(learnsets: list):
             lines.append(f"level = {level}")
         lines.append("")
     (DATA_DIR / "learnset.toml").write_text("\n".join(lines))
-    print(f"  ✓ learnset.toml ({len(learnsets)} entries)")
+    print(f"  learnset.toml ({len(learnsets)} entries)")
 
 
-def write_pokemon_ability_toml(pokemon_abilities: list):
+def write_pokemon_ability_toml(pokemon_abilities):
     lines = []
     for pokemon_id, ability_id, slot in pokemon_abilities:
         lines.append("[[pokemon_ability]]")
@@ -629,85 +611,63 @@ def write_pokemon_ability_toml(pokemon_abilities: list):
         lines.append(f"ability_id = {ability_id}")
         lines.append(f"slot = {slot}")
         lines.append("")
-
-    # Mega Venusaur ability (Thick Fat = 47 in PokeAPI)
-    lines.append("# ── Alternate Form abilities ──")
-    lines.append("")
-    lines.append("[[pokemon_ability]]")
-    lines.append("pokemon_id = 2003")
-    lines.append("ability_id = 47")
-    lines.append("slot = 1")
-    lines.append("")
-
     (DATA_DIR / "pokemon_ability.toml").write_text("\n".join(lines))
-    print(f"  ✓ pokemon_ability.toml ({len(pokemon_abilities) + 1} entries)")
+    print(f"  pokemon_ability.toml ({len(pokemon_abilities)} entries)")
 
 
 def write_pokemon_form_toml():
-    """Write pokemon_form.toml for Mega/Gmax forms."""
-    content = """[[pokemon_form]]
-base_id = 3
-form_id = 2003
-form_name = "Mega"
-
-[[pokemon_form]]
-base_id = 3
-form_id = 3003
-form_name = "Gmax"
-"""
-    (DATA_DIR / "pokemon_form.toml").write_text(content)
-    print("  ✓ pokemon_form.toml (2 entries)")
+    """Write empty pokemon_form.toml — populated by fetch_extras.py."""
+    (DATA_DIR / "pokemon_form.toml").write_text("pokemon_form = []")
+    print("  pokemon_form.toml (0 entries — populated by fetch_extras.py)")
 
 
 def write_status_condition_toml():
     """Write the 6 standard non-volatile status conditions."""
-    content = """[[status_condition]]
-id = 1
-name = "Burn"
-description = "Deals 1/8 max HP damage each turn and halves physical attack damage."
-icon = "brn.png"
-is_volatile = false
-
-[[status_condition]]
-id = 2
-name = "Freeze"
-description = "The Pokémon is frozen solid and cannot move. There is a 20% chance of thawing each turn."
-icon = "frz.png"
-is_volatile = false
-
-[[status_condition]]
-id = 3
-name = "Paralysis"
-description = "Speed is reduced by 50% and each turn there is a 25% chance the Pokémon cannot move."
-icon = "par.png"
-is_volatile = false
-
-[[status_condition]]
-id = 4
-name = "Poison"
-description = "Deals 1/8 max HP damage at the end of each turn."
-icon = "psn.png"
-is_volatile = false
-
-[[status_condition]]
-id = 5
-name = "Bad Poison"
-description = "Damage increases each turn: 1/16, 2/16, 3/16... of max HP."
-icon = "tox.png"
-is_volatile = false
-
-[[status_condition]]
-id = 6
-name = "Sleep"
-description = "The Pokémon cannot move for 1-3 turns."
-icon = "slp.png"
-is_volatile = false
-"""
-    (DATA_DIR / "status_condition.toml").write_text(content)
-    print("  ✓ status_condition.toml (6 entries)")
-
-
-# ── Main ─────────────────────────────────────────────────────────────────────
+    status_content = (
+        "[[status_condition]]\n"
+        'id = 1\n'
+        'name = "Burn"\n'
+        'description = "Deals 1/8 max HP damage each turn and halves physical attack damage."\n'
+        'icon = "brn.png"\n'
+        "is_volatile = false\n"
+        "\n"
+        "[[status_condition]]\n"
+        "id = 2\n"
+        'name = "Freeze"\n'
+        'description = "The Pokémon is frozen solid and cannot move. There is a 20% chance of thawing each turn."\n'
+        'icon = "frz.png"\n'
+        "is_volatile = false\n"
+        "\n"
+        "[[status_condition]]\n"
+        "id = 3\n"
+        'name = "Paralysis"\n'
+        'description = "Speed is reduced by 50% and each turn there is a 25% chance the Pokémon cannot move."\n'
+        'icon = "par.png"\n'
+        "is_volatile = false\n"
+        "\n"
+        "[[status_condition]]\n"
+        "id = 4\n"
+        'name = "Poison"\n'
+        'description = "Deals 1/8 max HP damage at the end of each turn."\n'
+        'icon = "psn.png"\n'
+        "is_volatile = false\n"
+        "\n"
+        "[[status_condition]]\n"
+        "id = 5\n"
+        'name = "Bad Poison"\n'
+        'description = "Damage increases each turn: 1/16, 2/16, 3/16... of max HP."\n'
+        'icon = "tox.png"\n'
+        "is_volatile = false\n"
+        "\n"
+        "[[status_condition]]\n"
+        "id = 6\n"
+        'name = "Sleep"\n'
+        'description = "The Pokémon cannot move for 1-3 turns."\n'
+        'icon = "slp.png"\n'
+        "is_volatile = false\n"
+    )
+    (DATA_DIR / "status_condition.toml").write_text(status_content)
+    print("  status_condition.toml (6 entries)")
 
 def main():
     print("🌐 Karta Yaxu — PokeAPI Data Fetcher")
@@ -763,11 +723,11 @@ def main():
     print()
     print("═" * 50)
     print("✅ Complete!")
-    print(f"   Pokémon:     {len(pokemon_list) + 2}")
+    print(f"   Pokémon:     {len(pokemon_list)}")
     print(f"   Abilities:   {len(abilities)}")
     print(f"   Moves:       {len(moves)}")
     print(f"   Natures:     {len(natures)}")
-    print(f"   Evolutions:  {len(evolutions) + 2}")
+    print(f"   Evolutions:  {len(evolutions)}")
     print(f"   Learnsets:   {len(learnsets)}")
     print()
     print("📌 Next steps:")

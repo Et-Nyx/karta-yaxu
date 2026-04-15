@@ -1,9 +1,344 @@
 [[pokemon_form]]
 base_id = 3
-form_id = 2003
+form_id = 10030
+form_name = "Mega"
+
+[[pokemon_form]]
+base_id = 6
+form_id = 10060
+form_name = "Mega"
+
+[[pokemon_form]]
+base_id = 6
+form_id = 10061
+form_name = "Mega"
+
+[[pokemon_form]]
+base_id = 9
+form_id = 10090
+form_name = "Mega"
+
+[[pokemon_form]]
+base_id = 15
+form_id = 10150
+form_name = "Mega"
+
+[[pokemon_form]]
+base_id = 18
+form_id = 10180
+form_name = "Mega"
+
+[[pokemon_form]]
+base_id = 65
+form_id = 10650
+form_name = "Mega"
+
+[[pokemon_form]]
+base_id = 80
+form_id = 10800
+form_name = "Mega"
+
+[[pokemon_form]]
+base_id = 94
+form_id = 10940
+form_name = "Mega"
+
+[[pokemon_form]]
+base_id = 115
+form_id = 11150
+form_name = "Mega"
+
+[[pokemon_form]]
+base_id = 127
+form_id = 11270
+form_name = "Mega"
+
+[[pokemon_form]]
+base_id = 130
+form_id = 11300
+form_name = "Mega"
+
+[[pokemon_form]]
+base_id = 142
+form_id = 11420
+form_name = "Mega"
+
+[[pokemon_form]]
+base_id = 150
+form_id = 11500
+form_name = "Mega"
+
+[[pokemon_form]]
+base_id = 150
+form_id = 11501
+form_name = "Mega"
+
+[[pokemon_form]]
+base_id = 26
+form_id = 10260
+form_name = "Mega"
+
+[[pokemon_form]]
+base_id = 26
+form_id = 10261
+form_name = "Mega"
+
+[[pokemon_form]]
+base_id = 36
+form_id = 10360
+form_name = "Mega"
+
+[[pokemon_form]]
+base_id = 71
+form_id = 10710
+form_name = "Mega"
+
+[[pokemon_form]]
+base_id = 120
+form_id = 11200
+form_name = "Mega"
+
+[[pokemon_form]]
+base_id = 149
+form_id = 11490
 form_name = "Mega"
 
 [[pokemon_form]]
 base_id = 3
-form_id = 3003
+form_id = 20030
 form_name = "Gmax"
+
+[[pokemon_form]]
+base_id = 6
+form_id = 20060
+form_name = "Gmax"
+
+[[pokemon_form]]
+base_id = 9
+form_id = 20090
+form_name = "Gmax"
+
+[[pokemon_form]]
+base_id = 12
+form_id = 20120
+form_name = "Gmax"
+
+[[pokemon_form]]
+base_id = 25
+form_id = 20250
+form_name = "Gmax"
+
+[[pokemon_form]]
+base_id = 52
+form_id = 20520
+form_name = "Gmax"
+
+[[pokemon_form]]
+base_id = 68
+form_id = 20680
+form_name = "Gmax"
+
+[[pokemon_form]]
+base_id = 94
+form_id = 20940
+form_name = "Gmax"
+
+[[pokemon_form]]
+base_id = 99
+form_id = 20990
+form_name = "Gmax"
+
+[[pokemon_form]]
+base_id = 131
+form_id = 21310
+form_name = "Gmax"
+
+[[pokemon_form]]
+base_id = 133
+form_id = 21330
+form_name = "Gmax"
+
+[[pokemon_form]]
+base_id = 143
+form_id = 21430
+form_name = "Gmax"
+
+[[pokemon_form]]
+base_id = 19
+form_id = 30190
+form_name = "Alolan"
+
+[[pokemon_form]]
+base_id = 20
+form_id = 30200
+form_name = "Alolan"
+
+[[pokemon_form]]
+base_id = 26
+form_id = 30260
+form_name = "Alolan"
+
+[[pokemon_form]]
+base_id = 27
+form_id = 30270
+form_name = "Alolan"
+
+[[pokemon_form]]
+base_id = 28
+form_id = 30280
+form_name = "Alolan"
+
+[[pokemon_form]]
+base_id = 37
+form_id = 30370
+form_name = "Alolan"
+
+[[pokemon_form]]
+base_id = 38
+form_id = 30380
+form_name = "Alolan"
+
+[[pokemon_form]]
+base_id = 50
+form_id = 30500
+form_name = "Alolan"
+
+[[pokemon_form]]
+base_id = 51
+form_id = 30510
+form_name = "Alolan"
+
+[[pokemon_form]]
+base_id = 52
+form_id = 30520
+form_name = "Alolan"
+
+[[pokemon_form]]
+base_id = 53
+form_id = 30530
+form_name = "Alolan"
+
+[[pokemon_form]]
+base_id = 74
+form_id = 30740
+form_name = "Alolan"
+
+[[pokemon_form]]
+base_id = 75
+form_id = 30750
+form_name = "Alolan"
+
+[[pokemon_form]]
+base_id = 76
+form_id = 30760
+form_name = "Alolan"
+
+[[pokemon_form]]
+base_id = 88
+form_id = 30880
+form_name = "Alolan"
+
+[[pokemon_form]]
+base_id = 89
+form_id = 30890
+form_name = "Alolan"
+
+[[pokemon_form]]
+base_id = 103
+form_id = 31030
+form_name = "Alolan"
+
+[[pokemon_form]]
+base_id = 105
+form_id = 31050
+form_name = "Alolan"
+
+[[pokemon_form]]
+base_id = 52
+form_id = 40520
+form_name = "Galarian"
+
+[[pokemon_form]]
+base_id = 77
+form_id = 40770
+form_name = "Galarian"
+
+[[pokemon_form]]
+base_id = 78
+form_id = 40780
+form_name = "Galarian"
+
+[[pokemon_form]]
+base_id = 79
+form_id = 40790
+form_name = "Galarian"
+
+[[pokemon_form]]
+base_id = 80
+form_id = 40800
+form_name = "Galarian"
+
+[[pokemon_form]]
+base_id = 83
+form_id = 40830
+form_name = "Galarian"
+
+[[pokemon_form]]
+base_id = 110
+form_id = 41100
+form_name = "Galarian"
+
+[[pokemon_form]]
+base_id = 122
+form_id = 41220
+form_name = "Galarian"
+
+[[pokemon_form]]
+base_id = 144
+form_id = 41440
+form_name = "Galarian"
+
+[[pokemon_form]]
+base_id = 145
+form_id = 41450
+form_name = "Galarian"
+
+[[pokemon_form]]
+base_id = 146
+form_id = 41460
+form_name = "Galarian"
+
+[[pokemon_form]]
+base_id = 58
+form_id = 50580
+form_name = "Hisuian"
+
+[[pokemon_form]]
+base_id = 59
+form_id = 50590
+form_name = "Hisuian"
+
+[[pokemon_form]]
+base_id = 100
+form_id = 51000
+form_name = "Hisuian"
+
+[[pokemon_form]]
+base_id = 101
+form_id = 51010
+form_name = "Hisuian"
+
+[[pokemon_form]]
+base_id = 128
+form_id = 61280
+form_name = "Paldean"
+
+[[pokemon_form]]
+base_id = 128
+form_id = 61281
+form_name = "Paldean"
+
+[[pokemon_form]]
+base_id = 128
+form_id = 61282
+form_name = "Paldean"
