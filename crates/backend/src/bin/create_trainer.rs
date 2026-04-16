@@ -17,9 +17,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let db_url = std::env::var("DATABASE_URL")
         .unwrap_or_else(|_| "sqlite:./data/rom.db".to_string());
 
-    let opts = sqlx::sqlite::SqliteConnectOptions::new()
-        .filename(db_url.trim_start_matches("sqlite:"))
-        .create_if_missing(true);
+    use std::str::FromStr;
+    let opts = sqlx::sqlite::SqliteConnectOptions::from_str(&db_url)?
+        .create_if_missing(true)
+        .foreign_keys(true);
 
     let pool = std::sync::Arc::new(
         SqlitePoolOptions::new()
