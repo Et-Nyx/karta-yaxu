@@ -43,6 +43,7 @@ COPY crates/backend/migrations/ crates/backend/migrations/
 
 ENV SQLX_OFFLINE=true
 ENV CARGO_BUILD_JOBS=1
+ENV RUSTFLAGS="-C debuginfo=0"
 
 RUN cargo build --release -p backend --bin backend --bin seed --bin create_trainer
 
