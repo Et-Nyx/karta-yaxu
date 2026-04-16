@@ -43,7 +43,7 @@ COPY crates/backend/migrations/ crates/backend/migrations/
 
 ENV SQLX_OFFLINE=true
 
-RUN cargo build --release -p backend --bin backend --bin seed
+RUN cargo build --release -p backend --bin backend --bin seed --bin create_trainer
 
 # ═══════════════════════════════════════════════
 # Stage 3: Runtime
@@ -56,6 +56,7 @@ WORKDIR /app
 
 COPY --from=backend-builder /app/target/release/backend /app/backend
 COPY --from=backend-builder /app/target/release/seed /app/seed
+COPY --from=backend-builder /app/target/release/create_trainer /app/create_trainer
 COPY static/ /app/static-reference/
 COPY --from=wasm-builder /app/static/wasm/ /app/static-reference/wasm/
 
@@ -63,7 +64,7 @@ COPY crates/backend/migrations/ /app/migrations/
 COPY data/template/ /app/template/
 COPY entrypoint.sh /app/entrypoint.sh
 
-RUN chmod +x /app/backend /app/seed /app/entrypoint.sh
+RUN chmod +x /app/backend /app/seed /app/create_trainer /app/entrypoint.sh
 
 ENV DATABASE_URL="sqlite:/app/data/rom.db"
 ENV SEED_DATA_PATH="/app/template"
