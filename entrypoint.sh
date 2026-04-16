@@ -1,16 +1,10 @@
 #!/bin/sh
 set -e
 
-echo "[entrypoint] Initializing static assets volume..."
+echo "[entrypoint] Syncing static assets from image to volume..."
 
 mkdir -p /app/static
-
-if [ -z "$(ls -A /app/static 2>/dev/null)" ]; then
-    echo "[entrypoint] Static volume is empty — copying defaults from image..."
-    cp -r /app/static-reference/* /app/static/
-else
-    echo "[entrypoint] Static volume has content — skipping copy."
-fi
+cp -r /app/static-reference/* /app/static/
 
 echo "[entrypoint] Ensuring data directory exists..."
 mkdir -p /app/data

@@ -60,13 +60,13 @@ COPY static/ /app/static-reference/
 COPY --from=wasm-builder /app/static/wasm/ /app/static-reference/wasm/
 
 COPY crates/backend/migrations/ /app/migrations/
-COPY data/template/ /app/data/template/
+COPY data/template/ /app/template/
 COPY entrypoint.sh /app/entrypoint.sh
 
 RUN chmod +x /app/backend /app/seed /app/entrypoint.sh
 
 ENV DATABASE_URL="sqlite:/app/data/rom.db"
-ENV SEED_DATA_PATH="/app/data/template"
+ENV SEED_DATA_PATH="/app/template"
 ENV RUST_LOG="info"
 ENV PORT=3000
 ENV SECURE_COOKIE=true
