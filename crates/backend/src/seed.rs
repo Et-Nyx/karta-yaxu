@@ -20,7 +20,13 @@ pub async fn run_seed_cli(pool: &SqlitePool) -> Result<(), Box<dyn std::error::E
     println!("🌱 Iniciando processo completo de Seed (Em Transação)...");
 
     let base = std::env::var("SEED_DATA_PATH")
-        .unwrap_or_else(|_| "data/template".to_string());
+        .unwrap_or_else(|_| {
+            if std::path::Path::new("/app/template").exists() {
+                "/app/template".to_string()
+            } else {
+                "data/template".to_string()
+            }
+        });
 
     let mut tx = pool.begin().await?;
     sqlx::query("PRAGMA defer_foreign_keys = ON").execute(&mut *tx).await?;
