@@ -42,6 +42,7 @@ COPY .sqlx/ .sqlx/
 COPY crates/backend/migrations/ crates/backend/migrations/
 
 ENV SQLX_OFFLINE=true
+ENV CARGO_BUILD_JOBS=1
 
 RUN cargo build --release -p backend --bin backend --bin seed --bin create_trainer
 
@@ -70,7 +71,7 @@ ENV DATABASE_URL="sqlite:/app/data/rom.db"
 ENV SEED_DATA_PATH="/app/template"
 ENV RUST_LOG="info"
 ENV PORT=3000
-ENV SECURE_COOKIE=true
+ENV SECURE_COOKIE=false
 
 EXPOSE 3000
 
