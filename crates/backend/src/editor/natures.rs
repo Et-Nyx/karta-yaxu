@@ -87,8 +87,9 @@ pub async fn nature_edit(
     State(pool): State<SqlitePool>,
     Path(slug): Path<String>,
 ) -> impl IntoResponse {
-    let n = sqlx::query_as::<_, Nature>("SELECT * FROM natures WHERE name LIKE ?")
-        .bind(&slug).fetch_optional(&pool).await.unwrap_or(None);
+    let all_natures = sqlx::query_as::<_, Nature>("SELECT * FROM natures")
+        .fetch_all(&pool).await.unwrap_or_default();
+    let n = all_natures.into_iter().find(|n| filters::to_slug(&n.name) == slug);
     if let Some(n) = n {
         let toml_content = toml::to_string(&n).unwrap_or_default();
         Html(NatureEditTemplate { slug, toml_content, error: None, user_role: Some("editor".into()) }
@@ -113,12 +114,11 @@ pub async fn nature_save(
             }.render().unwrap_or_default()).into_response();
         }
     };
-    let old_n = match sqlx::query_as::<_, Nature>("SELECT * FROM natures WHERE name LIKE ?")
-        .bind(&slug).fetch_optional(&pool).await
-    {
-        Ok(Some(n)) => n,
-        Ok(None) => return StatusCode::NOT_FOUND.into_response(),
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("Erro: {}", e)).into_response(),
+    let all_natures = sqlx::query_as::<_, Nature>("SELECT * FROM natures")
+        .fetch_all(&pool).await.unwrap_or_default();
+    let old_n = match all_natures.into_iter().find(|n| filters::to_slug(&n.name) == slug) {
+        Some(n) => n,
+        None => return StatusCode::NOT_FOUND.into_response(),
     };
     let mut new_n = new_n;
     new_n.id = old_n.id; // Evita ID Hijacking
@@ -144,8 +144,9 @@ pub async fn nature_delete(
     State(pool): State<SqlitePool>,
     Path(slug): Path<String>,
 ) -> impl IntoResponse {
-    let n = sqlx::query_as::<_, Nature>("SELECT * FROM natures WHERE name LIKE ?")
-        .bind(&slug).fetch_optional(&pool).await.unwrap_or(None);
+    let all_natures = sqlx::query_as::<_, Nature>("SELECT * FROM natures")
+        .fetch_all(&pool).await.unwrap_or_default();
+    let n = all_natures.into_iter().find(|n| filters::to_slug(&n.name) == slug);
     if let Some(n) = n {
         if n.id == 0 {
             return (StatusCode::BAD_REQUEST, "Cannot delete the fallback nature").into_response();

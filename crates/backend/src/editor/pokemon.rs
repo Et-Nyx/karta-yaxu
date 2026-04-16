@@ -220,11 +220,12 @@ pub async fn pokemon_edit(
     State(pool): State<SqlitePool>,
     Path(slug): Path<String>,
 ) -> impl IntoResponse {
-    let pokemon = sqlx::query_as::<_, Pokemon>("SELECT * FROM pokemon WHERE name LIKE ?")
-        .bind(&slug)
-        .fetch_optional(&pool)
+    let all_pokemon = sqlx::query_as::<_, Pokemon>("SELECT * FROM pokemon")
+        .fetch_all(&pool)
         .await
-        .unwrap_or(None);
+        .unwrap_or_default();
+
+    let pokemon = all_pokemon.into_iter().find(|p| filters::to_slug(&p.name) == slug);
 
     if let Some(p) = pokemon {
         let abilities = sqlx::query_as::<_, PokemonAbility>("SELECT * FROM pokemon_abilities WHERE pokemon_id = ?")
@@ -271,26 +272,14 @@ pub async fn pokemon_save(
         }
     };
 
-    let old_p = match sqlx::query_as::<_, Pokemon>("SELECT * FROM pokemon WHERE name LIKE ?")
-        .bind(&slug)
-        .fetch_optional(&pool)
+    let all_pokemon = sqlx::query_as::<_, Pokemon>("SELECT * FROM pokemon")
+        .fetch_all(&pool)
         .await
-    {
-        Ok(Some(p)) => p,
-        Ok(None) => return StatusCode::NOT_FOUND.into_response(),
-        Err(e) => {
-            return Html(
-                PokemonEditTemplate {
-                    slug,
-                    toml_content: payload.toml_content,
-                    error: Some(format!("Erro no banco de dados: {}", e)),
-                    user_role: Some("editor".into()),
-                }
-                .render()
-                .unwrap_or_default(),
-            )
-            .into_response();
-        }
+        .unwrap_or_default();
+
+    let old_p = match all_pokemon.into_iter().find(|p| filters::to_slug(&p.name) == slug) {
+        Some(p) => p,
+        None => return StatusCode::NOT_FOUND.into_response(),
     };
 
     let mut new_p = full.pokemon.clone();
@@ -393,11 +382,12 @@ pub async fn pokemon_delete(
     State(pool): State<SqlitePool>,
     Path(slug): Path<String>,
 ) -> impl IntoResponse {
-    let p = sqlx::query_as::<_, Pokemon>("SELECT * FROM pokemon WHERE name LIKE ?")
-        .bind(&slug)
-        .fetch_optional(&pool)
+    let all_pokemon = sqlx::query_as::<_, Pokemon>("SELECT * FROM pokemon")
+        .fetch_all(&pool)
         .await
-        .unwrap_or(None);
+        .unwrap_or_default();
+
+    let p = all_pokemon.into_iter().find(|p| filters::to_slug(&p.name) == slug);
 
     if let Some(p) = p {
         let mut tx = match pool.begin().await {

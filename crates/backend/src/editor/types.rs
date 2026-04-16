@@ -113,8 +113,9 @@ pub async fn type_edit(
     State(pool): State<SqlitePool>,
     Path(slug): Path<String>,
 ) -> impl IntoResponse {
-    let t = sqlx::query_as::<_, Type>("SELECT * FROM types WHERE name LIKE ?")
-        .bind(&slug).fetch_optional(&pool).await.unwrap_or(None);
+    let all_types = sqlx::query_as::<_, Type>("SELECT * FROM types")
+        .fetch_all(&pool).await.unwrap_or_default();
+    let t = all_types.into_iter().find(|t| filters::to_slug(&t.name) == slug);
     if let Some(t) = t {
         let effectiveness = sqlx::query_as::<_, TypeEffectiveness>(
             "SELECT * FROM type_effectiveness WHERE attacker_id = ?"
@@ -143,12 +144,11 @@ pub async fn type_save(
             }.render().unwrap_or_default()).into_response();
         }
     };
-    let old_t = match sqlx::query_as::<_, Type>("SELECT * FROM types WHERE name LIKE ?")
-        .bind(&slug).fetch_optional(&pool).await
-    {
-        Ok(Some(t)) => t,
-        Ok(None) => return StatusCode::NOT_FOUND.into_response(),
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("Erro: {}", e)).into_response(),
+    let all_types = sqlx::query_as::<_, Type>("SELECT * FROM types")
+        .fetch_all(&pool).await.unwrap_or_default();
+    let old_t = match all_types.into_iter().find(|t| filters::to_slug(&t.name) == slug) {
+        Some(t) => t,
+        None => return StatusCode::NOT_FOUND.into_response(),
     };
     let mut new_t = full.types;
     new_t.id = old_t.id; // Evita ID Hijacking
@@ -197,8 +197,9 @@ pub async fn type_delete(
     State(pool): State<SqlitePool>,
     Path(slug): Path<String>,
 ) -> impl IntoResponse {
-    let t = sqlx::query_as::<_, Type>("SELECT * FROM types WHERE name LIKE ?")
-        .bind(&slug).fetch_optional(&pool).await.unwrap_or(None);
+    let all_types = sqlx::query_as::<_, Type>("SELECT * FROM types")
+        .fetch_all(&pool).await.unwrap_or_default();
+    let t = all_types.into_iter().find(|t| filters::to_slug(&t.name) == slug);
     if let Some(t) = t {
         if t.id == 0 {
             return (StatusCode::BAD_REQUEST, "Cannot delete the fallback type").into_response();

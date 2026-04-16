@@ -91,8 +91,9 @@ pub async fn status_edit(
     State(pool): State<SqlitePool>,
     Path(slug): Path<String>,
 ) -> impl IntoResponse {
-    let s = sqlx::query_as::<_, StatusCondition>("SELECT * FROM status_conditions WHERE name LIKE ?")
-        .bind(&slug).fetch_optional(&pool).await.unwrap_or(None);
+    let all_status = sqlx::query_as::<_, StatusCondition>("SELECT * FROM status_conditions")
+        .fetch_all(&pool).await.unwrap_or_default();
+    let s = all_status.into_iter().find(|s| filters::to_slug(&s.name) == slug);
     if let Some(s) = s {
         let toml_content = toml::to_string(&s).unwrap_or_default();
         Html(StatusEditTemplate { slug, toml_content, error: None, user_role: Some("editor".into()) }
@@ -117,12 +118,11 @@ pub async fn status_save(
             }.render().unwrap_or_default()).into_response();
         }
     };
-    let old_s = match sqlx::query_as::<_, StatusCondition>("SELECT * FROM status_conditions WHERE name LIKE ?")
-        .bind(&slug).fetch_optional(&pool).await
-    {
-        Ok(Some(s)) => s,
-        Ok(None) => return StatusCode::NOT_FOUND.into_response(),
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("Erro: {}", e)).into_response(),
+    let all_status = sqlx::query_as::<_, StatusCondition>("SELECT * FROM status_conditions")
+        .fetch_all(&pool).await.unwrap_or_default();
+    let old_s = match all_status.into_iter().find(|s| filters::to_slug(&s.name) == slug) {
+        Some(s) => s,
+        None => return StatusCode::NOT_FOUND.into_response(),
     };
     let mut new_s = new_s;
     new_s.id = old_s.id; // Evita ID Hijacking
@@ -148,8 +148,9 @@ pub async fn status_delete(
     State(pool): State<SqlitePool>,
     Path(slug): Path<String>,
 ) -> impl IntoResponse {
-    let s = sqlx::query_as::<_, StatusCondition>("SELECT * FROM status_conditions WHERE name LIKE ?")
-        .bind(&slug).fetch_optional(&pool).await.unwrap_or(None);
+    let all_status = sqlx::query_as::<_, StatusCondition>("SELECT * FROM status_conditions")
+        .fetch_all(&pool).await.unwrap_or_default();
+    let s = all_status.into_iter().find(|s| filters::to_slug(&s.name) == slug);
     if let Some(s) = s {
         let result = sqlx::query("DELETE FROM status_conditions WHERE id = ?").bind(s.id).execute(&pool).await;
         match result {

@@ -86,8 +86,9 @@ pub async fn ability_edit(
     State(pool): State<SqlitePool>,
     Path(slug): Path<String>,
 ) -> impl IntoResponse {
-    let a = sqlx::query_as::<_, Ability>("SELECT * FROM abilities WHERE name LIKE ?")
-        .bind(&slug).fetch_optional(&pool).await.unwrap_or(None);
+    let all_abilities = sqlx::query_as::<_, Ability>("SELECT * FROM abilities")
+        .fetch_all(&pool).await.unwrap_or_default();
+    let a = all_abilities.into_iter().find(|a| filters::to_slug(&a.name) == slug);
     if let Some(a) = a {
         let toml_content = toml::to_string(&a).unwrap_or_default();
         Html(AbilityEditTemplate { slug, toml_content, error: None, user_role: Some("editor".into()) }
@@ -112,12 +113,11 @@ pub async fn ability_save(
             }.render().unwrap_or_default()).into_response();
         }
     };
-    let old_a = match sqlx::query_as::<_, Ability>("SELECT * FROM abilities WHERE name LIKE ?")
-        .bind(&slug).fetch_optional(&pool).await
-    {
-        Ok(Some(a)) => a,
-        Ok(None) => return StatusCode::NOT_FOUND.into_response(),
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("Erro: {}", e)).into_response(),
+    let all_abilities = sqlx::query_as::<_, Ability>("SELECT * FROM abilities")
+        .fetch_all(&pool).await.unwrap_or_default();
+    let old_a = match all_abilities.into_iter().find(|a| filters::to_slug(&a.name) == slug) {
+        Some(a) => a,
+        None => return StatusCode::NOT_FOUND.into_response(),
     };
     let mut new_a = new_a;
     new_a.id = old_a.id; // Evita ID Hijacking
@@ -142,8 +142,9 @@ pub async fn ability_delete(
     State(pool): State<SqlitePool>,
     Path(slug): Path<String>,
 ) -> impl IntoResponse {
-    let a = sqlx::query_as::<_, Ability>("SELECT * FROM abilities WHERE name LIKE ?")
-        .bind(&slug).fetch_optional(&pool).await.unwrap_or(None);
+    let all_abilities = sqlx::query_as::<_, Ability>("SELECT * FROM abilities")
+        .fetch_all(&pool).await.unwrap_or_default();
+    let a = all_abilities.into_iter().find(|a| filters::to_slug(&a.name) == slug);
     if let Some(a) = a {
         if a.id == 0 {
             return (StatusCode::BAD_REQUEST, "Cannot delete the fallback ability").into_response();
