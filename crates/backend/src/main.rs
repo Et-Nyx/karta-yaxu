@@ -64,8 +64,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let governor_conf = std::sync::Arc::new(
         GovernorConfigBuilder::default()
-            .per_second(2)
-            .burst_size(10)
+            .per_second(5)
+            .burst_size(20)
             .use_headers()
             .finish()
             .unwrap()
@@ -73,7 +73,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let governor_layer = GovernorLayer::new(governor_conf);
 
     println!("Configurando as rotas Axum...");
-    let app = Router::new()
+    let api_routes = Router::new()
         .route("/", get(backend::search::search_page))
         .route("/health", get(health_handler))
         // Trainers - auth
@@ -124,19 +124,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Wiki — Mecânicas
         .route("/wiki/mechanics/nature", get(backend::wiki::natures_list))
         .route("/wiki/mechanics/status", get(backend::wiki::status_list))
-        // Search
         .route("/search", get(backend::search::search_page))
         .route("/api/search/suggestions", get(backend::search::search_suggestions))
-        // Estáticos
-        .nest_service("/static", ServeDir::new("static"))
         .layer(governor_layer)
-        .layer(session_layer)
+        .layer(session_layer);
+
+    let app = Router::new()
+        .nest_service("/static", ServeDir::new("static"))
+        .merge(api_routes)
         .with_state(pool);
 
     let addr = format!("0.0.0.0:{}", port);
     println!("Servidor rodando em: http://{}", addr);
     let listener = tokio::net::TcpListener::bind(&addr).await?;
-    axum::serve(listener, app).await?;
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+    ).await?;
 
     Ok(())
 }

@@ -8,7 +8,13 @@ use sqlx::SqlitePool;
 use engine::models::{Type, TypeEffectiveness};
 use crate::auth::EditorSession;
 use crate::filters;
-use super::{EditForm, TypeFull};
+use serde::Deserialize;
+use super::TypeFull;
+
+#[derive(Deserialize)]
+pub struct JsonEditForm {
+    pub json_content: String,
+}
 
 // ── Templates ────────────────────────────────────────────────────────────────
 
@@ -23,7 +29,8 @@ pub struct TypeListTemplate {
 #[template(path = "editor/types/edit.html")]
 pub struct TypeEditTemplate {
     pub slug: String,
-    pub toml_content: String,
+    pub json_content: String,
+    pub all_types: Vec<Type>,
     pub error: Option<String>,
     pub user_role: Option<String>,
 }
@@ -45,6 +52,9 @@ pub async fn type_new(
 ) -> impl IntoResponse {
     let max_id: i64 = sqlx::query_scalar("SELECT COALESCE(MAX(id), 0) FROM types")
         .fetch_one(&pool).await.unwrap_or(0);
+    let all_types = sqlx::query_as::<_, Type>("SELECT * FROM types")
+        .fetch_all(&pool).await.unwrap_or_default();
+    
     let default_t = Type { id: max_id + 1, name: "Novo Tipo".to_string(), hexcolor: "#FFFFFF".to_string(), icon: "icon.png".to_string() };
     let full = TypeFull {
         types: default_t,
@@ -52,7 +62,8 @@ pub async fn type_new(
     };
     Html(TypeEditTemplate {
         slug: "new".to_string(),
-        toml_content: toml::to_string(&full).unwrap_or_default(),
+        json_content: serde_json::to_string(&full).unwrap_or_default(),
+        all_types,
         error: None,
         user_role: Some("editor".into()),
     }.render().unwrap_or_default())
@@ -61,13 +72,16 @@ pub async fn type_new(
 pub async fn type_create(
     EditorSession(trainer): EditorSession,
     State(pool): State<SqlitePool>,
-    Form(payload): Form<EditForm>,
+    Form(payload): Form<JsonEditForm>,
 ) -> impl IntoResponse {
-    let full: TypeFull = match toml::from_str(&payload.toml_content) {
+    let all_types = sqlx::query_as::<_, Type>("SELECT * FROM types")
+        .fetch_all(&pool).await.unwrap_or_default();
+
+    let full: TypeFull = match serde_json::from_str(&payload.json_content) {
         Ok(t) => t,
         Err(e) => return Html(TypeEditTemplate {
-            slug: "new".to_string(), toml_content: payload.toml_content,
-            error: Some(format!("Erro no TOML: {}", e)), user_role: Some("editor".into()),
+            slug: "new".to_string(), json_content: payload.json_content, all_types,
+            error: Some(format!("Erro no JSON: {}", e)), user_role: Some("editor".into()),
         }.render().unwrap_or_default()).into_response(),
     };
     let new_t = full.types;
@@ -97,12 +111,12 @@ pub async fn type_create(
     match result {
         Ok(_) => {
             let _ = sqlx::query("INSERT INTO edits (trainer_id, table_name, record_id, diff) VALUES (?, ?, ?, ?)")
-                .bind(&trainer.id).bind("types").bind(new_t.id).bind(&format!("CREATE---{}", payload.toml_content))
+                .bind(&trainer.id).bind("types").bind(new_t.id).bind(&format!("CREATE---{}", payload.json_content))
                 .execute(&pool).await;
             Redirect::to(&format!("/wiki/types/{}", filters::to_slug(&new_t.name))).into_response()
         }
         Err(e) => Html(TypeEditTemplate {
-            slug: "new".to_string(), toml_content: payload.toml_content,
+            slug: "new".to_string(), json_content: payload.json_content, all_types,
             error: Some(format!("Erro no banco de dados: {}", e)), user_role: Some("editor".into()),
         }.render().unwrap_or_default()).into_response(),
     }
@@ -115,14 +129,14 @@ pub async fn type_edit(
 ) -> impl IntoResponse {
     let all_types = sqlx::query_as::<_, Type>("SELECT * FROM types")
         .fetch_all(&pool).await.unwrap_or_default();
-    let t = all_types.into_iter().find(|t| filters::to_slug(&t.name) == slug);
+    let t = all_types.iter().find(|t| filters::to_slug(&t.name) == slug).cloned();
     if let Some(t) = t {
         let effectiveness = sqlx::query_as::<_, TypeEffectiveness>(
             "SELECT * FROM type_effectiveness WHERE attacker_id = ?"
         ).bind(t.id).fetch_all(&pool).await.unwrap_or_default();
         let full = TypeFull { types: t, effectiveness };
-        let toml_content = toml::to_string(&full).unwrap_or_default();
-        Html(TypeEditTemplate { slug, toml_content, error: None, user_role: Some("editor".into()) }
+        let json_content = serde_json::to_string(&full).unwrap_or_default();
+        Html(TypeEditTemplate { slug, json_content, all_types, error: None, user_role: Some("editor".into()) }
             .render().unwrap_or_default()).into_response()
     } else {
         StatusCode::NOT_FOUND.into_response()
@@ -133,27 +147,28 @@ pub async fn type_save(
     EditorSession(trainer): EditorSession,
     State(pool): State<SqlitePool>,
     Path(slug): Path<String>,
-    Form(payload): Form<EditForm>,
+    Form(payload): Form<JsonEditForm>,
 ) -> impl IntoResponse {
-    let full: TypeFull = match toml::from_str(&payload.toml_content) {
+    let all_types = sqlx::query_as::<_, Type>("SELECT * FROM types")
+        .fetch_all(&pool).await.unwrap_or_default();
+
+    let full: TypeFull = match serde_json::from_str(&payload.json_content) {
         Ok(t) => t,
         Err(e) => {
             return Html(TypeEditTemplate {
-                slug, toml_content: payload.toml_content,
-                error: Some(format!("Erro no TOML: {}", e)), user_role: Some("editor".into()),
+                slug, json_content: payload.json_content, all_types,
+                error: Some(format!("Erro no JSON: {}", e)), user_role: Some("editor".into()),
             }.render().unwrap_or_default()).into_response();
         }
     };
-    let all_types = sqlx::query_as::<_, Type>("SELECT * FROM types")
-        .fetch_all(&pool).await.unwrap_or_default();
-    let old_t = match all_types.into_iter().find(|t| filters::to_slug(&t.name) == slug) {
+    let old_t = match all_types.iter().find(|t| filters::to_slug(&t.name) == slug).cloned() {
         Some(t) => t,
         None => return StatusCode::NOT_FOUND.into_response(),
     };
     let mut new_t = full.types;
     new_t.id = old_t.id; // Evita ID Hijacking
     let full = TypeFull { types: new_t.clone(), ..full };
-    let diff = format!("{}---{}", toml::to_string(&old_t).unwrap_or_default(), payload.toml_content);
+    let diff = format!("{}---{}", serde_json::to_string(&old_t).unwrap_or_default(), payload.json_content);
 
     let mut tx = match pool.begin().await {
         Ok(tx) => tx,
@@ -186,7 +201,7 @@ pub async fn type_save(
             Redirect::to(&format!("/wiki/types/{}", slug)).into_response()
         }
         Err(e) => Html(TypeEditTemplate {
-            slug, toml_content: payload.toml_content,
+            slug, json_content: payload.json_content, all_types,
             error: Some(format!("Erro no banco de dados: {}", e)), user_role: Some("editor".into()),
         }.render().unwrap_or_default()).into_response(),
     }

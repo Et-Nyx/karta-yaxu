@@ -1,33 +1,347 @@
 {% extends "base.html" %}
 {% block title %}Editar {{ slug }} — Karta Yaxu{% endblock %}
 {% block content %}
-<div class="gb-card elevation-2" style="max-width: 800px; margin: 2rem auto;">
-    <h1 style="font-size: 20px; text-transform: uppercase; margin-bottom: 8px;">EDITAR: {{ slug }}</h1>
-    <p style="font-size: 10px; margin-bottom: 24px;">Modifique os dados no payload formato TOML abaixo.</p>
-    
-    {% if let Some(error) = error %}
-    <div style="background-color: var(--destructive); color: var(--primary-foreground); padding: 16px; margin-bottom: 24px; font-size: 10px; border: 2px solid var(--border);">
-        <strong>ERRO AO SALVAR:</strong> {{ error }}
-    </div>
-    {% endif %}
 
-    <form method="post" style="display: flex; flex-direction: column; gap: 16px;">
-        <textarea name="toml_content" rows="20" style="width: 100%; padding: 12px; background-color: var(--gb-darkest); color: var(--gb-lightest); border: 4px solid var(--border); font-family: inherit; font-size: 10px; line-height: 1.5;">{{ toml_content }}</textarea>
-        
-        <div class="flex gap-4 mt-4">
-            <button type="submit" class="btn btn-primary" style="flex: 2; padding: 16px;">SALVAR ALTERAÇÕES</button>
-            <a href="{% if slug == "new" %}/editor/pokemon{% else %}/wiki/pokemon/{{ slug }}{% endif %}" class="btn btn-secondary" style="flex: 1; padding: 16px; text-align: center;">CANCELAR</a>
-        </div>
-    </form>
-
-    {% if slug != "new" %}
-    <div style="margin-top: 32px; padding-top: 32px; border-top: 4px dashed var(--border);">
-        <h3 style="font-size: 16px; color: var(--destructive); margin-bottom: 8px;">ZONA DE PERIGO</h3>
-        <p style="font-size: 8px; line-height: 1.8; margin-bottom: 16px;">A exclusão deste item destruirá ramificações linkadas (evoluções, golpes).</p>
-        <form action="/editor/pokemon/{{ slug }}/delete" method="post" data-confirm="ATENÇÃO! Deseja erradicar este arquivo corrompendo a Dex?">
-            <button type="submit" class="btn" style="background-color: var(--destructive); color: var(--primary-foreground);">DELETAR DEFINITIVAMENTE</button>
-        </form>
-    </div>
-    {% endif %}
+{% if let Some(error) = error %}
+<div style="background-color: var(--destructive); color: var(--primary-foreground); padding: 16px; margin-bottom: 24px; font-size: 10px; border: 2px solid var(--border);">
+    <strong>ERRO AO SALVAR:</strong> {{ error }}
 </div>
+{% endif %}
+
+<form method="post" id="mainForm">
+    <!-- JSON escondido que será enviado pro backend -->
+    <input type="hidden" name="json_content" id="json_content" />
+
+    <div style="display: flex; justify-content: space-between; margin-bottom: 24px; align-items: center;">
+        <h1 style="font-size: 20px; text-transform: uppercase;">EDITAR: {{ slug }}</h1>
+        <div class="flex gap-4">
+            <a href="{% if slug == "new" %}/editor/pokemon{% else %}/wiki/pokemon/{{ slug }}{% endif %}" class="btn btn-secondary" style="padding: 12px 24px;">CANCELAR</a>
+            <button type="submit" class="btn btn-primary" style="padding: 12px 24px; background-color: var(--success, #4CAF50);">SALVAR</button>
+        </div>
+    </div>
+
+    <!-- Script de dados -->
+    <script id="fullData" type="application/json">{{ json_content|safe }}</script>
+
+    <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 32px; align-items: start;" class="detail-grid">
+        <!-- LADO ESQUERDO: Base Pokemon -->
+        <div class="gb-card elevation-2" style="position: sticky; top: 100px; display: flex; flex-direction: column; gap: 16px;">
+            <div class="flex gap-4">
+                <div style="flex: 1;">
+                    <label style="font-size: 8px; margin-bottom: 4px; display: block;">Nº DEX</label>
+                    <input type="number" id="base_dex" class="w-full" style="background: var(--gb-lightest); border: 2px solid var(--border); padding: 8px;" />
+                </div>
+                <div style="flex: 3;">
+                    <label style="font-size: 8px; margin-bottom: 4px; display: block;">NOME</label>
+                    <input type="text" id="base_name" class="w-full" style="background: var(--gb-lightest); border: 2px solid var(--border); padding: 8px;" />
+                </div>
+            </div>
+
+            <div class="flex gap-4">
+                <div class="flex-1">
+                    <label style="font-size: 8px; margin-bottom: 4px; display: block;">TIPO 1</label>
+                    <select id="base_type1" class="w-full" style="background: var(--gb-lightest); border: 2px solid var(--border); padding: 8px;">
+                        {% for t in all_types %}
+                        <option value="{{ t.id }}">{{ t.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="flex-1">
+                    <label style="font-size: 8px; margin-bottom: 4px; display: block;">TIPO 2</label>
+                    <select id="base_type2" class="w-full" style="background: var(--gb-lightest); border: 2px solid var(--border); padding: 8px;">
+                        <option value="">(Nenhum)</option>
+                        {% for t in all_types %}
+                        <option value="{{ t.id }}">{{ t.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="flex gap-4">
+                <div style="flex: 1;">
+                    <label style="font-size: 8px; margin-bottom: 4px; display: block;">SPRITE</label>
+                    <input type="text" id="base_sprite" class="w-full" style="background: var(--gb-lightest); border: 2px solid var(--border); padding: 8px; font-size: 8px;" />
+                </div>
+                <div style="flex: 1;">
+                    <label style="font-size: 8px; margin-bottom: 4px; display: block;">SPRITE SHINY</label>
+                    <input type="text" id="base_sprite_shiny" class="w-full" style="background: var(--gb-lightest); border: 2px solid var(--border); padding: 8px; font-size: 8px;" />
+                </div>
+            </div>
+
+            <div>
+                <label style="font-size: 8px; margin-bottom: 4px; display: block;">POKÉDEX ENTRY</label>
+                <textarea id="base_pokedex_entry" rows="4" class="w-full" style="background: var(--gb-lightest); border: 2px solid var(--border); padding: 8px; font-family: inherit; font-size: 10px;"></textarea>
+            </div>
+
+            <div>
+                <h3 style="font-size: 10px; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 2px solid var(--border);">BASE STATS</h3>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+                    <div><label style="font-size: 8px;">HP</label><input type="number" id="base_hp" class="w-full p-2" style="background: var(--gb-lightest); border: 2px solid var(--border);"/></div>
+                    <div><label style="font-size: 8px;">ATK</label><input type="number" id="base_atk" class="w-full p-2" style="background: var(--gb-lightest); border: 2px solid var(--border);"/></div>
+                    <div><label style="font-size: 8px;">DEF</label><input type="number" id="base_def" class="w-full p-2" style="background: var(--gb-lightest); border: 2px solid var(--border);"/></div>
+                    <div><label style="font-size: 8px;">SPA</label><input type="number" id="base_spa" class="w-full p-2" style="background: var(--gb-lightest); border: 2px solid var(--border);"/></div>
+                    <div><label style="font-size: 8px;">SPD</label><input type="number" id="base_spd" class="w-full p-2" style="background: var(--gb-lightest); border: 2px solid var(--border);"/></div>
+                    <div><label style="font-size: 8px;">SPE</label><input type="number" id="base_spe" class="w-full p-2" style="background: var(--gb-lightest); border: 2px solid var(--border);"/></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- LADO DIREITO: Referências Dinâmicas -->
+        <div class="flex flex-col gap-4">
+            
+            <!-- Habilidades -->
+            <div class="gb-card elevation-1">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <h2 style="font-size: 14px;">Habilidades</h2>
+                    <button type="button" class="btn" style="padding: 4px 8px;" onclick="addRow('abilities-list', 'tpl-ability')">+ Adicionar</button>
+                </div>
+                <div id="abilities-list" style="display: flex; flex-direction: column; gap: 8px;"></div>
+            </div>
+
+            <!-- Evoluções -->
+            <div class="gb-card elevation-1">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <h2 style="font-size: 14px;">Evoluções</h2>
+                    <button type="button" class="btn" style="padding: 4px 8px;" onclick="addRow('evolutions-list', 'tpl-evo')">+ Adicionar</button>
+                </div>
+                <div id="evolutions-list" style="display: flex; flex-direction: column; gap: 8px;"></div>
+            </div>
+
+            <!-- Formas -->
+            <div class="gb-card elevation-1">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <h2 style="font-size: 14px;">Formas Alternativas</h2>
+                    <button type="button" class="btn" style="padding: 4px 8px;" onclick="addRow('forms-list', 'tpl-form')">+ Adicionar</button>
+                </div>
+                <div id="forms-list" style="display: flex; flex-direction: column; gap: 8px;"></div>
+            </div>
+
+            <!-- Learnset -->
+            <div class="gb-card elevation-1">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <h2 style="font-size: 14px;">Learnset (Moves)</h2>
+                    <button type="button" class="btn" style="padding: 4px 8px;" onclick="addRow('learnset-list', 'tpl-learn')">+ Adicionar</button>
+                </div>
+                <!-- Cabeçalho tabela -->
+                <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 30px; gap: 8px; font-size: 8px; opacity: 0.7; margin-bottom: 8px;">
+                    <div>ATAQUE</div>
+                    <div>MÉTODO</div>
+                    <div>LEVEL (Se NV)</div>
+                    <div></div>
+                </div>
+                <div id="learnset-list" style="display: flex; flex-direction: column; gap: 8px;"></div>
+            </div>
+            
+            {% if slug != "new" %}
+            <div style="margin-top: 32px; padding-top: 32px; border-top: 4px dashed var(--border);">
+                <h3 style="font-size: 16px; color: var(--destructive); margin-bottom: 8px;">ZONA DE PERIGO</h3>
+                <p style="font-size: 8px; line-height: 1.8; margin-bottom: 16px;">A exclusão corromperá entradas associadas do banco.</p>
+                <form action="/editor/pokemon/{{ slug }}/delete" method="post" data-confirm="ATENÇÃO! Deseja erradicar este Pokémon da dex?">
+                    <button type="submit" class="btn" style="background-color: var(--destructive); color: var(--primary-foreground);">DELETAR DEFINITIVAMENTE</button>
+                </form>
+            </div>
+            {% endif %}
+
+        </div>
+    </div>
+</form>
+
+<!-- TEMPLATES HIDDEN para Novas Linhas -->
+<template id="tpl-ability">
+   <div class="ability-row flex gap-2 items-center">
+      <select class="ab-id flex-1 p-2" style="background: var(--gb-lightest); border: 2px solid var(--border);">
+        <option value="0">:: Selecione a habilidade ::</option>
+        {% for a in all_abilities %}<option value="{{a.id}}">{{a.name}}</option>{% endfor %}
+      </select>
+      <input type="number" class="ab-slot w-16 p-2" value="1" placeholder="Slot" title="Slot (1, 2, ou Hidden)" style="background: var(--gb-lightest); border: 2px solid var(--border);" />
+      <button type="button" class="btn btn-secondary w-8 h-8 flex justify-center items-center" style="color: var(--destructive);" onclick="this.parentElement.remove()">X</button>
+   </div>
+</template>
+
+<template id="tpl-evo">
+   <div class="evo-row flex flex-col gap-2 p-2 mb-2" style="border: 2px solid var(--border); background: var(--gb-light);">
+      <div class="flex gap-2 items-center">
+          <label style="font-size:8px;width:30px;">PARA:</label>
+          <select class="evo-to flex-1 p-2" style="background: var(--gb-lightest); border: 2px solid var(--border);">
+            <option value="0">:: Evolui para qual pokémon ::</option>
+            {% for pkmn in all_pokemon %}<option value="{{pkmn.id}}">#{{pkmn.dex_number}} {{pkmn.name}}</option>{% endfor %}
+          </select>
+          <button type="button" class="btn btn-secondary w-8 h-8 flex justify-center items-center" style="color: var(--destructive);" onclick="this.parentElement.parentElement.remove()">X</button>
+      </div>
+      <div class="flex gap-2 items-center">
+          <label style="font-size:8px;width:30px;">COND:</label>
+          <input type="text" class="evo-cond flex-1 p-2" placeholder="Level, Item, Trade..." style="background: var(--gb-lightest); border: 2px solid var(--border);" />
+          <input type="text" class="evo-val flex-1 p-2" placeholder="Valor (ex: 16, Fire Stone)" style="background: var(--gb-lightest); border: 2px solid var(--border);" />
+      </div>
+   </div>
+</template>
+
+<template id="tpl-form">
+   <div class="form-row flex gap-2 items-center">
+      <select class="form-id flex-1 p-2" style="background: var(--gb-lightest); border: 2px solid var(--border);">
+        <option value="0">:: Pokémon Base da Forma ::</option>
+        {% for pkmn in all_pokemon %}<option value="{{pkmn.id}}">#{{pkmn.dex_number}} {{pkmn.name}}</option>{% endfor %}
+      </select>
+      <input type="text" class="form-name flex-1 p-2" placeholder="Nome da Forma (Mega, Alola...)" style="background: var(--gb-lightest); border: 2px solid var(--border);" />
+      <button type="button" class="btn btn-secondary w-8 h-8 flex justify-center items-center" style="color: var(--destructive);" onclick="this.parentElement.remove()">X</button>
+   </div>
+</template>
+
+<template id="tpl-learn">
+   <div class="learn-row flex gap-2 items-center" style="display: grid; grid-template-columns: 2fr 1fr 1fr 30px;">
+      <select class="learn-move p-2" style="background: var(--gb-lightest); border: 2px solid var(--border);">
+        <option value="0">:: Ataque ::</option>
+        {% for m in all_moves %}<option value="{{m.id}}">{{m.name}}</option>{% endfor %}
+      </select>
+      <select class="learn-method p-2" style="background: var(--gb-lightest); border: 2px solid var(--border);" onchange="const lvlInp = this.parentElement.querySelector('.learn-level'); if(this.value === 'level_up') { lvlInp.style.display = 'block'; } else { lvlInp.style.display = 'none'; lvlInp.value = ''; }">
+        <option value="level_up">Level Up</option>
+        <option value="tm">TM/HM</option>
+        <option value="egg">Egg Move</option>
+        <option value="tutor">Tutor</option>
+        <option value="gmax">G-Max</option>
+        <option value="max">Max Move</option>
+      </select>
+      <input type="number" class="learn-level w-full p-2" placeholder="Nível" style="background: var(--gb-lightest); border: 2px solid var(--border);" />
+      <button type="button" class="btn btn-secondary w-8 h-8 flex justify-center items-center" style="color: var(--destructive); margin-left: 0;" onclick="this.parentElement.remove()">X</button>
+   </div>
+</template>
+
+<script>
+    const fullData = JSON.parse(document.getElementById('fullData').textContent || "{}");
+
+    // Initialize Base Data
+    document.getElementById('base_dex').value = fullData.dex_number !== undefined ? fullData.dex_number : '';
+    document.getElementById('base_name').value = fullData.name || '';
+    document.getElementById('base_type1').value = fullData.type1_id || '';
+    document.getElementById('base_type2').value = fullData.type2_id || '';
+    document.getElementById('base_sprite').value = fullData.sprite || '';
+    document.getElementById('base_sprite_shiny').value = fullData.sprite_shiny || '';
+    document.getElementById('base_pokedex_entry').value = fullData.pokedex_entry || '';
+    document.getElementById('base_hp').value = fullData.hp !== undefined ? fullData.hp : '';
+    document.getElementById('base_atk').value = fullData.atk !== undefined ? fullData.atk : '';
+    document.getElementById('base_def').value = fullData.def !== undefined ? fullData.def : '';
+    document.getElementById('base_spa').value = fullData.spa !== undefined ? fullData.spa : '';
+    document.getElementById('base_spd').value = fullData.spd !== undefined ? fullData.spd : '';
+    document.getElementById('base_spe').value = fullData.spe !== undefined ? fullData.spe : '';
+
+    function addRow(containerId, templateId, callback) {
+        const tpl = document.getElementById(templateId).content.cloneNode(true);
+        const el = tpl.firstElementChild;
+        document.getElementById(containerId).appendChild(el);
+        if (callback) callback(el);
+        return el;
+    }
+
+    // Initialize Dynamic Arrays
+    if (fullData.abilities) {
+        fullData.abilities.forEach(ab => {
+            addRow('abilities-list', 'tpl-ability', el => {
+                el.querySelector('.ab-id').value = ab.ability_id;
+                el.querySelector('.ab-slot').value = ab.slot;
+            });
+        });
+    }
+
+    if (fullData.evolutions) {
+        fullData.evolutions.forEach(ev => {
+            addRow('evolutions-list', 'tpl-evo', el => {
+                el.querySelector('.evo-to').value = ev.to_id;
+                el.querySelector('.evo-cond').value = ev.condition;
+                if(ev.condition_value) el.querySelector('.evo-val').value = ev.condition_value;
+            });
+        });
+    }
+
+    if (fullData.forms) {
+        fullData.forms.forEach(fm => {
+            addRow('forms-list', 'tpl-form', el => {
+                el.querySelector('.form-id').value = fm.form_id;
+                el.querySelector('.form-name').value = fm.form_name;
+            });
+        });
+    }
+
+    if (fullData.learnset) {
+        fullData.learnset.forEach(ls => {
+            addRow('learnset-list', 'tpl-learn', el => {
+                el.querySelector('.learn-move').value = ls.move_id;
+                const methodSel = el.querySelector('.learn-method');
+                methodSel.value = ls.method;
+                const lvlInp = el.querySelector('.learn-level');
+                if (ls.method !== 'level_up') {
+                    lvlInp.style.display = 'none';
+                }
+                if(ls.level !== null) lvlInp.value = ls.level;
+            });
+        });
+    }
+
+    // Submit Hook
+    document.getElementById('mainForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        
+        let out = { ...fullData };
+        out.id = fullData.id || 0;
+        out.dex_number = parseInt(document.getElementById('base_dex').value) || 0;
+        out.name = document.getElementById('base_name').value;
+        out.sprite = document.getElementById('base_sprite').value;
+        out.sprite_shiny = document.getElementById('base_sprite_shiny').value;
+        out.type1_id = parseInt(document.getElementById('base_type1').value) || 1;
+        out.type2_id = document.getElementById('base_type2').value ? parseInt(document.getElementById('base_type2').value) : null;
+        out.hp = parseInt(document.getElementById('base_hp').value) || 0;
+        out.atk = parseInt(document.getElementById('base_atk').value) || 0;
+        out.def = parseInt(document.getElementById('base_def').value) || 0;
+        out.spa = parseInt(document.getElementById('base_spa').value) || 0;
+        out.spd = parseInt(document.getElementById('base_spd').value) || 0;
+        out.spe = parseInt(document.getElementById('base_spe').value) || 0;
+        out.pokedex_entry = document.getElementById('base_pokedex_entry').value;
+
+        out.abilities = Array.from(document.querySelectorAll('.ability-row')).map(row => ({
+            pokemon_id: out.id,
+            ability_id: parseInt(row.querySelector('.ab-id').value) || 0,
+            slot: parseInt(row.querySelector('.ab-slot').value) || 1
+        })).filter(a => a.ability_id > 0);
+
+        out.evolutions = Array.from(document.querySelectorAll('.evo-row')).map(row => ({
+            from_id: out.id,
+            to_id: parseInt(row.querySelector('.evo-to').value) || 0,
+            condition: row.querySelector('.evo-cond').value,
+            condition_value: row.querySelector('.evo-val').value || null
+        })).filter(e => e.to_id > 0);
+
+        out.forms = Array.from(document.querySelectorAll('.form-row')).map(row => ({
+            base_id: out.id,
+            form_id: parseInt(row.querySelector('.form-id').value) || 0,
+            form_name: row.querySelector('.form-name').value
+        })).filter(f => f.form_id > 0);
+
+        out.learnset = Array.from(document.querySelectorAll('.learn-row')).map(row => {
+            let m = row.querySelector('.learn-method').value;
+            let lvlStr = row.querySelector('.learn-level').value;
+            let lvl = null;
+            if ((m === "level_up" || m === "level") && lvlStr) lvl = parseInt(lvlStr);
+            return {
+                pokemon_id: out.id,
+                move_id: parseInt(row.querySelector('.learn-move').value) || 0,
+                method: m,
+                level: lvl
+            };
+        }).filter(l => l.move_id > 0);
+        
+        delete out.pokemon;
+
+        document.getElementById('json_content').value = JSON.stringify(out);
+        e.target.submit();
+    });
+</script>
+<style>
+  @media (max-width: 768px) {
+    .detail-grid {
+      grid-template-columns: 1fr !important;
+    }
+    .gb-card[style*="top: 100px"] {
+        position: static !important;
+    }
+  }
+</style>
 {% endblock %}

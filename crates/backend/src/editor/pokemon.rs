@@ -5,10 +5,10 @@ use axum::{
     http::StatusCode,
 };
 use sqlx::SqlitePool;
-use engine::models::{Pokemon, Type, PokemonAbility, Evolution, PokemonForm, Learnset};
+use engine::models::{Pokemon, Type, PokemonAbility, Evolution, PokemonForm, Learnset, Ability, Move};
 use crate::auth::EditorSession;
 use crate::filters;
-use super::{EditForm, PokemonFull};
+use super::{JsonEditForm, PokemonFull};
 
 // ── Templates ────────────────────────────────────────────────────────────────
 
@@ -23,9 +23,23 @@ pub struct PokemonListTemplate {
 #[template(path = "editor/pokemon/edit.html")]
 pub struct PokemonEditTemplate {
     pub slug: String,
-    pub toml_content: String,
+    pub json_content: String,
     pub error: Option<String>,
     pub user_role: Option<String>,
+    pub all_types: Vec<Type>,
+    pub all_abilities: Vec<Ability>,
+    pub all_moves: Vec<Move>,
+    pub all_pokemon: Vec<Pokemon>,
+}
+
+// ── Helper ───────────────────────────────────────────────────────────────────
+
+async fn fetch_metadata(pool: &SqlitePool) -> (Vec<Type>, Vec<Ability>, Vec<Move>, Vec<Pokemon>) {
+    let all_types = sqlx::query_as::<_, Type>("SELECT * FROM types").fetch_all(pool).await.unwrap_or_default();
+    let all_abilities = sqlx::query_as::<_, Ability>("SELECT * FROM abilities").fetch_all(pool).await.unwrap_or_default();
+    let all_moves = sqlx::query_as::<_, Move>("SELECT * FROM moves").fetch_all(pool).await.unwrap_or_default();
+    let all_pokemon = sqlx::query_as::<_, Pokemon>("SELECT * FROM pokemon ORDER BY dex_number ASC").fetch_all(pool).await.unwrap_or_default();
+    (all_types, all_abilities, all_moves, all_pokemon)
 }
 
 // ── Handlers ─────────────────────────────────────────────────────────────────
@@ -99,13 +113,19 @@ pub async fn pokemon_new(
         learnset: vec![],
     };
 
-    let toml_content = toml::to_string(&full).unwrap_or_default();
+    let json_content = serde_json::to_string(&full).unwrap_or_default();
+    let (all_types, all_abilities, all_moves, all_pokemon) = fetch_metadata(&pool).await;
+
     Html(
         PokemonEditTemplate {
             slug: "new".to_string(),
-            toml_content,
+            json_content,
             error: None,
             user_role: Some("editor".into()),
+            all_types,
+            all_abilities,
+            all_moves,
+            all_pokemon,
         }
         .render()
         .unwrap_or_default(),
@@ -115,17 +135,22 @@ pub async fn pokemon_new(
 pub async fn pokemon_create(
     EditorSession(trainer): EditorSession,
     State(pool): State<SqlitePool>,
-    Form(payload): Form<EditForm>,
+    Form(payload): Form<JsonEditForm>,
 ) -> impl IntoResponse {
-    let full: PokemonFull = match toml::from_str(&payload.toml_content) {
+    let full: PokemonFull = match serde_json::from_str(&payload.json_content) {
         Ok(p) => p,
         Err(e) => {
+            let (all_types, all_abilities, all_moves, all_pokemon) = fetch_metadata(&pool).await;
             return Html(
                 PokemonEditTemplate {
                     slug: "new".to_string(),
-                    toml_content: payload.toml_content,
-                    error: Some(format!("Erro no TOML: {}", e)),
+                    json_content: payload.json_content,
+                    error: Some(format!("Erro no JSON: {}", e)),
                     user_role: Some("editor".into()),
+                    all_types,
+                    all_abilities,
+                    all_moves,
+                    all_pokemon,
                 }
                 .render()
                 .unwrap_or_default(),
@@ -139,12 +164,17 @@ pub async fn pokemon_create(
     let mut tx = match tx {
         Ok(tx) => tx,
         Err(e) => {
+            let (all_types, all_abilities, all_moves, all_pokemon) = fetch_metadata(&pool).await;
             return Html(
                 PokemonEditTemplate {
                     slug: "new".to_string(),
-                    toml_content: payload.toml_content,
+                    json_content: payload.json_content,
                     error: Some(format!("Erro ao iniciar transação: {}", e)),
                     user_role: Some("editor".into()),
+                    all_types,
+                    all_abilities,
+                    all_moves,
+                    all_pokemon,
                 }
                 .render()
                 .unwrap_or_default(),
@@ -197,21 +227,28 @@ pub async fn pokemon_create(
     match result {
         Ok(_) => {
             let _ = sqlx::query("INSERT INTO edits (trainer_id, table_name, record_id, diff) VALUES (?, ?, ?, ?)")
-                .bind(&trainer.id).bind("pokemon").bind(new_p.id).bind(&format!("CREATE---{}", payload.toml_content))
+                .bind(&trainer.id).bind("pokemon").bind(new_p.id).bind(&format!("CREATE---{}", payload.json_content))
                 .execute(&pool).await;
             Redirect::to(&format!("/wiki/pokemon/{}", filters::to_slug(&new_p.name))).into_response()
         }
-        Err(e) => Html(
-            PokemonEditTemplate {
-                slug: "new".to_string(),
-                toml_content: payload.toml_content,
-                error: Some(format!("Erro no banco de dados: {}", e)),
-                user_role: Some("editor".into()),
-            }
-            .render()
-            .unwrap_or_default(),
-        )
-        .into_response(),
+        Err(e) => {
+            let (all_types, all_abilities, all_moves, all_pokemon) = fetch_metadata(&pool).await;
+            Html(
+                PokemonEditTemplate {
+                    slug: "new".to_string(),
+                    json_content: payload.json_content,
+                    error: Some(format!("Erro no banco de dados: {}", e)),
+                    user_role: Some("editor".into()),
+                    all_types,
+                    all_abilities,
+                    all_moves,
+                    all_pokemon,
+                }
+                .render()
+                .unwrap_or_default(),
+            )
+            .into_response()
+        }
     }
 }
 
@@ -238,9 +275,11 @@ pub async fn pokemon_edit(
             .bind(p.id).fetch_all(&pool).await.unwrap_or_default();
 
         let full = PokemonFull { pokemon: p, abilities, evolutions, forms, learnset };
-        let toml_content = toml::to_string(&full).unwrap_or_default();
+        let json_content = serde_json::to_string(&full).unwrap_or_default();
+        let (all_types, all_abilities, all_moves, all_pokemon) = fetch_metadata(&pool).await;
         Html(
-            PokemonEditTemplate { slug, toml_content, error: None, user_role: Some("editor".into()) }
+            PokemonEditTemplate { slug, json_content, error: None, user_role: Some("editor".into()),
+            all_types, all_abilities, all_moves, all_pokemon }
                 .render().unwrap_or_default(),
         )
         .into_response()
@@ -253,17 +292,22 @@ pub async fn pokemon_save(
     EditorSession(trainer): EditorSession,
     State(pool): State<SqlitePool>,
     Path(slug): Path<String>,
-    Form(payload): Form<EditForm>,
+    Form(payload): Form<JsonEditForm>,
 ) -> impl IntoResponse {
-    let full: PokemonFull = match toml::from_str(&payload.toml_content) {
+    let full: PokemonFull = match serde_json::from_str(&payload.json_content) {
         Ok(p) => p,
         Err(e) => {
+            let (all_types, all_abilities, all_moves, all_pokemon) = fetch_metadata(&pool).await;
             return Html(
                 PokemonEditTemplate {
                     slug,
-                    toml_content: payload.toml_content,
-                    error: Some(format!("Erro no TOML: {}", e)),
+                    json_content: payload.json_content,
+                    error: Some(format!("Erro no JSON: {}", e)),
                     user_role: Some("editor".into()),
+                    all_types,
+                    all_abilities,
+                    all_moves,
+                    all_pokemon,
                 }
                 .render()
                 .unwrap_or_default(),
@@ -286,18 +330,23 @@ pub async fn pokemon_save(
     new_p.id = old_p.id; // Evita ID Hijacking
     let full = PokemonFull { pokemon: new_p.clone(), ..full };
 
-    let old_toml = toml::to_string(&old_p).unwrap_or_default();
-    let diff = format!("{}---{}", old_toml, payload.toml_content);
+    let old_json = serde_json::to_string(&old_p).unwrap_or_default();
+    let diff = format!("{}---{}", old_json, payload.json_content);
 
     let mut tx = match pool.begin().await {
         Ok(tx) => tx,
         Err(e) => {
+            let (all_types, all_abilities, all_moves, all_pokemon) = fetch_metadata(&pool).await;
             return Html(
                 PokemonEditTemplate {
                     slug,
-                    toml_content: payload.toml_content,
+                    json_content: payload.json_content,
                     error: Some(format!("Erro ao iniciar transação: {}", e)),
                     user_role: Some("editor".into()),
+                    all_types,
+                    all_abilities,
+                    all_moves,
+                    all_pokemon,
                 }
                 .render()
                 .unwrap_or_default(),
@@ -363,17 +412,24 @@ pub async fn pokemon_save(
                 .bind(&trainer.id).bind("pokemon").bind(new_p.id).bind(&diff).execute(&pool).await;
             Redirect::to(&format!("/wiki/pokemon/{}", slug)).into_response()
         }
-        Err(e) => Html(
-            PokemonEditTemplate {
-                slug,
-                toml_content: payload.toml_content,
-                error: Some(format!("Erro no banco de dados: {}", e)),
-                user_role: Some("editor".into()),
-            }
-            .render()
-            .unwrap_or_default(),
-        )
-        .into_response(),
+        Err(e) => {
+            let (all_types, all_abilities, all_moves, all_pokemon) = fetch_metadata(&pool).await;
+            Html(
+                PokemonEditTemplate {
+                    slug,
+                    json_content: payload.json_content,
+                    error: Some(format!("Erro no banco de dados: {}", e)),
+                    user_role: Some("editor".into()),
+                    all_types,
+                    all_abilities,
+                    all_moves,
+                    all_pokemon,
+                }
+                .render()
+                .unwrap_or_default(),
+            )
+            .into_response()
+        }
     }
 }
 

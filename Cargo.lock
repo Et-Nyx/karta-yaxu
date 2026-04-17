@@ -165,6 +165,7 @@ dependencies = [
  "engine",
  "rpassword",
  "serde",
+ "serde_json",
  "sqlx",
  "strsim",
  "tokio",

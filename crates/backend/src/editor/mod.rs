@@ -32,6 +32,12 @@ pub struct EditForm {
     pub toml_content: String,
 }
 
+/// Form genérico para JSON (usado no novo layout de pokemon).
+#[derive(Deserialize)]
+pub struct JsonEditForm {
+    pub json_content: String,
+}
+
 /// Pokémon com todas as relações (abilities, evos, forms, learnset).
 #[derive(Serialize, Deserialize)]
 pub struct PokemonFull {
