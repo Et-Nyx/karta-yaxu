@@ -10,6 +10,7 @@ use tower_http::services::ServeDir;
 use tower_sessions::SessionManagerLayer;
 use tower_sessions_sqlx_store::SqliteStore;
 use backend::{auth, editor, seed};
+use tower_governor::{governor::GovernorConfigBuilder, GovernorLayer};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -21,7 +22,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let opts = SqliteConnectOptions::from_str(&db_url)?
         .create_if_missing(true)
-        .foreign_keys(true);
+        .foreign_keys(true)
+        .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
+        .synchronous(sqlx::sqlite::SqliteSynchronous::Normal);
 
     println!("Conectando ao banco de dados...");
     let pool = SqlitePoolOptions::new()
@@ -58,6 +61,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_secure(secure_cookie)
         .with_http_only(true)
         .with_same_site(tower_sessions::cookie::SameSite::Lax);
+
+    let governor_conf = std::sync::Arc::new(
+        GovernorConfigBuilder::default()
+            .per_second(2)
+            .burst_size(10)
+            .use_headers()
+            .finish()
+            .unwrap()
+    );
+    let governor_layer = GovernorLayer::new(governor_conf);
 
     println!("Configurando as rotas Axum...");
     let app = Router::new()
@@ -116,6 +129,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/search/suggestions", get(backend::search::search_suggestions))
         // Estáticos
         .nest_service("/static", ServeDir::new("static"))
+        .layer(governor_layer)
         .layer(session_layer)
         .with_state(pool);
 

@@ -31,7 +31,7 @@ docker-run:
 		-v karta-yaxu-data:/app/data \
 		-v karta-yaxu-static:/app/static \
 		-e DATABASE_URL=sqlite:/app/data/rom.db \
-		-e SEED_DATA_PATH=/app/data/template \
+		-e SEED_DATA_PATH=/app/template \
 		-e RUST_LOG=info \
 		-e PORT=3000 \
 		--name karta-yaxu \

@@ -52,7 +52,9 @@ RUN cargo build --release -p backend --bin backend --bin seed --bin create_train
 # ═══════════════════════════════════════════════
 FROM debian:bookworm-slim
 
-RUN apt-get update && apt-get install -y ca-certificates libsqlite3-0 curl && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y ca-certificates libsqlite3-0 curl python3 && rm -rf /var/lib/apt/lists/*
+
+RUN useradd -m -d /app -s /bin/bash app && chown -R app:app /app
 
 WORKDIR /app
 
@@ -76,7 +78,11 @@ ENV SECURE_COOKIE=false
 
 EXPOSE 3000
 
+HEALTHCHECK --interval=30s --timeout=5s CMD curl -f http://localhost:3000/health || exit 1
+
 VOLUME ["/app/data", "/app/static"]
+
+USER app
 
 ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["./backend"]
