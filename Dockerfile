@@ -82,7 +82,5 @@ HEALTHCHECK --interval=30s --timeout=5s CMD curl -f http://localhost:3000/health
 
 VOLUME ["/app/data", "/app/static"]
 
-USER app
-
 ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["./backend"]
