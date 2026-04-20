@@ -15,7 +15,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Garante que o schema existe antes de popular
     sqlx::migrate!("./migrations").run(&pool).await?;
 
-    backend::seed::run_seed_cli(&pool).await?;
+    let args: Vec<String> = std::env::args().collect();
+    let target_pokemon_id = if args.len() > 1 {
+        args[1].parse::<i64>().ok()
+    } else {
+        None
+    };
+
+    backend::seed::run_seed_cli(&pool, target_pokemon_id).await?;
 
     println!("Seed completado");
     Ok(())
