@@ -216,17 +216,17 @@ pub async fn type_delete(
         .fetch_all(&pool).await.unwrap_or_default();
     let t = all_types.into_iter().find(|t| filters::to_slug(&t.name) == slug);
     if let Some(t) = t {
-        if t.id == 0 {
-            return (StatusCode::BAD_REQUEST, "Cannot delete the fallback type").into_response();
+        if t.id == 19 {
+            return (StatusCode::BAD_REQUEST, "Cannot delete the fallback type (Stellar)").into_response();
         }
         let mut tx = match pool.begin().await {
             Ok(tx) => tx,
             Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("Erro: {}", e)).into_response(),
         };
         let res = async {
-            sqlx::query("UPDATE pokemon SET type1_id = 0 WHERE type1_id = ?").bind(t.id).execute(&mut *tx).await?;
+            sqlx::query("UPDATE pokemon SET type1_id = 19 WHERE type1_id = ?").bind(t.id).execute(&mut *tx).await?;
             sqlx::query("UPDATE pokemon SET type2_id = NULL WHERE type2_id = ?").bind(t.id).execute(&mut *tx).await?;
-            sqlx::query("UPDATE moves SET type_id = 0 WHERE type_id = ?").bind(t.id).execute(&mut *tx).await?;
+            sqlx::query("UPDATE moves SET type_id = 19 WHERE type_id = ?").bind(t.id).execute(&mut *tx).await?;
             sqlx::query("DELETE FROM type_effectiveness WHERE attacker_id = ? OR defender_id = ?").bind(t.id).bind(t.id).execute(&mut *tx).await?;
             sqlx::query("DELETE FROM types WHERE id = ?").bind(t.id).execute(&mut *tx).await?;
             Ok::<_, sqlx::Error>(())

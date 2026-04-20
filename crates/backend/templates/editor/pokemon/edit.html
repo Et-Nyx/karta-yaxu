@@ -136,15 +136,17 @@
             <div style="margin-top: 32px; padding-top: 32px; border-top: 4px dashed var(--border);">
                 <h3 style="font-size: 16px; color: var(--destructive); margin-bottom: 8px;">ZONA DE PERIGO</h3>
                 <p style="font-size: 8px; line-height: 1.8; margin-bottom: 16px;">A exclusão corromperá entradas associadas do banco.</p>
-                <form action="/editor/pokemon/{{ slug }}/delete" method="post" data-confirm="ATENÇÃO! Deseja erradicar este Pokémon da dex?">
-                    <button type="submit" class="btn" style="background-color: var(--destructive); color: var(--primary-foreground);">DELETAR DEFINITIVAMENTE</button>
-                </form>
+                <button type="button" onclick="confirmDelete()" class="btn w-full" style="background-color: var(--destructive); color: var(--primary-foreground);">DELETAR DEFINITIVAMENTE</button>
             </div>
             {% endif %}
 
         </div>
     </div>
 </form>
+
+{% if slug != "new" %}
+<form id="delete-form" action="/editor/pokemon/{{ slug }}/delete" method="post" style="display: none;"></form>
+{% endif %}
 
 <!-- TEMPLATES HIDDEN para Novas Linhas -->
 <template id="tpl-ability">
@@ -333,6 +335,12 @@
         document.getElementById('json_content').value = JSON.stringify(out);
         e.target.submit();
     });
+
+    function confirmDelete() {
+        if(confirm("ATENÇÃO! Deseja erradicar este Pokémon da dex?")) {
+            document.getElementById('delete-form').submit();
+        }
+    }
 </script>
 <style>
   @media (max-width: 768px) {
