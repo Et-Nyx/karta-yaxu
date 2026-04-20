@@ -16,7 +16,7 @@ use serde::Deserialize;
 #[derive(Deserialize)] struct FormSeed { pokemon_form: Vec<PokemonForm> }
 #[derive(Deserialize)] struct LearnsetSeed { learnset: Vec<Learnset> }
 
-pub async fn run_seed_cli(pool: &SqlitePool, target_pokemon_id: Option<i64>) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn run_seed_cli(pool: &SqlitePool, target_pokemon_ids: Vec<i64>) -> Result<(), Box<dyn std::error::Error>> {
     println!("🌱 Iniciando processo completo de Seed (Em Transação)...");
 
     let base = std::env::var("SEED_DATA_PATH")
@@ -31,7 +31,7 @@ pub async fn run_seed_cli(pool: &SqlitePool, target_pokemon_id: Option<i64>) -> 
     let mut tx = pool.begin().await?;
     sqlx::query("PRAGMA defer_foreign_keys = ON").execute(&mut *tx).await?;
 
-    if target_pokemon_id.is_none() {
+    if target_pokemon_ids.is_empty() {
         let c = fs::read_to_string(format!("{base}/type.toml"))
             .map_err(|e| format!("Erro ao ler type.toml: {e}"))?;
         for t in toml::from_str::<TypeSeed>(&c)
@@ -95,7 +95,7 @@ pub async fn run_seed_cli(pool: &SqlitePool, target_pokemon_id: Option<i64>) -> 
         .map_err(|e| format!("Erro ao ler pokemon.toml: {e}"))?;
     for p in toml::from_str::<PokemonSeed>(&c)
         .map_err(|e| format!("Erro ao parsear pokemon.toml: {e}"))?.pokemon {
-        if let Some(tid) = target_pokemon_id { if p.id != tid { continue; } }
+        if !target_pokemon_ids.is_empty() && !target_pokemon_ids.contains(&p.id) { continue; }
         sqlx::query!("INSERT OR REPLACE INTO pokemon (id, dex_number, name, sprite, sprite_shiny, type1_id, type2_id, hp, atk, def, spa, spd, spe, pokedex_entry) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", p.id, p.dex_number, p.name, p.sprite, p.sprite_shiny, p.type1_id, p.type2_id, p.hp, p.atk, p.def, p.spa, p.spd, p.spe, p.pokedex_entry).execute(&mut *tx).await
             .map_err(|e| format!("Erro ao inserir pokemon '{}': {e}", p.name))?;
     }
@@ -104,7 +104,7 @@ pub async fn run_seed_cli(pool: &SqlitePool, target_pokemon_id: Option<i64>) -> 
         .map_err(|e| format!("Erro ao ler pokemon_ability.toml: {e}"))?;
     for p in toml::from_str::<PokeAbilitySeed>(&c)
         .map_err(|e| format!("Erro ao parsear pokemon_ability.toml: {e}"))?.pokemon_ability {
-        if let Some(tid) = target_pokemon_id { if p.pokemon_id != tid { continue; } }
+        if !target_pokemon_ids.is_empty() && !target_pokemon_ids.contains(&p.pokemon_id) { continue; }
         sqlx::query!("INSERT OR REPLACE INTO pokemon_abilities (pokemon_id, ability_id, slot) VALUES (?, ?, ?)", p.pokemon_id, p.ability_id, p.slot).execute(&mut *tx).await
             .map_err(|e| format!("Erro ao inserir pokemon_ability (pokemon {}): {e}", p.pokemon_id))?;
     }
@@ -113,7 +113,7 @@ pub async fn run_seed_cli(pool: &SqlitePool, target_pokemon_id: Option<i64>) -> 
         .map_err(|e| format!("Erro ao ler evolution.toml: {e}"))?;
     for e in toml::from_str::<EvolutionSeed>(&c)
         .map_err(|e| format!("Erro ao parsear evolution.toml: {e}"))?.evolution {
-        if let Some(tid) = target_pokemon_id { if e.from_id != tid && e.to_id != tid { continue; } }
+        if !target_pokemon_ids.is_empty() && !target_pokemon_ids.contains(&e.from_id) && !target_pokemon_ids.contains(&e.to_id) { continue; }
         sqlx::query!("INSERT OR REPLACE INTO evolutions (from_id, to_id, condition, condition_value) VALUES (?, ?, ?, ?)", e.from_id, e.to_id, e.condition, e.condition_value).execute(&mut *tx).await
             .map_err(|err| format!("Erro ao inserir evolution ({}->{}) : {err}", e.from_id, e.to_id))?;
     }
@@ -122,7 +122,7 @@ pub async fn run_seed_cli(pool: &SqlitePool, target_pokemon_id: Option<i64>) -> 
         .map_err(|e| format!("Erro ao ler pokemon_form.toml: {e}"))?;
     for f in toml::from_str::<FormSeed>(&c)
         .map_err(|e| format!("Erro ao parsear pokemon_form.toml: {e}"))?.pokemon_form {
-        if let Some(tid) = target_pokemon_id { if f.base_id != tid && f.form_id != tid { continue; } }
+        if !target_pokemon_ids.is_empty() && !target_pokemon_ids.contains(&f.base_id) && !target_pokemon_ids.contains(&f.form_id) { continue; }
         sqlx::query!("INSERT OR REPLACE INTO pokemon_forms (base_id, form_id, form_name) VALUES (?, ?, ?)", f.base_id, f.form_id, f.form_name).execute(&mut *tx).await
             .map_err(|e| format!("Erro ao inserir pokemon_form ({}->{}) : {e}", f.base_id, f.form_id))?;
     }
@@ -131,7 +131,7 @@ pub async fn run_seed_cli(pool: &SqlitePool, target_pokemon_id: Option<i64>) -> 
         .map_err(|e| format!("Erro ao ler learnset.toml: {e}"))?;
     for l in toml::from_str::<LearnsetSeed>(&c)
         .map_err(|e| format!("Erro ao parsear learnset.toml: {e}"))?.learnset {
-        if let Some(tid) = target_pokemon_id { if l.pokemon_id != tid { continue; } }
+        if !target_pokemon_ids.is_empty() && !target_pokemon_ids.contains(&l.pokemon_id) { continue; }
         let met = match l.method { LearnMethod::LevelUp=>"level_up", LearnMethod::Tm=>"tm", LearnMethod::Egg=>"egg", LearnMethod::Tutor=>"tutor", LearnMethod::Gmax=>"gmax", LearnMethod::Max=>"max" };
         sqlx::query!("INSERT OR REPLACE INTO learnset (pokemon_id, move_id, method, level) VALUES (?, ?, ?, ?)", l.pokemon_id, l.move_id, met, l.level).execute(&mut *tx).await
             .map_err(|e| format!("Erro ao inserir learnset (pokemon {}, move {}): {e}", l.pokemon_id, l.move_id))?;

@@ -44,7 +44,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     if pokemon_count == 0 {
         println!("Banco vazio — executando seed automático...");
-        seed::run_seed_cli(&pool, None).await?;
+        seed::run_seed_cli(&pool, Vec::new()).await?;
     } else {
         println!("Banco já populado ({} pokemon), seed pulado.", pokemon_count);
     }
