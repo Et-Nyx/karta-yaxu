@@ -211,7 +211,7 @@ pub async fn search_page(session: Session, State(pool): State<SqlitePool>, Query
         let type1_name = type1_info.as_ref().map(|(n, _)| n.as_str()).unwrap_or("");
         let t2_name = t2_info.as_ref().map(|(n, _)| n.as_str()).unwrap_or("");
         let dex_str = format!("#{}", dex_number);
-        let is_fe = !evolving_from_ids.contains(id) && *id < 2000 && !form_ids.contains(id);
+        let is_fe = !evolving_from_ids.contains(id);
         let is_bf = *id < 2000 && !form_ids.contains(id);
 
         let sc = score(&q_lower, name, &[type1_name, t2_name, &dex_str], &[entry.as_str()]);
