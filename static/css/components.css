@@ -1,0 +1,110 @@
+/* ========================================================
+   Components (GameBoy Style)
+======================================================== */
+
+/* Elevation Shadows */
+.elevation-1 {
+    border: 2px solid var(--border);
+    box-shadow: var(--elevation-size) var(--elevation-size) 0 var(--border);
+}
+
+.elevation-2 {
+    border: 3px solid var(--border);
+    box-shadow: calc(var(--elevation-size) + 2px)
+        calc(var(--elevation-size) + 2px) 0 var(--border);
+}
+
+/* Card - Para a lista de Pokémon e componentes */
+.gb-card {
+    background-color: var(--card);
+    color: var(--card-foreground);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    text-align: left;
+    border: 4px solid var(--border);
+    transition: all 0.2s ease;
+    box-shadow: 4px 4px 0 var(--border);
+    cursor: pointer;
+}
+
+.gb-card:hover {
+    background-color: var(--gb-lightest);
+    transform: translateY(-4px);
+    box-shadow: 6px 6px 0 var(--border);
+}
+
+.gb-card:active {
+    transform: translateY(0);
+    box-shadow: 2px 2px 0 var(--border);
+}
+
+/* Badge (Id / Typings) */
+.badge {
+    display: inline-block;
+    padding: 4px 8px;
+    font-size: 8px;
+    text-transform: uppercase;
+    border: 2px solid var(--border);
+    line-height: 1.2;
+}
+
+.badge-primary {
+    background-color: var(--primary);
+    color: var(--primary-foreground);
+}
+
+.badge-secondary {
+    background-color: var(--secondary);
+    color: var(--secondary-foreground);
+}
+
+/* Imagem Container */
+.sprite-container {
+    width: 100%;
+    aspect-ratio: 1;
+    background-color: var(--gb-lightest);
+    border: 2px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    margin-bottom: 12px;
+}
+
+.sprite-container img {
+    width: 64px;
+    height: 64px;
+    object-fit: contain;
+    transition: transform 0.2s;
+}
+
+.gb-card:hover .sprite-container img {
+    transform: scale(1.1);
+}
+
+/* Botões */
+.btn {
+    display: inline-block;
+    padding: 12px 24px;
+    background-color: var(--secondary);
+    color: var(--secondary-foreground);
+    border: 2px solid var(--border);
+    box-shadow: 4px 4px 0 var(--border);
+    cursor: pointer;
+    text-transform: uppercase;
+    font-size: 10px;
+    transition: all 0.1s;
+}
+
+.btn:active {
+    transform: translate(2px, 2px);
+    box-shadow: 2px 2px 0 var(--border);
+}
+
+.btn-primary {
+    background-color: var(--primary);
+    color: var(--primary-foreground);
+}
+

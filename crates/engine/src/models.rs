@@ -162,3 +162,47 @@ pub struct Learnset {
     pub method: LearnMethod,
     pub level: Option<i64>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_move_category_serialization() {
+        assert_eq!(serde_json::to_string(&MoveCategory::Physical).unwrap(), "\"physical\"");
+        assert_eq!(serde_json::to_string(&MoveCategory::Special).unwrap(), "\"special\"");
+        assert_eq!(serde_json::to_string(&MoveCategory::Status).unwrap(), "\"status\"");
+        
+        let cat: MoveCategory = serde_json::from_str("\"physical\"").unwrap();
+        assert_eq!(cat, MoveCategory::Physical);
+    }
+
+    #[test]
+    fn test_learn_method_serialization() {
+        assert_eq!(serde_json::to_string(&LearnMethod::LevelUp).unwrap(), "\"level_up\"");
+        assert_eq!(serde_json::to_string(&LearnMethod::Tm).unwrap(), "\"tm\"");
+        
+        let method: LearnMethod = serde_json::from_str("\"level_up\"").unwrap();
+        assert_eq!(method, LearnMethod::LevelUp);
+    }
+
+    #[test]
+    fn test_pokemon_serialization() {
+        let p = Pokemon {
+            id: 1,
+            dex_number: 1,
+            name: "Bulbasaur".to_string(),
+            sprite: "bulbasaur.png".to_string(),
+            sprite_shiny: "bulbasaur_shiny.png".to_string(),
+            type1_id: 1,
+            type2_id: Some(2),
+            hp: 45, atk: 49, def: 49, spa: 65, spd: 65, spe: 45,
+            pokedex_entry: "Seed Pokemon".to_string(),
+        };
+        
+        let json = serde_json::to_string(&p).unwrap();
+        let p2: Pokemon = serde_json::from_str(&json).unwrap();
+        assert_eq!(p.name, p2.name);
+        assert_eq!(p.type2_id, p2.type2_id);
+    }
+}

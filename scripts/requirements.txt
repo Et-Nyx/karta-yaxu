@@ -1,0 +1,7 @@
+# Karta Yaxu — Python Script Dependencies
+#
+# All scripts in this directory use Python 3.10+ standard library only.
+# No external packages are required — no pip install needed.
+#
+# Modules used: json, os, sys, time, re, urllib.request, urllib.error,
+#               pathlib, collections

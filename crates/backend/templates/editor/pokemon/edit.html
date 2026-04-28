@@ -58,13 +58,21 @@
             </div>
 
             <div class="flex gap-4">
-                <div style="flex: 1;">
-                    <label style="font-size: 8px; margin-bottom: 4px; display: block;">SPRITE</label>
-                    <input type="text" id="base_sprite" class="w-full" style="background: var(--gb-lightest); border: 2px solid var(--border); padding: 8px; font-size: 8px;" />
+                <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                    <label style="font-size: 8px; display: block;">SPRITE</label>
+                    <div style="display: flex; gap: 4px; align-items: center;">
+                        <input type="text" id="base_sprite" class="w-full" style="background: var(--gb-lightest); border: 2px solid var(--border); padding: 8px; font-size: 8px;" />
+                        <img id="preview_sprite" src="" alt="preview" style="width: 32px; height: 32px; object-fit: contain; border: 1px solid var(--border); display: none;" />
+                    </div>
+                    <input type="file" id="upload_sprite" accept="image/*" style="font-size: 8px;" onchange="uploadImage(this, 'pokemon', 'base_sprite', 'preview_sprite')" />
                 </div>
-                <div style="flex: 1;">
-                    <label style="font-size: 8px; margin-bottom: 4px; display: block;">SPRITE SHINY</label>
-                    <input type="text" id="base_sprite_shiny" class="w-full" style="background: var(--gb-lightest); border: 2px solid var(--border); padding: 8px; font-size: 8px;" />
+                <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                    <label style="font-size: 8px; display: block;">SPRITE SHINY</label>
+                    <div style="display: flex; gap: 4px; align-items: center;">
+                        <input type="text" id="base_sprite_shiny" class="w-full" style="background: var(--gb-lightest); border: 2px solid var(--border); padding: 8px; font-size: 8px;" />
+                        <img id="preview_sprite_shiny" src="" alt="preview" style="width: 32px; height: 32px; object-fit: contain; border: 1px solid var(--border); display: none;" />
+                    </div>
+                    <input type="file" id="upload_sprite_shiny" accept="image/*" style="font-size: 8px;" onchange="uploadImage(this, 'shiny', 'base_sprite_shiny', 'preview_sprite_shiny')" />
                 </div>
             </div>
 
@@ -211,6 +219,31 @@
 <script>
     const fullData = JSON.parse(document.getElementById('fullData').textContent || "{}");
 
+    async function uploadImage(inputElem, folder, textInputId, previewImgId) {
+        if (!inputElem.files || inputElem.files.length === 0) return;
+        const file = inputElem.files[0];
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        try {
+            const res = await fetch(`/editor/upload/${folder}`, {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+            if (data.success && data.filename) {
+                document.getElementById(textInputId).value = data.filename;
+                const preview = document.getElementById(previewImgId);
+                preview.src = `/static/sprites/${folder}/${data.filename}?t=${Date.now()}`;
+                preview.style.display = 'block';
+            } else {
+                alert("Erro ao fazer upload da imagem");
+            }
+        } catch(e) {
+            alert("Erro de conexão ao enviar imagem");
+        }
+    }
+
     // Initialize Base Data
     document.getElementById('base_dex').value = fullData.dex_number !== undefined ? fullData.dex_number : '';
     document.getElementById('base_name').value = fullData.name || '';
@@ -218,6 +251,18 @@
     document.getElementById('base_type2').value = fullData.type2_id || '';
     document.getElementById('base_sprite').value = fullData.sprite || '';
     document.getElementById('base_sprite_shiny').value = fullData.sprite_shiny || '';
+    
+    if (fullData.sprite) {
+        const p = document.getElementById('preview_sprite');
+        p.src = `/static/sprites/pokemon/${fullData.sprite}`;
+        p.style.display = 'block';
+    }
+    if (fullData.sprite_shiny) {
+        const p = document.getElementById('preview_sprite_shiny');
+        p.src = `/static/sprites/shiny/${fullData.sprite_shiny}`;
+        p.style.display = 'block';
+    }
+
     document.getElementById('base_pokedex_entry').value = fullData.pokedex_entry || '';
     document.getElementById('base_hp').value = fullData.hp !== undefined ? fullData.hp : '';
     document.getElementById('base_atk').value = fullData.atk !== undefined ? fullData.atk : '';

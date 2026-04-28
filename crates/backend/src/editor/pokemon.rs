@@ -2,7 +2,6 @@ use askama::Template;
 use axum::{
     extract::{State, Form, Path},
     response::{IntoResponse, Redirect, Html},
-    http::StatusCode,
 };
 use sqlx::SqlitePool;
 use engine::models::{Pokemon, Type, PokemonAbility, Evolution, PokemonForm, Learnset, Ability, Move};
@@ -34,12 +33,12 @@ pub struct PokemonEditTemplate {
 
 // ── Helper ───────────────────────────────────────────────────────────────────
 
-async fn fetch_metadata(pool: &SqlitePool) -> (Vec<Type>, Vec<Ability>, Vec<Move>, Vec<Pokemon>) {
-    let all_types = sqlx::query_as::<_, Type>("SELECT * FROM types").fetch_all(pool).await.unwrap_or_default();
-    let all_abilities = sqlx::query_as::<_, Ability>("SELECT * FROM abilities").fetch_all(pool).await.unwrap_or_default();
-    let all_moves = sqlx::query_as::<_, Move>("SELECT * FROM moves").fetch_all(pool).await.unwrap_or_default();
-    let all_pokemon = sqlx::query_as::<_, Pokemon>("SELECT * FROM pokemon ORDER BY dex_number ASC").fetch_all(pool).await.unwrap_or_default();
-    (all_types, all_abilities, all_moves, all_pokemon)
+async fn fetch_metadata(pool: &SqlitePool) -> Result<(Vec<Type>, Vec<Ability>, Vec<Move>, Vec<Pokemon>), crate::error::AppError> {
+    let all_types = sqlx::query_as::<_, Type>("SELECT * FROM types").fetch_all(pool).await?;
+    let all_abilities = sqlx::query_as::<_, Ability>("SELECT * FROM abilities").fetch_all(pool).await?;
+    let all_moves = sqlx::query_as::<_, Move>("SELECT * FROM moves").fetch_all(pool).await?;
+    let all_pokemon = sqlx::query_as::<_, Pokemon>("SELECT * FROM pokemon ORDER BY dex_number ASC").fetch_all(pool).await?;
+    Ok((all_types, all_abilities, all_moves, all_pokemon))
 }
 
 // ── Handlers ─────────────────────────────────────────────────────────────────
@@ -47,16 +46,14 @@ async fn fetch_metadata(pool: &SqlitePool) -> (Vec<Type>, Vec<Ability>, Vec<Move
 pub async fn pokemon_list(
     _session: EditorSession,
     State(pool): State<SqlitePool>,
-) -> impl IntoResponse {
+) -> Result<impl IntoResponse, crate::error::AppError> {
     let pokemon = sqlx::query_as::<_, Pokemon>("SELECT * FROM pokemon ORDER BY dex_number ASC")
         .fetch_all(&pool)
-        .await
-        .unwrap_or_default();
+        .await?;
 
     let all_types = sqlx::query_as::<_, Type>("SELECT * FROM types")
         .fetch_all(&pool)
-        .await
-        .unwrap_or_default();
+        .await?;
 
     let mut mapped_pokemon = Vec::new();
     for p in pokemon {
@@ -68,20 +65,19 @@ pub async fn pokemon_list(
         mapped_pokemon.push((p, t1, t2));
     }
 
-    Html(
+    Ok(Html(
         PokemonListTemplate {
             pokemon: mapped_pokemon,
             user_role: Some("editor".into()),
         }
-        .render()
-        .unwrap_or_default(),
-    )
+        .render()?,
+    ).into_response())
 }
 
 pub async fn pokemon_new(
     _session: EditorSession,
     State(pool): State<SqlitePool>,
-) -> impl IntoResponse {
+) -> Result<impl IntoResponse, crate::error::AppError> {
     let max_id: i64 = sqlx::query_scalar("SELECT COALESCE(MAX(id), 0) FROM pokemon")
         .fetch_one(&pool)
         .await
@@ -114,9 +110,9 @@ pub async fn pokemon_new(
     };
 
     let json_content = serde_json::to_string(&full).unwrap_or_default();
-    let (all_types, all_abilities, all_moves, all_pokemon) = fetch_metadata(&pool).await;
+    let (all_types, all_abilities, all_moves, all_pokemon) = fetch_metadata(&pool).await?;
 
-    Html(
+    Ok(Html(
         PokemonEditTemplate {
             slug: "new".to_string(),
             json_content,
@@ -127,21 +123,20 @@ pub async fn pokemon_new(
             all_moves,
             all_pokemon,
         }
-        .render()
-        .unwrap_or_default(),
-    )
+        .render()?,
+    ).into_response())
 }
 
 pub async fn pokemon_create(
     EditorSession(trainer): EditorSession,
     State(pool): State<SqlitePool>,
     Form(payload): Form<JsonEditForm>,
-) -> impl IntoResponse {
+) -> Result<impl IntoResponse, crate::error::AppError> {
     let full: PokemonFull = match serde_json::from_str(&payload.json_content) {
         Ok(p) => p,
         Err(e) => {
-            let (all_types, all_abilities, all_moves, all_pokemon) = fetch_metadata(&pool).await;
-            return Html(
+            let (all_types, all_abilities, all_moves, all_pokemon) = fetch_metadata(&pool).await?;
+            return Ok(Html(
                 PokemonEditTemplate {
                     slug: "new".to_string(),
                     json_content: payload.json_content,
@@ -152,139 +147,85 @@ pub async fn pokemon_create(
                     all_moves,
                     all_pokemon,
                 }
-                .render()
-                .unwrap_or_default(),
+                .render()?,
             )
-            .into_response();
+            .into_response());
         }
     };
     let new_p = full.pokemon;
 
-    let tx = pool.begin().await;
-    let mut tx = match tx {
-        Ok(tx) => tx,
-        Err(e) => {
-            let (all_types, all_abilities, all_moves, all_pokemon) = fetch_metadata(&pool).await;
-            return Html(
-                PokemonEditTemplate {
-                    slug: "new".to_string(),
-                    json_content: payload.json_content,
-                    error: Some(format!("Erro ao iniciar transação: {}", e)),
-                    user_role: Some("editor".into()),
-                    all_types,
-                    all_abilities,
-                    all_moves,
-                    all_pokemon,
-                }
-                .render()
-                .unwrap_or_default(),
-            )
-            .into_response();
-        }
-    };
+    let mut tx = pool.begin().await?;
 
-    let res = async {
-        sqlx::query(
-            r#"
-            INSERT INTO pokemon (id, dex_number, name, sprite, sprite_shiny,
-                type1_id, type2_id, hp, atk, def, spa, spd, spe, pokedex_entry)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            "#,
-        )
-        .bind(new_p.id).bind(new_p.dex_number).bind(&new_p.name).bind(&new_p.sprite).bind(&new_p.sprite_shiny)
-        .bind(new_p.type1_id).bind(new_p.type2_id).bind(new_p.hp).bind(new_p.atk).bind(new_p.def)
-        .bind(new_p.spa).bind(new_p.spd).bind(new_p.spe).bind(&new_p.pokedex_entry)
-        .execute(&mut *tx).await?;
+    sqlx::query(
+        r#"
+        INSERT INTO pokemon (id, dex_number, name, sprite, sprite_shiny,
+            type1_id, type2_id, hp, atk, def, spa, spd, spe, pokedex_entry)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        "#,
+    )
+    .bind(new_p.id).bind(new_p.dex_number).bind(&new_p.name).bind(&new_p.sprite).bind(&new_p.sprite_shiny)
+    .bind(new_p.type1_id).bind(new_p.type2_id).bind(new_p.hp).bind(new_p.atk).bind(new_p.def)
+    .bind(new_p.spa).bind(new_p.spd).bind(new_p.spe).bind(&new_p.pokedex_entry)
+    .execute(&mut *tx).await?;
 
-        for a in &full.abilities {
-            sqlx::query("INSERT INTO pokemon_abilities (pokemon_id, ability_id, slot) VALUES (?, ?, ?)")
-                .bind(new_p.id).bind(a.ability_id).bind(a.slot).execute(&mut *tx).await?;
-        }
-        for e in &full.evolutions {
-            sqlx::query("INSERT INTO evolutions (from_id, to_id, condition, condition_value) VALUES (?, ?, ?, ?)")
-                .bind(new_p.id).bind(e.to_id).bind(&e.condition).bind(&e.condition_value).execute(&mut *tx).await?;
-        }
-        for f in &full.forms {
-            sqlx::query("INSERT INTO pokemon_forms (base_id, form_id, form_name) VALUES (?, ?, ?)")
-                .bind(new_p.id).bind(f.form_id).bind(&f.form_name).execute(&mut *tx).await?;
-        }
-        for l in &full.learnset {
-            sqlx::query("INSERT INTO learnset (pokemon_id, move_id, method, level) VALUES (?, ?, ?, ?)")
-                .bind(new_p.id).bind(l.move_id).bind(&l.method).bind(l.level).execute(&mut *tx).await?;
-        }
-        Ok::<_, sqlx::Error>(())
+    for a in &full.abilities {
+        sqlx::query("INSERT INTO pokemon_abilities (pokemon_id, ability_id, slot) VALUES (?, ?, ?)")
+            .bind(new_p.id).bind(a.ability_id).bind(a.slot).execute(&mut *tx).await?;
     }
-    .await;
-
-    let result = match res {
-        Ok(_) => tx.commit().await,
-        Err(e) => {
-            let _ = tx.rollback().await;
-            Err(e)
-        }
-    };
-
-    match result {
-        Ok(_) => {
-            let _ = sqlx::query("INSERT INTO edits (trainer_id, table_name, record_id, diff) VALUES (?, ?, ?, ?)")
-                .bind(&trainer.id).bind("pokemon").bind(new_p.id).bind(&format!("CREATE---{}", payload.json_content))
-                .execute(&pool).await;
-            Redirect::to(&format!("/wiki/pokemon/{}", filters::to_slug(&new_p.name))).into_response()
-        }
-        Err(e) => {
-            let (all_types, all_abilities, all_moves, all_pokemon) = fetch_metadata(&pool).await;
-            Html(
-                PokemonEditTemplate {
-                    slug: "new".to_string(),
-                    json_content: payload.json_content,
-                    error: Some(format!("Erro no banco de dados: {}", e)),
-                    user_role: Some("editor".into()),
-                    all_types,
-                    all_abilities,
-                    all_moves,
-                    all_pokemon,
-                }
-                .render()
-                .unwrap_or_default(),
-            )
-            .into_response()
-        }
+    for e in &full.evolutions {
+        sqlx::query("INSERT INTO evolutions (from_id, to_id, condition, condition_value) VALUES (?, ?, ?, ?)")
+            .bind(new_p.id).bind(e.to_id).bind(&e.condition).bind(&e.condition_value).execute(&mut *tx).await?;
     }
+    for f in &full.forms {
+        sqlx::query("INSERT INTO pokemon_forms (base_id, form_id, form_name) VALUES (?, ?, ?)")
+            .bind(new_p.id).bind(f.form_id).bind(&f.form_name).execute(&mut *tx).await?;
+    }
+    for l in &full.learnset {
+        sqlx::query("INSERT INTO learnset (pokemon_id, move_id, method, level) VALUES (?, ?, ?, ?)")
+            .bind(new_p.id).bind(l.move_id).bind(&l.method).bind(l.level).execute(&mut *tx).await?;
+    }
+
+    tx.commit().await?;
+
+    sqlx::query("INSERT INTO edits (trainer_id, table_name, record_id, diff) VALUES (?, ?, ?, ?)")
+        .bind(&trainer.id).bind("pokemon").bind(new_p.id).bind(&format!("CREATE---{}", payload.json_content))
+        .execute(&pool).await?;
+        
+    Ok(Redirect::to(&format!("/wiki/pokemon/{}", filters::to_slug(&new_p.name))).into_response())
 }
 
 pub async fn pokemon_edit(
     _session: EditorSession,
     State(pool): State<SqlitePool>,
     Path(slug): Path<String>,
-) -> impl IntoResponse {
+) -> Result<impl IntoResponse, crate::error::AppError> {
     let all_pokemon = sqlx::query_as::<_, Pokemon>("SELECT * FROM pokemon")
         .fetch_all(&pool)
-        .await
-        .unwrap_or_default();
+        .await?;
 
     let pokemon = all_pokemon.into_iter().find(|p| filters::to_slug(&p.name) == slug);
 
     if let Some(p) = pokemon {
         let abilities = sqlx::query_as::<_, PokemonAbility>("SELECT * FROM pokemon_abilities WHERE pokemon_id = ?")
-            .bind(p.id).fetch_all(&pool).await.unwrap_or_default();
+            .bind(p.id).fetch_all(&pool).await?;
         let evolutions = sqlx::query_as::<_, Evolution>("SELECT * FROM evolutions WHERE from_id = ?")
-            .bind(p.id).fetch_all(&pool).await.unwrap_or_default();
+            .bind(p.id).fetch_all(&pool).await?;
         let forms = sqlx::query_as::<_, PokemonForm>("SELECT * FROM pokemon_forms WHERE base_id = ?")
-            .bind(p.id).fetch_all(&pool).await.unwrap_or_default();
+            .bind(p.id).fetch_all(&pool).await?;
         let learnset = sqlx::query_as::<_, Learnset>("SELECT * FROM learnset WHERE pokemon_id = ?")
-            .bind(p.id).fetch_all(&pool).await.unwrap_or_default();
+            .bind(p.id).fetch_all(&pool).await?;
 
         let full = PokemonFull { pokemon: p, abilities, evolutions, forms, learnset };
         let json_content = serde_json::to_string(&full).unwrap_or_default();
-        let (all_types, all_abilities, all_moves, all_pokemon) = fetch_metadata(&pool).await;
-        Html(
+        let (all_types, all_abilities, all_moves, all_pokemon) = fetch_metadata(&pool).await?;
+        Ok(Html(
             PokemonEditTemplate { slug, json_content, error: None, user_role: Some("editor".into()),
             all_types, all_abilities, all_moves, all_pokemon }
-                .render().unwrap_or_default(),
+                .render()?,
         )
-        .into_response()
+        .into_response())
     } else {
-        StatusCode::NOT_FOUND.into_response()
+        Err(crate::error::AppError::NotFound)
     }
 }
 
@@ -293,12 +234,12 @@ pub async fn pokemon_save(
     State(pool): State<SqlitePool>,
     Path(slug): Path<String>,
     Form(payload): Form<JsonEditForm>,
-) -> impl IntoResponse {
+) -> Result<impl IntoResponse, crate::error::AppError> {
     let full: PokemonFull = match serde_json::from_str(&payload.json_content) {
         Ok(p) => p,
         Err(e) => {
-            let (all_types, all_abilities, all_moves, all_pokemon) = fetch_metadata(&pool).await;
-            return Html(
+            let (all_types, all_abilities, all_moves, all_pokemon) = fetch_metadata(&pool).await?;
+            return Ok(Html(
                 PokemonEditTemplate {
                     slug,
                     json_content: payload.json_content,
@@ -309,21 +250,19 @@ pub async fn pokemon_save(
                     all_moves,
                     all_pokemon,
                 }
-                .render()
-                .unwrap_or_default(),
+                .render()?,
             )
-            .into_response();
+            .into_response());
         }
     };
 
     let all_pokemon = sqlx::query_as::<_, Pokemon>("SELECT * FROM pokemon")
         .fetch_all(&pool)
-        .await
-        .unwrap_or_default();
+        .await?;
 
     let old_p = match all_pokemon.into_iter().find(|p| filters::to_slug(&p.name) == slug) {
         Some(p) => p,
-        None => return StatusCode::NOT_FOUND.into_response(),
+        None => return Err(crate::error::AppError::NotFound),
     };
 
     let mut new_p = full.pokemon.clone();
@@ -333,146 +272,79 @@ pub async fn pokemon_save(
     let old_json = serde_json::to_string(&old_p).unwrap_or_default();
     let diff = format!("{}---{}", old_json, payload.json_content);
 
-    let mut tx = match pool.begin().await {
-        Ok(tx) => tx,
-        Err(e) => {
-            let (all_types, all_abilities, all_moves, all_pokemon) = fetch_metadata(&pool).await;
-            return Html(
-                PokemonEditTemplate {
-                    slug,
-                    json_content: payload.json_content,
-                    error: Some(format!("Erro ao iniciar transação: {}", e)),
-                    user_role: Some("editor".into()),
-                    all_types,
-                    all_abilities,
-                    all_moves,
-                    all_pokemon,
-                }
-                .render()
-                .unwrap_or_default(),
-            )
-            .into_response();
-        }
-    };
+    let mut tx = pool.begin().await?;
 
-    let res = async {
-        sqlx::query(
-            r#"
-            UPDATE pokemon
-            SET dex_number = ?, name = ?, sprite = ?, sprite_shiny = ?,
-                type1_id = ?, type2_id = ?, hp = ?, atk = ?, def = ?,
-                spa = ?, spd = ?, spe = ?, pokedex_entry = ?
-            WHERE id = ?
-            "#,
-        )
-        .bind(new_p.dex_number).bind(&new_p.name).bind(&new_p.sprite).bind(&new_p.sprite_shiny)
-        .bind(new_p.type1_id).bind(new_p.type2_id).bind(new_p.hp).bind(new_p.atk).bind(new_p.def)
-        .bind(new_p.spa).bind(new_p.spd).bind(new_p.spe).bind(&new_p.pokedex_entry)
-        .bind(new_p.id)
-        .execute(&mut *tx).await?;
+    sqlx::query(
+        r#"
+        UPDATE pokemon
+        SET dex_number = ?, name = ?, sprite = ?, sprite_shiny = ?,
+            type1_id = ?, type2_id = ?, hp = ?, atk = ?, def = ?,
+            spa = ?, spd = ?, spe = ?, pokedex_entry = ?
+        WHERE id = ?
+        "#,
+    )
+    .bind(new_p.dex_number).bind(&new_p.name).bind(&new_p.sprite).bind(&new_p.sprite_shiny)
+    .bind(new_p.type1_id).bind(new_p.type2_id).bind(new_p.hp).bind(new_p.atk).bind(new_p.def)
+    .bind(new_p.spa).bind(new_p.spd).bind(new_p.spe).bind(&new_p.pokedex_entry)
+    .bind(new_p.id)
+    .execute(&mut *tx).await?;
 
-        sqlx::query("DELETE FROM pokemon_abilities WHERE pokemon_id = ?").bind(new_p.id).execute(&mut *tx).await?;
-        for a in &full.abilities {
-            sqlx::query("INSERT INTO pokemon_abilities (pokemon_id, ability_id, slot) VALUES (?, ?, ?)")
-                .bind(new_p.id).bind(a.ability_id).bind(a.slot).execute(&mut *tx).await?;
-        }
-
-        sqlx::query("DELETE FROM evolutions WHERE from_id = ?").bind(new_p.id).execute(&mut *tx).await?;
-        for e in &full.evolutions {
-            sqlx::query("INSERT INTO evolutions (from_id, to_id, condition, condition_value) VALUES (?, ?, ?, ?)")
-                .bind(new_p.id).bind(e.to_id).bind(&e.condition).bind(&e.condition_value).execute(&mut *tx).await?;
-        }
-
-        sqlx::query("DELETE FROM pokemon_forms WHERE base_id = ?").bind(new_p.id).execute(&mut *tx).await?;
-        for f in &full.forms {
-            sqlx::query("INSERT INTO pokemon_forms (base_id, form_id, form_name) VALUES (?, ?, ?)")
-                .bind(new_p.id).bind(f.form_id).bind(&f.form_name).execute(&mut *tx).await?;
-        }
-
-        sqlx::query("DELETE FROM learnset WHERE pokemon_id = ?").bind(new_p.id).execute(&mut *tx).await?;
-        for l in &full.learnset {
-            sqlx::query("INSERT INTO learnset (pokemon_id, move_id, method, level) VALUES (?, ?, ?, ?)")
-                .bind(new_p.id).bind(l.move_id).bind(&l.method).bind(l.level).execute(&mut *tx).await?;
-        }
-        Ok::<_, sqlx::Error>(())
+    sqlx::query("DELETE FROM pokemon_abilities WHERE pokemon_id = ?").bind(new_p.id).execute(&mut *tx).await?;
+    for a in &full.abilities {
+        sqlx::query("INSERT INTO pokemon_abilities (pokemon_id, ability_id, slot) VALUES (?, ?, ?)")
+            .bind(new_p.id).bind(a.ability_id).bind(a.slot).execute(&mut *tx).await?;
     }
-    .await;
 
-    let result = match res {
-        Ok(_) => tx.commit().await,
-        Err(e) => {
-            let _ = tx.rollback().await;
-            Err(e)
-        }
-    };
-
-    match result {
-        Ok(_) => {
-            let _ = sqlx::query("INSERT INTO edits (trainer_id, table_name, record_id, diff) VALUES (?, ?, ?, ?)")
-                .bind(&trainer.id).bind("pokemon").bind(new_p.id).bind(&diff).execute(&pool).await;
-            Redirect::to(&format!("/wiki/pokemon/{}", slug)).into_response()
-        }
-        Err(e) => {
-            let (all_types, all_abilities, all_moves, all_pokemon) = fetch_metadata(&pool).await;
-            Html(
-                PokemonEditTemplate {
-                    slug,
-                    json_content: payload.json_content,
-                    error: Some(format!("Erro no banco de dados: {}", e)),
-                    user_role: Some("editor".into()),
-                    all_types,
-                    all_abilities,
-                    all_moves,
-                    all_pokemon,
-                }
-                .render()
-                .unwrap_or_default(),
-            )
-            .into_response()
-        }
+    sqlx::query("DELETE FROM evolutions WHERE from_id = ?").bind(new_p.id).execute(&mut *tx).await?;
+    for e in &full.evolutions {
+        sqlx::query("INSERT INTO evolutions (from_id, to_id, condition, condition_value) VALUES (?, ?, ?, ?)")
+            .bind(new_p.id).bind(e.to_id).bind(&e.condition).bind(&e.condition_value).execute(&mut *tx).await?;
     }
+
+    sqlx::query("DELETE FROM pokemon_forms WHERE base_id = ?").bind(new_p.id).execute(&mut *tx).await?;
+    for f in &full.forms {
+        sqlx::query("INSERT INTO pokemon_forms (base_id, form_id, form_name) VALUES (?, ?, ?)")
+            .bind(new_p.id).bind(f.form_id).bind(&f.form_name).execute(&mut *tx).await?;
+    }
+
+    sqlx::query("DELETE FROM learnset WHERE pokemon_id = ?").bind(new_p.id).execute(&mut *tx).await?;
+    for l in &full.learnset {
+        sqlx::query("INSERT INTO learnset (pokemon_id, move_id, method, level) VALUES (?, ?, ?, ?)")
+            .bind(new_p.id).bind(l.move_id).bind(&l.method).bind(l.level).execute(&mut *tx).await?;
+    }
+
+    tx.commit().await?;
+
+    sqlx::query("INSERT INTO edits (trainer_id, table_name, record_id, diff) VALUES (?, ?, ?, ?)")
+        .bind(&trainer.id).bind("pokemon").bind(new_p.id).bind(&diff).execute(&pool).await?;
+        
+    Ok(Redirect::to(&format!("/wiki/pokemon/{}", slug)).into_response())
 }
 
 pub async fn pokemon_delete(
     _session: EditorSession,
     State(pool): State<SqlitePool>,
     Path(slug): Path<String>,
-) -> impl IntoResponse {
+) -> Result<impl IntoResponse, crate::error::AppError> {
     let all_pokemon = sqlx::query_as::<_, Pokemon>("SELECT * FROM pokemon")
         .fetch_all(&pool)
-        .await
-        .unwrap_or_default();
+        .await?;
 
     let p = all_pokemon.into_iter().find(|p| filters::to_slug(&p.name) == slug);
 
     if let Some(p) = p {
-        let mut tx = match pool.begin().await {
-            Ok(tx) => tx,
-            Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("Erro: {}", e)).into_response(),
-        };
+        let mut tx = pool.begin().await?;
 
-        let res = async {
-            sqlx::query("DELETE FROM pokemon_abilities WHERE pokemon_id = ?").bind(p.id).execute(&mut *tx).await?;
-            sqlx::query("DELETE FROM evolutions WHERE from_id = ? OR to_id = ?").bind(p.id).bind(p.id).execute(&mut *tx).await?;
-            sqlx::query("DELETE FROM pokemon_forms WHERE base_id = ? OR form_id = ?").bind(p.id).bind(p.id).execute(&mut *tx).await?;
-            sqlx::query("DELETE FROM learnset WHERE pokemon_id = ?").bind(p.id).execute(&mut *tx).await?;
-            sqlx::query("DELETE FROM team_members WHERE pokemon_id = ?").bind(p.id).execute(&mut *tx).await?;
-            sqlx::query("DELETE FROM pokemon WHERE id = ?").bind(p.id).execute(&mut *tx).await?;
-            Ok::<_, sqlx::Error>(())
-        }
-        .await;
+        sqlx::query("DELETE FROM pokemon_abilities WHERE pokemon_id = ?").bind(p.id).execute(&mut *tx).await?;
+        sqlx::query("DELETE FROM evolutions WHERE from_id = ? OR to_id = ?").bind(p.id).bind(p.id).execute(&mut *tx).await?;
+        sqlx::query("DELETE FROM pokemon_forms WHERE base_id = ? OR form_id = ?").bind(p.id).bind(p.id).execute(&mut *tx).await?;
+        sqlx::query("DELETE FROM learnset WHERE pokemon_id = ?").bind(p.id).execute(&mut *tx).await?;
+        sqlx::query("DELETE FROM team_members WHERE pokemon_id = ?").bind(p.id).execute(&mut *tx).await?;
+        sqlx::query("DELETE FROM pokemon WHERE id = ?").bind(p.id).execute(&mut *tx).await?;
 
-        match res {
-            Ok(_) => match tx.commit().await {
-                Ok(_) => Redirect::to("/editor/pokemon").into_response(),
-                Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, format!("Erro ao commitar: {}", e)).into_response(),
-            },
-            Err(e) => {
-                let _ = tx.rollback().await;
-                (StatusCode::INTERNAL_SERVER_ERROR, format!("Erro ao deletar: {}", e)).into_response()
-            }
-        }
+        tx.commit().await?;
+        Ok(Redirect::to("/editor/pokemon").into_response())
     } else {
-        StatusCode::NOT_FOUND.into_response()
+        Err(crate::error::AppError::NotFound)
     }
 }

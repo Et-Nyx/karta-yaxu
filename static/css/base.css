@@ -1,0 +1,92 @@
+/* ========================================================
+   Karta Yaxu - Global Stylesheet (GameBoy Edition)
+======================================================== */
+
+@font-face {
+    font-family: "Press Start 2P";
+    src: url("/static/fonts/press-start-2p.woff2") format("woff2");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+:root {
+    /* Gameboy Color Palette */
+    --gb-darkest: #0f380f;
+    --gb-dark: #306230;
+    --gb-light: #8bac0f;
+    --gb-lightest: #9bbc0f;
+
+    /* Semantic Mapping */
+    --background: var(--gb-lightest);
+    --foreground: var(--gb-darkest);
+    --card: var(--gb-light);
+    --card-foreground: var(--gb-darkest);
+    --primary: var(--gb-darkest);
+    --primary-foreground: var(--gb-lightest);
+    --secondary: var(--gb-dark);
+    --secondary-foreground: var(--gb-lightest);
+    --destructive: #8b1e41; /* Retaining red for danger if needed */
+    --border: var(--gb-dark);
+
+    /* Elevation config */
+    --elevation-size: 4px;
+}
+
+/* ========================================================
+   Base Elements
+======================================================== */
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: "Press Start 2P", monospace;
+    font-size: 16px;
+    line-height: 1.6;
+
+    /* Retrô Pixel Smoothing Settings */
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+
+    /* Fundo estilo Dotted Screen */
+    background-image: radial-gradient(
+        circle,
+        rgba(0, 0, 0, 0.05) 1px,
+        transparent 1px
+    );
+    background-size: 8px 8px;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    font-weight: 400;
+    margin-top: 0;
+    text-transform: uppercase;
+}
+
+a {
+    color: inherit;
+    text-decoration: none;
+    transition: opacity 0.1s;
+}
+
+a:hover,
+a:focus {
+    opacity: 0.7;
+    text-decoration: underline;
+}
+
+button {
+    font-family: inherit;
+}
+

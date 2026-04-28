@@ -3,6 +3,8 @@ use axum::{
     extract::{State, Form, FromRequestParts},
     response::{Html, IntoResponse, Redirect},
     http::{StatusCode, request::Parts},
+    routing::{get, post},
+    Router,
 };
 use serde::Deserialize;
 use sqlx::SqlitePool;
@@ -329,4 +331,12 @@ pub async fn logout(
 ) -> impl IntoResponse {
     session.delete().await.unwrap();
     Redirect::to("/trainer/login").into_response()
+}
+
+pub fn routes() -> Router<SqlitePool> {
+    Router::new()
+        .route("/login", get(login_page).post(login_post))
+        .route("/register", get(register_page).post(register_post))
+        .route("/dashboard", get(dashboard))
+        .route("/logout", post(logout))
 }

@@ -3,25 +3,28 @@ name = "backend"
 version = "0.1.0"
 edition = "2024"
 
+[lints]
+workspace = true
+
 [dependencies]
 engine = { path = "../engine", features = ["db"] }
-axum = "0.8"
+axum = { version = "0.8", features = ["multipart"] }
 tokio = { version = "1", features = ["full"] }
-sqlx = { version = "0.8", features = ["sqlite", "runtime-tokio", "macros"] }
+sqlx = { workspace = true, features = ["sqlite", "runtime-tokio", "macros", "migrate"] }
 askama = "0.12"
 tower-sessions = "0.14"
 tower-http = { version = "0.6", features = ["fs"] }
 tower_governor = "0.8"
 tower-sessions-sqlx-store = { version = "0.15", features = ["sqlite"] }
-serde = { version = "1", features = ["derive"] }
+serde = { workspace = true }
 urlencoding = "2"
-toml = "0.8"
+toml = { workspace = true }
 argon2 = "0.5"
 rpassword = "7"
 dialoguer = "0.11"
 uuid = { version = "1", features = ["v4"] }
 strsim = "0.11"
-serde_json = "1.0.149"
+serde_json = { workspace = true }
 
 [[bin]]
 name = "backend"
@@ -34,3 +37,6 @@ path = "src/bin/seed.rs"
 [[bin]]
 name = "create_trainer"
 path = "src/bin/create_trainer.rs"
+
+[dev-dependencies]
+tempfile = "3.27.0"

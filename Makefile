@@ -1,4 +1,4 @@
-.PHONY: wasm build dev clean check docker-build docker-run seed-db
+.PHONY: wasm build dev clean check docker-build docker-run seed-db fmt lint test check-all sqlx-prepare
 
 wasm:
 	wasm-pack build --target web --out-dir ../../static/wasm --out-name karta --no-typescript crates/frontend/
@@ -21,6 +21,21 @@ seed-db:
 clean:
 	cargo clean
 	rm -rf static/wasm
+
+fmt:
+	cargo fmt --all
+
+lint:
+	cargo clippy --workspace -- -D warnings
+
+test:
+	cargo test --workspace
+
+check-all: fmt lint test
+	@echo "✅ All checks passed!"
+
+sqlx-prepare:
+	DATABASE_URL=sqlite:./data/rom.db cargo sqlx prepare --workspace
 
 docker-build:
 	docker build -t karta-yaxu .

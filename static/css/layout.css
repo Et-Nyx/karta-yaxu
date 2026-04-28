@@ -1,0 +1,88 @@
+/* ========================================================
+   Layout Utilities
+======================================================== */
+.container {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 16px;
+}
+
+/* Header & Footer */
+.gb-header {
+    background-color: var(--primary);
+    color: var(--primary-foreground);
+    border-bottom: 8px solid var(--border);
+    padding: 24px 0;
+    position: sticky;
+    top: 0;
+    z-index: 30;
+}
+
+.gb-footer {
+    background-color: var(--primary);
+    color: var(--primary-foreground);
+    border-top: 8px solid var(--border);
+    padding: 32px 0;
+    margin-top: 64px;
+    text-align: center;
+}
+
+/* ========================================================
+   Helpers
+======================================================== */
+.flex {
+    display: flex;
+}
+.flex-col {
+    flex-direction: column;
+}
+.items-center {
+    align-items: center;
+}
+.justify-center {
+    justify-content: center;
+}
+.justify-between {
+    justify-content: space-between;
+}
+.gap-2 {
+    gap: 8px;
+}
+.gap-4 {
+    gap: 16px;
+}
+.mt-4 {
+    margin-top: 16px;
+}
+.mb-2 {
+    margin-bottom: 8px;
+}
+.mb-4 {
+    margin-bottom: 16px;
+}
+.text-center {
+    text-align: center;
+}
+
+/* Grids */
+.grid-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+}
+
+/* Modificadores estéticos de texto do App.tsx */
+.text-xs {
+    font-size: 10px;
+}
+.text-xxs {
+    font-size: 8px;
+}
+.tracking-wider {
+    letter-spacing: 0.1em;
+}
+.opacity-80 {
+    opacity: 0.8;
+}
+

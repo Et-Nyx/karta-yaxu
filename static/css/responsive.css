@@ -1,0 +1,24 @@
+@media (max-width: 768px) {
+    .search-page-grid {
+        grid-template-columns: 1fr;
+    }
+}
+@media (max-width: 768px) {
+    .search-facet-toggle {
+        display: block;
+    }
+    .search-facets {
+        position: static;
+    }
+    .search-facets:not(.search-facets--open) .search-facet-section,
+    .search-facets:not(.search-facets--open) .search-facet-clear,
+    .search-facets:not(.search-facets--open) .search-facet-apply,
+    .search-facets:not(.search-facets--open) .filter-group {
+        display: none;
+    }
+}
+@media (max-width: 768px) {
+    .search-facet-type-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}

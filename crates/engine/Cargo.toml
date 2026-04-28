@@ -3,10 +3,16 @@ name = "engine"
 version = "0.1.0"
 edition = "2024"
 
+[lints]
+workspace = true
+
 [features]
 db = ["sqlx"]
 
 [dependencies]
-serde = { version = "1", features = ["derive"] }
-toml = "0.8"
-sqlx = { version = "0.8", features = ["sqlite"], optional = true }
+serde = { workspace = true }
+toml = { workspace = true }
+sqlx = { workspace = true, features = ["sqlite"], optional = true }
+
+[dev-dependencies]
+serde_json.workspace = true

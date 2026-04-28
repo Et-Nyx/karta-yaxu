@@ -23,7 +23,7 @@ pub struct SearchParams {
     pub error: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 struct SearchResult {
     entity_type: String,
     name: String,
@@ -158,7 +158,7 @@ fn matches_type(r: &SearchResult, t1: Option<&str>, t2: Option<&str>) -> bool {
     }
 }
 
-pub async fn search_page(session: Session, State(pool): State<SqlitePool>, Query(params): Query<SearchParams>) -> impl IntoResponse {
+pub async fn search_page(session: Session, State(pool): State<SqlitePool>, Query(params): Query<SearchParams>) -> Result<impl IntoResponse, crate::error::AppError> {
     let user_role = auth::get_user_role(&session).await;
     let q = params.q.clone().unwrap_or_default();
     let q_lower = q.to_lowercase();
@@ -175,21 +175,21 @@ pub async fn search_page(session: Session, State(pool): State<SqlitePool>, Query
 
     let evolving_from_ids: std::collections::HashSet<i64> = sqlx::query_scalar::<_, i64>(
         "SELECT DISTINCT from_id FROM evolutions"
-    ).fetch_all(&pool).await.unwrap_or_default().into_iter().collect();
+    ).fetch_all(&pool).await?.into_iter().collect();
 
     let form_ids: std::collections::HashSet<i64> = sqlx::query_scalar::<_, i64>(
         "SELECT DISTINCT form_id FROM pokemon_forms"
-    ).fetch_all(&pool).await.unwrap_or_default().into_iter().collect();
+    ).fetch_all(&pool).await?.into_iter().collect();
 
     let mut all_results: Vec<SearchResult> = Vec::new();
 
     let pokemon = sqlx::query_as::<_, (i64, String, String, String, String, i64)>(
         "SELECT p.id, p.name, p.pokedex_entry, p.sprite, t.hexcolor, p.dex_number FROM pokemon p JOIN types t ON p.type1_id = t.id ORDER BY p.dex_number, p.id"
-    ).fetch_all(&pool).await.unwrap_or_default();
+    ).fetch_all(&pool).await?;
 
     let all_types = sqlx::query_as::<_, (i64, String, String)>(
         "SELECT id, name, hexcolor FROM types WHERE id > 0 ORDER BY id"
-    ).fetch_all(&pool).await.unwrap_or_default();
+    ).fetch_all(&pool).await?;
 
     let type_map: std::collections::HashMap<i64, (String, String)> = all_types.iter()
         .map(|(id, name, color)| (*id, (name.clone(), color.clone())))
@@ -197,7 +197,7 @@ pub async fn search_page(session: Session, State(pool): State<SqlitePool>, Query
 
     let pokemon_t2 = sqlx::query_as::<_, (i64, Option<i64>)>(
         "SELECT id, type2_id FROM pokemon"
-    ).fetch_all(&pool).await.unwrap_or_default();
+    ).fetch_all(&pool).await?;
     let p2_map: std::collections::HashMap<i64, Option<i64>> = pokemon_t2.into_iter().collect();
 
     let mut pokemon_count: usize = 0;
@@ -255,7 +255,7 @@ pub async fn search_page(session: Session, State(pool): State<SqlitePool>, Query
 
     let moves_data = sqlx::query_as::<_, (i64, String, String, String, String, String, Option<i64>, Option<i64>, Option<i64>)>(
         "SELECT m.id, m.name, t.name as type_name, t.hexcolor, m.description, m.category, m.power, m.accuracy, m.pp FROM moves m JOIN types t ON m.type_id = t.id ORDER BY m.name"
-    ).fetch_all(&pool).await.unwrap_or_default();
+    ).fetch_all(&pool).await?;
 
     let mut move_count: usize = 0;
     let mut move_type_counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
@@ -298,7 +298,7 @@ pub async fn search_page(session: Session, State(pool): State<SqlitePool>, Query
 
     let abilities = sqlx::query_as::<_, (String, String)>(
         "SELECT name, description FROM abilities ORDER BY name"
-    ).fetch_all(&pool).await.unwrap_or_default();
+    ).fetch_all(&pool).await?;
 
     let mut ability_count: usize = 0;
     for (name, desc) in &abilities {
@@ -356,7 +356,7 @@ pub async fn search_page(session: Session, State(pool): State<SqlitePool>, Query
 
     let natures = sqlx::query_as::<_, (String, Option<String>, Option<String>)>(
         "SELECT name, increased_stat, decreased_stat FROM natures ORDER BY name"
-    ).fetch_all(&pool).await.unwrap_or_default();
+    ).fetch_all(&pool).await?;
 
     let mut nature_count: usize = 0;
     let mut stat_counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
@@ -399,7 +399,7 @@ pub async fn search_page(session: Session, State(pool): State<SqlitePool>, Query
 
     let statuses = sqlx::query_as::<_, (String, String)>(
         "SELECT name, description FROM status_conditions ORDER BY name"
-    ).fetch_all(&pool).await.unwrap_or_default();
+    ).fetch_all(&pool).await?;
 
     let mut status_count: usize = 0;
     for (name, desc) in &statuses {
@@ -538,7 +538,7 @@ pub async fn search_page(session: Session, State(pool): State<SqlitePool>, Query
         Vec::new()
     };
 
-    render(SearchResultsTemplate {
+    Ok(render(SearchResultsTemplate {
         query: q,
         results,
         selected_entity: entity,
@@ -563,7 +563,7 @@ pub async fn search_page(session: Session, State(pool): State<SqlitePool>, Query
         result_count,
         user_role,
         error: error_msg,
-    }).into_response()
+    }))
 }
 
 pub async fn search_suggestions(State(pool): State<SqlitePool>, Query(params): Query<SuggestParams>) -> Json<Vec<SearchSuggestion>> {
