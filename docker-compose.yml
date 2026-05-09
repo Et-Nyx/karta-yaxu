@@ -1,0 +1,18 @@
+services:
+  karta-yaxu:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - karta-data:/app/data
+    environment:
+      - DATABASE_URL=./data/rom.db
+      - PORT=3000
+      - HOST=0.0.0.0
+      - NODE_ENV=production
+    restart: unless-stopped
+
+volumes:
+  karta-data:

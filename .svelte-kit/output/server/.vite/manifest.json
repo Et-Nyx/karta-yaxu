@@ -1,0 +1,431 @@
+{
+  ".svelte-kit/generated/server/internal.js": {
+    "file": "internal.js",
+    "name": "internal",
+    "src": ".svelte-kit/generated/server/internal.js",
+    "isEntry": true,
+    "imports": [
+      "_environment.js",
+      "_internal.js"
+    ]
+  },
+  "_MoveCategoryIcon.CLs06Yuq.css": {
+    "file": "_app/immutable/assets/MoveCategoryIcon.CLs06Yuq.css",
+    "src": "_MoveCategoryIcon.CLs06Yuq.css"
+  },
+  "_MoveCategoryIcon.js": {
+    "file": "chunks/MoveCategoryIcon.js",
+    "name": "MoveCategoryIcon",
+    "imports": [
+      "_dev.js"
+    ],
+    "css": [
+      "_app/immutable/assets/MoveCategoryIcon.CLs06Yuq.css"
+    ]
+  },
+  "_PokemonCard.BYp4eU5k.css": {
+    "file": "_app/immutable/assets/PokemonCard.BYp4eU5k.css",
+    "src": "_PokemonCard.BYp4eU5k.css"
+  },
+  "_PokemonCard.js": {
+    "file": "chunks/PokemonCard.js",
+    "name": "PokemonCard",
+    "imports": [
+      "_dev.js",
+      "_TypeBadge.js"
+    ],
+    "css": [
+      "_app/immutable/assets/PokemonCard.BYp4eU5k.css"
+    ]
+  },
+  "_TypeBadge.DZwSkmhI.css": {
+    "file": "_app/immutable/assets/TypeBadge.DZwSkmhI.css",
+    "src": "_TypeBadge.DZwSkmhI.css"
+  },
+  "_TypeBadge.js": {
+    "file": "chunks/TypeBadge.js",
+    "name": "TypeBadge",
+    "imports": [
+      "_dev.js"
+    ],
+    "css": [
+      "_app/immutable/assets/TypeBadge.DZwSkmhI.css"
+    ]
+  },
+  "_TypeIcon.DYCWKU_I.css": {
+    "file": "_app/immutable/assets/TypeIcon.DYCWKU_I.css",
+    "src": "_TypeIcon.DYCWKU_I.css"
+  },
+  "_TypeIcon.js": {
+    "file": "chunks/TypeIcon.js",
+    "name": "TypeIcon",
+    "imports": [
+      "_dev.js"
+    ],
+    "css": [
+      "_app/immutable/assets/TypeIcon.DYCWKU_I.css"
+    ]
+  },
+  "_app.js": {
+    "file": "chunks/app.js",
+    "name": "app"
+  },
+  "_chunk.js": {
+    "file": "chunks/chunk.js",
+    "name": "chunk"
+  },
+  "_client.js": {
+    "file": "chunks/client.js",
+    "name": "client",
+    "imports": [
+      "_environment.js",
+      "_internal.js",
+      "_exports.js",
+      "_shared.js",
+      "_dev.js"
+    ]
+  },
+  "_db.js": {
+    "file": "chunks/db.js",
+    "name": "db",
+    "imports": [
+      "_chunk.js"
+    ]
+  },
+  "_dev.js": {
+    "file": "chunks/dev.js",
+    "name": "dev"
+  },
+  "_environment.js": {
+    "file": "chunks/environment.js",
+    "name": "environment",
+    "imports": [
+      "_chunk.js",
+      "_dev.js"
+    ]
+  },
+  "_exports.js": {
+    "file": "chunks/exports.js",
+    "name": "exports",
+    "imports": [
+      "_dev.js"
+    ]
+  },
+  "_import-events.js": {
+    "file": "chunks/import-events.js",
+    "name": "import-events"
+  },
+  "_internal.js": {
+    "file": "chunks/internal.js",
+    "name": "internal",
+    "imports": [
+      "_environment.js",
+      "_dev.js"
+    ]
+  },
+  "_shared.js": {
+    "file": "chunks/shared.js",
+    "name": "shared",
+    "imports": [
+      "_environment.js"
+    ]
+  },
+  "_utils.js": {
+    "file": "chunks/utils.js",
+    "name": "utils",
+    "imports": [
+      "_environment.js",
+      "_shared.js"
+    ]
+  },
+  "node_modules/@sveltejs/kit/src/runtime/app/server/remote/index.js": {
+    "file": "remote-entry.js",
+    "name": "remote-entry",
+    "src": "node_modules/@sveltejs/kit/src/runtime/app/server/remote/index.js",
+    "isEntry": true,
+    "imports": [
+      "_environment.js",
+      "_utils.js",
+      "_shared.js"
+    ]
+  },
+  "node_modules/@sveltejs/kit/src/runtime/components/svelte-5/error.svelte": {
+    "file": "entries/fallbacks/error.svelte.js",
+    "name": "entries/fallbacks/error.svelte",
+    "src": "node_modules/@sveltejs/kit/src/runtime/components/svelte-5/error.svelte",
+    "isEntry": true,
+    "imports": [
+      "_environment.js",
+      "_client.js",
+      "_dev.js"
+    ]
+  },
+  "node_modules/@sveltejs/kit/src/runtime/server/index.js": {
+    "file": "index.js",
+    "name": "index",
+    "src": "node_modules/@sveltejs/kit/src/runtime/server/index.js",
+    "isEntry": true,
+    "imports": [
+      "_environment.js",
+      "_internal.js",
+      "_utils.js",
+      "_exports.js",
+      "_app.js",
+      "_shared.js",
+      "_dev.js"
+    ]
+  },
+  "src/routes/+layout.svelte": {
+    "file": "entries/pages/_layout.svelte.js",
+    "name": "entries/pages/_layout.svelte",
+    "src": "src/routes/+layout.svelte",
+    "isEntry": true,
+    "imports": [
+      "_environment.js",
+      "_client.js",
+      "_dev.js"
+    ],
+    "css": [
+      "_app/immutable/assets/_layout.BtM-Fbrl.css"
+    ]
+  },
+  "src/routes/+page.svelte": {
+    "file": "entries/pages/_page.svelte.js",
+    "name": "entries/pages/_page.svelte",
+    "src": "src/routes/+page.svelte",
+    "isEntry": true,
+    "imports": [
+      "_dev.js"
+    ],
+    "css": [
+      "_app/immutable/assets/_page.CRX_9gve.css"
+    ]
+  },
+  "src/routes/api/import/sse/+server.ts": {
+    "file": "entries/endpoints/api/import/sse/_server.ts.js",
+    "name": "entries/endpoints/api/import/sse/_server.ts",
+    "src": "src/routes/api/import/sse/+server.ts",
+    "isEntry": true,
+    "imports": [
+      "_import-events.js"
+    ]
+  },
+  "src/routes/import/+page.server.ts": {
+    "file": "entries/pages/import/_page.server.ts.js",
+    "name": "entries/pages/import/_page.server.ts",
+    "src": "src/routes/import/+page.server.ts",
+    "isEntry": true,
+    "imports": [
+      "_db.js",
+      "_import-events.js"
+    ]
+  },
+  "src/routes/import/+page.svelte": {
+    "file": "entries/pages/import/_page.svelte.js",
+    "name": "entries/pages/import/_page.svelte",
+    "src": "src/routes/import/+page.svelte",
+    "isEntry": true,
+    "imports": [
+      "_environment.js",
+      "_client.js",
+      "_dev.js"
+    ],
+    "css": [
+      "_app/immutable/assets/_page.DEntuJaD.css"
+    ]
+  },
+  "src/routes/wiki/+page.svelte": {
+    "file": "entries/pages/wiki/_page.svelte.js",
+    "name": "entries/pages/wiki/_page.svelte",
+    "src": "src/routes/wiki/+page.svelte",
+    "isEntry": true,
+    "imports": [
+      "_dev.js"
+    ],
+    "css": [
+      "_app/immutable/assets/_page.CSxrhmJ-.css"
+    ]
+  },
+  "src/routes/wiki/abilities/+page.server.ts": {
+    "file": "entries/pages/wiki/abilities/_page.server.ts.js",
+    "name": "entries/pages/wiki/abilities/_page.server.ts",
+    "src": "src/routes/wiki/abilities/+page.server.ts",
+    "isEntry": true,
+    "imports": [
+      "_db.js"
+    ]
+  },
+  "src/routes/wiki/abilities/+page.svelte": {
+    "file": "entries/pages/wiki/abilities/_page.svelte.js",
+    "name": "entries/pages/wiki/abilities/_page.svelte",
+    "src": "src/routes/wiki/abilities/+page.svelte",
+    "isEntry": true,
+    "imports": [
+      "_dev.js"
+    ],
+    "css": [
+      "_app/immutable/assets/_page.B20YUcrz.css"
+    ]
+  },
+  "src/routes/wiki/abilities/[slug]/+page.server.ts": {
+    "file": "entries/pages/wiki/abilities/_slug_/_page.server.ts.js",
+    "name": "entries/pages/wiki/abilities/_slug_/_page.server.ts",
+    "src": "src/routes/wiki/abilities/[slug]/+page.server.ts",
+    "isEntry": true,
+    "imports": [
+      "_db.js"
+    ]
+  },
+  "src/routes/wiki/abilities/[slug]/+page.svelte": {
+    "file": "entries/pages/wiki/abilities/_slug_/_page.svelte.js",
+    "name": "entries/pages/wiki/abilities/_slug_/_page.svelte",
+    "src": "src/routes/wiki/abilities/[slug]/+page.svelte",
+    "isEntry": true,
+    "imports": [
+      "_dev.js",
+      "_PokemonCard.js"
+    ],
+    "css": [
+      "_app/immutable/assets/_page.B9KYhOJN.css"
+    ]
+  },
+  "src/routes/wiki/moves/+page.server.ts": {
+    "file": "entries/pages/wiki/moves/_page.server.ts.js",
+    "name": "entries/pages/wiki/moves/_page.server.ts",
+    "src": "src/routes/wiki/moves/+page.server.ts",
+    "isEntry": true,
+    "imports": [
+      "_db.js"
+    ]
+  },
+  "src/routes/wiki/moves/+page.svelte": {
+    "file": "entries/pages/wiki/moves/_page.svelte.js",
+    "name": "entries/pages/wiki/moves/_page.svelte",
+    "src": "src/routes/wiki/moves/+page.svelte",
+    "isEntry": true,
+    "imports": [
+      "_dev.js",
+      "_MoveCategoryIcon.js",
+      "_TypeBadge.js"
+    ],
+    "css": [
+      "_app/immutable/assets/_page.DjFpEcyP.css"
+    ]
+  },
+  "src/routes/wiki/moves/[slug]/+page.server.ts": {
+    "file": "entries/pages/wiki/moves/_slug_/_page.server.ts.js",
+    "name": "entries/pages/wiki/moves/_slug_/_page.server.ts",
+    "src": "src/routes/wiki/moves/[slug]/+page.server.ts",
+    "isEntry": true,
+    "imports": [
+      "_db.js"
+    ]
+  },
+  "src/routes/wiki/moves/[slug]/+page.svelte": {
+    "file": "entries/pages/wiki/moves/_slug_/_page.svelte.js",
+    "name": "entries/pages/wiki/moves/_slug_/_page.svelte",
+    "src": "src/routes/wiki/moves/[slug]/+page.svelte",
+    "isEntry": true,
+    "imports": [
+      "_dev.js",
+      "_MoveCategoryIcon.js",
+      "_PokemonCard.js",
+      "_TypeBadge.js"
+    ],
+    "css": [
+      "_app/immutable/assets/_page.Byy4mht9.css"
+    ]
+  },
+  "src/routes/wiki/pokemon/+page.server.ts": {
+    "file": "entries/pages/wiki/pokemon/_page.server.ts.js",
+    "name": "entries/pages/wiki/pokemon/_page.server.ts",
+    "src": "src/routes/wiki/pokemon/+page.server.ts",
+    "isEntry": true,
+    "imports": [
+      "_db.js"
+    ]
+  },
+  "src/routes/wiki/pokemon/+page.svelte": {
+    "file": "entries/pages/wiki/pokemon/_page.svelte.js",
+    "name": "entries/pages/wiki/pokemon/_page.svelte",
+    "src": "src/routes/wiki/pokemon/+page.svelte",
+    "isEntry": true,
+    "imports": [
+      "_dev.js",
+      "_PokemonCard.js"
+    ],
+    "css": [
+      "_app/immutable/assets/_page.DeaFIFYj.css"
+    ]
+  },
+  "src/routes/wiki/pokemon/[slug]/+page.server.ts": {
+    "file": "entries/pages/wiki/pokemon/_slug_/_page.server.ts.js",
+    "name": "entries/pages/wiki/pokemon/_slug_/_page.server.ts",
+    "src": "src/routes/wiki/pokemon/[slug]/+page.server.ts",
+    "isEntry": true,
+    "imports": [
+      "_db.js"
+    ]
+  },
+  "src/routes/wiki/pokemon/[slug]/+page.svelte": {
+    "file": "entries/pages/wiki/pokemon/_slug_/_page.svelte.js",
+    "name": "entries/pages/wiki/pokemon/_slug_/_page.svelte",
+    "src": "src/routes/wiki/pokemon/[slug]/+page.svelte",
+    "isEntry": true,
+    "imports": [
+      "_dev.js",
+      "_MoveCategoryIcon.js",
+      "_PokemonCard.js",
+      "_TypeBadge.js"
+    ],
+    "css": [
+      "_app/immutable/assets/_page.zlAts7De.css"
+    ]
+  },
+  "src/routes/wiki/types/+page.server.ts": {
+    "file": "entries/pages/wiki/types/_page.server.ts.js",
+    "name": "entries/pages/wiki/types/_page.server.ts",
+    "src": "src/routes/wiki/types/+page.server.ts",
+    "isEntry": true,
+    "imports": [
+      "_db.js"
+    ]
+  },
+  "src/routes/wiki/types/+page.svelte": {
+    "file": "entries/pages/wiki/types/_page.svelte.js",
+    "name": "entries/pages/wiki/types/_page.svelte",
+    "src": "src/routes/wiki/types/+page.svelte",
+    "isEntry": true,
+    "imports": [
+      "_dev.js",
+      "_TypeIcon.js"
+    ],
+    "css": [
+      "_app/immutable/assets/_page.CpCjSRVP.css"
+    ]
+  },
+  "src/routes/wiki/types/[slug]/+page.server.ts": {
+    "file": "entries/pages/wiki/types/_slug_/_page.server.ts.js",
+    "name": "entries/pages/wiki/types/_slug_/_page.server.ts",
+    "src": "src/routes/wiki/types/[slug]/+page.server.ts",
+    "isEntry": true,
+    "imports": [
+      "_db.js"
+    ]
+  },
+  "src/routes/wiki/types/[slug]/+page.svelte": {
+    "file": "entries/pages/wiki/types/_slug_/_page.svelte.js",
+    "name": "entries/pages/wiki/types/_slug_/_page.svelte",
+    "src": "src/routes/wiki/types/[slug]/+page.svelte",
+    "isEntry": true,
+    "imports": [
+      "_dev.js",
+      "_PokemonCard.js",
+      "_TypeBadge.js",
+      "_TypeIcon.js"
+    ],
+    "css": [
+      "_app/immutable/assets/_page.CBh7x7b3.css"
+    ]
+  }
+}

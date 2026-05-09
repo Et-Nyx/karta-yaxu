@@ -1,0 +1,266 @@
+@import "tailwindcss";
+
+/* ==========================================================================
+   Design Tokens — Karta Yaxu 2.0
+   Ref: DESIGN.md §2
+   ========================================================================== */
+
+@theme {
+  /* ── Structural Colors (Dynamic via Theme) ────────────────────────────── */
+  --color-bg-primary: var(--theme-bg-primary);
+  --color-bg-secondary: var(--theme-bg-secondary);
+  --color-bg-tertiary: var(--theme-bg-tertiary);
+  --color-bg-hover: var(--theme-bg-hover);
+  --color-bg-active: var(--theme-bg-active);
+
+  --color-text-primary: var(--theme-text-primary);
+  --color-text-secondary: var(--theme-text-secondary);
+  --color-text-inverse: var(--theme-text-inverse);
+  --color-text-muted: var(--theme-text-muted);
+  --color-text-accent: var(--theme-text-accent);
+  --color-text-warning: #f1fa8c;
+  --color-text-error: #ff5555;
+
+  --color-border-primary: var(--theme-border-primary);
+  --color-border-accent: var(--theme-text-accent);
+
+  /* ── Pokémon Type Colors ──────────────────────────────────────────────── */
+  --color-type-normal: #9FA19F;
+  --color-type-fire: #E62829;
+  --color-type-water: #2980EF;
+  --color-type-electric: #FAC000;
+  --color-type-grass: #3FA129;
+  --color-type-ice: #3DD8FF;
+  --color-type-fighting: #FF8000;
+  --color-type-poison: #9141CB;
+  --color-type-ground: #915121;
+  --color-type-flying: #81B9EF;
+  --color-type-psychic: #EF4179;
+  --color-type-bug: #91A119;
+  --color-type-rock: #AFA981;
+  --color-type-ghost: #704170;
+  --color-type-dragon: #5060E1;
+  --color-type-dark: #4F3F3D;
+  --color-type-steel: #60A1B8;
+  --color-type-fairy: #EF70EF;
+  --color-type-stellar: #83CFC5;
+
+  /* ── Stat Colors ──────────────────────────────────────────────────────── */
+  --color-stat-hp: #FF0000;
+  --color-stat-atk: #F08030;
+  --color-stat-def: #F8D030;
+  --color-stat-spa: #6890F0;
+  --color-stat-spd: #78C850;
+  --color-stat-spe: #F85888;
+
+  /* ── Spacing Scale ────────────────────────────────────────────────────── */
+  --spacing-1: 4px;
+  --spacing-2: 8px;
+  --spacing-3: 12px;
+  --spacing-4: 16px;
+  --spacing-5: 24px;
+  --spacing-6: 32px;
+  --spacing-8: 48px;
+
+  /* ── Typography ───────────────────────────────────────────────────────── */
+  --font-display: "Press Start 2P", monospace;
+  --font-body: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+
+  /* ── Shadows (Gameboy-style) ──────────────────────────────────────────── */
+  --shadow-card: 3px 3px 0px #000000;
+  --shadow-card-hover: 4px 4px 0px #000000;
+
+  /* ── Breakpoints ──────────────────────────────────────────────────────── */
+  --breakpoint-sm: 768px;
+  --breakpoint-md: 1024px;
+}
+
+/* ==========================================================================
+   Theme Definitions
+   ========================================================================== */
+
+:root,
+:root[data-theme="light"] {
+  /* Light Theme (Default) */
+  --theme-bg-primary: #f0f0f0;
+  --theme-bg-secondary: #ffffff;
+  --theme-bg-tertiary: #e0e0e0;
+  --theme-bg-hover: #e8e8e8;
+  --theme-bg-active: #d0d0d0;
+
+  --theme-text-primary: #111111;
+  --theme-text-secondary: #444444;
+  --theme-text-inverse: #111111; /* Texto escuro no header claro */
+  --theme-text-muted: #888888;
+  --theme-text-accent: #3FA129; /* Grass green */
+
+  --theme-border-primary: #000000;
+
+  --filter-move-icon: brightness(0);
+}
+
+/* Auto Dark Theme (Only if no explicit theme is set) */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]):not([data-theme="admin"]) {
+    --theme-bg-primary: #1a1a1a;
+    --theme-bg-secondary: #2a2a2a;
+    --theme-bg-tertiary: #111111;
+    --theme-bg-hover: #333333;
+    --theme-bg-active: #444444;
+
+    --theme-text-primary: #eeeeee;
+    --theme-text-secondary: #aaaaaa;
+    --theme-text-inverse: #eeeeee; /* Texto claro no header escuro */
+    --theme-text-muted: #666666;
+    --theme-text-accent: #8bac0f; /* Gameboy light green */
+
+    --theme-border-primary: #444444; /* Bordas mais claras para contrastar com o fundo preto */
+
+    --filter-move-icon: none;
+  }
+}
+
+/* Manual Dark Theme Override */
+:root[data-theme="dark"] {
+  --theme-bg-primary: #1a1a1a;
+  --theme-bg-secondary: #2a2a2a;
+  --theme-bg-tertiary: #111111;
+  --theme-bg-hover: #333333;
+  --theme-bg-active: #444444;
+
+  --theme-text-primary: #eeeeee;
+  --theme-text-secondary: #aaaaaa;
+  --theme-text-inverse: #eeeeee; /* Texto claro no header escuro */
+  --theme-text-muted: #666666;
+  --theme-text-accent: #8bac0f; /* Gameboy light green */
+
+  --theme-border-primary: #444444; /* Bordas mais claras para contrastar com o fundo preto */
+
+  --filter-move-icon: none;
+}
+
+/* Force Admin Theme anywhere this dataset is applied */
+:root[data-theme="admin"],
+body[data-theme="admin"],
+.theme-admin {
+  /* Admin Theme (Gameboy Green) */
+  --theme-bg-primary: #8bac0f;
+  --theme-bg-secondary: #9bbc0f;
+  --theme-bg-tertiary: #0f380f;
+  --theme-bg-hover: #7b9c0c;
+  --theme-bg-active: #69850a;
+
+  --theme-text-primary: #0f380f;
+  --theme-text-secondary: #306230;
+  --theme-text-inverse: #9bbc0f;
+  --theme-text-muted: #306230;
+  --theme-text-accent: #ffffff;
+
+  --theme-border-primary: #000000;
+
+  --filter-move-icon: brightness(0);
+}
+
+/* ==========================================================================
+   Base Styles
+   ========================================================================== */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+/* ── Headings ─────────────────────────────────────────────────────────── */
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  line-height: 1.4;
+  margin: 0;
+}
+
+h1 { font-size: 24px; }
+h2 { font-size: 20px; }
+h3 { font-size: 16px; }
+h4 { font-size: 14px; }
+
+/* ── Code / Data ──────────────────────────────────────────────────────── */
+
+code, pre, [data-stat] {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Links ────────────────────────────────────────────────────────────── */
+
+a {
+  color: var(--color-text-accent);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+a:hover {
+  color: #6dff94;
+}
+
+/* ── Scrollbar (dark theme) ───────────────────────────────────────────── */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-primary);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
+}
+
+/* ── Interactive Cards (Universal Hover) ──────────────────────────────── */
+
+.card-interactive {
+  background-color: var(--theme-bg-secondary);
+  border: 3px solid var(--theme-border-primary);
+  box-shadow: var(--shadow-card);
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.05s ease;
+}
+
+.card-interactive:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 4px 4px 0px var(--theme-text-accent);
+  border-color: var(--theme-text-accent);
+}
+
+/* ── Selection ────────────────────────────────────────────────────────── */
+
+::selection {
+  background: var(--color-text-accent);
+  color: var(--color-bg-primary);
+}

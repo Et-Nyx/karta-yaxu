@@ -1,0 +1,40 @@
+{
+  "name": "karta-yaxu",
+  "version": "2.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio"
+  },
+  "type": "module",
+  "devDependencies": {
+    "@sveltejs/adapter-node": "^5.5.4",
+    "@sveltejs/kit": "^2.59.1",
+    "@tailwindcss/vite": "^4.2.4",
+    "@types/better-sqlite3": "^7.6.13",
+    "drizzle-kit": "^0.31.10",
+    "svelte": "^5.55.5",
+    "svelte-check": "^4.4.8",
+    "tailwindcss": "^4.2.4",
+    "tslib": "^2.8.1",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.11"
+  },
+  "dependencies": {
+    "@lucia-auth/adapter-drizzle": "^1.1.0",
+    "better-sqlite3": "^12.9.0",
+    "drizzle-orm": "^0.45.2",
+    "fuse.js": "^7.3.0",
+    "lucia": "^3.2.2",
+    "socket.io": "^4.8.3",
+    "socket.io-client": "^4.8.3",
+    "zod": "^4.4.3"
+  }
+}
