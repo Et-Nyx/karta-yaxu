@@ -12,6 +12,7 @@ export const trainers = sqliteTable('trainers', {
   passwordHash: text('password_hash').notNull(),
   role: text('role', { enum: ['viewer', 'editor'] }).notNull().default('viewer'),
   isNpc: integer('is_npc', { mode: 'boolean' }).notNull().default(false),
+  bannedAt: integer('banned_at', { mode: 'timestamp' }),
   createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
 });
 

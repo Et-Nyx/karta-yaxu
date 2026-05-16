@@ -20,6 +20,7 @@
     { key: 'moves', label: 'Moves', max: 919 },
     { key: 'items', label: 'Items', max: 2110 },
     { key: 'pokemon', label: 'Pokémon', max: 1025 },
+    { key: 'locations', label: 'Locations', max: 869 },
   ];
 
   function getPercentage(count: number, max: number): number {

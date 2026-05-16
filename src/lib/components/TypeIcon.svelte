@@ -14,7 +14,15 @@
   };
 
   let typeId = $derived(typeIdMap[typeName.toLowerCase()] || 1);
-  let iconUrl = $derived(`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/types/generation-ix/scarlet-violet/small/${typeId}.png`);
+
+  // Types whose small/ sprite doesn't exist yet in PokeAPI — use local fallback
+  const LOCAL_FALLBACKS: Record<number, string> = {
+    19: '/icons/types/stellar.png',
+  };
+  let iconUrl = $derived(
+    LOCAL_FALLBACKS[typeId] ??
+    `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/types/generation-ix/scarlet-violet/small/${typeId}.png`
+  );
 
   let sizeClass = $derived({
     sm: 'type-icon-sm',

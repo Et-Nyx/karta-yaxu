@@ -13,15 +13,6 @@ export const eggGroups = sqliteTable('egg_groups', {
   slug: text('slug').notNull().unique(),
 });
 
-// ── Evolution Chains ───────────────────────────────────────────────────────
-
-export const evolutionChains = sqliteTable('evolution_chains', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  pokeapiId: integer('pokeapi_id'),
-  source: text('source', { enum: ['pokeapi', 'edited', 'custom'] }).notNull().default('pokeapi'),
-  babyTriggerItemId: integer('baby_trigger_item_id').references(() => items.id),
-});
-
 // ── Pokemon Species ────────────────────────────────────────────────────────
 
 export const pokemonSpecies = sqliteTable('pokemon_species', {
@@ -32,8 +23,6 @@ export const pokemonSpecies = sqliteTable('pokemon_species', {
   slug: text('slug').notNull().unique(),
   genus: text('genus'),
   dexNumber: integer('dex_number').notNull(),
-  evolutionChainId: integer('evolution_chain_id').references(() => evolutionChains.id),
-  evolvesFromSpeciesId: integer('evolves_from_species_id'),
   isBaby: integer('is_baby', { mode: 'boolean' }).notNull().default(false),
   isLegendary: integer('is_legendary', { mode: 'boolean' }).notNull().default(false),
   isMythical: integer('is_mythical', { mode: 'boolean' }).notNull().default(false),
@@ -47,6 +36,7 @@ export const pokemonSpecies = sqliteTable('pokemon_species', {
   hatchCounter: integer('hatch_counter'),
   generationId: integer('generation_id').references(() => generations.id),
   order: integer('order'),
+  dexOrder: integer('dex_order'),
 });
 
 export const pokemonFlavorTexts = sqliteTable('pokemon_flavor_texts', {
@@ -95,6 +85,24 @@ export const pokemon = sqliteTable('pokemon', {
   spriteArtwork: text('sprite_artwork'),
   isDefault: integer('is_default', { mode: 'boolean' }).notNull().default(true),
   order: integer('order'),
+  evolvesFromPokemonId: integer('evolves_from_pokemon_id'), // self-FK to pokemon.id (no Drizzle constraint to avoid circular refs)
+});
+
+// Linked-list evolution: one row per pokemon-with-predecessor. The pokemon's evolves_from_pokemon_id
+// gives the parent; the conditions for the (parent -> child) edge live here, keyed on the child id.
+export const pokemonEvolutionDetails = sqliteTable('pokemon_evolution_details', {
+  pokemonId:        integer('pokemon_id').primaryKey().references(() => pokemon.id),
+  trigger:          text('trigger').notNull(), // 'level-up' / 'use-item' / 'use-move' / 'trade' / 'three-critical-hits'
+  minLevel:         integer('min_level'),
+  itemId:           integer('item_id').references(() => items.id),
+  heldItemId:       integer('held_item_id').references(() => items.id),
+  knownMoveId:      integer('known_move_id').references(() => moves.id),
+  knownMoveTypeId:  integer('known_move_type_id').references(() => types.id),
+  minHappiness:     integer('min_happiness'),
+  timeOfDay:        text('time_of_day'),   // 'day' / 'night' / 'dusk'
+  gender:           integer('gender'),      // 1 = female, 2 = male
+  location:         text('location'),
+  source:           text('source', { enum: ['pokeapi', 'edited', 'custom'] }).notNull().default('pokeapi'),
 });
 
 export const pokemonTypes = sqliteTable('pokemon_types', {
@@ -127,10 +135,10 @@ export const pokemonMoves = sqliteTable('pokemon_moves', {
   pokemonId: integer('pokemon_id').notNull().references(() => pokemon.id),
   moveId: integer('move_id').notNull().references(() => moves.id),
   learnMethodId: integer('learn_method_id').notNull().references(() => moveLearnMethods.id),
-  level: integer('level'),
-  versionGroupId: integer('version_group_id').references(() => versionGroups.id),
+  level: integer('level').notNull().default(0),
+  versionGroupId: integer('version_group_id').notNull().references(() => versionGroups.id),
 }, (t) => ({
-  pk: primaryKey({ columns: [t.pokemonId, t.moveId, t.learnMethodId, t.level] }),
+  pk: primaryKey({ columns: [t.pokemonId, t.moveId, t.learnMethodId, t.level, t.versionGroupId] }),
 }));
 
 // ── Pokemon Forms ──────────────────────────────────────────────────────────
@@ -151,39 +159,6 @@ export const pokemonForms = sqliteTable('pokemon_forms', {
   spriteArtwork: text('sprite_artwork'),
 });
 
-// ── Evolution Details ──────────────────────────────────────────────────────
-
-export const evolutionDetails = sqliteTable('evolution_details', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  chainId: integer('chain_id').notNull().references(() => evolutionChains.id),
-  fromSpeciesId: integer('from_species_id').notNull().references(() => pokemonSpecies.id),
-  toSpeciesId: integer('to_species_id').notNull().references(() => pokemonSpecies.id),
-  trigger: text('trigger').notNull(),
-  minLevel: integer('min_level'),
-  minHappiness: integer('min_happiness'),
-  minBeauty: integer('min_beauty'),
-  minAffection: integer('min_affection'),
-  itemId: integer('item_id').references(() => items.id),
-  heldItemId: integer('held_item_id').references(() => items.id),
-  knownMoveId: integer('known_move_id').references(() => moves.id),
-  knownMoveTypeId: integer('known_move_type_id').references(() => types.id),
-  location: text('location'),
-  timeOfDay: text('time_of_day'),
-  gender: integer('gender'),
-  relativePhysicalStats: integer('relative_physical_stats'),
-  needsOverworldRain: integer('needs_overworld_rain', { mode: 'boolean' }).default(false),
-  needsMultiplayer: integer('needs_multiplayer', { mode: 'boolean' }).default(false),
-  turnUpsideDown: integer('turn_upside_down', { mode: 'boolean' }).default(false),
-  tradeSpeciesId: integer('trade_species_id').references(() => pokemonSpecies.id),
-  partySpeciesId: integer('party_species_id').references(() => pokemonSpecies.id),
-  partyTypeId: integer('party_type_id').references(() => types.id),
-  region: text('region'),
-  baseFormId: integer('base_form_id').references(() => pokemonForms.id),
-  usedMoveId: integer('used_move_id').references(() => moves.id),
-  minMoveCount: integer('min_move_count'),
-  minSteps: integer('min_steps'),
-  minDamageTaken: integer('min_damage_taken'),
-});
 
 // ── Pokedex Entries ────────────────────────────────────────────────────────
 

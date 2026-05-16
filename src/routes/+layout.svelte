@@ -2,8 +2,11 @@
   import { page } from '$app/stores';
   import { onMount } from 'svelte';
   import '../app.css';
+  import ImportActivity from '$lib/components/ImportActivity.svelte';
+  import { handleImportEvent } from '$lib/stores/importActivity';
+  import NavTab from '$lib/components/NavTab.svelte';
 
-  let { children } = $props();
+  let { children, data } = $props();
 
   // Se estamos na rota /import ou /editor, forçamos o tema admin (verde gameboy)
   let isAdminRoute = $derived($page.url.pathname.startsWith('/import') || $page.url.pathname.startsWith('/editor'));
@@ -36,12 +39,16 @@
     applyTheme(selectedTheme);
   });
 
-  // Carrega a preferência inicial
+  // Carrega a preferência inicial e abre SSE para import activity
   onMount(() => {
     const saved = localStorage.getItem('theme');
-    if (saved) {
-      selectedTheme = saved;
-    }
+    if (saved) selectedTheme = saved;
+
+    const es = new EventSource('/api/import/sse');
+    es.onmessage = (e) => {
+      try { handleImportEvent(JSON.parse(e.data)); } catch {}
+    };
+    return () => es.close();
   });
 
   // Gera breadcrumbs com links baseados na URL
@@ -81,11 +88,18 @@
           <option value="dark">Theme: Dark</option>
           <option value="admin">Theme: Admin (Verde)</option>
         </select>
-        <a href="/wiki" class="tab" class:active={$page.url.pathname.startsWith('/wiki')}>WIKI</a>
-        <a href="/editor" class="tab" class:active={$page.url.pathname.startsWith('/editor')}>EDITOR</a>
-        <a href="/import" class="tab" class:active={$page.url.pathname.startsWith('/import')}>IMPORT</a>
-        <a href="/battle" class="tab" class:active={$page.url.pathname.startsWith('/battle')}>BATTLE</a>
-        <a href="/trainer/login" class="tab login">LOGIN</a>
+        <NavTab href="/wiki" active={$page.url.pathname.startsWith('/wiki')}>WIKI</NavTab>
+        <NavTab href="/editor" active={$page.url.pathname.startsWith('/editor')}>EDITOR</NavTab>
+        <NavTab href="/import" active={$page.url.pathname.startsWith('/import')}>IMPORT</NavTab>
+        <NavTab href="/battle" active={$page.url.pathname.startsWith('/battle')}>BATTLE</NavTab>
+        {#if data.user}
+          <NavTab href="/trainer/{data.user.username}" active={$page.url.pathname.startsWith('/trainer/' + data.user.username)}>{data.user.username.toUpperCase()}</NavTab>
+          <form action="/trainer/logout" method="post" style="display:contents">
+            <NavTab>LOGOUT</NavTab>
+          </form>
+        {:else}
+          <NavTab href="/trainer/login" variant="login">LOGIN</NavTab>
+        {/if}
       </div>
     </header>
 
@@ -100,11 +114,15 @@
             <a href="/wiki/moves">Moves</a>
             <a href="/wiki/abilities">Abilities</a>
             <a href="/wiki/types">Types</a>
+            <a href="/wiki/natures">Natures</a>
             <a href="/wiki/items">Items</a>
             <a href="/wiki/locations">Locations</a>
+            <a href="/wiki/games">Games</a>
+            <a href="/wiki/pokedex">Pokédex</a>
+            <a href="/trainer">Trainers</a>
           </div>
 
-          {#if isAdminRoute}
+          {#if data.user?.role === 'editor'}
             <div class="nav-section">
               <h3>ADMIN</h3>
               <a href="/editor">Database Editor</a>
@@ -113,6 +131,8 @@
           {/if}
         </nav>
         
+        <ImportActivity />
+
         <div class="version-select">
           <label for="vg-select">VERSION</label>
           <select id="vg-select">
@@ -198,29 +218,6 @@
     gap: var(--spacing-3);
   }
 
-  .tab {
-    font-family: var(--font-display);
-    font-size: 12px;
-    padding: var(--spacing-2) var(--spacing-3);
-    color: var(--theme-text-inverse);
-    border: 2px solid transparent;
-  }
-
-  .tab:hover {
-    color: var(--theme-text-accent);
-  }
-
-  .tab.active {
-    border: 2px solid var(--theme-text-accent);
-    color: var(--theme-text-accent);
-  }
-
-  .tab.login {
-    border: 2px solid var(--theme-border-primary);
-    background-color: var(--theme-bg-primary);
-    color: var(--theme-text-primary);
-    box-shadow: 2px 2px 0px var(--theme-border-primary);
-  }
 
   .theme-select {
     background-color: var(--theme-bg-primary);

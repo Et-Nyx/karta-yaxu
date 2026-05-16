@@ -61,8 +61,8 @@ async function main() {
     console.log(`   → Abilities in DB: ${abilityCount?.c}`);
     const moveCount = db.select({ c: count() }).from(schema.moves).get();
     console.log(`   → Moves in DB: ${moveCount?.c}`);
-    const chainCount = db.select({ c: count() }).from(schema.evolutionChains).get();
-    console.log(`   → Evolution chains in DB: ${chainCount?.c}`);
+    const evoCount = db.select({ c: count() }).from(schema.pokemonEvolutionDetails).get();
+    console.log(`   → Evolution edges (linked-list) in DB: ${evoCount?.c}`);
     const logCount = db.select({ c: count() }).from(schema.importLog).get();
     console.log(`   → Import log entries: ${logCount?.c}`);
   } catch (e) {

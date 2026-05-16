@@ -191,9 +191,12 @@ export async function ensureVersion(pokeapiId: number): Promise<number> {
   return id;
 }
 
-export async function ensureNature(pokeapiId: number): Promise<number> {
+export async function ensureNature(
+  pokeapiId: number,
+  opts: { forceRefresh?: boolean } = {},
+): Promise<number> {
   const existing = await db.select().from(schema.natures).where(eq(schema.natures.pokeapiId, pokeapiId)).get();
-  if (existing) return existing.id;
+  if (existing && !opts.forceRefresh) return existing.id;
 
   const data = await client.fetchNature(pokeapiId);
   const mapped = mappers.mapNature(data);

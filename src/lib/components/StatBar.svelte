@@ -1,22 +1,9 @@
 <script lang="ts">
-  let { 
-    name = 'hp', 
+  let {
+    name = 'hp',
     value = 0,
-    max = 255 
+    max = 255
   } = $props();
-
-  // Mapeia nomes das PokeAPI ("hp", "attack", "special-attack") para os nossos tokens CSS
-  let cssName = $derived(() => {
-    switch(name) {
-      case 'hp': return 'hp';
-      case 'attack': return 'atk';
-      case 'defense': return 'def';
-      case 'special-attack': return 'spa';
-      case 'special-defense': return 'spd';
-      case 'speed': return 'spe';
-      default: return 'hp';
-    }
-  });
 
   let percentage = $derived(Math.min(100, (value / max) * 100));
 </script>
@@ -25,10 +12,7 @@
   <div class="stat-label">{name.replace('special-', 'sp. ').toUpperCase()}</div>
   <div class="stat-value">{value.toString().padStart(3, '0')}</div>
   <div class="stat-bar-container">
-    <div 
-      class="stat-bar-fill" 
-      style="width: {percentage}%; background-color: var(--color-stat-{cssName()});"
-    ></div>
+    <div class="stat-bar-fill" style="width: {percentage}%;"></div>
   </div>
 </div>
 
@@ -66,6 +50,7 @@
 
   .stat-bar-fill {
     height: 100%;
+    background-color: var(--theme-text-accent);
     border-right: 1px solid var(--theme-border-primary);
   }
 </style>

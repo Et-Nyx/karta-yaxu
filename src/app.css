@@ -221,6 +221,32 @@ a:hover {
   color: #6dff94;
 }
 
+/* ── Editor: shared RE-SOURCE button ──────────────────────────────────── */
+
+.resource-form {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+}
+.resource-btn {
+  font-family: var(--font-display);
+  font-size: 10px;
+  padding: var(--spacing-2) var(--spacing-4);
+  background: none;
+  border: 2px solid var(--color-text-secondary);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+.resource-btn:hover {
+  border-color: var(--color-text-accent);
+  color: var(--color-text-accent);
+}
+.resource-hint {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--color-text-muted);
+}
+
 /* ── Scrollbar (dark theme) ───────────────────────────────────────────── */
 
 ::-webkit-scrollbar {

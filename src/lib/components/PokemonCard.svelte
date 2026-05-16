@@ -1,22 +1,28 @@
 <script lang="ts">
   import TypeBadge from './TypeBadge.svelte';
+  import { spriteFallbacks } from '$lib/sprite-fallbacks';
 
   export type PokemonCardData = {
     pokeapiId: number;
     name: string;
     slug: string;
     spriteUrl: string | null;
-    types: string[]; // ex: ['grass', 'poison']
+    types: string[];
+    dexNumber?: number | null;
+    isDefault?: boolean;
   };
 
   let { pokemon } = $props<{ pokemon: PokemonCardData }>();
 
-  // Use the local sprite proxy or direct URL
   let displayName = $derived(pokemon.name ?? '???');
   let displaySlug = $derived(pokemon.slug ?? 'unknown');
   let displayTypes = $derived(pokemon.types ?? []);
-  let imageUrl = $derived(pokemon.spriteUrl || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pokemon.pokeapiId || 0}.png`);
-  let dexNum = $derived(pokemon.pokeapiId?.toString().padStart(3, '0') ?? '???');
+  let imageUrl = $derived(
+    pokemon.spriteUrl ||
+    spriteFallbacks[pokemon.slug] ||
+    `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pokemon.pokeapiId || 0}.png`
+  );
+  let dexNum = $derived((pokemon.dexNumber ?? pokemon.pokeapiId)?.toString().padStart(3, '0') ?? '???');
 </script>
 
 <a href="/wiki/pokemon/{displaySlug}" class="pokemon-card card-interactive">
@@ -104,4 +110,6 @@
     flex: 1;
     text-align: center;
   }
+
+
 </style>

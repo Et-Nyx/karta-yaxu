@@ -1,11 +1,12 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
+  import { startImport } from '$lib/stores/importActivity';
 
-  let { 
-    action, 
-    label, 
-    loadingLabel = 'IMPORTING...', 
-    disabled = false 
+  let {
+    action,
+    label,
+    loadingLabel = 'IMPORTING...',
+    disabled = false
   } = $props();
 
   let state = $state<'idle' | 'loading' | 'success' | 'error'>('idle');
@@ -14,6 +15,7 @@
   function handleSubmit() {
     state = 'loading';
     resultMessage = '';
+    startImport();
     
     return async ({ result, update }: any) => {
       if (result.type === 'success') {

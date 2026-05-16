@@ -1,26 +1,49 @@
 import { db } from '$lib/db';
-import { desc, count, eq } from 'drizzle-orm';
+import { asc, desc, count, eq } from 'drizzle-orm';
 import * as schema from '$lib/db/schema';
-import { 
-  importAllGameData, 
+import {
+  importAllGameData,
+  importAllLanguages,
+  importAllRegions,
+  importAllGenerations,
+  importAllVersionGroups,
+  importAllVersions,
+  importAllNatures,
+  importAllEggGroups,
+  importAllMoveLearnMethods,
+  importAllEncounterMethods,
 } from '$lib/pokeapi/import-service';
-import { 
+import {
   importAllTypes,
   importAllAbilities,
   importAllItems,
   importAllMoves,
   importPokemonById,
-  importPokemonByRange
+  importPokemonByRange,
+  importAllRegionalForms,
+  computeDexOrder,
+  ensureType,
+  ensureAbility,
+  ensureMove,
+  ensureItem,
+  importTypesByRegion,
+  importAbilitiesByRegion,
+  importMovesByRegion,
+  importPokemonByRegion,
 } from '$lib/pokeapi/import-pokemon';
-import type { Actions } from './$types';
+import {
+  importAllLocations,
+  importLocationsByRegion,
+} from '$lib/pokeapi/import-locations';
+import type { Actions, PageServerLoad } from './$types';
+import { requireEditor } from '$lib/auth/guards';
 
-// Helper for status count
 async function getTableCounts(table: any) {
   const result = await db.select({
     source: table.source,
     c: count()
   }).from(table).groupBy(table.source);
-  
+
   const counts = { total: 0, pokeapi: 0, edited: 0, custom: 0 };
   for (const row of result) {
     if (row.source === 'pokeapi') counts.pokeapi = row.c;
@@ -31,98 +54,346 @@ async function getTableCounts(table: any) {
   return counts;
 }
 
-export const load = async () => {
-  // Query status counts
+function parseId(raw: FormDataEntryValue | null): number | null {
+  const n = parseInt(raw as string);
+  return isNaN(n) || n <= 0 ? null : n;
+}
+
+export const load: PageServerLoad = async ({ locals }) => {
+  requireEditor(locals);
   const status = {
-    languages: await getTableCounts(schema.languages),
-    regions: await getTableCounts(schema.regions),
+    languages:  await getTableCounts(schema.languages),
+    regions:    await getTableCounts(schema.regions),
     generations: await getTableCounts(schema.generations),
-    types: await getTableCounts(schema.types),
-    abilities: await getTableCounts(schema.abilities),
-    moves: await getTableCounts(schema.moves),
-    items: await getTableCounts(schema.items),
-    pokemon: await getTableCounts(schema.pokemon),
+    types:      await getTableCounts(schema.types),
+    abilities:  await getTableCounts(schema.abilities),
+    moves:      await getTableCounts(schema.moves),
+    items:      await getTableCounts(schema.items),
+    pokemon:    await getTableCounts(schema.pokemon),
+    locations:  await getTableCounts(schema.locations),
   };
 
-  // Query latest 50 logs
   const logs = await db.select()
     .from(schema.importLog)
     .orderBy(desc(schema.importLog.timestamp))
     .limit(50);
 
-  return {
-    status,
-    logs
-  };
+  const regions = await db
+    .select({
+      id: schema.regions.id,
+      pokeapiId: schema.regions.pokeapiId,
+      name: schema.regions.name,
+      slug: schema.regions.slug,
+    })
+    .from(schema.regions)
+    .orderBy(asc(schema.regions.name));
+
+  return { status, logs, regions };
 };
 
 export const actions: Actions = {
-  importGameData: async () => {
+  // ── Game Data ──────────────────────────────────────────────────────────
+  importGameData: async ({ locals }) => {
+    requireEditor(locals);
     try {
-      const res = await importAllGameData();
-      return { success: true, message: `Imported Game Data (Languages: ${res.languages}, Generations: ${res.generations})` };
+      await importAllGameData();
+      return { success: true, message: 'Game data imported (Languages, Regions, Generations, Versions)' };
     } catch (e: any) {
       return { success: false, error: e.message };
     }
   },
+  importLanguages: async () => {
+    try {
+      const res = await importAllLanguages();
+      return { success: true, message: `Imported ${res.inserted} languages` };
+    } catch (e: any) { return { success: false, error: e.message }; }
+  },
+  importRegions: async () => {
+    try {
+      const res = await importAllRegions();
+      return { success: true, message: `Imported ${res.inserted} regions` };
+    } catch (e: any) { return { success: false, error: e.message }; }
+  },
+  importGenerations: async () => {
+    try {
+      const res = await importAllGenerations();
+      return { success: true, message: `Imported ${res.inserted} generations` };
+    } catch (e: any) { return { success: false, error: e.message }; }
+  },
+  importVersionGroups: async () => {
+    try {
+      const res = await importAllVersionGroups();
+      return { success: true, message: `Imported ${res.inserted} version groups` };
+    } catch (e: any) { return { success: false, error: e.message }; }
+  },
+  importVersions: async () => {
+    try {
+      const res = await importAllVersions();
+      return { success: true, message: `Imported ${res.inserted} versions` };
+    } catch (e: any) { return { success: false, error: e.message }; }
+  },
+  importNatures: async () => {
+    try {
+      const res = await importAllNatures();
+      return { success: true, message: `Imported ${res.inserted} natures` };
+    } catch (e: any) { return { success: false, error: e.message }; }
+  },
+  importEggGroups: async () => {
+    try {
+      const res = await importAllEggGroups();
+      return { success: true, message: `Imported ${res.inserted} egg groups` };
+    } catch (e: any) { return { success: false, error: e.message }; }
+  },
+  importMoveLearnMethods: async () => {
+    try {
+      const res = await importAllMoveLearnMethods();
+      return { success: true, message: `Imported ${res.inserted} move learn methods` };
+    } catch (e: any) { return { success: false, error: e.message }; }
+  },
+  importEncounterMethods: async () => {
+    try {
+      const res = await importAllEncounterMethods();
+      return { success: true, message: `Imported ${res.inserted} encounter methods` };
+    } catch (e: any) { return { success: false, error: e.message }; }
+  },
+
+  // ── Types ──────────────────────────────────────────────────────────────
   importTypes: async () => {
     try {
-      await importAllTypes();
-      return { success: true, message: 'Imported Types' };
+      const res = await importAllTypes();
+      return { success: true, message: `Imported ${res.inserted} types` };
     } catch (e: any) {
       return { success: false, error: e.message };
     }
   },
+  importSingleType: async ({ request }) => {
+    const fd = await request.formData();
+    const id = parseId(fd.get('pokeapiId'));
+    if (!id) return { success: false, error: 'Invalid ID' };
+    try {
+      await ensureType(id);
+      return { success: true, message: `Type #${id} imported` };
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  },
+  importRangeTypes: async ({ request }) => {
+    const fd = await request.formData();
+    const from = parseId(fd.get('fromId'));
+    const to = parseId(fd.get('toId'));
+    if (!from || !to || from > to) return { success: false, error: 'Invalid range' };
+    let n = 0, errors = 0;
+    for (let i = from; i <= to; i++) {
+      try { await ensureType(i); n++; } catch { errors++; }
+    }
+    return { success: true, message: `Imported ${n} types (#${from}–${to})${errors ? `, ${errors} errors` : ''}` };
+  },
+  importTypesByRegion: async ({ request }) => {
+    const fd = await request.formData();
+    const id = parseId(fd.get('regionPokeapiId'));
+    if (!id) return { success: false, error: 'Invalid region' };
+    try {
+      const res = await importTypesByRegion(id);
+      return { success: true, message: `Imported ${res.inserted}/${res.total} types for region` };
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  },
+
+  // ── Abilities ──────────────────────────────────────────────────────────
   importAbilities: async () => {
     try {
-      await importAllAbilities();
-      return { success: true, message: 'Imported Abilities' };
+      const res = await importAllAbilities();
+      return { success: true, message: `Imported ${res.inserted} abilities` };
     } catch (e: any) {
       return { success: false, error: e.message };
     }
   },
+  importSingleAbility: async ({ request }) => {
+    const fd = await request.formData();
+    const id = parseId(fd.get('pokeapiId'));
+    if (!id) return { success: false, error: 'Invalid ID' };
+    try {
+      await ensureAbility(id);
+      return { success: true, message: `Ability #${id} imported` };
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  },
+  importRangeAbilities: async ({ request }) => {
+    const fd = await request.formData();
+    const from = parseId(fd.get('fromId'));
+    const to = parseId(fd.get('toId'));
+    if (!from || !to || from > to) return { success: false, error: 'Invalid range' };
+    let n = 0, errors = 0;
+    for (let i = from; i <= to; i++) {
+      try { await ensureAbility(i); n++; } catch { errors++; }
+    }
+    return { success: true, message: `Imported ${n} abilities (#${from}–${to})${errors ? `, ${errors} errors` : ''}` };
+  },
+  importAbilitiesByRegion: async ({ request }) => {
+    const fd = await request.formData();
+    const id = parseId(fd.get('regionPokeapiId'));
+    if (!id) return { success: false, error: 'Invalid region' };
+    try {
+      const res = await importAbilitiesByRegion(id);
+      return { success: true, message: `Imported ${res.inserted}/${res.total} abilities for region` };
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  },
+
+  // ── Moves ──────────────────────────────────────────────────────────────
   importMoves: async () => {
     try {
-      await importAllMoves();
-      return { success: true, message: 'Imported Moves' };
+      const res = await importAllMoves();
+      return { success: true, message: `Imported ${res.inserted} moves` };
     } catch (e: any) {
       return { success: false, error: e.message };
     }
   },
+  importSingleMove: async ({ request }) => {
+    const fd = await request.formData();
+    const id = parseId(fd.get('pokeapiId'));
+    if (!id) return { success: false, error: 'Invalid ID' };
+    try {
+      await ensureMove(id);
+      return { success: true, message: `Move #${id} imported` };
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  },
+  importRangeMoves: async ({ request }) => {
+    const fd = await request.formData();
+    const from = parseId(fd.get('fromId'));
+    const to = parseId(fd.get('toId'));
+    if (!from || !to || from > to) return { success: false, error: 'Invalid range' };
+    let n = 0, errors = 0;
+    for (let i = from; i <= to; i++) {
+      try { await ensureMove(i); n++; } catch { errors++; }
+    }
+    return { success: true, message: `Imported ${n} moves (#${from}–${to})${errors ? `, ${errors} errors` : ''}` };
+  },
+  importMovesByRegion: async ({ request }) => {
+    const fd = await request.formData();
+    const id = parseId(fd.get('regionPokeapiId'));
+    if (!id) return { success: false, error: 'Invalid region' };
+    try {
+      const res = await importMovesByRegion(id);
+      return { success: true, message: `Imported ${res.inserted}/${res.total} moves for region` };
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  },
+
+  // ── Items ──────────────────────────────────────────────────────────────
   importItems: async () => {
     try {
-      await importAllItems();
-      return { success: true, message: 'Imported Items' };
+      const res = await importAllItems();
+      return { success: true, message: `Imported ${res.inserted} items` };
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  },
+  importSingleItem: async ({ request }) => {
+    const fd = await request.formData();
+    const id = parseId(fd.get('pokeapiId'));
+    if (!id) return { success: false, error: 'Invalid ID' };
+    try {
+      await ensureItem(id);
+      return { success: true, message: `Item #${id} imported` };
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  },
+  importRangeItems: async ({ request }) => {
+    const fd = await request.formData();
+    const from = parseId(fd.get('fromId'));
+    const to = parseId(fd.get('toId'));
+    if (!from || !to || from > to) return { success: false, error: 'Invalid range' };
+    let n = 0, errors = 0;
+    for (let i = from; i <= to; i++) {
+      try { await ensureItem(i); n++; } catch { errors++; }
+    }
+    return { success: true, message: `Imported ${n} items (#${from}–${to})${errors ? `, ${errors} errors` : ''}` };
+  },
+
+  // ── Pokémon ────────────────────────────────────────────────────────────
+  importPokemonByRegion: async ({ request }) => {
+    const fd = await request.formData();
+    const id = parseId(fd.get('regionPokeapiId'));
+    if (!id) return { success: false, error: 'Invalid region' };
+    try {
+      const res = await importPokemonByRegion(id);
+      return { success: true, message: `Imported ${res.inserted}/${res.total} Pokémon for region` };
     } catch (e: any) {
       return { success: false, error: e.message };
     }
   },
   importSinglePokemon: async ({ request }) => {
-    const data = await request.formData();
-    const id = parseInt(data.get('pokeapiId') as string);
-    if (isNaN(id) || id <= 0) return { success: false, error: 'Invalid ID' };
-    
+    const fd = await request.formData();
+    const id = parseId(fd.get('pokeapiId'));
+    if (!id) return { success: false, error: 'Invalid ID' };
     try {
-      const resultId = await importPokemonById(id);
-      return { success: true, message: `Imported Pokemon DB ID: ${resultId}` };
+      await importPokemonById(id);
+      return { success: true, message: `Pokémon #${id} imported` };
     } catch (e: any) {
       return { success: false, error: e.message };
     }
   },
   importRangePokemon: async ({ request }) => {
-    const data = await request.formData();
-    const fromId = parseInt(data.get('fromId') as string);
-    const toId = parseInt(data.get('toId') as string);
-    
-    if (isNaN(fromId) || isNaN(toId) || fromId > toId || fromId <= 0) {
-      return { success: false, error: 'Invalid Range' };
-    }
-    
+    const fd = await request.formData();
+    const from = parseId(fd.get('fromId'));
+    const to = parseId(fd.get('toId'));
+    if (!from || !to || from > to) return { success: false, error: 'Invalid range' };
     try {
-      const res = await importPokemonByRange(fromId, toId);
-      return { success: true, message: `Imported ${res.imported} Pokemon (${res.skipped} skipped)` };
+      const res = await importPokemonByRange(from, to);
+      return { success: true, message: `Imported ${res.inserted} Pokémon (${res.errors.length} errors)` };
     } catch (e: any) {
       return { success: false, error: e.message };
     }
-  }
+  },
+  importRegionalForms: async () => {
+    try {
+      const res = await importAllRegionalForms();
+      return { success: true, message: `Imported ${res.inserted}/${res.total} regional forms` };
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  },
+  computeDexOrder: async () => {
+    try {
+      await computeDexOrder();
+      return { success: true, message: 'Dex order computed' };
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  },
+
+  // ── Locations ──────────────────────────────────────────────────────────
+  importLocations: async () => {
+    try {
+      const res = await importAllLocations();
+      return {
+        success: true,
+        message: `Imported ${res.inserted} location areas from ${res.total} locations (${res.errors.length} errors)`,
+      };
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  },
+  importLocationsByRegion: async ({ request }) => {
+    const fd = await request.formData();
+    const regionPokeapiId = parseId(fd.get('regionPokeapiId'));
+    if (!regionPokeapiId) return { success: false, error: 'Invalid region' };
+    try {
+      const res = await importLocationsByRegion(regionPokeapiId);
+      return {
+        success: true,
+        message: `Imported ${res.inserted} location areas from ${res.total} locations (${res.errors.length} errors)`,
+      };
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  },
 };

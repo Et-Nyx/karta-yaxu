@@ -15,7 +15,7 @@
   <div class="menu-grid">
     <a href="/wiki/pokemon" class="menu-card">
       <div class="icon">🐾</div>
-      <h3>Pokédex</h3>
+      <h3>Pokémon</h3>
       <p>Browse all Pokémon, their stats, types, and evolutions.</p>
     </a>
 
@@ -35,6 +35,36 @@
       <div class="icon">🔥</div>
       <h3>Types</h3>
       <p>Type match-ups, weaknesses, and resistances.</p>
+    </a>
+
+    <a href="/wiki/natures" class="menu-card">
+      <div class="icon">⚖️</div>
+      <h3>Natures</h3>
+      <p>Stat modifiers and flavor preferences for all 25 natures.</p>
+    </a>
+
+    <a href="/wiki/items" class="menu-card">
+      <div class="icon">🎒</div>
+      <h3>Items</h3>
+      <p>Key items, held items, TMs, and their effects.</p>
+    </a>
+
+    <a href="/wiki/locations" class="menu-card">
+      <div class="icon">🗺️</div>
+      <h3>Locations</h3>
+      <p>Routes, towns, and dungeons — with encounter tables by version.</p>
+    </a>
+
+    <a href="/wiki/games" class="menu-card">
+      <div class="icon">🎮</div>
+      <h3>Games</h3>
+      <p>All generations and version groups (Red/Blue, FireRed/LeafGreen, etc.).</p>
+    </a>
+
+    <a href="/wiki/pokedex" class="menu-card">
+      <div class="icon">📖</div>
+      <h3>Pokédex</h3>
+      <p>Regional pokédexes — Pokémon ordered by regional dex number.</p>
     </a>
   </div>
 </div>

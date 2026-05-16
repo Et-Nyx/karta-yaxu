@@ -1,6 +1,16 @@
 <script lang="ts">
   import TypeIcon from '$lib/components/TypeIcon.svelte';
+  import SearchBar from '$lib/components/SearchBar.svelte';
+
   let { data } = $props();
+
+  let searchQuery = $state('');
+
+  let filteredTypes = $derived(
+    searchQuery.trim()
+      ? data.types.filter(t => t.name.toLowerCase().includes(searchQuery.toLowerCase()))
+      : data.types
+  );
 </script>
 
 <svelte:head>
@@ -10,10 +20,15 @@
 <div class="types-page">
   <div class="page-header">
     <h2>TYPES</h2>
+    <SearchBar
+      bind:value={searchQuery}
+      placeholder="Search by name... (/)"
+      count={filteredTypes.length}
+    />
   </div>
 
   <div class="types-grid">
-    {#each data.types as t (t.id)}
+    {#each filteredTypes as t (t.id)}
       <a href="/wiki/types/{t.slug}" class="type-card card-interactive">
         <div class="type-content">
           <TypeIcon typeName={t.name} size="lg" />
@@ -30,6 +45,12 @@
     display: flex;
     flex-direction: column;
     gap: var(--spacing-6);
+  }
+
+  .page-header {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-4);
   }
 
   .page-header h2 {

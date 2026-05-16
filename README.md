@@ -110,7 +110,7 @@ karta-yaxu-2.0/
 │   ├── app.html                   # ✅ Template com Google Fonts (Press Start 2P, Inter, JetBrains Mono)
 │   ├── app.css                    # ✅ Design tokens (TailwindCSS v4 @theme)
 │   ├── app.d.ts                   # ✅ Tipos globais (Lucia session)
-│   ├── hooks.server.ts            # (pendente)
+│   ├── hooks.server.ts            # ✅ Validação de sessão, kick de contas banidas
 │   ├── lib/
 │   │   ├── db/
 │   │   │   ├── index.ts           # ✅ Conexão SQLite (WAL) + Drizzle client
@@ -120,11 +120,17 @@ karta-yaxu-2.0/
 │   │   │       ├── locations.ts   #    Locations, Areas, Encounter Methods/Conditions
 │   │   │       ├── core-data.ts   #    Types, Abilities, Moves, MoveLearnMethods
 │   │   │       ├── items.ts       #    Items, Natures
-│   │   │       ├── pokemon.ts     #    Species, Pokemon, Forms, EvolutionChains, Encounters
-│   │   │       └── trainers.ts    #    Trainers, Teams, Battles, Edits, ImportLog
-│   │   ├── auth/                  # (pendente)
-│   │   │   ├── lucia.ts
-│   │   │   └── guards.ts
+│   │   │       ├── pokemon.ts     #    Species, Pokemon, Forms, Evolution (linked-list), Encounters
+│   │   │       ├── sessions.ts    # ✅ Sessions (Lucia Auth)
+│   │   │       └── trainers.ts    #    Trainers (bannedAt, isNpc), Teams, Battles, Edits, ImportLog
+│   │   ├── auth/                  # ✅
+│   │   │   ├── lucia.ts           #    Lucia Auth v3 + adapter Drizzle + getUserAttributes
+│   │   │   ├── guards.ts          #    requireAuth, requireEditor
+│   │   │   └── password.ts        #    hashPassword / verifyPassword (node:crypto scrypt)
+│   │   ├── editor/                # ✅ Helpers para o painel /editor
+│   │   │   ├── audit.ts           #    recordEdit() — escreve em `edits`
+│   │   │   ├── source.ts          #    bumpSource() — pokeapi → edited on save
+│   │   │   └── resource.ts        #    reimportEntity() — RE-SOURCE
 │   │   ├── pokeapi/               # ✅ Módulo de importação completo
 │   │   │   ├── index.ts           #    Barrel export
 │   │   │   ├── types.ts           #    Interfaces TS das respostas da PokeAPI
@@ -141,23 +147,54 @@ karta-yaxu-2.0/
 │   │   ├── server/                # (pendente)
 │   │   │   ├── queries.ts
 │   │   │   └── search.ts
-│   │   └── components/            # (pendente)
-│   │       ├── PokemonCard.svelte
-│   │       ├── MoveCard.svelte
-│   │       ├── TypeBadge.svelte
-│   │       ├── SearchBar.svelte
-│   │       └── FilterSidebar.svelte
+│   │   └── components/            # ✅ (parcial)
+│   │       ├── PokemonCard.svelte        # ✅
+│   │       ├── TypeBadge.svelte          # ✅
+│   │       ├── SearchBar.svelte          # ✅
+│   │       ├── MoveCard.svelte           # ✅
+│   │       ├── ItemCard.svelte           # ✅
+│   │       ├── LocationCard.svelte       # ✅
+│   │       ├── MoveCategoryIcon.svelte   # ✅
+│   │       ├── TypeIcon.svelte           # ✅
+│   │       ├── TypeMatchupDisplay.svelte # ✅
+│   │       ├── StatBar.svelte            # ✅
+│   │       ├── NavTab.svelte             # ✅ Wrapper dos botões da top bar
+│   │       ├── ImportActivity.svelte     # ✅
+│   │       ├── ImportButton.svelte       # ✅
+│   │       ├── ImportForm.svelte         # ✅
+│   │       ├── ImportLog.svelte          # ✅
+│   │       ├── ImportPanel.svelte        # ✅
+│   │       ├── ImportStatusGrid.svelte   # ✅
+│   │       └── FilterSidebar.svelte      # (pendente)
 │   └── routes/
 │       ├── +page.svelte           # ✅ Home placeholder (Gameboy frame)
 │       ├── +layout.svelte         # ✅ Root layout (importa app.css)
-│       ├── +layout.server.ts      # (pendente)
-│       ├── wiki/                  # (pendente)
+│       ├── +layout.server.ts      # ✅ Expõe locals.user para o layout
+│       ├── wiki/                  # ✅ pokemon, moves, abilities, types, natures, items, locations, games, pokedex
 │       ├── search/                # (pendente)
-│       ├── api/                   # (pendente)
-│       ├── editor/                # (pendente)
-│       ├── import/                # (pendente)
+│       ├── api/                   # ✅ (parcial)
+│       │   └── editor/
+│       │       └── base-form/     #    ✅ GET /[speciesId] for New Pokemon prefill
+│       ├── editor/                # ✅ Painel de edição (role=editor)
+│       │   ├── types/             #    ✅
+│       │   ├── natures/           #    ✅
+│       │   ├── abilities/         #    ✅
+│       │   ├── items/             #    ✅
+│       │   ├── moves/             #    ✅
+│       │   ├── pokedex/           #    ✅
+│       │   ├── pokemon/           #    ✅ (types, abilities, forms, evolution, learnset sub-editors)
+│       │   └── species/           #    ✅ (auto-Base-Form, egg groups)
+│       ├── import/                # ✅ Painel de importação PokeAPI
 │       ├── battle/                # (pendente)
-│       └── trainer/               # (pendente)
+│       └── trainer/               # ✅
+│           ├── +page.server.ts    #    Lista de trainers + ações admin
+│           ├── +page.svelte       #    Página pública com controles de editor
+│           ├── login/             #    ✅
+│           ├── register/          #    ✅
+│           ├── logout/            #    ✅
+│           └── [username]/        #    ✅ Perfil + histórico de edições
+│               ├── +page.{server.ts,svelte}
+│               └── edits/
 ├── drizzle/
 │   └── meta/
 ├── data/
@@ -597,6 +634,23 @@ export const pokemon = sqliteTable('pokemon', {
   spriteArtwork: text('sprite_artwork'),
   isDefault: integer('is_default', { mode: 'boolean' }).notNull().default(true),
   order: integer('order'),
+  evolvesFromPokemonId: integer('evolves_from_pokemon_id'), // self-FK, linked-list head
+});
+
+// Linked-list evolution: one row per pokémon-with-predecessor
+export const pokemonEvolutionDetails = sqliteTable('pokemon_evolution_details', {
+  pokemonId:       integer('pokemon_id').primaryKey().references(() => pokemon.id),
+  trigger:         text('trigger').notNull(),
+  minLevel:        integer('min_level'),
+  itemId:          integer('item_id').references(() => items.id),
+  heldItemId:      integer('held_item_id').references(() => items.id),
+  knownMoveId:     integer('known_move_id').references(() => moves.id),
+  knownMoveTypeId: integer('known_move_type_id').references(() => types.id),
+  minHappiness:    integer('min_happiness'),
+  timeOfDay:       text('time_of_day'),
+  gender:          integer('gender'),
+  location:        text('location'),
+  source:          text('source', { enum: ['pokeapi','edited','custom'] }).notNull().default('pokeapi'),
 });
 
 export const pokemonTypes = sqliteTable('pokemon_types', {
@@ -647,8 +701,6 @@ export const pokemonSpecies = sqliteTable('pokemon_species', {
   slug: text('slug').notNull().unique(),
   genus: text('genus'),
   dexNumber: integer('dex_number').notNull(),
-  evolutionChainId: integer('evolution_chain_id').references(() => evolutionChains.id),
-  evolvesFromSpeciesId: integer('evolves_from_species_id').references(() => pokemonSpecies.id),
   isBaby: integer('is_baby', { mode: 'boolean' }).notNull().default(false),
   isLegendary: integer('is_legendary', { mode: 'boolean' }).notNull().default(false),
   isMythical: integer('is_mythical', { mode: 'boolean' }).notNull().default(false),
@@ -713,49 +765,6 @@ export const pokemonForms = sqliteTable('pokemon_forms', {
   spriteDefault: text('sprite_default'),
   spriteShiny: text('sprite_shiny'),
   spriteArtwork: text('sprite_artwork'),
-});
-```
-
-#### Evolution Chains
-
-```ts
-export const evolutionChains = sqliteTable('evolution_chains', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  pokeapiId: integer('pokeapi_id'),
-  source: text('source', { enum: ['pokeapi', 'edited', 'custom'] }).notNull().default('pokeapi'),
-  babyTriggerItemId: integer('baby_trigger_item_id').references(() => items.id),
-});
-
-export const evolutionDetails = sqliteTable('evolution_details', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  chainId: integer('chain_id').notNull().references(() => evolutionChains.id),
-  fromSpeciesId: integer('from_species_id').notNull().references(() => pokemonSpecies.id),
-  toSpeciesId: integer('to_species_id').notNull().references(() => pokemonSpecies.id),
-  trigger: text('trigger').notNull(),
-  minLevel: integer('min_level'),
-  minHappiness: integer('min_happiness'),
-  minBeauty: integer('min_beauty'),
-  minAffection: integer('min_affection'),
-  itemId: integer('item_id').references(() => items.id),
-  heldItemId: integer('held_item_id').references(() => items.id),
-  knownMoveId: integer('known_move_id').references(() => moves.id),
-  knownMoveTypeId: integer('known_move_type_id').references(() => types.id),
-  location: text('location'),
-  timeOfDay: text('time_of_day'),
-  gender: integer('gender'),
-  relativePhysicalStats: integer('relative_physical_stats'),
-  needsOverworldRain: integer('needs_overworld_rain', { mode: 'boolean' }).default(false),
-  needsMultiplayer: integer('needs_multiplayer', { mode: 'boolean' }).default(false),
-  turnUpsideDown: integer('turn_upside_down', { mode: 'boolean' }).default(false),
-  tradeSpeciesId: integer('trade_species_id').references(() => pokemonSpecies.id),
-  partySpeciesId: integer('party_species_id').references(() => pokemonSpecies.id),
-  partyTypeId: integer('party_type_id').references(() => types.id),
-  region: text('region'),
-  baseFormId: integer('base_form_id').references(() => pokemonForms.id),
-  usedMoveId: integer('used_move_id').references(() => moves.id),
-  minMoveCount: integer('min_move_count'),
-  minSteps: integer('min_steps'),
-  minDamageTaken: integer('min_damage_taken'),
 });
 ```
 
@@ -826,7 +835,15 @@ export const trainers = sqliteTable('trainers', {
   passwordHash: text('password_hash').notNull(),
   role: text('role', { enum: ['viewer', 'editor'] }).notNull().default('viewer'),
   isNpc: integer('is_npc', { mode: 'boolean' }).notNull().default(false),
+  bannedAt: integer('banned_at', { mode: 'timestamp' }),  // null = ativo, timestamp = banido
   createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+});
+
+// Sessions (Lucia Auth)
+export const sessions = sqliteTable('sessions', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => trainers.id, { onDelete: 'cascade' }),
+  expiresAt: integer('expires_at').notNull(),
 });
 
 export const teams = sqliteTable('teams', {
@@ -947,19 +964,21 @@ export async function fetchList(endpoint: string, limit?: number): Promise<Named
 ├── search                    ← busca global (home page)
 │
 ├── wiki/
-│   ├── pokemon/              ← lista e detalhe
+│   ├── pokemon/              ← lista de todos os Pokémon e detalhe por slug
 │   ├── moves/
 │   ├── abilities/
 │   ├── items/
 │   ├── types/
-│   ├── locations/            ← NOVO: localizações por região
-│   │   ├── +page.svelte     ← lista de regiões e locations
-│   │   └── [slug]/          ← detalhe da location com encounters
-│   ├── pokedex/              ← NOVO: pokédexes regionais
-│   │   └── [slug]/          ← ex: /wiki/pokedex/kanto
-│   ├── games/                ← NOVO: dados por versão do jogo
-│   │   ├── +page.svelte     ← lista de generations e version groups
+│   ├── natures/
+│   ├── locations/            ← lista por região + detalhe com encounter table
+│   │   ├── +page.svelte
+│   │   └── [slug]/
+│   ├── games/                ← gerações e version groups
+│   │   ├── +page.svelte     ← lista agrupada por geração
 │   │   └── [slug]/          ← ex: /wiki/games/firered-leafgreen
+│   ├── pokedex/              ← pokédexes regionais e customizados
+│   │   ├── +page.svelte     ← lista de pokédexes disponíveis
+│   │   └── [slug]/          ← ex: /wiki/pokedex/hoenn (Pokémon em ordem regional)
 │   └── mechanics/
 │       ├── damage-formula
 │       ├── natures
@@ -972,15 +991,21 @@ export async function fetchList(endpoint: string, limit?: number): Promise<Named
 ├── api/
 │   ├── search/
 │   │   └── suggestions/
+│   ├── editor/
+│   │   └── base-form/[speciesId]  ← GET prefill da Base Form para New Pokemon
 │   └── import/
 │       ├── POST /            ← dispara importação
 │       └── GET /status       ← status de imports em andamento
 │
 ├── editor/                   ← protegido por role=editor
-│   ├── pokemon/
-│   ├── moves/
+│   ├── types/
+│   ├── natures/
 │   ├── abilities/
-│   └── items/
+│   ├── items/
+│   ├── moves/
+│   ├── pokedex/
+│   ├── pokemon/              ← sub-editors: types, abilities, forms, evolution, learnset
+│   └── species/              ← auto-Base-Form, egg groups
 │
 ├── import/                   ← painel de importação (role=editor)
 │
@@ -998,15 +1023,32 @@ export async function fetchList(endpoint: string, limit?: number): Promise<Named
         └── edits
 ```
 
-### Novas rotas de Wiki
+### Rotas de Wiki implementadas
 
 | Rota | Descrição |
 | --- | --- |
-| `/wiki/locations` | Lista de regiões e localizações. Filtro por região e versão do jogo. |
-| `/wiki/locations/[slug]` | Detalhe de uma localização: encounters por versão, método, level range, chance. |
-| `/wiki/pokedex/[slug]` | Pokédex regional (ex: Kanto, Hoenn). Lista todos os Pokémon na ordem numerológica daquela dex. |
-| `/wiki/games` | Lista de gerações e versões. |
-| `/wiki/games/[slug]` | Dados de uma versão: Pokémon disponíveis, moves, abilities, locations. |
+| `/wiki/pokemon` | Lista todos os Pokémon importados (nome, sprite, tipos). **Nota: chama-se "Pokémon", não "Pokédex" — a distinção é importante.** |
+| `/wiki/pokemon/[slug]` | Detalhe de um Pokémon: stats, tipos, abilities, learnset por versão, evolution tree. |
+| `/wiki/moves` | Lista de todos os moves com tipo, categoria, power, accuracy, pp. |
+| `/wiki/moves/[slug]` | Detalhe de um move com Pokémon que o aprendem. |
+| `/wiki/abilities` | Lista de todas as abilities. |
+| `/wiki/abilities/[slug]` | Detalhe de uma ability com Pokémon que a possuem. |
+| `/wiki/types` | Grid de todos os tipos com ícone e cor. |
+| `/wiki/types/[slug]` | Tabela de efetividade + Pokémon do tipo. |
+| `/wiki/natures` | Tabela das 25 natures com stat modifier e flavor. |
+| `/wiki/items` | Grid de itens com sprite, categoria e preço. |
+| `/wiki/items/[slug]` | Detalhe de um item com flavor text por versão e efeito. |
+| `/wiki/locations` | Lista de localizações agrupadas por região. |
+| `/wiki/locations/[slug]` | Encounter table filtrada por versão, com método e level range. |
+| `/wiki/games` | Lista de gerações e version groups agrupada por geração. |
+| `/wiki/games/[slug]` | Detalhe de um version group (ex: FireRed/LeafGreen) com suas versões individuais. |
+| `/wiki/pokedex` | Lista de pokédexes disponíveis (nacional, regionais, customizados). Requer import de Game Data. |
+| `/wiki/pokedex/[slug]` | Pokémon em ordem numérica daquela pokédex regional. Permite criar pokédexes customizados no Editor. |
+
+### Distinção Pokémon vs Pokédex
+
+- **`/wiki/pokemon`** — catálogo global de todos os Pokémon importados, sem ordenação de dex específica
+- **`/wiki/pokedex/[slug]`** — ordenação regional ou customizada; o Editor permite criar pokédexes próprias para o ROM hack (ex: `/wiki/pokedex/yaxu`)
 
 ### Query params novos na busca
 
@@ -1062,7 +1104,7 @@ export async function fetchList(endpoint: string, limit?: number): Promise<Named
 - [x] Detalhes da Habilidade (`/wiki/abilities/[slug]`) com lista de Pokémon
 - [x] Detalhes do Tipo (`/wiki/types/[slug]`) com fraquezas e lista de Pokémon
 
-### Bloco 3.2 — Wiki Pública (Mecânicas Avançadas) — Em Progresso
+### Bloco 3.2 — Wiki Pública (Mecânicas Avançadas) ✅
 
 - [x] Seletor de `version_group` para flavor texts e learnsets do Pokémon
 - [x] Componente visual de Árvore de Evolução (`/wiki/pokemon/[slug]`) — layout top-down
@@ -1071,29 +1113,92 @@ export async function fetchList(endpoint: string, limit?: number): Promise<Named
 - [x] Flavor texts persistidos corretamente no import (incluindo reimports futuros)
 - [x] Correção de cadeia de evolução complexa (Eevee e todas as evoluções)
 - [x] Cards das listagens (Moves, Abilities, Types) redirecionam para páginas de detalhe (`[slug]`)
-- [x] Classe utilitária `.card-interactive` no `app.css` — efeito de hover universal (outline `--theme-text-accent` + sombra + movimento -2px) aplicado em todos os cards (Pokédex, Moves, Abilities, Types)
+- [x] Classe utilitária `.card-interactive` no `app.css` — efeito de hover universal (outline `--theme-text-accent` + sombra + movimento -2px) aplicado em todos os cards
 - [x] Cards de Types redesenhados com ícones SV (Scarlet/Violet) e barra de cor sutil na parte inferior
 - [x] Header do detalhe de Type (`/wiki/types/[slug]`) com ícone grande e barra de cor
-- [x] `iconUrl` populado no banco para todos os 18 types via reimportação
-- [x] Componente `MoveCategoryIcon.svelte` — ícones de categoria de movimento (Physical/Special/Status) do Bulbagarden Archives (SV), substituindo badges de texto em todas as páginas (Moves, Move Detail, Pokémon Learnset)
-- [x] Evolution Tree com layout adaptativo: linear vertical (1 filho), ramificado horizontal (2-4 filhos), multi-row com chunks de até 4 (5+ filhos) — usa PokemonCard compact com hover verde
-- [ ] Páginas de Natures e Items (Listagem e Detalhes)
-- [ ] Toggle Shiny Charm para sprites
-- [ ] Páginas de Locations e Encounters (Listagem e Detalhes)
+- [x] Componente `MoveCategoryIcon.svelte` — ícones Physical/Special/Status em todas as páginas de moves
+- [x] Evolution Tree com layout adaptativo: linear, ramificado, multi-row — formas regionais em tabs separadas
+- [x] Fallback de sprites para Megas customizados e ícone Stellar local
+- [x] Toggle Shiny nas sprites com fundo roxo sutil
+- [x] Página `/wiki/natures` — tabela das 25 natures com modificadores e flavor
+- [x] Páginas de Items — `/wiki/items` (grid com search) e `/wiki/items/[slug]` (flavor text, efeito)
+- [x] Fix Evolution Chain Eevee — dedup por `(from,to)` descarta arestas level-up redundantes
+- [x] Páginas de Locations — `/wiki/locations` (lista por região) e `/wiki/locations/[slug]` (encounter table)
+- [x] SearchBar compartilhado em todas as páginas de listagem (Pokémon, Moves, Abilities, Types, Items, Locations)
+- [x] SSE movido para `+layout.svelte` — indicador de importação persistente na sidebar (`ImportActivity.svelte`)
+- [x] `.gitignore` criado — `build/` e `.svelte-kit/` removidos do git
+- [x] Páginas de Games — `/wiki/games` (gerações e version groups) e `/wiki/games/[slug]` (detalhe do version group)
+- [x] Páginas de Pokédex — `/wiki/pokedex` (lista de pokédexes com empty-state) e `/wiki/pokedex/[slug]` (Pokémon em ordem regional)
+- [x] Renomeação: `/wiki/pokemon` passa a se chamar "Pokémon" (não "Pokédex") — reserva o nome Pokédex para os pokédexes regionais/customizados
 
-### Bloco 4 — Autenticação
+### Bloco 4 — Autenticação ✅
 
-- [ ] Configurar Lucia Auth
-- [ ] Registro, login, logout, proteção de rotas
-- [ ] Sistema de roles (viewer / editor)
+- [x] Instalar e configurar Lucia Auth v3 + `@lucia-auth/adapter-drizzle`
+- [x] Adicionar tabela `sessions` ao schema + `db:push`
+- [x] `src/lib/auth/lucia.ts` — inicialização com adapter Drizzle
+- [x] `src/lib/auth/guards.ts` — helpers `requireAuth` e `requireEditor`
+- [x] `src/hooks.server.ts` — validação de session em cada request, injeção de `locals.user`
+- [x] Rotas `/trainer/register` e `/trainer/login` com hash de senha (node:crypto scrypt)
+- [x] Rota `/trainer/logout` — invalida session
+- [x] Proteger `/import` e `/editor` com `requireEditor`
+- [x] Sidebar mostra estado de auth (LOGIN / username / badge EDITOR)
+- [x] Bootstrap: primeiro registro é auto-promovido a role 'editor'
 
-### Bloco 5 — Editor
+### Bloco 4.5 — Trainer Pages ✅
 
-- [ ] Formulários de edição para todas as entidades
-- [ ] Validação server-side com Zod
-- [ ] Gravação de edições na tabela `edits` com `previous_data` e `new_data`
-- [ ] Marcação automática `source='edited'`
-- [ ] Proteção por role=editor
+- [x] Perfil público de trainer em `/trainer/[username]` (role badge, join date, stats, badge YOU)
+- [x] Histórico de edições em `/trainer/[username]/edits` (tabela paginada por trainer)
+- [x] Lista global de trainers em `/trainer` (usuários reais + NPCs em sections separadas)
+- [x] Controles de admin (editor-only) na lista: PROMOTE / DEMOTE / BAN / UNBAN
+- [x] Criação e deleção de NPCs (game characters) com placeholder password hash
+- [x] Schema: coluna `bannedAt` em `trainers` (null = ativo)
+- [x] Banimento imediato — `hooks.server.ts` invalida sessão do usuário banido no próximo request
+- [x] Login bloqueia contas banidas e contas NPC com mensagem específica
+- [x] Guardas: não pode banir/rebaixar a si mesmo; não pode rebaixar o último editor
+- [x] Componente `NavTab.svelte` — estilo unificado dos botões da top bar
+
+### Bloco 5 — Editor ✅
+
+- [x] Formulários de edição para todas as entidades (Pokémon, moves, abilities, items, types)
+- [x] Validação server-side com Zod
+- [x] Gravação de edições na tabela `edits` com `previous_data` e `new_data`
+- [x] Marcação automática `source='edited'` ao salvar
+- [x] Criação de pokédexes customizadas (`source='custom'`) — ex: pokédex do ROM hack
+- [x] Proteção por role=editor em todos os form actions
+- [x] Botão RE-SOURCE em cada entidade editada (reverte edits ao estado PokeAPI canonical via forceRefresh)
+
+### Bloco 5.1 — Editor Phase 2: Pokédex / Moves / Pokémon ✅
+
+- [x] Editor de Pokédex em `/editor/pokedex` com criação inicial de dex custom (ROM hack) e sub-editor de entries
+- [x] Editor de Moves em `/editor/moves` com FK dropdowns (type, generation) e sub-form de English `moveEffects` (upsert via `onConflictDoUpdate`)
+- [x] Editor de Pokémon em `/editor/pokemon` com main row + sub-forms para `pokemon_types` (slot 1 + 2) e `pokemon_abilities` (slot 1, 2, hidden)
+
+### Bloco 5.2 — Editor Phase 3a: Species + Base Form ✅
+
+- [x] Editor de Pokémon Species em `/editor/species` com todos os campos flat (genus, dexNumber, flags, habitat, color, shape, growth, capture/gender/happiness/hatch)
+- [x] Auto-criação da **Base Form** na criação de Species (insere default `pokemon` + default `pokemon_forms` em transação)
+- [x] API endpoint `/api/editor/base-form/[speciesId]` para prefill client-side
+- [x] Form de **New Pokémon** copia stats/types/abilities/learnset da Base Form ao selecionar Species
+
+### Bloco 5.3 — Editor Phase 3b/c: Forms + Evolution + Learnset ✅
+
+- [x] Sub-editor de **Forms** inline em `/editor/pokemon/[slug]` (formName, isDefault, isBattleOnly, isMega, sprites)
+- [x] **Migração para linked-list evolution**: drop de `evolution_chains` e `evolution_details`; novas colunas `pokemon.evolvesFromPokemonId` + tabela `pokemon_evolution_details` (uma row por filho-com-predecessor)
+- [x] PokeAPI import refatorado: `populateChainLinkedList()` popula o linked-list automaticamente em cada importação (sem script de backfill)
+- [x] Sub-editor de **Evolution** inline com PREDECESSOR/SUCCESSORS panels (form-specific evolutions agora corretas: Galarian Meowth → Perrserker)
+- [x] Sub-editor de **Learnset** inline com `?vg=` URL param, COPY FROM VG, CLEAR THIS VG, add/remove de entries
+
+### Bloco 5.4 — RE-SOURCE Button + forceRefresh ✅
+
+- [x] Botão **RE-SOURCE FROM POKEAPI** em cada `/editor/<entity>/[slug]` quando `source='edited'`
+- [x] Todas as `ensureX()` no `import-pokemon.ts` / `import-service.ts` aceitam `{ forceRefresh: true }` — pula early-return, limpa sub-rows, re-upsert main
+- [x] Pokémon RE-SOURCE reverte main + types + abilities + stats + moves + forms (não custom) + linked-list evolution
+- [x] Helper compartilhado `src/lib/editor/resource.ts` (`reimportEntity()`)
+
+### Bloco 5.5 — Polish ✅
+
+- [x] Egg groups multi-select no Species editor (sub-form `updateEggGroups` + UI)
+- [x] Move-picker autocomplete (datalist) no Learnset editor — substitui o `<select>` de 610 opções
 
 ### Bloco 6 — Busca Global
 
@@ -1160,6 +1265,6 @@ FKs garantem integridade referencial, permitem JOINs eficientes, e facilitam fil
 
 ---
 
-*Última atualização do plano: 2026-05-07*
+*Última atualização do plano: 2026-05-11 (revisão pós-Bloco 5.5)*
 *Versão da stack: 2.0 (TypeScript / SvelteKit — Importação sob demanda da PokeAPI — Game metadata completo — Locations & Encounters)*
-*Progresso: Blocos 0-1 concluídos — Setup + Módulo de Importação com resolução de dependências*
+*Progresso: Blocos 0–5.5 concluídos — Editor completo (todas as entidades editáveis, linked-list evolution, RE-SOURCE, polish). Próximo: Bloco 6 (Busca Global)*

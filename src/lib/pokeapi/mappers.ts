@@ -359,8 +359,6 @@ export function mapItem(
 export function mapPokemonSpecies(
   data: PokeApiPokemonSpecies,
   generationDbId: number | null,
-  evolutionChainDbId: number | null,
-  evolvesFromDbId: number | null,
   languageMap: IdMap,
   langNameMap: Map<string, number>,
   versionToVersionGroupMap: IdMap,
@@ -395,8 +393,6 @@ export function mapPokemonSpecies(
       slug: slugify(data.name),
       genus: enGenus,
       dexNumber: data.id, // national dex number = species id
-      evolutionChainId: evolutionChainDbId,
-      evolvesFromSpeciesId: evolvesFromDbId,
       isBaby: data.is_baby,
       isLegendary: data.is_legendary,
       isMythical: data.is_mythical,

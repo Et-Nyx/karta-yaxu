@@ -11,10 +11,9 @@ export const GET: RequestHandler = ({ request }) => {
       
       const onLog = (event: ImportLogEvent) => {
         try {
-          const payload = `data: ${JSON.stringify(event)}\n\n`;
-          controller.enqueue(payload);
-        } catch (e) {
-          console.error('Failed to enqueue SSE log', e);
+          controller.enqueue(`data: ${JSON.stringify(event)}\n\n`);
+        } catch {
+          importEvents.off('log', onLog);
         }
       };
 

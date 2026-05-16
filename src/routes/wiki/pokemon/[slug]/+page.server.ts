@@ -1,5 +1,6 @@
 import { db } from '$lib/db';
-import { eq, and, asc, inArray } from 'drizzle-orm';
+import { eq, and, asc, desc, inArray } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/sqlite-core';
 import * as schema from '$lib/db/schema';
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
@@ -24,11 +25,12 @@ export const load: PageServerLoad = async ({ params }) => {
     .from(schema.pokemonSpecies)
     .where(eq(schema.pokemonSpecies.id, pokemon.speciesId))
     .limit(1);
-    
+
   const species = speciesList[0];
 
-  // 3. Fetch Types
+  // 3. Fetch Types (with IDs for type matchup)
   const typesData = await db.select({
+    id: schema.types.id,
     name: schema.types.name,
     slot: schema.pokemonTypes.slot,
   })
@@ -58,78 +60,17 @@ export const load: PageServerLoad = async ({ params }) => {
   .from(schema.pokemonStats)
   .where(eq(schema.pokemonStats.pokemonId, pokemon.id));
 
-  // Sort stats in traditional order
   const statOrder = ['hp', 'attack', 'defense', 'special-attack', 'special-defense', 'speed'];
   statsData.sort((a, b) => statOrder.indexOf(a.statName) - statOrder.indexOf(b.statName));
 
-  // 6. Fetch Evolution Chain
-  let evolutionNodes = [];
-  let evolutionEdges = [];
-
-  if (species.evolutionChainId) {
-    evolutionEdges = await db.select()
-      .from(schema.evolutionDetails)
-      .where(eq(schema.evolutionDetails.chainId, species.evolutionChainId));
-
-    evolutionNodes = await db.select({
-      speciesId: schema.pokemonSpecies.id,
-      pokeapiId: schema.pokemon.pokeapiId,
-      name: schema.pokemon.name,
-      slug: schema.pokemon.slug,
-      spriteDefault: schema.pokemon.spriteDefault,
-      isBaby: schema.pokemonSpecies.isBaby,
-      order: schema.pokemonSpecies.order
-    })
-    .from(schema.pokemonSpecies)
-    .innerJoin(schema.pokemon, eq(schema.pokemonSpecies.id, schema.pokemon.speciesId))
-    .where(
-      and(
-        eq(schema.pokemonSpecies.evolutionChainId, species.evolutionChainId),
-        eq(schema.pokemon.isDefault, true)
-      )
-    );
-
-    // Buscar TYPES de cada Pokémon da cadeia evolutiva
-    if (evolutionNodes.length > 0) {
-      const nodeIds = evolutionNodes.map(n => n.speciesId).filter(Boolean);
-
-      const evoTypes = await db.select({
-        speciesId: schema.pokemonSpecies.id,
-        typeName: schema.types.name,
-      })
-      .from(schema.pokemonTypes)
-      .innerJoin(schema.pokemon, eq(schema.pokemonTypes.pokemonId, schema.pokemon.id))
-      .innerJoin(schema.pokemonSpecies, eq(schema.pokemon.speciesId, schema.pokemonSpecies.id))
-      .innerJoin(schema.types, eq(schema.pokemonTypes.typeId, schema.types.id))
-      .where(inArray(schema.pokemonSpecies.id, nodeIds))
-      .orderBy(asc(schema.pokemonTypes.slot));
-
-      // Agrupar types por species
-      const typesMap = new Map<number, string[]>();
-      for (const et of evoTypes) {
-        if (!typesMap.has(et.speciesId)) {
-          typesMap.set(et.speciesId, []);
-        }
-        typesMap.get(et.speciesId)!.push(et.typeName);
-      }
-
-      // Anexar types aos nodes
-      evolutionNodes = evolutionNodes.map(n => ({
-        ...n,
-        types: typesMap.get(n.speciesId) || []
-      }));
-    }
-  }
-
-  // 7. Fetch Version Mechanics (Flavor Texts & Learnsets)
-  // Fetch all version groups the pokemon has data for
+  // 6. Version Mechanics (Flavor Texts & Learnsets)
   const availableVersions = await db.select({
     id: schema.versionGroups.id,
     name: schema.versionGroups.name,
     order: schema.versionGroups.order
   })
   .from(schema.versionGroups)
-  .orderBy(asc(schema.versionGroups.order)); // Will filter down to used ones in UI if needed
+  .orderBy(asc(schema.versionGroups.order));
 
   const flavorTexts = await db.select({
     flavorText: schema.pokemonFlavorTexts.flavorText,
@@ -146,12 +87,15 @@ export const load: PageServerLoad = async ({ params }) => {
   );
 
   const learnset = await db.select({
-    moveName: schema.moves.name,
-    moveSlug: schema.moves.slug,
-    damageClass: schema.moves.damageClass,
-    typeName: schema.types.name,
-    level: schema.pokemonMoves.level,
-    methodName: schema.moveLearnMethods.name,
+    moveName:       schema.moves.name,
+    moveSlug:       schema.moves.slug,
+    damageClass:    schema.moves.damageClass,
+    typeName:       schema.types.name,
+    power:          schema.moves.power,
+    accuracy:       schema.moves.accuracy,
+    pp:             schema.moves.pp,
+    level:          schema.pokemonMoves.level,
+    methodName:     schema.moveLearnMethods.name,
     versionGroupId: schema.pokemonMoves.versionGroupId
   })
   .from(schema.pokemonMoves)
@@ -161,16 +105,325 @@ export const load: PageServerLoad = async ({ params }) => {
   .where(eq(schema.pokemonMoves.pokemonId, pokemon.id))
   .orderBy(asc(schema.pokemonMoves.level));
 
+  // 7. Genus (English)
+  const genusRow = await db.select({ genus: schema.pokemonGenera.genus })
+    .from(schema.pokemonGenera)
+    .innerJoin(schema.languages, eq(schema.pokemonGenera.languageId, schema.languages.id))
+    .where(and(
+      eq(schema.pokemonGenera.speciesId, species.id),
+      eq(schema.languages.name, 'en')
+    ))
+    .limit(1);
+
+  const genus = genusRow[0]?.genus ?? null;
+
+  // 8. Egg Groups
+  const eggGroupsData = await db.select({ name: schema.eggGroups.name })
+    .from(schema.speciesEggGroups)
+    .innerJoin(schema.eggGroups, eq(schema.speciesEggGroups.eggGroupId, schema.eggGroups.id))
+    .where(eq(schema.speciesEggGroups.speciesId, species.id));
+
+  // 9. Type Matchup (defensive effectiveness)
+  const typeIds = typesData.map(t => t.id);
+
+  let typeMatchup: { name: string; multiplier: number }[] = [];
+
+  if (typeIds.length > 0) {
+    const attackerAlias = alias(schema.types, 'attacker');
+
+    const effectivenessRows = await db.select({
+      attackerName: attackerAlias.name,
+      defenderId:   schema.typeEffectiveness.defenderId,
+      multiplier:   schema.typeEffectiveness.multiplier,
+    })
+    .from(schema.typeEffectiveness)
+    .innerJoin(attackerAlias, eq(schema.typeEffectiveness.attackerId, attackerAlias.id))
+    .where(inArray(schema.typeEffectiveness.defenderId, typeIds));
+
+    const matchup: Record<string, number> = {};
+    for (const row of effectivenessRows) {
+      matchup[row.attackerName] = (matchup[row.attackerName] ?? 1) * row.multiplier;
+    }
+
+    typeMatchup = Object.entries(matchup)
+      .filter(([, m]) => m !== 1)
+      .map(([name, multiplier]) => ({ name, multiplier }))
+      .sort((a, b) => b.multiplier - a.multiplier);
+  }
+
+  // 9b. Offensive matchup (best effectiveness per defending type across all of Pokemon's types)
+  let offensiveMatchup: { name: string; multiplier: number }[] = [];
+
+  if (typeIds.length > 0) {
+    const defenderAlias = alias(schema.types, 'defender');
+
+    const offRows = await db.select({
+      defenderName: defenderAlias.name,
+      multiplier:   schema.typeEffectiveness.multiplier,
+    })
+    .from(schema.typeEffectiveness)
+    .innerJoin(defenderAlias, eq(schema.typeEffectiveness.defenderId, defenderAlias.id))
+    .where(inArray(schema.typeEffectiveness.attackerId, typeIds));
+
+    const offMap: Record<string, number> = {};
+    for (const row of offRows) {
+      const prev = offMap[row.defenderName];
+      offMap[row.defenderName] = prev === undefined ? row.multiplier : Math.max(prev, row.multiplier);
+    }
+
+    offensiveMatchup = Object.entries(offMap)
+      .filter(([, m]) => m !== 1)
+      .map(([name, multiplier]) => ({ name, multiplier }))
+      .sort((a, b) => b.multiplier - a.multiplier);
+  }
+
+  // 10. Evolution Chain (linked-list: walk up to root via pokemon.evolves_from_pokemon_id, then BFS down)
+  let evolutionChain: {
+    fromSpeciesId: number;
+    fromName: string;
+    fromSlug: string;
+    fromSprite: string | null;
+    toSpeciesId: number;
+    toName: string;
+    toSlug: string;
+    toSprite: string | null;
+    trigger: string;
+    minLevel: number | null;
+    minHappiness: number | null;
+    itemName: string | null;
+    itemSlug: string | null;
+    timeOfDay: string | null;
+    location: string | null;
+  }[] = [];
+
+  {
+    // Walk up to find the root pokemon id (iterative; trees are ≤ 4 levels deep in canon)
+    let rootId = pokemon.id;
+    {
+      const seen = new Set<number>([rootId]);
+      let cursor: number | null = pokemon.evolvesFromPokemonId ?? null;
+      while (cursor != null && !seen.has(cursor)) {
+        seen.add(cursor);
+        rootId = cursor;
+        const [parent] = await db.select({ p: schema.pokemon.evolvesFromPokemonId })
+          .from(schema.pokemon).where(eq(schema.pokemon.id, cursor)).limit(1);
+        cursor = parent?.p ?? null;
+      }
+    }
+
+    // BFS down from root to collect all descendants and build edges
+    const descendantIds: number[] = [rootId];
+    const edges: { fromPokemonId: number; toPokemonId: number }[] = [];
+    let frontier = [rootId];
+    const seenDown = new Set<number>([rootId]);
+    while (frontier.length > 0) {
+      const children = await db.select({ id: schema.pokemon.id, parent: schema.pokemon.evolvesFromPokemonId })
+        .from(schema.pokemon)
+        .where(inArray(schema.pokemon.evolvesFromPokemonId, frontier));
+      const nextFrontier: number[] = [];
+      for (const c of children) {
+        if (seenDown.has(c.id)) continue;
+        seenDown.add(c.id);
+        descendantIds.push(c.id);
+        edges.push({ fromPokemonId: c.parent!, toPokemonId: c.id });
+        nextFrontier.push(c.id);
+      }
+      frontier = nextFrontier;
+    }
+
+    if (edges.length > 0) {
+      // Resolve each edge's display data via a single batched query
+      const childIds = edges.map(e => e.toPokemonId);
+
+      const childPokemon = await db.select({
+        id:        schema.pokemon.id,
+        speciesId: schema.pokemon.speciesId,
+        slug:      schema.pokemon.slug,
+        sprite:    schema.pokemon.spriteDefault,
+        speciesName: schema.pokemonSpecies.name,
+        speciesSlug: schema.pokemonSpecies.slug,
+      })
+        .from(schema.pokemon)
+        .innerJoin(schema.pokemonSpecies, eq(schema.pokemon.speciesId, schema.pokemonSpecies.id))
+        .where(inArray(schema.pokemon.id, childIds));
+
+      const parentIds = [...new Set(edges.map(e => e.fromPokemonId))];
+      const parentPokemon = await db.select({
+        id:        schema.pokemon.id,
+        slug:      schema.pokemon.slug,
+        sprite:    schema.pokemon.spriteDefault,
+        speciesId: schema.pokemon.speciesId,
+        speciesName: schema.pokemonSpecies.name,
+        speciesSlug: schema.pokemonSpecies.slug,
+      })
+        .from(schema.pokemon)
+        .innerJoin(schema.pokemonSpecies, eq(schema.pokemon.speciesId, schema.pokemonSpecies.id))
+        .where(inArray(schema.pokemon.id, parentIds));
+
+      const details = await db.select({
+        pokemonId:    schema.pokemonEvolutionDetails.pokemonId,
+        trigger:      schema.pokemonEvolutionDetails.trigger,
+        minLevel:     schema.pokemonEvolutionDetails.minLevel,
+        minHappiness: schema.pokemonEvolutionDetails.minHappiness,
+        itemId:       schema.pokemonEvolutionDetails.itemId,
+        timeOfDay:    schema.pokemonEvolutionDetails.timeOfDay,
+        location:     schema.pokemonEvolutionDetails.location,
+      })
+        .from(schema.pokemonEvolutionDetails)
+        .where(inArray(schema.pokemonEvolutionDetails.pokemonId, childIds));
+
+      const itemIds = details.map(d => d.itemId).filter((v): v is number => v != null);
+      const itemRows = itemIds.length > 0
+        ? await db.select({ id: schema.items.id, name: schema.items.name, slug: schema.items.slug })
+            .from(schema.items).where(inArray(schema.items.id, itemIds))
+        : [];
+
+      const childById  = new Map(childPokemon.map(c => [c.id, c]));
+      const parentById = new Map(parentPokemon.map(p => [p.id, p]));
+      const detailByChild = new Map(details.map(d => [d.pokemonId, d]));
+      const itemById = new Map(itemRows.map(i => [i.id, i]));
+
+      for (const e of edges) {
+        const c = childById.get(e.toPokemonId);
+        const p = parentById.get(e.fromPokemonId);
+        const d = detailByChild.get(e.toPokemonId);
+        if (!c || !p) continue;
+        const item = d?.itemId != null ? itemById.get(d.itemId) : null;
+        evolutionChain.push({
+          fromSpeciesId: p.speciesId,
+          fromName:      p.speciesName,
+          fromSlug:      p.speciesSlug,
+          fromSprite:    p.sprite ?? null,
+          toSpeciesId:   c.speciesId,
+          toName:        c.speciesName,
+          toSlug:        c.speciesSlug,
+          toSprite:      c.sprite ?? null,
+          trigger:       d?.trigger ?? 'unknown',
+          minLevel:      d?.minLevel ?? null,
+          minHappiness:  d?.minHappiness ?? null,
+          itemName:      item?.name ?? null,
+          itemSlug:      item?.slug ?? null,
+          timeOfDay:     d?.timeOfDay ?? null,
+          location:      d?.location ?? null,
+        });
+      }
+    }
+  }
+
+  // 11. Chain species data — all forms per species (form-aware chain display)
+  const CHAIN_SKIP_PATTERNS = ['-totem', '-cap', '-cosplay', '-rock-star', '-belle', '-pop-star', '-phd', '-libre', '-starter'];
+  const REGIONAL_SUFFIXES = ['alola', 'galar', 'hisui', 'paldea'];
+
+  type ChainForm = {
+    pokeapiId: number | null;
+    name: string;
+    slug: string;
+    spriteUrl: string | null;
+    isDefault: boolean;
+    types: string[];
+    dexNumber: number;
+  };
+
+  type ChainSpecies = {
+    speciesId: number;
+    forms: ChainForm[];
+  };
+
+  let chainSpecies: ChainSpecies[] = [];
+
+  {
+    const chainSpeciesIds = [...new Set([
+      species.id,
+      ...evolutionChain.map(l => l.fromSpeciesId),
+      ...evolutionChain.map(l => l.toSpeciesId),
+    ])];
+
+    const chainPokemonAlias = alias(schema.pokemon, 'chain_pokemon');
+
+    const chainRows = await db.select({
+      speciesId: schema.pokemonSpecies.id,
+      dexNumber: schema.pokemonSpecies.dexNumber,
+      pokeapiId: chainPokemonAlias.pokeapiId,
+      name:      chainPokemonAlias.name,
+      slug:      chainPokemonAlias.slug,
+      spriteUrl: chainPokemonAlias.spriteDefault,
+      isDefault: chainPokemonAlias.isDefault,
+      typeName:  schema.types.name,
+    })
+    .from(schema.pokemonSpecies)
+    .innerJoin(chainPokemonAlias, eq(chainPokemonAlias.speciesId, schema.pokemonSpecies.id))
+    .innerJoin(schema.pokemonTypes, eq(schema.pokemonTypes.pokemonId, chainPokemonAlias.id))
+    .innerJoin(schema.types, eq(schema.pokemonTypes.typeId, schema.types.id))
+    .where(inArray(schema.pokemonSpecies.id, chainSpeciesIds))
+    .orderBy(desc(chainPokemonAlias.isDefault), asc(chainPokemonAlias.name), asc(schema.pokemonTypes.slot));
+
+    // Accumulate: speciesId → forms (deduplicated by slug, types accumulated)
+    const speciesMap = new Map<number, { speciesId: number; formMap: Map<string, ChainForm> }>();
+    for (const row of chainRows) {
+      if (CHAIN_SKIP_PATTERNS.some(p => row.slug.includes(p))) continue;
+
+      if (!speciesMap.has(row.speciesId)) {
+        speciesMap.set(row.speciesId, { speciesId: row.speciesId, formMap: new Map() });
+      }
+      const entry = speciesMap.get(row.speciesId)!;
+      if (!entry.formMap.has(row.slug)) {
+        entry.formMap.set(row.slug, {
+          pokeapiId: row.pokeapiId,
+          name: row.name,
+          slug: row.slug,
+          spriteUrl: row.spriteUrl,
+          isDefault: row.isDefault,
+          dexNumber: row.dexNumber,
+          types: [],
+        });
+      }
+      entry.formMap.get(row.slug)!.types.push(row.typeName);
+    }
+
+    chainSpecies = [...speciesMap.values()].map(({ speciesId, formMap }) => ({
+      speciesId,
+      forms: [...formMap.values()],
+    }));
+  }
+
+  // Which regional suffix the current Pokémon belongs to (e.g. "galar" for mr-mime-galar)
+  const formSuffix = REGIONAL_SUFFIXES.find(r =>
+    pokemon.slug.endsWith('-' + r) || pokemon.slug.includes('-' + r + '-')
+  ) ?? null;
+
+  // PokeAPI does not encode which regional form is required for cross-gen Galarian evolutions.
+  // These are known cases where only a specific regional form can produce the evolution.
+  const FORM_RESTRICTED_EVOLUTIONS = [
+    { fromSlug: 'mr-mime',   toSlug: 'mr-rime',    requiredSuffix: 'galar' },
+    { fromSlug: 'meowth',    toSlug: 'perrserker', requiredSuffix: 'galar' },
+    { fromSlug: 'farfetchd', toSlug: 'sirfetchd',  requiredSuffix: 'galar' },
+    { fromSlug: 'corsola',   toSlug: 'cursola',    requiredSuffix: 'galar' },
+    { fromSlug: 'yamask',    toSlug: 'runerigus',  requiredSuffix: 'galar' },
+    { fromSlug: 'linoone',   toSlug: 'obstagoon',  requiredSuffix: 'galar' },
+  ];
+
+  const evolutionChainFinal = evolutionChain.map(edge => ({
+    ...edge,
+    requiredSuffix: FORM_RESTRICTED_EVOLUTIONS.find(
+      r => edge.fromSlug === r.fromSlug && edge.toSlug === r.toSlug
+    )?.requiredSuffix ?? null,
+  }));
+
   return {
     pokemon,
     species,
-    types: typesData,
+    types: typesData.map(({ id: _id, ...rest }) => rest),
     abilities: abilitiesData,
     stats: statsData,
-    evolutionNodes,
-    evolutionEdges,
     availableVersions,
     flavorTexts,
-    learnset
+    learnset,
+    genus,
+    eggGroups: eggGroupsData,
+    typeMatchup,
+    offensiveMatchup,
+    evolutionChain: evolutionChainFinal,
+    chainSpecies,
+    formSuffix,
   };
 };

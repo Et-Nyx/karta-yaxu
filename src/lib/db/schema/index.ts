@@ -5,3 +5,4 @@ export * from './core-data';
 export * from './items';
 export * from './pokemon';
 export * from './trainers';
+export * from './sessions';
