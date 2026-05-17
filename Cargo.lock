@@ -176,6 +176,7 @@ dependencies = [
  "tower-sessions",
  "tower-sessions-sqlx-store",
  "tower_governor",
+ "tracing",
  "urlencoding",
  "uuid",
 ]

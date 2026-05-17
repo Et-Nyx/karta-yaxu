@@ -1,7 +1,6 @@
 use axum::{
     extract::{Multipart, Path},
     response::IntoResponse,
-    http::StatusCode,
     Json,
 };
 use serde_json::json;
