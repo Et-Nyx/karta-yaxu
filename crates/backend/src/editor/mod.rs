@@ -21,6 +21,7 @@ use sqlx::SqlitePool;
 pub fn routes() -> Router<SqlitePool> {
     Router::new()
         .route("/", get(index))
+        .route("/export", get(export_db))
         .route("/pokemon", get(pokemon_list))
         .route("/pokemon/new", get(pokemon_new).post(pokemon_create))
         .route("/pokemon/{slug}", get(pokemon_edit).post(pokemon_save))
@@ -48,7 +49,7 @@ pub fn routes() -> Router<SqlitePool> {
         .route("/upload/{folder}", post(upload::upload_image))
 }
 // Re-export do index
-pub use index::index;
+pub use index::{index, export_db};
 mod index;
 
 // ── Tipos compartilhados ─────────────────────────────────────────────────────
