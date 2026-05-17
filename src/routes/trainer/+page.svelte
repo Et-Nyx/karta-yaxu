@@ -204,7 +204,9 @@
     display: flex;
     flex-direction: column;
     border: 3px solid var(--theme-border-primary);
-    overflow: hidden;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
   }
 
   .table-header,

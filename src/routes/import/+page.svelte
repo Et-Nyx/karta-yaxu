@@ -21,7 +21,7 @@
   </section>
 
   <section>
-    <ImportPanel regions={data.regions} />
+    <ImportPanel regions={data.regions} versionGroups={data.versionGroups} pokemonTotal={data.status.pokemon.total} />
   </section>
 
   <section>

@@ -24,6 +24,7 @@
       bind:value={searchQuery}
       placeholder="Search by name... (/)"
       count={filteredTypes.length}
+      total={data.types.length}
     />
   </div>
 
@@ -34,7 +35,7 @@
           <TypeIcon typeName={t.name} size="lg" />
           <span class="type-name">{t.name.toUpperCase()}</span>
         </div>
-        <div class="type-bar" style="background-color: var(--color-type-{t.name})"></div>
+        <div class="type-bar" style="background-color: {t.hexColor ?? `var(--color-type-${t.name})`}"></div>
       </a>
     {/each}
   </div>
@@ -59,18 +60,18 @@
   }
 
   .types-grid {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
     gap: var(--spacing-4);
   }
 
   .type-card {
     display: flex;
     flex-direction: column;
-    min-width: 140px;
     padding: 0;
     overflow: hidden;
     text-align: center;
+    min-height: 120px;
   }
 
   .type-content {
@@ -98,8 +99,8 @@
 
   /* Mobile: smaller cards */
   @media (max-width: 768px) {
-    .type-card {
-      min-width: 100px;
+    .types-grid {
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
     }
 
     .type-content {

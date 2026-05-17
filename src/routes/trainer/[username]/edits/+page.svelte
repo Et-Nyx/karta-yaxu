@@ -17,7 +17,7 @@
 <div class="edits-page">
   <div class="page-header">
     <h2>{data.trainer.username.toUpperCase()} / EDITS</h2>
-    <a href="/trainer/{data.trainer.username}" class="back-link">← BACK TO PROFILE</a>
+    <a href="/trainer/{data.trainer.username}" class="back">← BACK TO PROFILE</a>
   </div>
 
   {#if data.edits.length === 0}
@@ -63,7 +63,7 @@
     margin: 0;
   }
 
-  .back-link {
+  .back {
     font-family: var(--font-display);
     font-size: 9px;
     color: var(--theme-text-accent);
@@ -71,26 +71,26 @@
     width: fit-content;
   }
 
-  .back-link:hover {
+  .back:hover {
     text-decoration: underline;
   }
 
   .empty-state {
     background-color: var(--theme-bg-secondary);
-    border: 4px solid var(--theme-border-primary);
-    padding: var(--spacing-8);
+    border: 3px solid var(--theme-border-primary);
+    padding: var(--spacing-5);
     text-align: center;
   }
 
   .empty-state p {
     font-family: var(--font-mono);
-    font-size: 14px;
+    font-size: 13px;
     color: var(--theme-text-secondary);
     margin: 0 0 var(--spacing-2) 0;
   }
 
   .empty-state .hint {
-    font-size: 12px;
+    font-size: 11px;
     color: var(--theme-text-muted);
   }
 
@@ -98,7 +98,9 @@
     display: flex;
     flex-direction: column;
     border: 3px solid var(--theme-border-primary);
-    overflow: hidden;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
   }
 
   .table-header,

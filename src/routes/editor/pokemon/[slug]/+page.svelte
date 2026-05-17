@@ -920,6 +920,8 @@
     display: flex;
     flex-direction: column;
     border: 3px solid var(--theme-border-primary);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
   .learnset-head, .learnset-row {
     display: grid;

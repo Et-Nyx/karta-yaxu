@@ -67,6 +67,7 @@ export const load: PageServerLoad = async ({ params, url }) => {
     pokemonSlug: string;
     pokemonSprite: string | null;
     methodName: string;
+    methodOrder: number | null;
     minLevel: number;
     maxLevel: number;
     chance: number;
@@ -81,6 +82,7 @@ export const load: PageServerLoad = async ({ params, url }) => {
       pokemonSlug:   schema.pokemon.slug,
       pokemonSprite: schema.pokemon.spriteDefault,
       methodName:    schema.encounterMethods.name,
+      methodOrder:   schema.encounterMethods.order,
       minLevel:      schema.encounters.minLevel,
       maxLevel:      schema.encounters.maxLevel,
       chance:        schema.encounters.chance,
@@ -92,7 +94,7 @@ export const load: PageServerLoad = async ({ params, url }) => {
       inArray(schema.encounters.locationAreaId, areaIds),
       eq(schema.encounters.versionId, selectedVersionId),
     ))
-    .orderBy(desc(schema.encounters.chance), asc(schema.pokemon.name));
+    .orderBy(asc(schema.encounterMethods.order), desc(schema.encounters.chance), asc(schema.pokemon.name));
   }
 
   // 6. Group encounters by area

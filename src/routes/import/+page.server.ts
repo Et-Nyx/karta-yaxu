@@ -1,5 +1,5 @@
 import { db } from '$lib/db';
-import { asc, desc, count, eq } from 'drizzle-orm';
+import { asc, desc, count, eq, isNotNull } from 'drizzle-orm';
 import * as schema from '$lib/db/schema';
 import {
   importAllGameData,
@@ -12,6 +12,9 @@ import {
   importAllEggGroups,
   importAllMoveLearnMethods,
   importAllEncounterMethods,
+  importAllPokedexes,
+  ensurePokedex,
+  importPokedexesByVersionGroup,
 } from '$lib/pokeapi/import-service';
 import {
   importAllTypes,
@@ -59,6 +62,12 @@ function parseId(raw: FormDataEntryValue | null): number | null {
   return isNaN(n) || n <= 0 ? null : n;
 }
 
+async function checkPokedexPreconditions(): Promise<string | null> {
+  const [{ c }] = await db.select({ c: count() }).from(schema.pokemonSpecies);
+  if (c === 0) return 'No Pokémon imported yet — import Pokémon before Pokédexes.';
+  return null;
+}
+
 export const load: PageServerLoad = async ({ locals }) => {
   requireEditor(locals);
   const status = {
@@ -88,7 +97,18 @@ export const load: PageServerLoad = async ({ locals }) => {
     .from(schema.regions)
     .orderBy(asc(schema.regions.name));
 
-  return { status, logs, regions };
+  const versionGroups = await db
+    .select({
+      id: schema.versionGroups.id,
+      pokeapiId: schema.versionGroups.pokeapiId,
+      name: schema.versionGroups.name,
+      order: schema.versionGroups.order,
+    })
+    .from(schema.versionGroups)
+    .where(isNotNull(schema.versionGroups.pokeapiId))
+    .orderBy(asc(schema.versionGroups.id)) as Array<{ id: number; pokeapiId: number; name: string; order: number | null }>;
+
+  return { status, logs, regions, versionGroups };
 };
 
 export const actions: Actions = {
@@ -365,6 +385,52 @@ export const actions: Actions = {
     try {
       await computeDexOrder();
       return { success: true, message: 'Dex order computed' };
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  },
+
+  // ── Pokédexes ──────────────────────────────────────────────────────────
+  importPokedexes: async ({ locals }) => {
+    requireEditor(locals);
+    const err = await checkPokedexPreconditions();
+    if (err) return { success: false, error: err };
+    try {
+      const res = await importAllPokedexes();
+      return { success: true, message: `Imported ${res.inserted}/${res.total} Pokédexes (${res.errors.length} errors)` };
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  },
+  importSinglePokedex: async ({ request, locals }) => {
+    requireEditor(locals);
+    const err = await checkPokedexPreconditions();
+    if (err) return { success: false, error: err };
+    const fd = await request.formData();
+    const id = parseId(fd.get('pokeapiId'));
+    if (!id) return { success: false, error: 'Invalid ID' };
+    try {
+      await ensurePokedex(id);
+      return { success: true, message: `Pokédex #${id} imported` };
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  },
+  importPokedexesByVersionGroup: async ({ request, locals }) => {
+    requireEditor(locals);
+    const err = await checkPokedexPreconditions();
+    if (err) return { success: false, error: err };
+    const fd = await request.formData();
+    const vgPokeapiId = parseId(fd.get('vgPokeapiId'));
+    if (!vgPokeapiId) return { success: false, error: 'Invalid version group' };
+    const [vg] = await db.select({ id: schema.versionGroups.id })
+      .from(schema.versionGroups)
+      .where(eq(schema.versionGroups.pokeapiId, vgPokeapiId))
+      .limit(1);
+    if (!vg) return { success: false, error: 'Version group not found in database — import Game Data first.' };
+    try {
+      const res = await importPokedexesByVersionGroup(vgPokeapiId);
+      return { success: true, message: `Imported ${res.inserted}/${res.total} Pokédexes for this game (${res.errors.length} errors)` };
     } catch (e: any) {
       return { success: false, error: e.message };
     }

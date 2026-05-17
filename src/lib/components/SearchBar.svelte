@@ -20,24 +20,20 @@
     class="search-input"
   />
   <div class="results-count">
-    {#if total !== undefined}
-      {count} / {total}
-    {:else}
-      {count} RESULTS
-    {/if}
+    {count} / {total ?? count}
   </div>
 </div>
 
 <style>
   .search-bar {
     display: flex;
-    align-items: center;
-    gap: var(--spacing-4);
+    flex-direction: column;
+    gap: var(--spacing-6);
   }
 
   .search-input {
-    flex: 1;
-    max-width: 400px;
+    width: 100%;
+    box-sizing: border-box;
     padding: var(--spacing-3);
     background-color: var(--theme-bg-secondary);
     border: 3px solid var(--theme-border-primary);

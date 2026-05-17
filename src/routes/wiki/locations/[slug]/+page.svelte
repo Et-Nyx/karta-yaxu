@@ -1,5 +1,5 @@
 <script lang="ts">
-  import TypeBadge from '$lib/components/TypeBadge.svelte';
+  import Tabs from '$lib/components/Tabs.svelte';
 
   let { data } = $props();
   let loc = $derived(data.location);
@@ -9,21 +9,62 @@
   }
 
   function areaLabel(name: string): string {
-    // Strip the location prefix from area names (e.g. "pallet-town-area" → "Area")
     return titleCase(name);
   }
 
-  function versionLabel(name: string): string {
-    return name.toUpperCase().replace(/-/g, ' ');
+const versionTabs = data.availableVersions.map(v => ({
+    key: v.slug,
+    label: v.name.toUpperCase().replace(/-/g, ' '),
+  }));
+
+  let activeVersionSlug = $state(
+    data.availableVersions.find(v => v.id === data.selectedVersionId)?.slug ?? ''
+  );
+
+  $effect(() => {
+    const currentSlug = data.availableVersions.find(v => v.id === data.selectedVersionId)?.slug;
+    if (activeVersionSlug && activeVersionSlug !== currentSlug) {
+      const url = new URL(window.location.href);
+      url.searchParams.set('version', activeVersionSlug);
+      window.location.href = url.toString();
+    }
+  });
+
+  type EncounterRow = {
+    methodName: string;
+    methodOrder: number | null;
+    pokemonName: string;
+    pokemonSlug: string;
+    pokemonSprite: string | null;
+    minLevel: number;
+    maxLevel: number;
+    chance: number;
+  };
+
+  function groupByMethod(encounters: EncounterRow[]) {
+    const groups: { methodName: string; encounters: EncounterRow[] }[] = [];
+    const seen = new Map<string, number>();
+    for (const enc of encounters) {
+      if (!seen.has(enc.methodName)) {
+        seen.set(enc.methodName, groups.length);
+        groups.push({ methodName: enc.methodName, encounters: [] });
+      }
+      groups[seen.get(enc.methodName)!].encounters.push(enc);
+    }
+    return groups;
   }
 
-  let selectedVersionId = $state<number | null>(data.selectedVersionId);
-
-  function goToVersion(versionSlug: string) {
-    const url = new URL(window.location.href);
-    url.searchParams.set('version', versionSlug);
-    window.location.href = url.toString();
-  }
+  // Per-area active method tab — initialised to the first method for each area
+  let activeMethodByArea = $state<Record<number, string>>(
+    Object.fromEntries(
+      data.areas
+        .filter(a => a.encounters.length > 0)
+        .map(a => {
+          const groups = groupByMethod(a.encounters);
+          return [a.id, groups[0]?.methodName ?? ''];
+        })
+    )
+  );
 </script>
 
 <svelte:head>
@@ -46,70 +87,60 @@
       <p class="hint">Import encounter data via the <a href="/import">Import Panel</a>.</p>
     </div>
   {:else}
-    <div class="version-selector-container">
-      <label for="versionSelect">VERSION:</label>
-      <select
-        id="versionSelect"
-        class="version-select"
-        onchange={(e) => goToVersion((e.target as HTMLSelectElement).value)}
-      >
-        {#each data.availableVersions as v}
-          <option value={v.slug} selected={v.id === data.selectedVersionId}>
-            {versionLabel(v.name)}
-          </option>
+    <Tabs tabs={versionTabs} bind:active={activeVersionSlug}>
+      <div class="areas-list">
+        {#each data.areas as area}
+          {#if area.encounters.length > 0}
+            {@const methodGroups = groupByMethod(area.encounters)}
+            {@const areaTabs = methodGroups.map(g => ({ key: g.methodName, label: g.methodName.replace(/-/g, ' ').toUpperCase() }))}
+            {@const activeGroup = methodGroups.find(g => g.methodName === activeMethodByArea[area.id])}
+            <Tabs title={areaLabel(area.name)} tabs={areaTabs} bind:active={activeMethodByArea[area.id]}>
+              {#if activeGroup}
+                <div class="table-wrap">
+                  <table class="encounter-table">
+                    <thead>
+                      <tr>
+                        <th>POKÉMON</th>
+                        <th>LEVEL</th>
+                        <th>CHANCE</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {#each activeGroup.encounters as enc}
+                        <tr>
+                          <td class="pokemon-cell">
+                            {#if enc.pokemonSprite}
+                              <img src={enc.pokemonSprite} alt={enc.pokemonName} class="mini-sprite" style="image-rendering: pixelated;" />
+                            {/if}
+                            <a href="/wiki/pokemon/{enc.pokemonSlug}" class="pokemon-link">
+                              {enc.pokemonName.toUpperCase()}
+                            </a>
+                          </td>
+                          <td class="level-cell">
+                            {#if enc.minLevel === enc.maxLevel}
+                              {enc.minLevel}
+                            {:else}
+                              {enc.minLevel}–{enc.maxLevel}
+                            {/if}
+                          </td>
+                          <td class="chance-cell">{enc.chance}%</td>
+                        </tr>
+                      {/each}
+                    </tbody>
+                  </table>
+                </div>
+              {/if}
+            </Tabs>
+          {/if}
         {/each}
-      </select>
-    </div>
 
-    <div class="areas-list">
-      {#each data.areas as area}
-        {#if area.encounters.length > 0}
-          <div class="area-section">
-            <h3 class="area-title">{areaLabel(area.name)}</h3>
-
-            <table class="encounter-table">
-              <thead>
-                <tr>
-                  <th>POKÉMON</th>
-                  <th>METHOD</th>
-                  <th>LEVEL</th>
-                  <th>CHANCE</th>
-                </tr>
-              </thead>
-              <tbody>
-                {#each area.encounters as enc}
-                  <tr>
-                    <td class="pokemon-cell">
-                      {#if enc.pokemonSprite}
-                        <img src={enc.pokemonSprite} alt={enc.pokemonName} class="mini-sprite" style="image-rendering: pixelated;" />
-                      {/if}
-                      <a href="/wiki/pokemon/{enc.pokemonSlug}" class="pokemon-link">
-                        {enc.pokemonName.toUpperCase()}
-                      </a>
-                    </td>
-                    <td class="method-cell">{enc.methodName.replace(/-/g, ' ').toUpperCase()}</td>
-                    <td class="level-cell">
-                      {#if enc.minLevel === enc.maxLevel}
-                        {enc.minLevel}
-                      {:else}
-                        {enc.minLevel}–{enc.maxLevel}
-                      {/if}
-                    </td>
-                    <td class="chance-cell">{enc.chance}%</td>
-                  </tr>
-                {/each}
-              </tbody>
-            </table>
+        {#if data.areas.every(a => a.encounters.length === 0)}
+          <div class="empty-state">
+            <p>No encounters for this version in this location.</p>
           </div>
         {/if}
-      {/each}
-
-      {#if data.areas.every(a => a.encounters.length === 0)}
-        <div class="empty-state">
-          <p>No encounters for this version in this location.</p>
-        </div>
-      {/if}
-    </div>
+      </div>
+    </Tabs>
   {/if}
 </div>
 
@@ -126,7 +157,7 @@
     background-color: var(--theme-bg-secondary);
     border: 4px solid var(--theme-border-primary);
     padding: var(--spacing-4) var(--spacing-6);
-    box-shadow: 4px 4px 0px rgba(0,0,0,0.1);
+    box-shadow: var(--shadow-card);
   }
 
   .header-main {
@@ -158,35 +189,6 @@
     border-color: var(--theme-text-accent);
   }
 
-  /* ── Version selector ── */
-
-  .version-selector-container {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-4);
-    background-color: var(--theme-bg-secondary);
-    border: 3px solid var(--theme-border-primary);
-    padding: var(--spacing-3) var(--spacing-4);
-    box-shadow: 2px 2px 0px var(--theme-border-primary);
-  }
-
-  .version-selector-container label {
-    font-family: var(--font-display);
-    font-size: 10px;
-    color: var(--theme-text-primary);
-  }
-
-  .version-select {
-    flex: 1;
-    background-color: var(--theme-bg-primary);
-    color: var(--theme-text-primary);
-    border: 2px solid var(--theme-border-primary);
-    padding: var(--spacing-2);
-    font-family: var(--font-display);
-    font-size: 10px;
-    max-width: 300px;
-  }
-
   /* ── Areas ── */
 
   .areas-list {
@@ -195,35 +197,24 @@
     gap: var(--spacing-6);
   }
 
-  .area-section {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-3);
-  }
-
-  .area-title {
-    font-family: var(--font-display);
-    font-size: 10px;
-    color: var(--theme-text-secondary);
-    margin: 0;
-    padding-bottom: var(--spacing-2);
-    border-bottom: 2px solid var(--theme-border-primary);
-  }
-
   /* ── Encounter table ── */
+
+  .table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
 
   .encounter-table {
     width: 100%;
     border-collapse: collapse;
     font-family: var(--font-mono);
     font-size: 13px;
-    border: 4px solid var(--theme-border-primary);
-    box-shadow: var(--shadow-card);
+    border: 3px solid var(--theme-border-primary);
   }
 
   thead tr {
     background-color: var(--theme-bg-tertiary);
-    border-bottom: 3px solid var(--theme-border-primary);
+    border-bottom: 2px solid var(--theme-border-primary);
   }
 
   th {
@@ -273,7 +264,7 @@
 
   .pokemon-link:hover { color: var(--theme-text-accent); }
 
-  .method-cell, .level-cell, .chance-cell {
+  .level-cell, .chance-cell {
     text-align: center;
     color: var(--theme-text-secondary);
     font-size: 12px;

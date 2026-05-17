@@ -9,6 +9,7 @@ export const load: PageServerLoad = async () => {
     name: schema.types.name,
     slug: schema.types.slug,
     iconUrl: schema.types.iconUrl,
+    hexColor: schema.types.hexColor,
   })
   .from(schema.types)
   .orderBy(asc(schema.types.id));

@@ -133,6 +133,6 @@
   }
 
   .dot.pokeapi { background-color: var(--theme-text-primary); }
-  .dot.edited { background-color: #f1fa8c; }
-  .dot.custom { background-color: #8be9fd; }
+  .dot.edited { background-color: var(--color-import-edited); }
+  .dot.custom { background-color: var(--color-import-custom); }
 </style>

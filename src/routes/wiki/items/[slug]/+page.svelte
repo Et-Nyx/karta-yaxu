@@ -1,4 +1,10 @@
 <script lang="ts">
+  import InfoBox from '$lib/components/InfoBox.svelte';
+  import VersionSelector from '$lib/components/VersionSelector.svelte';
+  import FlavorTextBox from '$lib/components/FlavorTextBox.svelte';
+  import EffectText from '$lib/components/EffectText.svelte';
+  import DataList from '$lib/components/DataList.svelte';
+
   let { data } = $props();
   let item = $derived(data.item);
 
@@ -26,6 +32,14 @@
     if (!selectedVersionId) return null;
     return data.flavorTexts.find(f => f.versionGroupId === selectedVersionId)?.flavorText ?? null;
   });
+
+  let dataItems = $derived(() => {
+    const rows: { label: string; value: string }[] = [];
+    if (item.cost !== null && item.cost !== undefined) rows.push({ label: 'BUY PRICE', value: `₽${item.cost}` });
+    if (item.flingPower !== null && item.flingPower !== undefined) rows.push({ label: 'FLING POWER', value: String(item.flingPower) });
+    if (item.category) rows.push({ label: 'CATEGORY', value: item.category.replace(/-/g, ' ').toUpperCase() });
+    return rows;
+  });
 </script>
 
 <svelte:head>
@@ -48,35 +62,17 @@
   <div class="detail-grid">
     <!-- Left: data + flavor text -->
     <div class="left-col">
-      <div class="info-box">
-        <h3>DATA</h3>
-        <ul class="data-list">
-          {#if item.cost !== null && item.cost !== undefined}
-            <li><span class="label">BUY PRICE</span><span class="value">₽{item.cost}</span></li>
-          {/if}
-          {#if item.flingPower !== null && item.flingPower !== undefined}
-            <li><span class="label">FLING POWER</span><span class="value">{item.flingPower}</span></li>
-          {/if}
-          {#if item.category}
-            <li><span class="label">CATEGORY</span><span class="value">{item.category.replace(/-/g, ' ').toUpperCase()}</span></li>
-          {/if}
-        </ul>
-      </div>
+      <InfoBox title="DATA">
+        <DataList items={dataItems()} />
+      </InfoBox>
 
       {#if versions().length > 0}
-        <div class="version-selector-container">
-          <label for="versionSelect">VERSION:</label>
-          <select id="versionSelect" bind:value={selectedVersionId} class="version-select">
-            {#each versions() as v}
-              <option value={v.versionGroupId}>{v.versionGroupName.toUpperCase().replace(/-/g, ' ')}</option>
-            {/each}
-          </select>
-        </div>
-
+        <VersionSelector
+          bind:value={selectedVersionId}
+          options={versions().map(v => ({ value: v.versionGroupId, label: v.versionGroupName.toUpperCase().replace(/-/g, ' ') }))}
+        />
         {#if currentFlavorText()}
-          <div class="flavor-text-box">
-            <p>{currentFlavorText()}</p>
-          </div>
+          <FlavorTextBox text={currentFlavorText()!} />
         {/if}
       {/if}
     </div>
@@ -84,13 +80,9 @@
     <!-- Right: effect -->
     {#if data.effect}
       <div class="right-col">
-        <div class="info-box effect-box">
-          <h3>EFFECT</h3>
-          <p class="short-effect">{data.effect.shortEffect}</p>
-          {#if data.effect.effect && data.effect.effect !== data.effect.shortEffect}
-            <p class="long-effect">{data.effect.effect}</p>
-          {/if}
-        </div>
+        <InfoBox title="EFFECT">
+          <EffectText shortEffect={data.effect.shortEffect} effect={data.effect.effect} />
+        </InfoBox>
       </div>
     {/if}
   </div>
@@ -112,7 +104,7 @@
     background-color: var(--theme-bg-secondary);
     border: 4px solid var(--theme-border-primary);
     padding: var(--spacing-4) var(--spacing-6);
-    box-shadow: 4px 4px 0px rgba(0,0,0,0.1);
+    box-shadow: var(--shadow-card);
   }
 
   .header-sprite {
@@ -126,6 +118,7 @@
     display: flex;
     flex-direction: column;
     gap: var(--spacing-2);
+    min-width: 0;
   }
 
   h1 {
@@ -151,115 +144,24 @@
     align-items: start;
   }
 
-  @media (max-width: 768px) {
-    .detail-grid { grid-template-columns: 1fr; }
-  }
-
   .left-col, .right-col {
     display: flex;
     flex-direction: column;
     gap: var(--spacing-4);
   }
 
-  /* ── Shared box ── */
+  @media (max-width: 768px) {
+    .detail-header {
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: var(--spacing-3);
+    }
 
-  .info-box {
-    background-color: var(--theme-bg-secondary);
-    border: 4px solid var(--theme-border-primary);
-    box-shadow: var(--shadow-card);
-    padding: var(--spacing-4);
-  }
+    .detail-grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
 
-  .info-box h3 {
-    font-family: var(--font-display);
-    font-size: 12px;
-    color: var(--theme-text-primary);
-    margin: 0 0 var(--spacing-4) 0;
-    border-bottom: 2px solid var(--theme-border-primary);
-    padding-bottom: var(--spacing-2);
-  }
-
-  /* ── Data list ── */
-
-  .data-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-3);
-  }
-
-  .data-list li {
-    display: flex;
-    justify-content: space-between;
-    font-family: var(--font-mono);
-    font-size: 14px;
-  }
-
-  .data-list .label { color: var(--theme-text-secondary); }
-  .data-list .value { color: var(--theme-text-primary); font-weight: bold; }
-
-  /* ── Version selector ── */
-
-  .version-selector-container {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-4);
-    background-color: var(--theme-bg-secondary);
-    border: 3px solid var(--theme-border-primary);
-    padding: var(--spacing-3) var(--spacing-4);
-    box-shadow: 2px 2px 0px var(--theme-border-primary);
-  }
-
-  .version-selector-container label {
-    font-family: var(--font-display);
-    font-size: 10px;
-    color: var(--theme-text-primary);
-  }
-
-  .version-select {
-    flex: 1;
-    background-color: var(--theme-bg-primary);
-    color: var(--theme-text-primary);
-    border: 2px solid var(--theme-border-primary);
-    padding: var(--spacing-2);
-    font-family: var(--font-display);
-    font-size: 10px;
-  }
-
-  /* ── Flavor text ── */
-
-  .flavor-text-box {
-    background-color: var(--theme-bg-primary);
-    border: 3px solid var(--theme-border-primary);
-    padding: var(--spacing-4);
-    font-family: var(--font-mono);
-    font-size: 14px;
-    line-height: 1.5;
-    color: var(--theme-text-primary);
-    box-shadow: 2px 2px 0px var(--theme-border-primary);
-  }
-
-  .flavor-text-box p { margin: 0; }
-
-  /* ── Effect ── */
-
-  .short-effect {
-    font-family: var(--font-mono);
-    font-size: 14px;
-    color: var(--theme-text-primary);
-    line-height: 1.6;
-    margin: 0 0 var(--spacing-3) 0;
-  }
-
-  .long-effect {
-    font-family: var(--font-mono);
-    font-size: 13px;
-    color: var(--theme-text-secondary);
-    line-height: 1.6;
-    margin: 0;
-    padding-top: var(--spacing-3);
-    border-top: 1px dashed var(--theme-border-primary);
+    .left-col, .right-col { min-width: 0; }
   }
 </style>

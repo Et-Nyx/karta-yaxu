@@ -1,5 +1,5 @@
 import { db } from '$lib/db';
-import { eq, asc } from 'drizzle-orm';
+import { eq, asc, and } from 'drizzle-orm';
 import * as schema from '$lib/db/schema';
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
@@ -19,7 +19,38 @@ export const load: PageServerLoad = async ({ params }) => {
 
   const ability = aList[0];
 
-  // 2. Fetch Pokemon with this ability
+  // 2. Fetch English effect + flavor texts
+  const englishLang = await db.select({ id: schema.languages.id })
+    .from(schema.languages)
+    .where(eq(schema.languages.name, 'en'))
+    .limit(1);
+  const englishId = englishLang[0]?.id;
+
+  const effectRow = englishId ? await db.select({
+    shortEffect: schema.abilityEffects.shortEffect,
+    effect: schema.abilityEffects.effect,
+  })
+  .from(schema.abilityEffects)
+  .where(and(
+    eq(schema.abilityEffects.abilityId, ability.id),
+    eq(schema.abilityEffects.languageId, englishId)
+  ))
+  .limit(1) : [];
+
+  const flavorTexts = englishId ? await db.select({
+    flavorText: schema.abilityFlavorTexts.flavorText,
+    versionGroupId: schema.abilityFlavorTexts.versionGroupId,
+    versionGroupName: schema.versionGroups.name,
+  })
+  .from(schema.abilityFlavorTexts)
+  .innerJoin(schema.versionGroups, eq(schema.abilityFlavorTexts.versionGroupId, schema.versionGroups.id))
+  .where(and(
+    eq(schema.abilityFlavorTexts.abilityId, ability.id),
+    eq(schema.abilityFlavorTexts.languageId, englishId)
+  ))
+  .orderBy(asc(schema.versionGroups.order)) : [];
+
+  // 3. Fetch Pokemon with this ability
   const pokemonData = await db.select({
     id: schema.pokemon.id,
     pokeapiId: schema.pokemon.pokeapiId,
@@ -36,12 +67,13 @@ export const load: PageServerLoad = async ({ params }) => {
   // 3. Fetch types for these Pokemon
   const pIds = pokemonData.map(p => p.id);
   
-  let typesMap = new Map<number, string[]>();
-  
+  let typesMap = new Map<number, Array<{ name: string; hexColor: string | null }>>();
+
   if (pIds.length > 0) {
     const pTypes = await db.select({
       pokemonId: schema.pokemonTypes.pokemonId,
       typeName: schema.types.name,
+      typeHexColor: schema.types.hexColor,
     })
     .from(schema.pokemonTypes)
     .innerJoin(schema.types, eq(schema.pokemonTypes.typeId, schema.types.id))
@@ -51,7 +83,7 @@ export const load: PageServerLoad = async ({ params }) => {
       if (!typesMap.has(pt.pokemonId)) {
         typesMap.set(pt.pokemonId, []);
       }
-      typesMap.get(pt.pokemonId)!.push(pt.typeName);
+      typesMap.get(pt.pokemonId)!.push({ name: pt.typeName, hexColor: pt.typeHexColor });
     }
   }
 
@@ -62,6 +94,9 @@ export const load: PageServerLoad = async ({ params }) => {
 
   return {
     ability,
-    pokemonList
+    pokemonList,
+    shortEffect: effectRow[0]?.shortEffect ?? null,
+    effect: effectRow[0]?.effect ?? null,
+    flavorTexts,
   };
 };

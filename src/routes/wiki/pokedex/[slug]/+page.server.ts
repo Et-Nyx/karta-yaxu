@@ -41,13 +41,14 @@ export const load: PageServerLoad = async ({ params }) => {
 
   // Fetch types for each pokemon
   const pokemonIds = entries.map(e => e.pokemonId);
-  let typesByPokemon = new Map<number, string[]>();
+  let typesByPokemon = new Map<number, Array<{ name: string; hexColor: string | null }>>();
 
   if (pokemonIds.length > 0) {
     const typeRows = await db.select({
-      pokemonId: schema.pokemonTypes.pokemonId,
-      typeName:  schema.types.name,
-      slot:      schema.pokemonTypes.slot,
+      pokemonId:    schema.pokemonTypes.pokemonId,
+      typeName:     schema.types.name,
+      typeHexColor: schema.types.hexColor,
+      slot:         schema.pokemonTypes.slot,
     })
     .from(schema.pokemonTypes)
     .innerJoin(schema.types, eq(schema.pokemonTypes.typeId, schema.types.id))
@@ -56,7 +57,7 @@ export const load: PageServerLoad = async ({ params }) => {
 
     for (const row of typeRows) {
       if (!typesByPokemon.has(row.pokemonId)) typesByPokemon.set(row.pokemonId, []);
-      typesByPokemon.get(row.pokemonId)!.push(row.typeName);
+      typesByPokemon.get(row.pokemonId)!.push({ name: row.typeName, hexColor: row.typeHexColor });
     }
   }
 

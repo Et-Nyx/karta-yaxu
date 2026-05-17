@@ -57,7 +57,7 @@
   .log-container {
     background-color: var(--theme-bg-primary);
     border: 4px solid var(--theme-border-primary);
-    box-shadow: 4px 4px 0px rgba(0,0,0,0.1);
+    box-shadow: var(--shadow-card);
     display: flex;
     flex-direction: column;
     height: 400px;
@@ -79,6 +79,8 @@
   .log-body {
     flex: 1;
     overflow-y: auto;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
     padding: var(--spacing-2);
     background-color: var(--theme-bg-secondary);
   }
@@ -111,7 +113,7 @@
 
   td {
     padding: var(--spacing-2);
-    border-bottom: 1px solid rgba(0,0,0,0.1);
+    border-bottom: 1px solid var(--theme-border-primary);
     color: var(--theme-text-primary);
   }
 
@@ -127,7 +129,6 @@
     padding: 2px 4px;
     font-family: var(--font-display);
     font-size: 8px;
-    border-radius: 2px;
   }
 
   .badge.inserted { background-color: var(--theme-text-primary); color: var(--theme-bg-secondary); }

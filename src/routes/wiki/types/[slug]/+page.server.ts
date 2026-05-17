@@ -22,6 +22,7 @@ export const load: PageServerLoad = async ({ params }) => {
   // 2. Fetch Effectiveness (Attacking)
   const attackingList = await db.select({
     defenderName: schema.types.name,
+    defenderHexColor: schema.types.hexColor,
     multiplier: schema.typeEffectiveness.multiplier,
   })
   .from(schema.typeEffectiveness)
@@ -31,6 +32,7 @@ export const load: PageServerLoad = async ({ params }) => {
   // 3. Fetch Effectiveness (Defending)
   const defendingList = await db.select({
     attackerName: schema.types.name,
+    attackerHexColor: schema.types.hexColor,
     multiplier: schema.typeEffectiveness.multiplier,
   })
   .from(schema.typeEffectiveness)
@@ -52,12 +54,13 @@ export const load: PageServerLoad = async ({ params }) => {
 
   // Fetch all types for these pokemon
   const pIds = pokemonData.map(p => p.id);
-  let typesMap = new Map<number, string[]>();
-  
+  let typesMap = new Map<number, Array<{ name: string; hexColor: string | null }>>();
+
   if (pIds.length > 0) {
     const pTypes = await db.select({
       pokemonId: schema.pokemonTypes.pokemonId,
       typeName: schema.types.name,
+      typeHexColor: schema.types.hexColor,
     })
     .from(schema.pokemonTypes)
     .innerJoin(schema.types, eq(schema.pokemonTypes.typeId, schema.types.id))
@@ -67,7 +70,7 @@ export const load: PageServerLoad = async ({ params }) => {
       if (!typesMap.has(pt.pokemonId)) {
         typesMap.set(pt.pokemonId, []);
       }
-      typesMap.get(pt.pokemonId)!.push(pt.typeName);
+      typesMap.get(pt.pokemonId)!.push({ name: pt.typeName, hexColor: pt.typeHexColor });
     }
   }
 

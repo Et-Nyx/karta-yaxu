@@ -1,11 +1,11 @@
 import { db } from '$lib/db';
-import { eq, and, asc, desc, inArray } from 'drizzle-orm';
+import { eq, and, asc, desc, inArray, lt, gt } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/sqlite-core';
 import * as schema from '$lib/db/schema';
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ params }) => {
+export const load: PageServerLoad = async ({ params, url }) => {
   const { slug } = params;
 
   // 1. Fetch Pokemon
@@ -28,10 +28,85 @@ export const load: PageServerLoad = async ({ params }) => {
 
   const species = speciesList[0];
 
+  // Dex navigation
+  const dexList = await db.select({ id: schema.pokedexes.id, name: schema.pokedexes.name, slug: schema.pokedexes.slug })
+    .from(schema.pokedexes)
+    .innerJoin(schema.pokedexEntries, eq(schema.pokedexEntries.pokedexId, schema.pokedexes.id))
+    .where(eq(schema.pokedexEntries.speciesId, species.id))
+    .orderBy(asc(schema.pokedexes.id));
+
+  let nav: {
+    dexList: typeof dexList;
+    selectedDex: (typeof dexList)[0];
+    currentEntry: number;
+    prev: { entryNumber: number; speciesName: string; pokemonSlug: string } | null;
+    next: { entryNumber: number; speciesName: string; pokemonSlug: string } | null;
+  } | null = null;
+
+  if (dexList.length > 0) {
+    const dexParam = url.searchParams.get('dex');
+    const selectedDex = dexList.find(d => d.slug === dexParam) ?? dexList[0];
+
+    const [currentEntryRow] = await db.select({ entryNumber: schema.pokedexEntries.entryNumber })
+      .from(schema.pokedexEntries)
+      .where(and(
+        eq(schema.pokedexEntries.pokedexId, selectedDex.id),
+        eq(schema.pokedexEntries.speciesId, species.id)
+      ))
+      .limit(1);
+
+    const currentEntry = currentEntryRow.entryNumber;
+
+    const prevRows = await db.select({
+      entryNumber: schema.pokedexEntries.entryNumber,
+      speciesName: schema.pokemonSpecies.name,
+      pokemonSlug: schema.pokemon.slug,
+    })
+    .from(schema.pokedexEntries)
+    .innerJoin(schema.pokemonSpecies, eq(schema.pokedexEntries.speciesId, schema.pokemonSpecies.id))
+    .innerJoin(schema.pokemon, and(
+      eq(schema.pokemon.speciesId, schema.pokemonSpecies.id),
+      eq(schema.pokemon.isDefault, true)
+    ))
+    .where(and(
+      eq(schema.pokedexEntries.pokedexId, selectedDex.id),
+      lt(schema.pokedexEntries.entryNumber, currentEntry)
+    ))
+    .orderBy(desc(schema.pokedexEntries.entryNumber))
+    .limit(1);
+
+    const nextRows = await db.select({
+      entryNumber: schema.pokedexEntries.entryNumber,
+      speciesName: schema.pokemonSpecies.name,
+      pokemonSlug: schema.pokemon.slug,
+    })
+    .from(schema.pokedexEntries)
+    .innerJoin(schema.pokemonSpecies, eq(schema.pokedexEntries.speciesId, schema.pokemonSpecies.id))
+    .innerJoin(schema.pokemon, and(
+      eq(schema.pokemon.speciesId, schema.pokemonSpecies.id),
+      eq(schema.pokemon.isDefault, true)
+    ))
+    .where(and(
+      eq(schema.pokedexEntries.pokedexId, selectedDex.id),
+      gt(schema.pokedexEntries.entryNumber, currentEntry)
+    ))
+    .orderBy(asc(schema.pokedexEntries.entryNumber))
+    .limit(1);
+
+    nav = {
+      dexList,
+      selectedDex,
+      currentEntry,
+      prev: prevRows[0] ?? null,
+      next: nextRows[0] ?? null,
+    };
+  }
+
   // 3. Fetch Types (with IDs for type matchup)
   const typesData = await db.select({
     id: schema.types.id,
     name: schema.types.name,
+    hexColor: schema.types.hexColor,
     slot: schema.pokemonTypes.slot,
   })
   .from(schema.pokemonTypes)
@@ -91,6 +166,7 @@ export const load: PageServerLoad = async ({ params }) => {
     moveSlug:       schema.moves.slug,
     damageClass:    schema.moves.damageClass,
     typeName:       schema.types.name,
+    typeHexColor:   schema.types.hexColor,
     power:          schema.moves.power,
     accuracy:       schema.moves.accuracy,
     pp:             schema.moves.pp,
@@ -126,54 +202,60 @@ export const load: PageServerLoad = async ({ params }) => {
   // 9. Type Matchup (defensive effectiveness)
   const typeIds = typesData.map(t => t.id);
 
-  let typeMatchup: { name: string; multiplier: number }[] = [];
+  let typeMatchup: { name: string; multiplier: number; hexColor: string | null }[] = [];
 
   if (typeIds.length > 0) {
     const attackerAlias = alias(schema.types, 'attacker');
 
     const effectivenessRows = await db.select({
-      attackerName: attackerAlias.name,
-      defenderId:   schema.typeEffectiveness.defenderId,
-      multiplier:   schema.typeEffectiveness.multiplier,
+      attackerName:     attackerAlias.name,
+      attackerHexColor: attackerAlias.hexColor,
+      defenderId:       schema.typeEffectiveness.defenderId,
+      multiplier:       schema.typeEffectiveness.multiplier,
     })
     .from(schema.typeEffectiveness)
     .innerJoin(attackerAlias, eq(schema.typeEffectiveness.attackerId, attackerAlias.id))
     .where(inArray(schema.typeEffectiveness.defenderId, typeIds));
 
     const matchup: Record<string, number> = {};
+    const hexColorMap: Record<string, string | null> = {};
     for (const row of effectivenessRows) {
       matchup[row.attackerName] = (matchup[row.attackerName] ?? 1) * row.multiplier;
+      hexColorMap[row.attackerName] = row.attackerHexColor;
     }
 
     typeMatchup = Object.entries(matchup)
       .filter(([, m]) => m !== 1)
-      .map(([name, multiplier]) => ({ name, multiplier }))
+      .map(([name, multiplier]) => ({ name, multiplier, hexColor: hexColorMap[name] ?? null }))
       .sort((a, b) => b.multiplier - a.multiplier);
   }
 
   // 9b. Offensive matchup (best effectiveness per defending type across all of Pokemon's types)
-  let offensiveMatchup: { name: string; multiplier: number }[] = [];
+  let offensiveMatchup: { name: string; multiplier: number; hexColor: string | null }[] = [];
 
   if (typeIds.length > 0) {
     const defenderAlias = alias(schema.types, 'defender');
 
     const offRows = await db.select({
-      defenderName: defenderAlias.name,
-      multiplier:   schema.typeEffectiveness.multiplier,
+      defenderName:     defenderAlias.name,
+      defenderHexColor: defenderAlias.hexColor,
+      multiplier:       schema.typeEffectiveness.multiplier,
     })
     .from(schema.typeEffectiveness)
     .innerJoin(defenderAlias, eq(schema.typeEffectiveness.defenderId, defenderAlias.id))
     .where(inArray(schema.typeEffectiveness.attackerId, typeIds));
 
     const offMap: Record<string, number> = {};
+    const offHexMap: Record<string, string | null> = {};
     for (const row of offRows) {
       const prev = offMap[row.defenderName];
       offMap[row.defenderName] = prev === undefined ? row.multiplier : Math.max(prev, row.multiplier);
+      offHexMap[row.defenderName] = row.defenderHexColor;
     }
 
     offensiveMatchup = Object.entries(offMap)
       .filter(([, m]) => m !== 1)
-      .map(([name, multiplier]) => ({ name, multiplier }))
+      .map(([name, multiplier]) => ({ name, multiplier, hexColor: offHexMap[name] ?? null }))
       .sort((a, b) => b.multiplier - a.multiplier);
   }
 
@@ -320,7 +402,7 @@ export const load: PageServerLoad = async ({ params }) => {
     slug: string;
     spriteUrl: string | null;
     isDefault: boolean;
-    types: string[];
+    types: Array<{ name: string; hexColor: string | null }>;
     dexNumber: number;
   };
 
@@ -341,14 +423,15 @@ export const load: PageServerLoad = async ({ params }) => {
     const chainPokemonAlias = alias(schema.pokemon, 'chain_pokemon');
 
     const chainRows = await db.select({
-      speciesId: schema.pokemonSpecies.id,
-      dexNumber: schema.pokemonSpecies.dexNumber,
-      pokeapiId: chainPokemonAlias.pokeapiId,
-      name:      chainPokemonAlias.name,
-      slug:      chainPokemonAlias.slug,
-      spriteUrl: chainPokemonAlias.spriteDefault,
-      isDefault: chainPokemonAlias.isDefault,
-      typeName:  schema.types.name,
+      speciesId:    schema.pokemonSpecies.id,
+      dexNumber:    schema.pokemonSpecies.dexNumber,
+      pokeapiId:    chainPokemonAlias.pokeapiId,
+      name:         chainPokemonAlias.name,
+      slug:         chainPokemonAlias.slug,
+      spriteUrl:    chainPokemonAlias.spriteDefault,
+      isDefault:    chainPokemonAlias.isDefault,
+      typeName:     schema.types.name,
+      typeHexColor: schema.types.hexColor,
     })
     .from(schema.pokemonSpecies)
     .innerJoin(chainPokemonAlias, eq(chainPokemonAlias.speciesId, schema.pokemonSpecies.id))
@@ -377,7 +460,7 @@ export const load: PageServerLoad = async ({ params }) => {
           types: [],
         });
       }
-      entry.formMap.get(row.slug)!.types.push(row.typeName);
+      entry.formMap.get(row.slug)!.types.push({ name: row.typeName, hexColor: row.typeHexColor });
     }
 
     chainSpecies = [...speciesMap.values()].map(({ speciesId, formMap }) => ({
@@ -412,7 +495,7 @@ export const load: PageServerLoad = async ({ params }) => {
   return {
     pokemon,
     species,
-    types: typesData.map(({ id: _id, ...rest }) => rest),
+    types: typesData.map(({ id: _id, slot: _slot, ...rest }) => rest),
     abilities: abilitiesData,
     stats: statsData,
     availableVersions,
@@ -425,5 +508,6 @@ export const load: PageServerLoad = async ({ params }) => {
     evolutionChain: evolutionChainFinal,
     chainSpecies,
     formSuffix,
+    nav,
   };
 };

@@ -42,9 +42,11 @@
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     gap: var(--spacing-2);
     padding: var(--spacing-3);
     text-align: center;
+    min-height: 120px;
   }
 
   .sprite-wrap {

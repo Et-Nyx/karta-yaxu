@@ -23,6 +23,7 @@
       bind:value={searchQuery}
       placeholder="Search by name... (/)"
       count={filteredAbilities.length}
+      total={data.abilities.length}
     />
   </div>
 
@@ -55,12 +56,19 @@
 
   .abilities-list {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
     gap: var(--spacing-4);
   }
 
   .ability-card {
     padding: var(--spacing-4);
+    min-height: 120px;
+    display: flex;
+    align-items: center;
+  }
+
+  @media (max-width: 768px) {
+    .abilities-list { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
   }
 
   .ability-name {

@@ -25,6 +25,7 @@
       bind:value={searchQuery}
       placeholder="Search by name or ID... (/)"
       count={filteredPokemon.length}
+      total={data.pokemon.length}
     />
   </div>
 

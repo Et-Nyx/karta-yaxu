@@ -401,6 +401,73 @@ export async function importAllEncounterMethods(): Promise<ImportResult> {
   return result;
 }
 
+export async function ensurePokedex(pokeapiId: number): Promise<number> {
+  const data = await client.fetchPokedex(pokeapiId);
+
+  let regionDbId: number | null = null;
+  if (data.region) {
+    regionDbId = await ensureRegion(client.extractIdFromUrl(data.region.url));
+  }
+
+  const languageMap = await buildIdMap(schema.languages);
+  const langNameMap = await getLangNameMap();
+  const mapped = mappers.mapPokedex(data, regionDbId, languageMap, langNameMap);
+  const { id, action } = await protectedUpsert(schema.pokedexes, mapped.main, pokeapiId);
+
+  if (action === 'inserted') {
+    for (const n of mapped.names) {
+      await db.insert(schema.pokedexNames).values({ pokedexId: id, ...n }).onConflictDoNothing();
+    }
+    await logImport('pokedex', pokeapiId, 'inserted');
+  }
+
+  // Always sync entries so re-running picks up newly imported species
+  const speciesMap = await buildIdMap(schema.pokemonSpecies);
+  for (const entry of data.pokemon_entries) {
+    const speciesDbId = speciesMap.get(client.extractIdFromUrl(entry.pokemon_species.url));
+    if (!speciesDbId) continue;
+    await db.insert(schema.pokedexEntries)
+      .values({ pokedexId: id, speciesId: speciesDbId, entryNumber: entry.entry_number })
+      .onConflictDoUpdate({
+        target: [schema.pokedexEntries.pokedexId, schema.pokedexEntries.speciesId],
+        set: { entryNumber: entry.entry_number },
+      });
+  }
+
+  return id;
+}
+
+export async function importPokedexesByVersionGroup(vgPokeapiId: number): Promise<ImportResult> {
+  const result = emptyResult('pokedexes');
+  const vgData = await client.fetchVersionGroup(vgPokeapiId);
+  result.total = vgData.pokedexes.length;
+  for (const p of vgData.pokedexes) {
+    try {
+      await ensurePokedex(client.extractIdFromUrl(p.url));
+      result.inserted++;
+    } catch (e) {
+      result.errors.push({ id: client.extractIdFromUrl(p.url), error: (e as Error).message });
+    }
+  }
+  return result;
+}
+
+export async function importAllPokedexes(): Promise<ImportResult> {
+  const result = emptyResult('pokedexes');
+  const list = await client.fetchList('pokedex');
+  result.total = list.results.length;
+
+  for (const item of list.results) {
+    try {
+      await ensurePokedex(client.extractIdFromUrl(item.url));
+      result.inserted++;
+    } catch (e) {
+      result.errors.push({ id: client.extractIdFromUrl(item.url), error: (e as Error).message });
+    }
+  }
+  return result;
+}
+
 /** Import all game metadata in dependency order */
 export async function importAllGameData(): Promise<ImportResult[]> {
   const results: ImportResult[] = [];

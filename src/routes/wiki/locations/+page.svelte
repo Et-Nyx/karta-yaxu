@@ -1,6 +1,7 @@
 <script lang="ts">
   import SearchBar from '$lib/components/SearchBar.svelte';
   import LocationCard from '$lib/components/LocationCard.svelte';
+  import CollapsibleSection from '$lib/components/CollapsibleSection.svelte';
 
   let { data } = $props();
 
@@ -20,6 +21,22 @@
   let totalVisible = $derived(
     filteredRegions.reduce((sum, r) => sum + r.locations.length, 0)
   );
+
+  let isSearching = $derived(searchQuery.trim().length > 0);
+
+  // Per-region open state; first region open by default
+  let regionOpen = $state<Record<string, boolean>>(
+    Object.fromEntries(data.regions.map((r, i) => [r.slug, i === 0]))
+  );
+
+  // Auto-open all matching regions while searching
+  $effect(() => {
+    if (isSearching) {
+      for (const r of filteredRegions) {
+        regionOpen[r.slug] = true;
+      }
+    }
+  });
 </script>
 
 <svelte:head>
@@ -47,15 +64,22 @@
   {:else if filteredRegions.length === 0}
     <p class="empty">No locations found matching "{searchQuery}".</p>
   {:else}
-    {#each filteredRegions as region}
-      <section class="region-section">
-        <h3 class="region-title">{region.name.toUpperCase()}</h3>
+    {#each filteredRegions as region (region.slug)}
+      <CollapsibleSection
+        title={region.name.toUpperCase()}
+        count={region.locations.length}
+        bind:open={regionOpen[region.slug]}
+      >
         <div class="location-grid">
           {#each region.locations as loc (loc.id)}
-            <LocationCard name={loc.name} slug={loc.slug} />
+            <LocationCard
+              name={loc.name}
+              slug={loc.slug}
+              regionName={isSearching ? region.name : null}
+            />
           {/each}
         </div>
-      </section>
+      </CollapsibleSection>
     {/each}
   {/if}
 </div>
@@ -64,7 +88,7 @@
   .locations-page {
     display: flex;
     flex-direction: column;
-    gap: var(--spacing-6);
+    gap: var(--spacing-4);
   }
 
   .page-header {
@@ -92,39 +116,21 @@
     margin: 0 0 var(--spacing-2) 0;
   }
 
-  .empty-state .hint {
-    font-size: 12px;
-    color: var(--theme-text-muted);
-  }
-
-  .empty-state a {
-    color: var(--theme-text-accent);
-    text-decoration: none;
-  }
+  .empty-state .hint { font-size: 12px; color: var(--theme-text-muted); }
+  .empty-state a { color: var(--theme-text-accent); text-decoration: none; }
 
   .empty {
     font-family: var(--font-mono);
     color: var(--theme-text-secondary);
   }
 
-  .region-section {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-3);
-  }
-
-  .region-title {
-    font-family: var(--font-display);
-    font-size: 11px;
-    color: var(--theme-text-secondary);
-    margin: 0;
-    padding-bottom: var(--spacing-2);
-    border-bottom: 2px solid var(--theme-border-primary);
-  }
-
   .location-grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--spacing-2);
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: var(--spacing-4);
+  }
+
+  @media (max-width: 768px) {
+    .location-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
   }
 </style>

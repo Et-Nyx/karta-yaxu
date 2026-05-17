@@ -2,19 +2,19 @@
   import TypeIcon from '$lib/components/TypeIcon.svelte';
   import TypeBadge from '$lib/components/TypeBadge.svelte';
   import PokemonCard from '$lib/components/PokemonCard.svelte';
+  import SearchBar from '$lib/components/SearchBar.svelte';
 
   let { data } = $props();
 
-  const t = data.typeData;
+  let t = $derived(data.typeData);
 
-  // Agrupar matchups
-  const doubleDamageTo = data.attackingList.filter(x => x.multiplier === 2.0);
-  const halfDamageTo = data.attackingList.filter(x => x.multiplier === 0.5);
-  const noDamageTo = data.attackingList.filter(x => x.multiplier === 0.0);
+  let doubleDamageTo = $derived(data.attackingList.filter(x => x.multiplier === 2.0));
+  let halfDamageTo = $derived(data.attackingList.filter(x => x.multiplier === 0.5));
+  let noDamageTo = $derived(data.attackingList.filter(x => x.multiplier === 0.0));
 
-  const doubleDamageFrom = data.defendingList.filter(x => x.multiplier === 2.0);
-  const halfDamageFrom = data.defendingList.filter(x => x.multiplier === 0.5);
-  const noDamageFrom = data.defendingList.filter(x => x.multiplier === 0.0);
+  let doubleDamageFrom = $derived(data.defendingList.filter(x => x.multiplier === 2.0));
+  let halfDamageFrom = $derived(data.defendingList.filter(x => x.multiplier === 0.5));
+  let noDamageFrom = $derived(data.defendingList.filter(x => x.multiplier === 0.0));
 
   let searchQuery = $state('');
 
@@ -39,7 +39,7 @@
         <h1>TYPE</h1>
       </div>
     </div>
-    <div class="header-bar" style="background-color: var(--color-type-{t.name})"></div>
+    <div class="header-bar" style="background-color: {t.hexColor ?? `var(--color-type-${t.name})`}"></div>
   </header>
 
   <!-- Damage Matchups -->
@@ -50,7 +50,7 @@
       <div class="matchup-row">
         <span class="label super">SUPER EFFECTIVE (2x):</span>
         <div class="badges">
-          {#each doubleDamageTo as m} <TypeBadge name={m.defenderName} size="sm" /> {/each}
+          {#each doubleDamageTo as m} <TypeBadge name={m.defenderName} hexColor={m.defenderHexColor} size="sm" /> {/each}
           {#if doubleDamageTo.length === 0}<span class="none">None</span>{/if}
         </div>
       </div>
@@ -58,7 +58,7 @@
       <div class="matchup-row">
         <span class="label not-very">NOT VERY EFFECTIVE (0.5x):</span>
         <div class="badges">
-          {#each halfDamageTo as m} <TypeBadge name={m.defenderName} size="sm" /> {/each}
+          {#each halfDamageTo as m} <TypeBadge name={m.defenderName} hexColor={m.defenderHexColor} size="sm" /> {/each}
           {#if halfDamageTo.length === 0}<span class="none">None</span>{/if}
         </div>
       </div>
@@ -66,7 +66,7 @@
       <div class="matchup-row">
         <span class="label immune">NO EFFECT (0x):</span>
         <div class="badges">
-          {#each noDamageTo as m} <TypeBadge name={m.defenderName} size="sm" /> {/each}
+          {#each noDamageTo as m} <TypeBadge name={m.defenderName} hexColor={m.defenderHexColor} size="sm" /> {/each}
           {#if noDamageTo.length === 0}<span class="none">None</span>{/if}
         </div>
       </div>
@@ -78,7 +78,7 @@
       <div class="matchup-row">
         <span class="label super">WEAK TO (2x):</span>
         <div class="badges">
-          {#each doubleDamageFrom as m} <TypeBadge name={m.attackerName} size="sm" /> {/each}
+          {#each doubleDamageFrom as m} <TypeBadge name={m.attackerName} hexColor={m.attackerHexColor} size="sm" /> {/each}
           {#if doubleDamageFrom.length === 0}<span class="none">None</span>{/if}
         </div>
       </div>
@@ -86,7 +86,7 @@
       <div class="matchup-row">
         <span class="label not-very">RESISTS (0.5x):</span>
         <div class="badges">
-          {#each halfDamageFrom as m} <TypeBadge name={m.attackerName} size="sm" /> {/each}
+          {#each halfDamageFrom as m} <TypeBadge name={m.attackerName} hexColor={m.attackerHexColor} size="sm" /> {/each}
           {#if halfDamageFrom.length === 0}<span class="none">None</span>{/if}
         </div>
       </div>
@@ -94,7 +94,7 @@
       <div class="matchup-row">
         <span class="label immune">IMMUNE TO (0x):</span>
         <div class="badges">
-          {#each noDamageFrom as m} <TypeBadge name={m.attackerName} size="sm" /> {/each}
+          {#each noDamageFrom as m} <TypeBadge name={m.attackerName} hexColor={m.attackerHexColor} size="sm" /> {/each}
           {#if noDamageFrom.length === 0}<span class="none">None</span>{/if}
         </div>
       </div>
@@ -105,17 +105,7 @@
   <section class="pokemon-section">
     <div class="section-header">
       <h2>POKÉMON OF THIS TYPE</h2>
-      <div class="search-bar">
-        <input 
-          type="text" 
-          bind:value={searchQuery} 
-          placeholder="Filter Pokémon..." 
-          class="search-input"
-        />
-        <div class="results-count">
-          {filteredPokemon.length} / {data.pokemonList.length}
-        </div>
-      </div>
+      <SearchBar bind:value={searchQuery} placeholder="Filter Pokémon..." count={filteredPokemon.length} total={data.pokemonList.length} />
     </div>
     
     <div class="pokemon-grid">
@@ -144,7 +134,7 @@
   .detail-header {
     background-color: var(--theme-bg-secondary);
     border: 4px solid var(--theme-border-primary);
-    box-shadow: 4px 4px 0px rgba(0,0,0,0.1);
+    box-shadow: var(--shadow-card);
     padding: 0;
     overflow: hidden;
     display: flex;
@@ -240,8 +230,8 @@
     font-size: 10px;
   }
 
-  .label.super { color: #3FA129; }
-  .label.not-very { color: #D13B3B; }
+  .label.super { color: var(--color-effective-positive); }
+  .label.not-very { color: var(--color-effective-negative); }
   .label.immune { color: var(--theme-text-secondary); }
 
   .badges {
@@ -264,9 +254,7 @@
 
   .section-header {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
+    flex-direction: column;
     gap: var(--spacing-4);
   }
 
@@ -276,37 +264,13 @@
     font-size: 18px;
   }
 
-  .search-bar {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-4);
-  }
-
-  .search-input {
-    width: 200px;
-    padding: var(--spacing-2) var(--spacing-3);
-    background-color: var(--theme-bg-secondary);
-    border: 3px solid var(--theme-border-primary);
-    box-shadow: 2px 2px 0px var(--theme-border-primary);
-    font-family: var(--font-mono);
-    font-size: 12px;
-    color: var(--theme-text-primary);
-  }
-
-  .search-input:focus {
-    outline: none;
-    border-color: var(--theme-text-accent);
-  }
-
-  .results-count {
-    font-family: var(--font-display);
-    font-size: 10px;
-    color: var(--theme-text-secondary);
-  }
-
   .pokemon-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
     gap: var(--spacing-4);
+  }
+
+  @media (max-width: 768px) {
+    .section-header { align-items: flex-start; }
   }
 </style>

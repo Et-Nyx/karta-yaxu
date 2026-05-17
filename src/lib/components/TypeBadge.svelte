@@ -1,27 +1,19 @@
 <script lang="ts">
   let {
     name = 'normal',
-    size = 'md', // sm, md, lg
+    size = 'md',
+    hexColor = null as string | null,
     class: className = ''
   } = $props();
-
-  const typeColors: Record<string, string> = {
-    normal: '#9FA19F', fire: '#E62829', water: '#2980EF', electric: '#FAC000',
-    grass: '#3FA129', ice: '#3DD8FF', fighting: '#FF8000', poison: '#9141CB',
-    ground: '#915121', flying: '#81B9EF', psychic: '#EF4179', bug: '#91A119',
-    rock: '#AFA981', ghost: '#704170', dragon: '#5060E1', dark: '#4F3F3D',
-    steel: '#60A1B8', fairy: '#EF70EF', stellar: '#83CFC5'
-  };
-
-  let bgColor = $derived(typeColors[name.toLowerCase()] || typeColors.normal);
 </script>
 
-<span
+<a
+  href="/wiki/types/{name.toLowerCase()}"
   class="type-badge size-{size} {className}"
-  style="background-color: {bgColor}"
+  style={hexColor ? `background-color: ${hexColor}` : undefined}
 >
   {name.toUpperCase()}
-</span>
+</a>
 
 <style>
   .type-badge {
@@ -34,6 +26,14 @@
     text-transform: uppercase;
     font-weight: bold;
     line-height: 1;
+    background-color: var(--theme-bg-tertiary);
+    text-decoration: none;
+    transition: transform 0.05s ease, box-shadow 0.05s ease;
+  }
+
+  .type-badge:hover {
+    transform: translate(-1px, -1px);
+    box-shadow: 2px 2px 0px var(--theme-border-primary);
   }
 
   .size-sm {

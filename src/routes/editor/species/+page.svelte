@@ -177,7 +177,7 @@
   .save-btn:hover { background-color: var(--theme-text-accent); color: var(--theme-bg-primary); }
   .form-error { font-family: var(--font-mono); font-size: 11px; color: var(--color-text-error); }
 
-  .entity-table { display: flex; flex-direction: column; border: 3px solid var(--theme-border-primary); }
+  .entity-table { display: flex; flex-direction: column; border: 3px solid var(--theme-border-primary); overflow-x: auto; -webkit-overflow-scrolling: touch; }
   .table-header, .table-row {
     display: grid;
     grid-template-columns: 50px 1fr 1fr 1fr 70px 90px 80px 60px;

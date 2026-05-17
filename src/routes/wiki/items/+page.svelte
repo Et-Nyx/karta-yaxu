@@ -74,6 +74,9 @@
 
   .empty {
     font-family: var(--font-mono);
+    font-size: 13px;
     color: var(--theme-text-secondary);
+    padding: var(--spacing-5) 0;
+    text-align: center;
   }
 </style>

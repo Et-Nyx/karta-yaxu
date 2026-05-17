@@ -173,20 +173,22 @@
   }
 
   .field-check {
-    justify-content: flex-end;
+    flex-direction: row;
+    align-items: center;
   }
 
   .field-check label {
     display: flex;
     align-items: center;
     gap: var(--spacing-2);
-    color: var(--theme-text-primary);
-    font-size: 10px;
+    font-family: var(--font-display);
+    font-size: 9px;
+    color: var(--theme-text-muted);
+    cursor: pointer;
   }
 
   .field-check input[type="checkbox"] {
-    width: 16px;
-    height: 16px;
+    width: auto;
     padding: 0;
     accent-color: var(--theme-text-accent);
   }
@@ -223,6 +225,8 @@
     display: flex;
     flex-direction: column;
     border: 3px solid var(--theme-border-primary);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .table-header,

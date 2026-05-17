@@ -7,7 +7,7 @@
     name: string;
     slug: string;
     spriteUrl: string | null;
-    types: string[];
+    types: Array<{ name: string; hexColor: string | null }>;
     dexNumber?: number | null;
     isDefault?: boolean;
   };
@@ -36,8 +36,8 @@
   </div>
 
   <div class="types-container">
-    {#each displayTypes as typeName}
-      <TypeBadge name={typeName} size="sm" class="type-badge-flex" />
+    {#each displayTypes as t}
+      <TypeBadge name={t.name} hexColor={t.hexColor} size="sm" class="type-badge-flex" />
     {/each}
   </div>
 </a>

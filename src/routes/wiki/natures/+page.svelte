@@ -177,8 +177,8 @@
   }
 
   .stat-tag.down {
-    color: #e05555;
-    background-color: color-mix(in srgb, #e05555 12%, transparent);
+    color: var(--color-text-error);
+    background-color: color-mix(in srgb, var(--color-text-error) 12%, transparent);
   }
 
   .neutral-dash {

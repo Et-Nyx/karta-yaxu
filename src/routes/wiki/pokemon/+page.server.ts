@@ -24,6 +24,7 @@ export const load: PageServerLoad = async () => {
   const pokemonTypesList = await db.select({
     pokemonId: schema.pokemonTypes.pokemonId,
     typeName: schema.types.name,
+    typeHexColor: schema.types.hexColor,
     slot: schema.pokemonTypes.slot,
   })
   .from(schema.pokemonTypes)
@@ -31,12 +32,12 @@ export const load: PageServerLoad = async () => {
   .orderBy(asc(schema.pokemonTypes.slot));
 
   // 3. Merge in memory
-  const typesMap = new Map<number, string[]>();
+  const typesMap = new Map<number, Array<{ name: string; hexColor: string | null }>>();
   for (const pt of pokemonTypesList) {
     if (!typesMap.has(pt.pokemonId)) {
       typesMap.set(pt.pokemonId, []);
     }
-    typesMap.get(pt.pokemonId)!.push(pt.typeName);
+    typesMap.get(pt.pokemonId)!.push({ name: pt.typeName, hexColor: pt.typeHexColor });
   }
 
   const mergedPokemon = pokemonList.map(p => ({

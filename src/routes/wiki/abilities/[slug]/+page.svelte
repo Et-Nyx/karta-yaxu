@@ -1,17 +1,34 @@
 <script lang="ts">
   import PokemonCard from '$lib/components/PokemonCard.svelte';
-  
+  import SearchBar from '$lib/components/SearchBar.svelte';
+  import InfoBox from '$lib/components/InfoBox.svelte';
+  import VersionSelector from '$lib/components/VersionSelector.svelte';
+  import FlavorTextBox from '$lib/components/FlavorTextBox.svelte';
+  import EffectText from '$lib/components/EffectText.svelte';
+
   let { data } = $props();
-  
+
   const a = data.ability;
-  
+
   let searchQuery = $state('');
 
   let filteredPokemon = $derived(
-    data.pokemonList.filter(p => 
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    data.pokemonList.filter(p =>
+      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.pokeapiId.toString() === searchQuery
     )
+  );
+
+  let selectedVersionGroupId = $state<number | null>(null);
+
+  $effect(() => {
+    if (selectedVersionGroupId === null && data.flavorTexts.length > 0) {
+      selectedVersionGroupId = data.flavorTexts[data.flavorTexts.length - 1].versionGroupId;
+    }
+  });
+
+  let selectedFlavorText = $derived(
+    data.flavorTexts.find(f => f.versionGroupId === selectedVersionGroupId)?.flavorText ?? null
   );
 </script>
 
@@ -24,41 +41,55 @@
     <h1>{a.name.toUpperCase().replace('-', ' ')}</h1>
   </header>
 
+  {#if data.shortEffect || data.flavorTexts.length > 0}
+    <div class="detail-grid">
+      {#if data.flavorTexts.length > 0}
+        <div class="left-col">
+          <VersionSelector
+            bind:value={selectedVersionGroupId}
+            options={data.flavorTexts.map(f => ({ value: f.versionGroupId, label: f.versionGroupName.toUpperCase().replace(/-/g, ' ') }))}
+          />
+          {#if selectedFlavorText}
+            <FlavorTextBox text={selectedFlavorText} />
+          {/if}
+        </div>
+      {/if}
+
+      {#if data.shortEffect}
+        <div class="right-col">
+          <InfoBox title="EFFECT">
+            <EffectText shortEffect={data.shortEffect} effect={data.effect} />
+          </InfoBox>
+        </div>
+      {/if}
+    </div>
+  {/if}
+
   <section class="pokemon-section">
     <div class="section-header">
       <h2>POKÉMON WITH THIS ABILITY</h2>
-      <div class="search-bar">
-        <input 
-          type="text" 
-          bind:value={searchQuery} 
-          placeholder="Filter Pokémon..." 
-          class="search-input"
-        />
-        <div class="results-count">
-          {filteredPokemon.length} / {data.pokemonList.length}
-        </div>
-      </div>
+      <SearchBar bind:value={searchQuery} placeholder="Filter Pokémon..." count={filteredPokemon.length} total={data.pokemonList.length} />
     </div>
-    
+
     <div class="pokemon-grid">
       {#each filteredPokemon as p (p.id)}
         <div class="card-wrapper" class:hidden-ability={p.isHidden}>
           {#if p.isHidden}
             <div class="hidden-badge">HIDDEN</div>
           {/if}
-          <PokemonCard 
+          <PokemonCard
             pokemon={{
               pokeapiId: p.pokeapiId || 0,
               name: p.name,
               slug: p.slug,
               spriteUrl: p.spriteDefault,
               types: p.types
-            }} 
+            }}
           />
         </div>
       {/each}
     </div>
-    
+
     {#if filteredPokemon.length === 0}
       <div class="empty-state">
         <p>No Pokémon found.</p>
@@ -78,7 +109,7 @@
     background-color: var(--theme-bg-secondary);
     border: 4px solid var(--theme-border-primary);
     padding: var(--spacing-6);
-    box-shadow: 4px 4px 0px rgba(0,0,0,0.1);
+    box-shadow: var(--shadow-card);
   }
 
   h1 {
@@ -88,6 +119,30 @@
     margin: 0;
   }
 
+  /* ── Detail grid ── */
+
+  .detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-6);
+    align-items: start;
+  }
+
+  .left-col, .right-col {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-4);
+  }
+
+  @media (max-width: 768px) {
+    h1 { font-size: 18px; }
+    .detail-header { padding: var(--spacing-4); }
+    .detail-grid { grid-template-columns: minmax(0, 1fr); }
+    .left-col, .right-col { min-width: 0; }
+  }
+
+  /* ── Pokémon list ── */
+
   .pokemon-section {
     display: flex;
     flex-direction: column;
@@ -96,9 +151,7 @@
 
   .section-header {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
+    flex-direction: column;
     gap: var(--spacing-4);
   }
 
@@ -106,34 +159,6 @@
     color: var(--theme-text-primary);
     margin: 0;
     font-size: 18px;
-  }
-
-  .search-bar {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-4);
-  }
-
-  .search-input {
-    width: 200px;
-    padding: var(--spacing-2) var(--spacing-3);
-    background-color: var(--theme-bg-secondary);
-    border: 3px solid var(--theme-border-primary);
-    box-shadow: 2px 2px 0px var(--theme-border-primary);
-    font-family: var(--font-mono);
-    font-size: 12px;
-    color: var(--theme-text-primary);
-  }
-
-  .search-input:focus {
-    outline: none;
-    border-color: var(--theme-text-accent);
-  }
-
-  .results-count {
-    font-family: var(--font-display);
-    font-size: 10px;
-    color: var(--theme-text-secondary);
   }
 
   .pokemon-grid {

@@ -1,12 +1,45 @@
 <script lang="ts">
+  import CollapsibleSection from '$lib/components/CollapsibleSection.svelte';
+  import SearchBar from '$lib/components/SearchBar.svelte';
+
   let { data } = $props();
+
+  let searchQuery = $state('');
+
+  let total = $derived(data.generations.reduce((sum, g) => sum + g.versionGroups.length, 0));
+
+  let filteredGenerations = $derived(
+    data.generations.map(gen => ({
+      ...gen,
+      versionGroups: searchQuery.trim()
+        ? gen.versionGroups.filter(vg =>
+            vg.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            vg.versions.some(v => v.name.toLowerCase().includes(searchQuery.toLowerCase()))
+          )
+        : gen.versionGroups,
+    })).filter(gen => gen.versionGroups.length > 0)
+  );
+
+  let totalVisible = $derived(
+    filteredGenerations.reduce((sum, g) => sum + g.versionGroups.length, 0)
+  );
+
+  let isSearching = $derived(searchQuery.trim().length > 0);
+
+  let genOpen = $state<Record<string, boolean>>(
+    Object.fromEntries(data.generations.map((g, i) => [g.slug, i === 0]))
+  );
+
+  $effect(() => {
+    if (isSearching) {
+      for (const g of filteredGenerations) {
+        genOpen[g.slug] = true;
+      }
+    }
+  });
 
   function formatGenName(name: string): string {
     return name.replace('generation-', 'GEN ').toUpperCase();
-  }
-
-  function formatVersionNames(versions: { name: string }[]): string {
-    return versions.map(v => v.name.toUpperCase().replace(/-/g, ' ')).join(' / ');
   }
 </script>
 
@@ -17,7 +50,14 @@
 <div class="games-page">
   <div class="page-header">
     <h2>GAMES</h2>
-    <p class="subtitle">All generations and version groups</p>
+    {#if total > 0}
+      <SearchBar
+        bind:value={searchQuery}
+        placeholder="Search games... (/)"
+        count={totalVisible}
+        total={total}
+      />
+    {/if}
   </div>
 
   {#if data.generations.length === 0}
@@ -25,10 +65,15 @@
       <p>No game data imported yet.</p>
       <p class="hint">Use the <a href="/import">Import Panel</a> to import game metadata.</p>
     </div>
+  {:else if filteredGenerations.length === 0}
+    <p class="empty">No games found matching "{searchQuery}".</p>
   {:else}
-    {#each data.generations as gen}
-      <section class="gen-section">
-        <h3 class="gen-title">{formatGenName(gen.name)}</h3>
+    {#each filteredGenerations as gen (gen.slug)}
+      <CollapsibleSection
+        title={formatGenName(gen.name)}
+        count={gen.versionGroups.length}
+        bind:open={genOpen[gen.slug]}
+      >
         <div class="vg-grid">
           {#each gen.versionGroups as vg (vg.id)}
             <a href="/wiki/games/{vg.slug}" class="vg-card card-interactive">
@@ -43,7 +88,7 @@
             </a>
           {/each}
         </div>
-      </section>
+      </CollapsibleSection>
     {/each}
   {/if}
 </div>
@@ -52,13 +97,13 @@
   .games-page {
     display: flex;
     flex-direction: column;
-    gap: var(--spacing-6);
+    gap: var(--spacing-4);
   }
 
   .page-header {
     display: flex;
     flex-direction: column;
-    gap: var(--spacing-2);
+    gap: var(--spacing-4);
   }
 
   .page-header h2 {
@@ -66,47 +111,31 @@
     margin: 0;
   }
 
-  .subtitle {
+  .empty {
     font-family: var(--font-mono);
-    font-size: 12px;
     color: var(--theme-text-secondary);
-    margin: 0;
-  }
-
-  .gen-section {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-3);
-  }
-
-  .gen-title {
-    font-family: var(--font-display);
-    font-size: 11px;
-    color: var(--theme-text-secondary);
-    margin: 0;
-    padding-bottom: var(--spacing-2);
-    border-bottom: 2px solid var(--theme-border-primary);
   }
 
   .vg-grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--spacing-3);
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: var(--spacing-4);
   }
 
   .vg-card {
     display: flex;
     flex-direction: column;
+    justify-content: center;
     gap: var(--spacing-2);
     padding: var(--spacing-4);
-    min-width: 160px;
+    min-height: 120px;
   }
 
   .vg-name {
     font-family: var(--font-display);
-    font-size: 10px;
+    font-size: 12px;
     color: var(--theme-text-primary);
-    letter-spacing: 0.5px;
+    line-height: 1.6;
   }
 
   .version-list {
@@ -138,13 +167,10 @@
     margin: 0 0 var(--spacing-2) 0;
   }
 
-  .empty-state .hint {
-    font-size: 12px;
-    color: var(--theme-text-muted);
-  }
+  .empty-state .hint { font-size: 12px; color: var(--theme-text-muted); }
+  .empty-state a { color: var(--theme-text-accent); text-decoration: none; }
 
-  .empty-state a {
-    color: var(--theme-text-accent);
-    text-decoration: none;
+  @media (max-width: 768px) {
+    .vg-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
   }
 </style>

@@ -45,7 +45,7 @@
     height: 12px;
     background-color: var(--theme-bg-secondary);
     border: 2px solid var(--theme-border-primary);
-    box-shadow: 2px 2px 0px rgba(0,0,0,0.1);
+    box-shadow: var(--shadow-card-subtle);
   }
 
   .stat-bar-fill {

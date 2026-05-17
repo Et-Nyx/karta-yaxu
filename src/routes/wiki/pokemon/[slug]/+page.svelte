@@ -4,6 +4,11 @@
   import MoveCard from '$lib/components/MoveCard.svelte';
   import PokemonCard from '$lib/components/PokemonCard.svelte';
   import TypeMatchupDisplay from '$lib/components/TypeMatchupDisplay.svelte';
+  import InfoBox from '$lib/components/InfoBox.svelte';
+  import VersionSelector from '$lib/components/VersionSelector.svelte';
+  import FlavorTextBox from '$lib/components/FlavorTextBox.svelte';
+  import Tabs from '$lib/components/Tabs.svelte';
+  import { goto } from '$app/navigation';
 
   let { data } = $props();
 
@@ -94,14 +99,18 @@
     return methods;
   });
 
-  let activeMethod = $state<string | null>(null);
+  let activeMethod = $state('');
 
   $effect(() => {
     const methods = learnsetMethods();
-    if (methods.length > 0 && (activeMethod === null || !methods.includes(activeMethod))) {
+    if (methods.length > 0 && !methods.includes(activeMethod)) {
       activeMethod = methods.includes('level-up') ? 'level-up' : methods[0];
     }
   });
+
+  let learnsetTabs = $derived(() =>
+    learnsetMethods().map(m => ({ key: m, label: methodLabel(m) }))
+  );
 
   let activeLearnset = $derived(() => {
     if (!activeMethod) return [];
@@ -322,7 +331,20 @@
     const roots = allFromIds.filter(id => !allToIds.has(id));
     return { roots, childrenOf, speciesMap };
   });
+
+  function handleKeydown(e: KeyboardEvent) {
+    const tag = (e.target as HTMLElement).tagName;
+    if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+    if (!data.nav) return;
+    if (e.key === 'ArrowLeft' && data.nav.prev) {
+      goto(`/wiki/pokemon/${data.nav.prev.pokemonSlug}?dex=${data.nav.selectedDex.slug}`);
+    } else if (e.key === 'ArrowRight' && data.nav.next) {
+      goto(`/wiki/pokemon/${data.nav.next.pokemonSlug}?dex=${data.nav.selectedDex.slug}`);
+    }
+  }
 </script>
+
+<svelte:window onkeydown={handleKeydown} />
 
 <svelte:head>
   <title>{p.name.toUpperCase()} | Karta Yaxu</title>
@@ -340,10 +362,46 @@
     </div>
     <div class="types">
       {#each data.types as t}
-        <TypeBadge name={t.name} size="lg" />
+        <TypeBadge name={t.name} hexColor={t.hexColor} size="lg" />
       {/each}
     </div>
   </header>
+
+  {#if data.nav}
+    <nav class="dex-nav">
+      {#if data.nav.prev}
+        <a
+          href="/wiki/pokemon/{data.nav.prev.pokemonSlug}?dex={data.nav.selectedDex.slug}"
+          class="nav-link nav-prev"
+        >← #{data.nav.prev.entryNumber} {data.nav.prev.speciesName.toUpperCase()}</a>
+      {:else}
+        <span class="nav-disabled">←</span>
+      {/if}
+
+      <div class="nav-center">
+        <span class="nav-entry">#{data.nav.currentEntry}</span>
+        <select
+          class="dex-select"
+          onchange={(e) => goto(`?dex=${(e.currentTarget as HTMLSelectElement).value}`)}
+        >
+          {#each data.nav.dexList as dex}
+            <option value={dex.slug} selected={dex.slug === data.nav.selectedDex.slug}>
+              {dex.name.toUpperCase().replace(/-/g, ' ')}
+            </option>
+          {/each}
+        </select>
+      </div>
+
+      {#if data.nav.next}
+        <a
+          href="/wiki/pokemon/{data.nav.next.pokemonSlug}?dex={data.nav.selectedDex.slug}"
+          class="nav-link nav-next"
+        >#{data.nav.next.entryNumber} {data.nav.next.speciesName.toUpperCase()} →</a>
+      {:else}
+        <span class="nav-disabled">→</span>
+      {/if}
+    </nav>
+  {/if}
 
   <div class="content-grid">
     <!-- Top-left: Sprite only -->
@@ -358,8 +416,7 @@
 
     <!-- Top-right: Base Stats -->
     <div class="stats-cell">
-      <div class="info-box stats-box">
-        <h3>BASE STATS</h3>
+      <InfoBox title="BASE STATS">
         <div class="stats-container">
           {#each data.stats as stat}
             <StatBar name={stat.statName} value={stat.baseStat} max={255} />
@@ -370,28 +427,21 @@
             <span class="value">{totalStats}</span>
           </div>
         </div>
-      </div>
+      </InfoBox>
     </div>
 
     <!-- Bottom-left: Version Selector + Flavor Text + Abilities -->
     <div class="info-cell">
       {#if validVersions.length > 0}
-        <div class="version-selector-container">
-          <label for="versionSelect">VERSION:</label>
-          <select id="versionSelect" bind:value={selectedVersionId} class="version-select">
-            {#each validVersions as v}
-              <option value={v.id}>{v.name.toUpperCase().replace(/-/g, ' ')}</option>
-            {/each}
-          </select>
-        </div>
+        <VersionSelector
+          bind:value={selectedVersionId}
+          options={validVersions.map(v => ({ value: v.id, label: v.name.toUpperCase().replace(/-/g, ' ') }))}
+        />
 
-        <div class="flavor-text-box">
-          <p>{currentFlavorText()}</p>
-        </div>
+        <FlavorTextBox text={currentFlavorText()} />
       {/if}
 
-      <div class="info-box">
-        <h3>ABILITIES</h3>
+      <InfoBox title="ABILITIES">
         <ul class="ability-list">
           {#each data.abilities as a}
             <li class:hidden-ability={a.isHidden}>
@@ -404,13 +454,12 @@
             </li>
           {/each}
         </ul>
-      </div>
+      </InfoBox>
     </div>
 
     <!-- Bottom-right: Data -->
     <div class="data-cell">
-      <div class="info-box data-box">
-        <h3>DATA</h3>
+      <InfoBox title="DATA">
         <ul class="data-list">
           <li>
             <span class="label">HEIGHT</span>
@@ -457,7 +506,7 @@
             </li>
           {/if}
         </ul>
-      </div>
+      </InfoBox>
     </div>
   </div>
 
@@ -541,9 +590,7 @@
     {/if}
   {/snippet}
 
-  <div class="info-box evo-box">
-      <h3>EVOLUTION CHAIN</h3>
-
+  <InfoBox title="EVOLUTION CHAIN">
       {#if chainTabs().length > 1}
         <div class="chain-tab-bar">
           {#each chainTabs() as tab}
@@ -577,55 +624,31 @@
           {/each}
         </div>
       {/if}
-    </div>
+  </InfoBox>
 
   <!-- Learnset -->
   {#if validVersions.length > 0}
-    <div class="info-box learnset-box">
-      <div class="learnset-header">
-        <h3>LEARNSET</h3>
-        <div class="version-label">
-          {validVersions.find(v => v.id === selectedVersionId)?.name.toUpperCase().replace(/-/g, ' ')}
-        </div>
-      </div>
-
-      {#if learnsetMethods().length > 0}
-        <!-- Method Tabs -->
-        <div class="method-tabs">
-          {#each learnsetMethods() as method}
-            <button
-              class="method-tab"
-              class:active={activeMethod === method}
-              onclick={() => activeMethod = method}
-            >
-              {methodLabel(method)}
-            </button>
+    <Tabs title="LEARNSET" tabs={learnsetTabs()} bind:active={activeMethod}>
+      {#if activeLearnset().length > 0}
+        <div class="move-list">
+          {#each activeLearnset() as move (move.moveSlug + move.methodName + move.level)}
+            <MoveCard
+              name={move.moveName}
+              slug={move.moveSlug}
+              typeName={move.typeName}
+              typeHexColor={move.typeHexColor}
+              damageClass={move.damageClass}
+              power={move.power}
+              accuracy={move.accuracy}
+              pp={move.pp}
+              method={moveMethod(move)}
+            />
           {/each}
         </div>
-
-        <!-- Move Cards -->
-        {#if activeLearnset().length > 0}
-          <div class="move-list">
-            {#each activeLearnset() as move (move.moveSlug + move.methodName + move.level)}
-              <MoveCard
-                name={move.moveName}
-                slug={move.moveSlug}
-                typeName={move.typeName}
-                damageClass={move.damageClass}
-                power={move.power}
-                accuracy={move.accuracy}
-                pp={move.pp}
-                method={moveMethod(move)}
-              />
-            {/each}
-          </div>
-        {:else}
-          <p class="empty-text">No moves learned in this version.</p>
-        {/if}
       {:else}
         <p class="empty-text">No moves learned in this version.</p>
       {/if}
-    </div>
+    </Tabs>
   {/if}
 </div>
 
@@ -645,7 +668,7 @@
     background-color: var(--theme-bg-secondary);
     border: 4px solid var(--theme-border-primary);
     padding: var(--spacing-4) var(--spacing-6);
-    box-shadow: 4px 4px 0px rgba(0,0,0,0.1);
+    box-shadow: var(--shadow-card);
   }
 
   .dex-num {
@@ -689,7 +712,57 @@
   }
 
   @media (max-width: 768px) {
-    .content-grid { grid-template-columns: 1fr; }
+    .pokemon-detail { gap: var(--spacing-3); }
+
+    .detail-header {
+      padding: var(--spacing-2) var(--spacing-3);
+      flex-wrap: wrap;
+      gap: var(--spacing-2);
+    }
+
+    h1 { font-size: 16px; }
+
+    .genus { font-size: 10px; }
+
+    .content-grid {
+      grid-template-columns: minmax(0, 1fr);
+      gap: var(--spacing-3);
+    }
+
+    .sprite-cell,
+    .stats-cell,
+    .info-cell,
+    .data-cell {
+      min-width: 0;
+    }
+
+    .image-box {
+      min-height: 160px;
+      max-height: 220px;
+      padding: var(--spacing-2);
+      overflow: hidden;
+    }
+
+    /* Tighter box padding throughout */
+    .info-box {
+      padding: var(--spacing-3);
+    }
+
+    .info-box h3 {
+      font-size: 10px;
+      margin-bottom: var(--spacing-2);
+      padding-bottom: var(--spacing-1);
+    }
+
+    .data-list {
+      gap: var(--spacing-2);
+    }
+
+    .data-list li { font-size: 11px; }
+
+    .ability-list { gap: var(--spacing-2); }
+
+    .ability-link { font-size: 11px; }
   }
 
   .sprite-cell {
@@ -745,6 +818,7 @@
     padding: var(--spacing-6);
     flex: 1;
     min-height: 300px;
+    max-height: 355px;
     transition: background-color 0.15s ease;
   }
 
@@ -778,55 +852,6 @@
     border-color: var(--theme-text-accent);
     box-shadow: 2px 2px 0px var(--theme-text-accent);
     transform: translate(-1px, -1px);
-  }
-
-  /* ── Version Selector ────────────────────────────────────────────────────── */
-
-  .version-selector-container {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-4);
-    background-color: var(--theme-bg-secondary);
-    border: 3px solid var(--theme-border-primary);
-    padding: var(--spacing-3) var(--spacing-4);
-    box-shadow: 2px 2px 0px var(--theme-border-primary);
-  }
-
-  .version-selector-container label {
-    font-family: var(--font-display);
-    font-size: 10px;
-    color: var(--theme-text-primary);
-  }
-
-  .version-select {
-    flex: 1;
-    background-color: var(--theme-bg-primary);
-    color: var(--theme-text-primary);
-    border: 2px solid var(--theme-border-primary);
-    padding: var(--spacing-2);
-    font-family: var(--font-display);
-    font-size: 10px;
-  }
-
-  /* ── Flavor Text ─────────────────────────────────────────────────────────── */
-
-  .flavor-text-box {
-    background-color: var(--theme-bg-primary);
-    border: 3px solid var(--theme-border-primary);
-    padding: var(--spacing-4);
-    font-family: var(--font-mono);
-    font-size: 14px;
-    line-height: 1.5;
-    color: var(--theme-text-primary);
-    box-shadow: 2px 2px 0px var(--theme-border-primary);
-  }
-
-  .stats-box {
-    flex: 1;
-  }
-
-  .data-box {
-    flex: 1;
   }
 
   /* ── Data List ───────────────────────────────────────────────────────────── */
@@ -894,7 +919,6 @@
     background-color: var(--theme-bg-tertiary);
     color: var(--theme-text-inverse);
     padding: 2px 4px;
-    border-radius: 2px;
   }
 
   /* ── Stats ───────────────────────────────────────────────────────────────── */
@@ -1119,57 +1143,6 @@
 
   /* ── Learnset ────────────────────────────────────────────────────────────── */
 
-  .learnset-header {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    margin-bottom: var(--spacing-4);
-    border-bottom: 2px solid var(--theme-border-primary);
-    padding-bottom: var(--spacing-2);
-  }
-
-  .learnset-header h3 {
-    margin: 0;
-    border: none;
-    padding: 0;
-  }
-
-  .version-label {
-    font-family: var(--font-display);
-    font-size: 8px;
-    color: var(--theme-text-secondary);
-  }
-
-  .method-tabs {
-    display: flex;
-    gap: var(--spacing-1);
-    margin-bottom: var(--spacing-4);
-    border-bottom: 2px solid var(--theme-border-primary);
-    flex-wrap: wrap;
-  }
-
-  .method-tab {
-    font-family: var(--font-display);
-    font-size: 9px;
-    padding: var(--spacing-2) var(--spacing-4);
-    background: none;
-    border: none;
-    border-bottom: 3px solid transparent;
-    color: var(--theme-text-secondary);
-    cursor: pointer;
-    margin-bottom: -2px;
-    transition: all 0.05s ease;
-  }
-
-  .method-tab:hover {
-    color: var(--theme-text-primary);
-  }
-
-  .method-tab.active {
-    color: var(--theme-text-accent);
-    border-bottom-color: var(--theme-text-accent);
-  }
-
   .move-list {
     display: flex;
     flex-direction: column;
@@ -1179,5 +1152,67 @@
   .empty-text {
     font-family: var(--font-mono);
     color: var(--theme-text-secondary);
+  }
+
+  /* Dex navigation strip */
+  .dex-nav {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-4);
+    flex-wrap: wrap;
+    background-color: var(--theme-bg-secondary);
+    border: 3px solid var(--theme-border-primary);
+    box-shadow: 2px 2px 0px var(--theme-border-primary);
+    padding: var(--spacing-3) var(--spacing-4);
+  }
+
+  .dex-select {
+    background-color: var(--theme-bg-primary);
+    color: var(--theme-text-primary);
+    border: 2px solid var(--theme-border-primary);
+    padding: var(--spacing-2);
+    font-family: var(--font-display);
+    font-size: 10px;
+  }
+
+  .nav-center {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    flex: 1;
+    justify-content: center;
+  }
+
+  .nav-link {
+    font-family: var(--font-display);
+    font-size: 10px;
+    color: var(--theme-text-secondary);
+    text-decoration: none;
+    padding: 4px 8px;
+    background-color: var(--theme-bg-primary);
+    border: 2px solid var(--theme-border-primary);
+    box-shadow: 2px 2px 0px var(--theme-border-primary);
+    transition: all 0.05s ease;
+  }
+
+  .nav-link:hover {
+    color: var(--theme-text-accent);
+    border-color: var(--theme-text-accent);
+    box-shadow: 2px 2px 0px var(--theme-text-accent);
+    transform: translate(-1px, -1px);
+  }
+
+  .nav-entry {
+    font-family: var(--font-display);
+    font-size: 10px;
+    color: var(--theme-text-secondary);
+  }
+
+  .nav-disabled {
+    font-family: var(--font-display);
+    font-size: 10px;
+    color: var(--theme-text-secondary);
+    opacity: 0.3;
+    padding: 4px 8px;
   }
 </style>

@@ -82,7 +82,7 @@
     padding: var(--spacing-3) var(--spacing-4);
     background-color: var(--theme-bg-secondary);
     border: 2px solid var(--theme-border-primary);
-    box-shadow: 2px 2px 0px var(--theme-border-primary);
+    box-shadow: var(--shadow-card-subtle);
     font-family: var(--font-display);
     font-size: 10px;
     color: var(--theme-text-primary);
@@ -92,8 +92,8 @@
 
   .btn:not(:disabled):hover {
     background-color: var(--theme-bg-hover);
-    transform: translate(-1px, -1px);
-    box-shadow: 3px 3px 0px var(--theme-border-primary);
+    transform: translate(-2px, -2px);
+    box-shadow: var(--shadow-card-hover);
   }
 
   .btn:disabled {

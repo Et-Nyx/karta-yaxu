@@ -70,6 +70,17 @@
   /* ── Shadows (Gameboy-style) ──────────────────────────────────────────── */
   --shadow-card: 3px 3px 0px #000000;
   --shadow-card-hover: 4px 4px 0px #000000;
+  --shadow-card-subtle: 2px 2px 0px var(--theme-border-primary);
+
+  /* ── Effectiveness Label Colors ───────────────────────────────────────── */
+  --color-effective-positive: #3FA129;
+  --color-effective-negative: #D13B3B;
+  --color-effective-quad-weak: #c0392b;
+  --color-effective-quad-resist: #a04020;
+
+  /* ── Import Source Dot Colors ─────────────────────────────────────────── */
+  --color-import-edited: #f1fa8c;
+  --color-import-custom: #8be9fd;
 
   /* ── Breakpoints ──────────────────────────────────────────────────────── */
   --breakpoint-sm: 768px;
@@ -218,7 +229,7 @@ a {
 }
 
 a:hover {
-  color: #6dff94;
+  color: var(--theme-text-accent);
 }
 
 /* ── Editor: shared RE-SOURCE button ──────────────────────────────────── */

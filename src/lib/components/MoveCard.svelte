@@ -6,6 +6,7 @@
     name,
     slug,
     typeName,
+    typeHexColor = null,
     damageClass,
     power,
     accuracy,
@@ -15,6 +16,7 @@
     name: string;
     slug: string;
     typeName: string;
+    typeHexColor?: string | null;
     damageClass: 'physical' | 'special' | 'status';
     power: number | null;
     accuracy: number | null;
@@ -30,7 +32,7 @@
     {/if}
     <div class="move-name">{name.toUpperCase().replace(/-/g, ' ')}</div>
     <MoveCategoryIcon category={damageClass} size="md" />
-    <TypeBadge name={typeName} size="sm" />
+    <TypeBadge name={typeName} hexColor={typeHexColor} size="sm" />
   </div>
 
   <div class="move-stats">
@@ -83,7 +85,7 @@
 
   .move-stats {
     display: flex;
-    gap: var(--spacing-6);
+    gap: var(--spacing-5);
   }
 
   .stat {

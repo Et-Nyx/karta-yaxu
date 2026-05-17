@@ -218,6 +218,16 @@ export function mapMoveLearnMethod(data: PokeApiMoveLearnMethod, languageMap: Id
 
 // ── Core Data Mappers ──────────────────────────────────────────────────────
 
+const TYPE_COLORS: Record<string, string> = {
+  normal:   '#9FA19F', fire:     '#E62829', water:    '#2980EF',
+  electric: '#FAC000', grass:    '#3FA129', ice:      '#3DD8FF',
+  fighting: '#FF8000', poison:   '#9141CB', ground:   '#915121',
+  flying:   '#81B9EF', psychic:  '#EF4179', bug:      '#91A119',
+  rock:     '#AFA981', ghost:    '#704170', dragon:   '#5060E1',
+  dark:     '#4F3F3D', steel:    '#60A1B8', fairy:    '#EF70EF',
+  stellar:  '#83CFC5',
+};
+
 export function mapType(data: PokeApiType, generationDbId: number | null, languageMap: IdMap, langNameMap: Map<string, number>) {
   // Map damage relations to effectiveness entries
   const effectiveness: Array<{ defenderPokeapiId: number; multiplier: number }> = [];
@@ -237,6 +247,7 @@ export function mapType(data: PokeApiType, generationDbId: number | null, langua
       source: 'pokeapi' as const,
       name: data.name,
       slug: slugify(data.name),
+      hexColor: TYPE_COLORS[data.name] ?? null,
       iconUrl: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/types/generation-ix/scarlet-violet/small/${data.id}.png`,
       moveDamageClass: (data.move_damage_class?.name as 'physical' | 'special' | 'status') ?? null,
       generationId: generationDbId,

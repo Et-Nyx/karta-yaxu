@@ -2,11 +2,31 @@
   import TypeBadge from '$lib/components/TypeBadge.svelte';
   import MoveCategoryIcon from '$lib/components/MoveCategoryIcon.svelte';
   import PokemonCard from '$lib/components/PokemonCard.svelte';
-  
+  import SearchBar from '$lib/components/SearchBar.svelte';
+  import InfoBox from '$lib/components/InfoBox.svelte';
+  import FlavorTextBox from '$lib/components/FlavorTextBox.svelte';
+  import EffectText from '$lib/components/EffectText.svelte';
+  import Tabs from '$lib/components/Tabs.svelte';
+
   let { data } = $props();
-  
+
   const m = data.move;
-  
+
+  const versionTabs = data.flavorTexts.map(f => ({
+    key: String(f.versionGroupId),
+    label: f.versionGroupName.toUpperCase().replace(/-/g, ' '),
+  }));
+
+  let activeVersionGroupId = $state(
+    data.flavorTexts.length > 0
+      ? String(data.flavorTexts[data.flavorTexts.length - 1].versionGroupId)
+      : ''
+  );
+
+  let selectedFlavorText = $derived(
+    data.flavorTexts.find(f => String(f.versionGroupId) === activeVersionGroupId)?.flavorText ?? null
+  );
+
   let searchQuery = $state('');
 
   let filteredLearners = $derived(
@@ -28,7 +48,7 @@
       <h1>{m.name.toUpperCase()}</h1>
       <MoveCategoryIcon category={m.damageClass || 'physical'} size="lg" />
       {#if m.typeName}
-        <TypeBadge name={m.typeName} size="lg" />
+        <TypeBadge name={m.typeName} hexColor={m.typeHexColor} size="lg" />
       {/if}
     </div>
     
@@ -56,21 +76,35 @@
     </div>
   </header>
 
+  {#if data.shortEffect || data.flavorTexts.length > 0}
+    <div class="detail-grid">
+      {#if data.flavorTexts.length > 0}
+        <div class="left-col">
+          <Tabs tabs={versionTabs} bind:active={activeVersionGroupId}>
+            {#if selectedFlavorText}
+              <FlavorTextBox text={selectedFlavorText} />
+            {:else}
+              <p class="no-flavor">No entry available for this version.</p>
+            {/if}
+          </Tabs>
+        </div>
+      {/if}
+
+      {#if data.shortEffect}
+        <div class="right-col">
+          <InfoBox title="EFFECT">
+            <EffectText shortEffect={data.shortEffect} effect={data.effect} />
+          </InfoBox>
+        </div>
+      {/if}
+    </div>
+  {/if}
+
   <!-- Lista de Pokémon que aprendem -->
   <section class="learners-section">
     <div class="section-header">
       <h2>LEARNED BY</h2>
-      <div class="search-bar">
-        <input 
-          type="text" 
-          bind:value={searchQuery} 
-          placeholder="Filter Pokémon..." 
-          class="search-input"
-        />
-        <div class="results-count">
-          {filteredLearners.length} / {data.learners.length}
-        </div>
-      </div>
+      <SearchBar bind:value={searchQuery} placeholder="Filter Pokémon..." count={filteredLearners.length} total={data.learners.length} />
     </div>
     
     <div class="pokemon-grid">
@@ -106,7 +140,7 @@
     background-color: var(--theme-bg-secondary);
     border: 4px solid var(--theme-border-primary);
     padding: var(--spacing-6);
-    box-shadow: 4px 4px 0px rgba(0,0,0,0.1);
+    box-shadow: var(--shadow-card);
     display: flex;
     flex-direction: column;
     gap: var(--spacing-6);
@@ -161,9 +195,7 @@
 
   .section-header {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
+    flex-direction: column;
     gap: var(--spacing-4);
   }
 
@@ -171,34 +203,6 @@
     color: var(--theme-text-primary);
     margin: 0;
     font-size: 18px;
-  }
-
-  .search-bar {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-4);
-  }
-
-  .search-input {
-    width: 200px;
-    padding: var(--spacing-2) var(--spacing-3);
-    background-color: var(--theme-bg-secondary);
-    border: 3px solid var(--theme-border-primary);
-    box-shadow: 2px 2px 0px var(--theme-border-primary);
-    font-family: var(--font-mono);
-    font-size: 12px;
-    color: var(--theme-text-primary);
-  }
-
-  .search-input:focus {
-    outline: none;
-    border-color: var(--theme-text-accent);
-  }
-
-  .results-count {
-    font-family: var(--font-display);
-    font-size: 10px;
-    color: var(--theme-text-secondary);
   }
 
   .pokemon-grid {
@@ -212,5 +216,39 @@
     padding: var(--spacing-8);
     font-family: var(--font-mono);
     color: var(--theme-text-secondary);
+  }
+
+  .no-flavor {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--theme-text-muted);
+    margin: 0;
+  }
+
+  .detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-6);
+    align-items: start;
+  }
+
+  .left-col, .right-col {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-4);
+  }
+
+  @media (max-width: 768px) {
+    h1 { font-size: 18px; }
+
+    .detail-header {
+      padding: var(--spacing-4);
+      gap: var(--spacing-4);
+    }
+
+    .stat .value { font-size: 16px; }
+
+    .detail-grid { grid-template-columns: minmax(0, 1fr); }
+    .left-col, .right-col { min-width: 0; }
   }
 </style>

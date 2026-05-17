@@ -14,6 +14,7 @@ export const load: PageServerLoad = async () => {
     priority: schema.moves.priority,
     damageClass: schema.moves.damageClass,
     typeName: schema.types.name,
+    typeHexColor: schema.types.hexColor,
   })
   .from(schema.moves)
   .leftJoin(schema.types, eq(schema.moves.typeId, schema.types.id))

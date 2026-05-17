@@ -1,6 +1,7 @@
 <script lang="ts">
   import ImportButton from './ImportButton.svelte';
   import ImportForm from './ImportForm.svelte';
+  import Tabs from './Tabs.svelte';
 
   interface Region {
     id: number;
@@ -9,7 +10,14 @@
     slug: string;
   }
 
-  let { regions = [] as Region[] } = $props();
+  interface VersionGroup {
+    id: number;
+    pokeapiId: number;
+    name: string;
+    order: number | null;
+  }
+
+  let { regions = [] as Region[], versionGroups = [] as VersionGroup[], pokemonTotal = 0 } = $props();
 
   const TABS = [
     { key: 'gamedata',  label: 'Game Data' },
@@ -18,6 +26,7 @@
     { key: 'moves',     label: 'Moves' },
     { key: 'items',     label: 'Items' },
     { key: 'pokemon',   label: 'Pokémon' },
+    { key: 'pokedexes', label: 'Pokédexes' },
     { key: 'locations', label: 'Locations' },
   ] as const;
 
@@ -26,10 +35,9 @@
   let activeTab = $state<TabKey>('gamedata');
   let mode = $state<string>('all');
 
-  function switchTab(key: TabKey) {
-    activeTab = key;
-    mode = key === 'pokemon' ? 'id' : 'all';
-  }
+  $effect(() => {
+    mode = activeTab === 'pokemon' ? 'id' : 'all';
+  });
 
   const DESCS: Record<TabKey, string> = {
     gamedata:  'Core game metadata. Dependency order: Languages → Regions → Generations → Version Groups → Versions. "Import All" runs the full sequence safely.',
@@ -38,6 +46,7 @@
     moves:     'All moves — power, accuracy, effects, and learn data.',
     items:     'Held items, key items, TMs, and consumables. No region filter (PokeAPI does not map items to generations).',
     pokemon:   'Import Pokémon with full dependency resolution (types, abilities, moves, evolution chain). Run Regional Forms and Dex Order after.',
+    pokedexes: 'Regional and national Pokédexes with their entry lists. Import Pokémon first — entries for unimported species are silently skipped.',
     locations: 'Locations, areas, and wild Pokémon encounter tables. Pokémon must be imported first.',
   };
 
@@ -55,22 +64,7 @@
   }]);
 </script>
 
-<div class="panel">
-  <!-- Tab navigation -->
-  <div class="tab-nav">
-    {#each TABS as tab}
-      <button
-        class="tab-btn"
-        class:active={activeTab === tab.key}
-        onclick={() => switchTab(tab.key)}
-      >
-        {tab.label}
-      </button>
-    {/each}
-  </div>
-
-  <!-- Tab body -->
-  <div class="tab-body">
+<Tabs tabs={TABS} bind:active={activeTab}>
     <p class="desc">{DESCS[activeTab]}</p>
 
     <!-- ── Game Data ──────────────────────────────────────────────────────── -->
@@ -198,6 +192,37 @@
         <ImportButton action="?/computeDexOrder" label="Compute Dex Order" />
       </div>
 
+    <!-- ── Pokédexes ─────────────────────────────────────────────────────── -->
+    {:else if activeTab === 'pokedexes'}
+      <div class="mode-bar">
+        <button class="mode-btn" class:active={mode === 'all'}    onclick={() => mode = 'all'}>ALL</button>
+        <button class="mode-btn" class:active={mode === 'id'}     onclick={() => mode = 'id'}>ID</button>
+        <button class="mode-btn" class:active={mode === 'bygame'} onclick={() => mode = 'bygame'}>BY GAME</button>
+      </div>
+      {#if pokemonTotal === 0}
+        <p class="hint warn">⚠ No Pokémon imported yet — Pokédex entries will be empty. Import Pokémon first.</p>
+      {/if}
+      {#if mode === 'all'}
+        <ImportButton action="?/importPokedexes" label="Import All Pokédexes" />
+      {:else if mode === 'id'}
+        <ImportForm action="?/importSinglePokedex" fields={[{ name: 'pokeapiId', type: 'number', placeholder: '1', min: 1, label: 'ID:' }]} submitLabel="IMPORT" />
+      {:else}
+        {#if versionGroups.length === 0}
+          <p class="hint">No version groups in database — import Game Data first.</p>
+        {:else}
+          <ImportForm
+            action="?/importPokedexesByVersionGroup"
+            fields={[{
+              name: 'vgPokeapiId',
+              type: 'select',
+              label: 'GAME:',
+              options: versionGroups.map(vg => ({ value: vg.pokeapiId, label: vg.name.toUpperCase().replace(/-/g, ' ') })),
+            }]}
+            submitLabel="IMPORT BY GAME"
+          />
+        {/if}
+      {/if}
+
     <!-- ── Locations ─────────────────────────────────────────────────────── -->
     {:else if activeTab === 'locations'}
       <div class="mode-bar">
@@ -214,58 +239,9 @@
         {/if}
       {/if}
     {/if}
-  </div>
-</div>
+</Tabs>
 
 <style>
-  .panel {
-    background-color: var(--theme-bg-secondary);
-    border: 4px solid var(--theme-border-primary);
-    box-shadow: var(--shadow-card);
-  }
-
-  /* ── Tab navigation ── */
-
-  .tab-nav {
-    display: flex;
-    flex-wrap: wrap;
-    border-bottom: 3px solid var(--theme-border-primary);
-    background-color: var(--theme-bg-tertiary);
-  }
-
-  .tab-btn {
-    padding: var(--spacing-3) var(--spacing-4);
-    background: none;
-    border: none;
-    border-right: 2px solid var(--theme-border-primary);
-    font-family: var(--font-display);
-    font-size: 10px;
-    color: var(--theme-text-inverse);
-    cursor: pointer;
-    opacity: 0.6;
-    transition: opacity 0.1s ease;
-  }
-
-  .tab-btn:last-child { border-right: none; }
-  .tab-btn:hover { opacity: 0.85; }
-
-  .tab-btn.active {
-    opacity: 1;
-    background-color: var(--theme-bg-secondary);
-    color: var(--theme-text-primary);
-    border-bottom: 3px solid var(--theme-bg-secondary);
-    margin-bottom: -3px;
-  }
-
-  /* ── Tab body ── */
-
-  .tab-body {
-    padding: var(--spacing-5);
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-4);
-  }
-
   .desc {
     font-family: var(--font-mono);
     font-size: 12px;
@@ -328,6 +304,10 @@
     font-size: 12px;
     color: var(--theme-text-muted);
     margin: 0;
+  }
+
+  .hint.warn {
+    color: var(--color-text-warning);
   }
 
   /* ── Pokémon extras ── */

@@ -79,11 +79,11 @@
 
   .error-banner {
     background-color: var(--theme-bg-primary);
-    border: 2px solid #e53e3e;
+    border: 2px solid var(--color-text-error);
     padding: var(--spacing-3);
     font-family: var(--font-mono);
     font-size: 11px;
-    color: #e53e3e;
+    color: var(--color-text-error);
   }
 
   form {
@@ -124,7 +124,7 @@
   .field-error {
     font-family: var(--font-mono);
     font-size: 10px;
-    color: #e53e3e;
+    color: var(--color-text-error);
   }
 
   .submit-btn {
@@ -158,8 +158,6 @@
   .alt-link a {
     color: var(--theme-text-accent);
     text-decoration: none;
-    font-family: var(--font-display);
-    font-size: 10px;
   }
 
   .alt-link a:hover {

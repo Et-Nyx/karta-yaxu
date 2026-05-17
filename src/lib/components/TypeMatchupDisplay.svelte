@@ -1,7 +1,7 @@
 <script lang="ts">
   import TypeBadge from '$lib/components/TypeBadge.svelte';
 
-  interface MatchupEntry { name: string; multiplier: number; }
+  interface MatchupEntry { name: string; multiplier: number; hexColor: string | null; }
 
   let {
     offensive,
@@ -38,7 +38,7 @@
       <div class="matchup-row">
         <span class="label {group.cls}">{group.label}</span>
         <div class="badges">
-          {#each group.entries as e}<TypeBadge name={e.name} size="sm" />{/each}
+          {#each group.entries as e}<TypeBadge name={e.name} hexColor={e.hexColor} size="sm" />{/each}
           {#if group.entries.length === 0}<span class="none">None</span>{/if}
         </div>
       </div>
@@ -51,7 +51,7 @@
       <div class="matchup-row">
         <span class="label {group.cls}">{group.label}</span>
         <div class="badges">
-          {#each group.entries as e}<TypeBadge name={e.name} size="sm" />{/each}
+          {#each group.entries as e}<TypeBadge name={e.name} hexColor={e.hexColor} size="sm" />{/each}
           {#if group.entries.length === 0}<span class="none">None</span>{/if}
         </div>
       </div>
@@ -99,10 +99,10 @@
     font-size: 10px;
   }
 
-  .label.super      { color: #3FA129; }
-  .label.quad-weak  { color: #c0392b; }
-  .label.not-very   { color: #D13B3B; }
-  .label.quad-resist{ color: #a04020; }
+  .label.super       { color: var(--color-effective-positive); }
+  .label.quad-weak   { color: var(--color-effective-quad-weak); }
+  .label.not-very    { color: var(--color-effective-negative); }
+  .label.quad-resist { color: var(--color-effective-quad-resist); }
   .label.immune     { color: var(--theme-text-secondary); }
 
   .badges {

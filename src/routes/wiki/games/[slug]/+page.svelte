@@ -1,4 +1,7 @@
 <script lang="ts">
+  import InfoBox from '$lib/components/InfoBox.svelte';
+  import DataList from '$lib/components/DataList.svelte';
+
   let { data } = $props();
 
   let title = $derived(
@@ -10,6 +13,12 @@
   function formatGenName(name: string): string {
     return name.replace('generation-', 'GENERATION ').toUpperCase();
   }
+
+  let aboutItems = $derived([
+    { label: 'SLUG', value: data.versionGroup.slug },
+    ...(data.generation ? [{ label: 'GENERATION', value: formatGenName(data.generation.name) }] : []),
+    { label: 'VERSIONS', value: String(data.versions.length) },
+  ]);
 </script>
 
 <svelte:head>
@@ -17,50 +26,31 @@
 </svelte:head>
 
 <div class="games-detail">
-  <div class="detail-header">
-    <h2>{title}</h2>
+  <header class="detail-header">
+    <h1>{title}</h1>
     {#if data.generation}
-      <a href="/wiki/games" class="gen-badge">{formatGenName(data.generation.name)}</a>
+      <span class="gen-label">{formatGenName(data.generation.name)}</span>
     {/if}
-  </div>
+  </header>
 
-  <div class="detail-sections">
-    <section class="detail-section">
-      <h3 class="section-title">VERSIONS</h3>
-      {#if data.versions.length === 0}
-        <p class="empty">No versions found.</p>
-      {:else}
-        <div class="versions-grid">
-          {#each data.versions as v (v.id)}
-            <div class="version-card">
-              <span class="version-name">{v.name.toUpperCase().replace(/-/g, ' ')}</span>
-              <span class="version-slug">{v.slug}</span>
-            </div>
-          {/each}
-        </div>
-      {/if}
-    </section>
-
-    <section class="detail-section">
-      <h3 class="section-title">ABOUT</h3>
-      <div class="info-table">
-        <div class="info-row">
-          <span class="info-label">SLUG</span>
-          <span class="info-value">{data.versionGroup.slug}</span>
-        </div>
-        {#if data.generation}
-          <div class="info-row">
-            <span class="info-label">GENERATION</span>
-            <span class="info-value">{formatGenName(data.generation.name)}</span>
+  <InfoBox title="VERSIONS">
+    {#if data.versions.length === 0}
+      <p class="empty">No versions found.</p>
+    {:else}
+      <div class="versions-grid">
+        {#each data.versions as v (v.id)}
+          <div class="version-card">
+            <span class="version-name">{v.name.toUpperCase().replace(/-/g, ' ')}</span>
+            <span class="version-slug">{v.slug}</span>
           </div>
-        {/if}
-        <div class="info-row">
-          <span class="info-label">VERSIONS</span>
-          <span class="info-value">{data.versions.length}</span>
-        </div>
+        {/each}
       </div>
-    </section>
-  </div>
+    {/if}
+  </InfoBox>
+
+  <InfoBox title="ABOUT">
+    <DataList items={aboutItems} />
+  </InfoBox>
 </div>
 
 <style>
@@ -71,75 +61,51 @@
   }
 
   .detail-header {
+    background-color: var(--theme-bg-secondary);
+    border: 4px solid var(--theme-border-primary);
+    padding: var(--spacing-6);
+    box-shadow: var(--shadow-card);
     display: flex;
     flex-direction: column;
     gap: var(--spacing-2);
   }
 
-  .detail-header h2 {
+  h1 {
+    font-family: var(--font-display);
+    font-size: 24px;
     color: var(--theme-text-primary);
     margin: 0;
   }
 
-  .gen-badge {
-    display: inline-block;
-    font-family: var(--font-display);
-    font-size: 9px;
-    color: var(--theme-text-muted);
-    background-color: var(--theme-bg-secondary);
-    border: 2px solid var(--theme-border-primary);
-    padding: 2px 10px;
-    text-decoration: none;
-    width: fit-content;
-  }
-
-  .gen-badge:hover {
-    color: var(--theme-text-accent);
-    border-color: var(--theme-text-accent);
-  }
-
-  .detail-sections {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-6);
-  }
-
-  .detail-section {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-3);
-  }
-
-  .section-title {
-    font-family: var(--font-display);
-    font-size: 11px;
+  .gen-label {
+    font-family: var(--font-mono);
+    font-size: 12px;
     color: var(--theme-text-secondary);
-    margin: 0;
-    padding-bottom: var(--spacing-2);
-    border-bottom: 2px solid var(--theme-border-primary);
   }
 
   .versions-grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--spacing-3);
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: var(--spacing-4);
   }
 
   .version-card {
-    background-color: var(--theme-bg-secondary);
+    background-color: var(--theme-bg-primary);
     border: 3px solid var(--theme-border-primary);
-    box-shadow: var(--shadow-card);
+    box-shadow: 2px 2px 0px var(--theme-border-primary);
     padding: var(--spacing-4);
     display: flex;
     flex-direction: column;
     gap: var(--spacing-1);
-    min-width: 120px;
+    min-height: 120px;
+    justify-content: center;
   }
 
   .version-name {
     font-family: var(--font-display);
-    font-size: 11px;
+    font-size: 12px;
     color: var(--theme-text-primary);
+    line-height: 1.6;
   }
 
   .version-slug {
@@ -148,35 +114,16 @@
     color: var(--theme-text-muted);
   }
 
-  .info-table {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-2);
-  }
-
-  .info-row {
-    display: flex;
-    gap: var(--spacing-4);
-    padding: var(--spacing-2) 0;
-    border-bottom: 1px solid var(--theme-border-primary);
-  }
-
-  .info-label {
-    font-family: var(--font-display);
-    font-size: 9px;
-    color: var(--theme-text-muted);
-    min-width: 100px;
-  }
-
-  .info-value {
-    font-family: var(--font-mono);
-    font-size: 12px;
-    color: var(--theme-text-primary);
-  }
-
   .empty {
     font-family: var(--font-mono);
     color: var(--theme-text-secondary);
     font-size: 13px;
+    margin: 0;
+  }
+
+  @media (max-width: 768px) {
+    h1 { font-size: 18px; }
+    .detail-header { padding: var(--spacing-4); }
+    .versions-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
   }
 </style>

@@ -25,6 +25,7 @@
       bind:value={searchQuery}
       placeholder="Search by name or type... (/)"
       count={filteredMoves.length}
+      total={data.moves.length}
     />
   </div>
 
@@ -34,6 +35,7 @@
         name={m.name}
         slug={m.slug}
         typeName={m.typeName ?? 'normal'}
+        typeHexColor={m.typeHexColor}
         damageClass={m.damageClass ?? 'physical'}
         power={m.power}
         accuracy={m.accuracy}

@@ -173,7 +173,7 @@
 
   .section-title {
     font-family: var(--font-display);
-    font-size: 11px;
+    font-size: 10px;
     color: var(--theme-text-secondary);
     margin: 0;
     padding-bottom: var(--spacing-2);

@@ -51,8 +51,8 @@
           </span>
           <span class="col-name entry-name">{entry.name.toUpperCase()}</span>
           <span class="col-types">
-            {#each entry.types as type}
-              <TypeBadge name={type} size="sm" />
+            {#each entry.types as t}
+              <TypeBadge name={t.name} hexColor={t.hexColor} size="sm" />
             {/each}
           </span>
         </a>
@@ -119,7 +119,7 @@
     align-items: center;
     gap: var(--spacing-3);
     padding: var(--spacing-2) var(--spacing-4);
-    background-color: var(--theme-bg-secondary);
+    background-color: var(--theme-bg-tertiary);
     border-bottom: 2px solid var(--theme-border-primary);
     font-family: var(--font-display);
     font-size: 9px;

@@ -8,15 +8,20 @@
 
   let { children, data } = $props();
 
-  // Se estamos na rota /import ou /editor, forçamos o tema admin (verde gameboy)
   let isAdminRoute = $derived($page.url.pathname.startsWith('/import') || $page.url.pathname.startsWith('/editor'));
+  let isEditorRoute = $derived($page.url.pathname.startsWith('/editor'));
 
   let selectedTheme = $state('auto');
+  let mobileMenuOpen = $state(false);
 
-  // Atualiza o DOM e o localStorage quando o tema mudar
+  // Close mobile menu on navigation
+  $effect(() => {
+    $page.url.pathname;
+    mobileMenuOpen = false;
+  });
+
   function applyTheme(theme: string) {
     if (typeof document === 'undefined') return;
-    
     if (isAdminRoute) {
       document.documentElement.setAttribute('data-theme', 'admin');
     } else {
@@ -26,7 +31,6 @@
         document.documentElement.setAttribute('data-theme', theme);
       }
     }
-    
     if (theme !== 'auto') {
       localStorage.setItem('theme', theme);
     } else {
@@ -34,12 +38,10 @@
     }
   }
 
-  // Monitora mudanças manuais
   $effect(() => {
     applyTheme(selectedTheme);
   });
 
-  // Carrega a preferência inicial e abre SSE para import activity
   onMount(() => {
     const saved = localStorage.getItem('theme');
     if (saved) selectedTheme = saved;
@@ -51,16 +53,12 @@
     return () => es.close();
   });
 
-  // Gera breadcrumbs com links baseados na URL
   let breadcrumbs = $derived(() => {
     const paths = $page.url.pathname.split('/').filter(Boolean);
-    
     const crumbs: { label: string; href: string }[] = [{ label: 'HOME', href: '/' }];
     let currentPath = '';
-    
     for (const segment of paths) {
       currentPath += `/${segment}`;
-      // Beautify labels: replace hyphens with spaces, uppercase
       const label = segment.toUpperCase().replace(/-/g, ' ');
       crumbs.push({ label, href: currentPath });
     }
@@ -101,46 +99,82 @@
           <NavTab href="/trainer/login" variant="login">LOGIN</NavTab>
         {/if}
       </div>
+      <button class="hamburger" onclick={() => mobileMenuOpen = !mobileMenuOpen} aria-label="Menu">
+        {mobileMenuOpen ? '✕' : '☰'}
+      </button>
     </header>
 
     <!-- Main Layout: Sidebar + Content -->
     <div class="layout">
+      <!-- Mobile backdrop -->
+      {#if mobileMenuOpen}
+        <div class="backdrop" onclick={() => mobileMenuOpen = false} role="presentation"></div>
+      {/if}
+
       <!-- Sidebar -->
-      <aside class="sidebar">
+      <aside class="sidebar" class:open={mobileMenuOpen}>
+        <!-- Mobile-only: nav tabs + theme selector inside drawer -->
+        <div class="mobile-nav-tabs">
+          <select bind:value={selectedTheme} class="theme-select-mobile">
+            <option value="auto">Theme: Auto</option>
+            <option value="light">Theme: Light</option>
+            <option value="dark">Theme: Dark</option>
+            <option value="admin">Theme: Admin</option>
+          </select>
+          <a href="/wiki"    class="mobile-tab" class:active={$page.url.pathname.startsWith('/wiki')}>WIKI</a>
+          <a href="/editor"  class="mobile-tab" class:active={$page.url.pathname.startsWith('/editor')}>EDITOR</a>
+          <a href="/import"  class="mobile-tab" class:active={$page.url.pathname.startsWith('/import')}>IMPORT</a>
+          <a href="/battle"  class="mobile-tab" class:active={$page.url.pathname.startsWith('/battle')}>BATTLE</a>
+          {#if data.user}
+            <a href="/trainer/{data.user.username}" class="mobile-tab">{data.user.username.toUpperCase()}</a>
+            <form action="/trainer/logout" method="post">
+              <button type="submit" class="mobile-tab mobile-tab-btn">LOGOUT</button>
+            </form>
+          {:else}
+            <a href="/trainer/login" class="mobile-tab">LOGIN</a>
+          {/if}
+        </div>
+
         <nav class="side-nav">
+          {#if !isEditorRoute}
           <div class="nav-section">
             <h3>WIKI</h3>
-            <a href="/wiki/pokemon">Pokémon</a>
-            <a href="/wiki/moves">Moves</a>
-            <a href="/wiki/abilities">Abilities</a>
-            <a href="/wiki/types">Types</a>
-            <a href="/wiki/natures">Natures</a>
-            <a href="/wiki/items">Items</a>
-            <a href="/wiki/locations">Locations</a>
-            <a href="/wiki/games">Games</a>
-            <a href="/wiki/pokedex">Pokédex</a>
-            <a href="/trainer">Trainers</a>
+            <a href="/wiki"            class:active={$page.url.pathname === '/wiki'}>Home</a>
+            <a href="/wiki/pokemon"    class:active={$page.url.pathname.startsWith('/wiki/pokemon')}>Pokémon</a>
+            <a href="/wiki/moves"      class:active={$page.url.pathname.startsWith('/wiki/moves')}>Moves</a>
+            <a href="/wiki/abilities"  class:active={$page.url.pathname.startsWith('/wiki/abilities')}>Abilities</a>
+            <a href="/wiki/types"      class:active={$page.url.pathname.startsWith('/wiki/types')}>Types</a>
+            <a href="/wiki/natures"    class:active={$page.url.pathname.startsWith('/wiki/natures')}>Natures</a>
+            <a href="/wiki/items"      class:active={$page.url.pathname.startsWith('/wiki/items')}>Items</a>
+            <a href="/wiki/locations"  class:active={$page.url.pathname.startsWith('/wiki/locations')}>Locations</a>
+            <a href="/wiki/games"      class:active={$page.url.pathname.startsWith('/wiki/games')}>Games</a>
+            <a href="/wiki/pokedex"    class:active={$page.url.pathname.startsWith('/wiki/pokedex')}>Pokédex</a>
+            <a href="/trainer"         class:active={$page.url.pathname.startsWith('/trainer')}>Trainers</a>
           </div>
+          {/if}
 
           {#if data.user?.role === 'editor'}
-            <div class="nav-section">
-              <h3>ADMIN</h3>
-              <a href="/editor">Database Editor</a>
-              <a href="/import">PokeAPI Import</a>
-            </div>
+            {#if isEditorRoute}
+              <div class="nav-section">
+                <h3>EDITOR</h3>
+                <a href="/editor"           class:active={$page.url.pathname === '/editor'}>Dashboard</a>
+                <a href="/editor/types"     class:active={$page.url.pathname.startsWith('/editor/types')}>Types</a>
+                <a href="/editor/natures"   class:active={$page.url.pathname.startsWith('/editor/natures')}>Natures</a>
+                <a href="/editor/abilities" class:active={$page.url.pathname.startsWith('/editor/abilities')}>Abilities</a>
+                <a href="/editor/items"     class:active={$page.url.pathname.startsWith('/editor/items')}>Items</a>
+                <a href="/editor/pokedex"   class:active={$page.url.pathname.startsWith('/editor/pokedex')}>Pokédex</a>
+                <a href="/editor/moves"     class:active={$page.url.pathname.startsWith('/editor/moves')}>Moves</a>
+                <a href="/editor/pokemon"   class:active={$page.url.pathname.startsWith('/editor/pokemon')}>Pokémon</a>
+                <a href="/editor/species"   class:active={$page.url.pathname.startsWith('/editor/species')}>Species</a>
+
+                <a href="/import">PokeAPI Import</a>
+              </div>
+            {/if}
           {/if}
         </nav>
-        
+
         <ImportActivity />
 
-        <div class="version-select">
-          <label for="vg-select">VERSION</label>
-          <select id="vg-select">
-            <option>FireRed / LeafGreen</option>
-            <option>Ruby / Sapphire</option>
-            <option>Emerald</option>
-          </select>
-        </div>
       </aside>
 
       <!-- Content Area -->
@@ -169,11 +203,12 @@
 
 <style>
   .app-container {
-    min-height: 100vh;
+    height: 100vh;
+    overflow: hidden;
     background-color: #000;
     display: flex;
     justify-content: center;
-    padding: 2vw; /* Responsividade invés de pixels fixos */
+    padding: 2vw;
   }
 
   .gameboy-frame {
@@ -184,10 +219,12 @@
     box-shadow: inset 0 0 20px rgba(0,0,0,0.2), 6px 6px 0px rgba(255,255,255,0.1);
     display: flex;
     flex-direction: column;
-    min-height: 90vh;
+    height: 100%;
+    overflow: hidden;
   }
 
-  /* Header */
+  /* ── Header ─────────────────────────────────────────────────────────────── */
+
   .header {
     background-color: var(--theme-bg-tertiary);
     color: var(--theme-text-inverse);
@@ -216,8 +253,8 @@
   .nav-tabs {
     display: flex;
     gap: var(--spacing-3);
+    align-items: center;
   }
-
 
   .theme-select {
     background-color: var(--theme-bg-primary);
@@ -235,13 +272,39 @@
     border-color: var(--theme-text-accent);
   }
 
-  /* Layout */
+  .hamburger {
+    display: none;
+    background: none;
+    border: 2px solid var(--theme-text-inverse);
+    color: var(--theme-text-inverse);
+    font-size: 18px;
+    padding: 4px 10px;
+    cursor: pointer;
+    font-family: var(--font-display);
+    line-height: 1;
+  }
+
+  /* ── Layout ──────────────────────────────────────────────────────────────── */
+
   .layout {
     display: flex;
     flex: 1;
+    position: relative;
+    min-height: 0;
+    overflow: hidden;
   }
 
-  /* Sidebar */
+  /* ── Backdrop (mobile) ───────────────────────────────────────────────────── */
+
+  .backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 99;
+  }
+
+  /* ── Sidebar ─────────────────────────────────────────────────────────────── */
+
   .sidebar {
     width: 20%;
     min-width: 200px;
@@ -251,6 +314,11 @@
     display: flex;
     flex-direction: column;
     padding: var(--spacing-5) var(--spacing-4);
+    overflow-y: auto;
+  }
+
+  .mobile-nav-tabs {
+    display: none;
   }
 
   .nav-section {
@@ -279,34 +347,33 @@
     border-color: var(--theme-border-primary);
   }
 
-  .version-select {
-    margin-top: auto;
+  .nav-section a.active {
+    color: var(--theme-text-accent);
+    border-color: var(--theme-text-accent);
   }
 
-  .version-select label {
+  .nav-link-disabled {
     display: block;
     font-family: var(--font-display);
-    font-size: 10px;
-    margin-bottom: var(--spacing-2);
-  }
-
-  .version-select select {
-    width: 100%;
-    font-family: var(--font-mono);
     font-size: 12px;
     padding: var(--spacing-2);
-    background-color: var(--theme-bg-primary);
-    border: 2px solid var(--theme-border-primary);
-    color: var(--theme-text-primary);
+    margin-bottom: var(--spacing-1);
+    color: var(--theme-text-muted);
+    opacity: 0.45;
+    cursor: not-allowed;
   }
 
-  /* Content */
+
+  /* ── Content ─────────────────────────────────────────────────────────────── */
+
   .content-wrapper {
     flex: 1;
     display: flex;
     flex-direction: column;
     padding: var(--spacing-6);
     background-color: var(--theme-bg-primary);
+    min-width: 0;
+    overflow-y: auto;
   }
 
   .breadcrumbs {
@@ -361,27 +428,126 @@
     max-width: 1000px;
   }
 
-  /* Responsive */
+  /* ── Mobile ──────────────────────────────────────────────────────────────── */
+
   @media (max-width: 768px) {
+    .app-container {
+      padding: 0;
+      height: auto;
+      min-height: 100vh;
+      overflow-x: hidden;
+      overflow-y: visible;
+    }
+
+    .gameboy-frame {
+      height: auto;
+      min-height: 100vh;
+      overflow: visible;
+    }
+
+    .layout {
+      overflow: visible;
+    }
+
+    .content-wrapper {
+      overflow-y: visible;
+    }
+
+    .header {
+      height: 60px;
+      padding: 0 var(--spacing-4);
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 101;
+      box-sizing: border-box;
+    }
+
+    .layout {
+      padding-top: 60px;
+    }
+
+    .nav-tabs {
+      display: none;
+    }
+
+    .hamburger {
+      display: block;
+    }
+
+    /* Sidebar becomes a fixed slide-in drawer */
+    .sidebar {
+      position: fixed;
+      left: 0;
+      top: 60px;
+      height: calc(100vh - 60px);
+      width: 280px;
+      max-width: 85vw;
+      z-index: 100;
+      transform: translateX(-100%);
+      transition: transform 0.2s ease;
+      overflow-y: auto;
+      padding-top: var(--spacing-4);
+      border-right: 4px solid var(--theme-border-primary);
+    }
+
+    .sidebar.open {
+      transform: translateX(0);
+    }
+
+    /* Mobile nav tabs inside the drawer */
+    .mobile-nav-tabs {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-1);
+      padding-bottom: var(--spacing-4);
+      border-bottom: 2px solid var(--theme-border-primary);
+      margin-bottom: var(--spacing-4);
+    }
+
+    .theme-select-mobile {
+      background-color: var(--theme-bg-primary);
+      color: var(--theme-text-primary);
+      border: 2px solid var(--theme-border-primary);
+      font-family: var(--font-display);
+      font-size: 8px;
+      padding: 4px var(--spacing-2);
+      margin-bottom: var(--spacing-2);
+      width: 100%;
+      cursor: pointer;
+    }
+
+    .mobile-tab {
+      display: block;
+      font-family: var(--font-display);
+      font-size: 11px;
+      color: var(--theme-text-primary);
+      padding: var(--spacing-2) var(--spacing-3);
+      border: 2px solid transparent;
+      text-decoration: none;
+    }
+
+    .mobile-tab:hover,
+    .mobile-tab.active {
+      color: var(--theme-text-accent);
+      border-color: var(--theme-text-accent);
+    }
+
+    .mobile-tab-btn {
+      width: 100%;
+      text-align: left;
+      background: none;
+      cursor: pointer;
+    }
+
+    /* Content fills full width */
     .layout {
       flex-direction: column;
     }
-    .sidebar {
-      width: 100%;
-      max-width: none;
-      border-right: none;
-      border-bottom: 4px solid var(--theme-border-primary);
-    }
-    .header {
-      flex-direction: column;
-      gap: var(--spacing-4);
-    }
-    .nav-tabs {
-      flex-wrap: wrap;
-      justify-content: center;
-    }
-    .app-container {
-      padding: 0;
+
+    .content-wrapper {
+      padding: var(--spacing-4);
     }
   }
 </style>

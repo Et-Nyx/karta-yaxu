@@ -1,5 +1,5 @@
 import { db } from '$lib/db';
-import { eq, asc } from 'drizzle-orm';
+import { eq, asc, and } from 'drizzle-orm';
 import * as schema from '$lib/db/schema';
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
@@ -34,7 +34,7 @@ export const load: PageServerLoad = async ({ params }) => {
       })
       .from(schema.itemFlavorTexts)
       .innerJoin(schema.versionGroups, eq(schema.itemFlavorTexts.versionGroupId, schema.versionGroups.id))
-      .where(eq(schema.itemFlavorTexts.itemId, item.id))
+      .where(and(eq(schema.itemFlavorTexts.itemId, item.id), eq(schema.itemFlavorTexts.languageId, englishId)))
       .orderBy(asc(schema.versionGroups.order))
     : [];
 
@@ -45,7 +45,7 @@ export const load: PageServerLoad = async ({ params }) => {
         shortEffect: schema.itemEffects.shortEffect,
       })
       .from(schema.itemEffects)
-      .where(eq(schema.itemEffects.itemId, item.id))
+      .where(and(eq(schema.itemEffects.itemId, item.id), eq(schema.itemEffects.languageId, englishId)))
       .limit(1)
     : [];
 
