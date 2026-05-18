@@ -45,7 +45,7 @@ ENV DATABASE_URL=./data/rom.db
 
 EXPOSE 3000
 
-HEALTHCHECK --interval=30s --timeout=5s CMD curl -f http://localhost:3000/ || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s CMD curl -f http://127.0.0.1:3000/ || exit 1
 
 VOLUME ["/app/data"]
 
