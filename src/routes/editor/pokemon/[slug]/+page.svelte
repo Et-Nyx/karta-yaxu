@@ -13,8 +13,6 @@
 
   // Save states
   let saved = $state(false);
-  let typesSaved = $state(false);
-  let abilitiesSaved = $state(false);
 
   // --- Main update form state ---
   let nameVal = $state(data.pokemon.name);
@@ -51,14 +49,10 @@
   let slot1Type = $derived(data.allTypes.find(t => t.id === slot1TypeId));
   let slot2Type = $derived(data.allTypes.find(t => t.id === slot2TypeId));
 
-  // Current type IDs from DB (for selected state in type selects)
-  let currentSlot1Type = $derived(data.types.find(t => t.slot === 1)?.typeId ?? null);
-  let currentSlot2Type = $derived(data.types.find(t => t.slot === 2)?.typeId ?? null);
-
   // --- Abilities ---
-  let slot1Ability = $derived(data.abilities.find(a => a.slot === 1 && !a.isHidden)?.abilityId ?? null);
-  let slot2Ability = $derived(data.abilities.find(a => a.slot === 2 && !a.isHidden)?.abilityId ?? null);
-  let hiddenAbility = $derived(data.abilities.find(a => a.isHidden)?.abilityId ?? null);
+  let slot1AbilityVal = $state<number | null>(data.abilities.find(a => a.slot === 1 && !a.isHidden)?.abilityId ?? null);
+  let slot2AbilityVal = $state<number | null>(data.abilities.find(a => a.slot === 2 && !a.isHidden)?.abilityId ?? null);
+  let hiddenAbilityVal = $state<number | null>(data.abilities.find(a => a.isHidden)?.abilityId ?? null);
 
   // --- Species lookup for header display ---
   let currentSpecies = $derived(data.species.find(s => s.id === speciesIdVal));
@@ -100,28 +94,6 @@
       }
     };
   }
-  function handleTypesSave() {
-    typesSaved = false;
-    return async ({ result, update }: any) => {
-      if (result.type === 'success') {
-        typesSaved = true;
-        setTimeout(() => typesSaved = false, 2500);
-      } else {
-        await update({ reset: false });
-      }
-    };
-  }
-  function handleAbilitiesSave() {
-    abilitiesSaved = false;
-    return async ({ result, update }: any) => {
-      if (result.type === 'success') {
-        abilitiesSaved = true;
-        setTimeout(() => abilitiesSaved = false, 2500);
-      } else {
-        await update({ reset: false });
-      }
-    };
-  }
 </script>
 
 <svelte:head>
@@ -144,8 +116,13 @@
     <input type="hidden" name="spriteDefault" value={spriteDefaultVal} />
     <input type="hidden" name="spriteShiny"   value={spriteShinyVal} />
     <input type="hidden" name="spriteArtwork" value={spriteArtworkVal} />
-    <input type="hidden" name="order"         value={orderVal} />
-    <input type="hidden" name="isDefault"     value={isDefaultVal ? 'true' : ''} />
+    <input type="hidden" name="order"          value={orderVal} />
+    <input type="hidden" name="isDefault"      value={isDefaultVal ? 'true' : ''} />
+    <input type="hidden" name="slot1TypeId"    value={slot1TypeId    ?? ''} />
+    <input type="hidden" name="slot2TypeId"    value={slot2TypeId    ?? ''} />
+    <input type="hidden" name="slot1AbilityId" value={slot1AbilityVal ?? ''} />
+    <input type="hidden" name="slot2AbilityId" value={slot2AbilityVal ?? ''} />
+    <input type="hidden" name="hiddenAbilityId" value={hiddenAbilityVal ?? ''} />
 
     <!-- Wiki-style header card -->
     <header class="detail-header">
@@ -201,27 +178,29 @@
     <!-- Top-left: Sprite -->
     <div class="sprite-cell">
       <div class="image-box">
-        {#if currentSpriteUrl}
-          <img src={currentSpriteUrl} alt={nameVal} class:shiny-active={isShiny} />
-        {:else}
-          <div class="no-sprite">NO SPRITE</div>
-        {/if}
-        <button type="button" class="shiny-toggle" onclick={() => isShiny = !isShiny}>
-          {isShiny ? '◼ NORMAL' : '✦ SHINY'}
-        </button>
-      </div>
-      <div class="sprite-inputs">
-        <div class="sprite-field">
-          <label class="sprite-label">DEFAULT</label>
-          <input class="sprite-url-input" type="text" placeholder="URL…" bind:value={spriteDefaultVal} />
+        <div class="image-area">
+          {#if currentSpriteUrl}
+            <img src={currentSpriteUrl} alt={nameVal} class:shiny-active={isShiny} />
+          {:else}
+            <div class="no-sprite">NO SPRITE</div>
+          {/if}
+          <button type="button" class="shiny-toggle" onclick={() => isShiny = !isShiny}>
+            {isShiny ? '◼ NORMAL' : '✦ SHINY'}
+          </button>
         </div>
-        <div class="sprite-field">
-          <label class="sprite-label">SHINY</label>
-          <input class="sprite-url-input" type="text" placeholder="URL…" bind:value={spriteShinyVal} />
-        </div>
-        <div class="sprite-field">
-          <label class="sprite-label">ARTWORK</label>
-          <input class="sprite-url-input" type="text" placeholder="URL…" bind:value={spriteArtworkVal} />
+        <div class="sprite-inputs">
+          <div class="sprite-field">
+            <label class="sprite-label">DEFAULT</label>
+            <input class="sprite-url-input" type="text" placeholder="URL…" bind:value={spriteDefaultVal} />
+          </div>
+          <div class="sprite-field">
+            <label class="sprite-label">SHINY</label>
+            <input class="sprite-url-input" type="text" placeholder="URL…" bind:value={spriteShinyVal} />
+          </div>
+          <div class="sprite-field">
+            <label class="sprite-label">ARTWORK</label>
+            <input class="sprite-url-input" type="text" placeholder="URL…" bind:value={spriteArtworkVal} />
+          </div>
         </div>
       </div>
     </div>
@@ -255,11 +234,6 @@
             <span class="label">TOTAL:</span>
             <span class="value">{totalStats}</span>
           </div>
-          <div class="stat-save-row">
-            <button type="submit" form="main-form" class="save-btn-sm">SAVE</button>
-            {#if saved}<span class="save-ok-sm">✓ SAVED</span>{/if}
-            {#if form?.updateError}<span class="form-error-sm">{form.updateError}</span>{/if}
-          </div>
         </div>
       </InfoBox>
     </div>
@@ -267,68 +241,56 @@
     <!-- Bottom-left: Types + Abilities -->
     <div class="info-cell">
       <InfoBox title="TYPES">
-        <form action="?/updateTypes" method="post" use:enhance={handleTypesSave} class="sub-form-inline">
+        <div class="sub-form-inline">
           <div class="sub-field">
             <label class="sub-label">SLOT 1</label>
-            <select name="slot1TypeId" required
-              onchange={(e) => { slot1TypeId = Number((e.currentTarget as HTMLSelectElement).value); }}>
+            <select bind:value={slot1TypeId}>
               {#each data.allTypes as t}
-                <option value={t.id} selected={currentSlot1Type === t.id}>{t.name}</option>
+                <option value={t.id}>{t.name}</option>
               {/each}
             </select>
           </div>
           <div class="sub-field">
             <label class="sub-label">SLOT 2</label>
-            <select name="slot2TypeId"
-              onchange={(e) => { const v = (e.currentTarget as HTMLSelectElement).value; slot2TypeId = v ? Number(v) : null; }}>
-              <option value="">— none —</option>
+            <select bind:value={slot2TypeId}>
+              <option value={null}>— none —</option>
               {#each data.allTypes as t}
-                <option value={t.id} selected={currentSlot2Type === t.id}>{t.name}</option>
+                <option value={t.id}>{t.name}</option>
               {/each}
             </select>
           </div>
-          <div class="sub-actions">
-            <button type="submit" class="save-btn-sm">SAVE TYPES</button>
-            {#if typesSaved}<span class="save-ok-sm">✓</span>{/if}
-            {#if form?.typesError}<span class="form-error-sm">{form.typesError}</span>{/if}
-          </div>
-        </form>
+        </div>
       </InfoBox>
 
       <InfoBox title="ABILITIES">
-        <form action="?/updateAbilities" method="post" use:enhance={handleAbilitiesSave} class="sub-form-inline">
+        <div class="sub-form-inline">
           <div class="sub-field">
             <label class="sub-label">SLOT 1</label>
-            <select name="slot1AbilityId" required>
+            <select bind:value={slot1AbilityVal}>
               {#each data.allAbilities as a}
-                <option value={a.id} selected={slot1Ability === a.id}>{a.name}</option>
+                <option value={a.id}>{a.name}</option>
               {/each}
             </select>
           </div>
           <div class="sub-field">
             <label class="sub-label">SLOT 2</label>
-            <select name="slot2AbilityId">
-              <option value="">— none —</option>
+            <select bind:value={slot2AbilityVal}>
+              <option value={null}>— none —</option>
               {#each data.allAbilities as a}
-                <option value={a.id} selected={slot2Ability === a.id}>{a.name}</option>
+                <option value={a.id}>{a.name}</option>
               {/each}
             </select>
           </div>
           <div class="sub-field">
             <label class="sub-label">HIDDEN</label>
-            <select name="hiddenAbilityId">
-              <option value="">— none —</option>
+            <select bind:value={hiddenAbilityVal}>
+              <option value={null}>— none —</option>
               {#each data.allAbilities as a}
-                <option value={a.id} selected={hiddenAbility === a.id}>{a.name}</option>
+                <option value={a.id}>{a.name}</option>
               {/each}
             </select>
           </div>
-          <div class="sub-actions">
-            <button type="submit" class="save-btn-sm">SAVE ABILITIES</button>
-            {#if abilitiesSaved}<span class="save-ok-sm">✓</span>{/if}
-            {#if form?.abilitiesError}<span class="form-error-sm">{form.abilitiesError}</span>{/if}
-          </div>
-        </form>
+        </div>
       </InfoBox>
     </div>
 
@@ -367,7 +329,7 @@
           <li class="data-check-row">
             <label class="data-check-label">
               <input type="checkbox" bind:checked={isDefaultVal} />
-              IS DEFAULT FORM
+              SPECIES DEFAULT
             </label>
           </li>
         </ul>
@@ -380,85 +342,69 @@
   {:else if activePageTab === 'forms'}
   <!-- FORMS tab: forms editor + evolution editor -->
 
-  <!-- FORMS sub-section -->
+  <!-- ALT FORMS sub-section -->
   <section class="tab-section">
-    <h3 class="section-title">FORMS ({data.forms.length})</h3>
-    {#if data.forms.length === 0}
-      <div class="empty-state">
-        <p>No forms recorded for this Pokémon.</p>
-      </div>
-    {:else}
-      <div class="forms-list">
-        {#each data.forms as f (f.id)}
-          <form action="?/updateForm" method="post" use:enhance class="form-card">
-            <input type="hidden" name="formId" value={f.id}>
-            <div class="form-card-head">
-              <span class="form-name">
-                {f.formName ? `"${f.formName}"` : '— default —'}
-                {#if f.isDefault}<span class="default-flag">[DEFAULT]</span>{/if}
-              </span>
-              <span class="src-badge src-{f.source}">{f.source}</span>
+    <h3 class="section-title">ALT FORMS</h3>
+    <div class="evo-panel">
+      <h4 class="evo-panel-title">FORM BASE</h4>
+      {#if data.formBase}
+        <div class="evo-row">
+          <a href="/editor/pokemon/{data.formBase.slug}" class="evo-link">← {data.formBase.name}</a>
+          {#if data.pokemon.formType}
+            <span class="evo-conditions">{data.pokemon.formType}</span>
+          {/if}
+        </div>
+        <form action="?/clearFormBase" method="post" use:enhance class="inline-form">
+          <button type="submit" class="delete-btn-sm"
+            onclick={(e) => { if (!confirm('Remove form link?')) e.preventDefault(); }}>
+            CLEAR FORM BASE
+          </button>
+        </form>
+      {:else}
+        <p class="evo-empty">Not linked as an alt form of any Pokémon.</p>
+        <details class="add-toggle">
+          <summary>+ SET FORM BASE</summary>
+          <form action="?/setFormBase" method="post" use:enhance class="sub-form">
+            <div class="field full">
+              <label>BASE POKÉMON</label>
+              <select name="basePokemonId" required>
+                <option value="">— pick a base —</option>
+                {#each data.allPokemon as pk}
+                  <option value={pk.id}>{pk.name} ({pk.slug})</option>
+                {/each}
+              </select>
             </div>
-            <div class="form-grid">
-              <div class="field"><label>FORM NAME</label><input name="formName" type="text" value={f.formName ?? ''} placeholder="gmax / mega-x / …"></div>
-              <div class="field"><label>ORDER</label><input name="order" type="number" value={f.order ?? ''}></div>
-              <div class="field field-check"><label><input name="isDefault" type="checkbox" value="true" checked={f.isDefault}> DEFAULT</label></div>
-              <div class="field field-check"><label><input name="isBattleOnly" type="checkbox" value="true" checked={f.isBattleOnly}> BATTLE ONLY</label></div>
-              <div class="field field-check"><label><input name="isMega" type="checkbox" value="true" checked={f.isMega}> MEGA</label></div>
+            <div class="field">
+              <label>FORM TYPE</label>
+              <select name="formType">
+                {#each ['mega', 'gmax', 'regional', 'battle', 'other'] as t}
+                  <option value={t}>{t}</option>
+                {/each}
+              </select>
             </div>
-            {#if f.isDefault}
-              <input type="hidden" name="spriteDefault" value={f.spriteDefault ?? ''}>
-              <input type="hidden" name="spriteShiny"   value={f.spriteShiny   ?? ''}>
-              <input type="hidden" name="spriteArtwork" value={f.spriteArtwork ?? ''}>
-              <div class="form-sprites-managed">
-                Sprites are managed in the <span class="info-tab-ref">INFO</span> tab — synced automatically on save.
-              </div>
-            {:else}
-              <div class="form-sprites-box">
-                <span class="form-sprites-title">SPRITES</span>
-                <div class="sprite-inputs">
-                  <div class="sprite-field">
-                    <span class="sprite-label">DEFAULT</span>
-                    <input class="sprite-url-input" name="spriteDefault" type="text" value={f.spriteDefault ?? ''}>
-                  </div>
-                  <div class="sprite-field">
-                    <span class="sprite-label">SHINY</span>
-                    <input class="sprite-url-input" name="spriteShiny" type="text" value={f.spriteShiny ?? ''}>
-                  </div>
-                  <div class="sprite-field">
-                    <span class="sprite-label">ARTWORK</span>
-                    <input class="sprite-url-input" name="spriteArtwork" type="text" value={f.spriteArtwork ?? ''}>
-                  </div>
-                </div>
-              </div>
-            {/if}
-            <div class="form-card-actions">
-              <button type="submit" class="save-btn-sm">SAVE FORM</button>
-              {#if f.source === 'custom'}
-                <button type="submit" formaction="?/deleteForm" class="delete-btn-sm" onclick={(e) => { if (!confirm('Delete this form?')) e.preventDefault(); }}>DELETE</button>
-              {/if}
+            <div class="form-actions">
+              <button type="submit" class="save-btn-sm">SET FORM BASE</button>
             </div>
           </form>
-        {/each}
-      </div>
-    {/if}
-    <details class="add-toggle">
-      <summary>+ NEW FORM</summary>
-      <form action="?/addForm" method="post" use:enhance class="form-card add-form">
-        <div class="form-grid">
-          <div class="field"><label>FORM NAME</label><input name="formName" type="text" placeholder="gmax / mega / …"></div>
-          <div class="field"><label>ORDER</label><input name="order" type="number"></div>
-          <div class="field field-check"><label><input name="isDefault" type="checkbox" value="true"> DEFAULT</label></div>
-          <div class="field field-check"><label><input name="isBattleOnly" type="checkbox" value="true"> BATTLE ONLY</label></div>
-          <div class="field field-check"><label><input name="isMega" type="checkbox" value="true"> MEGA</label></div>
-          <div class="field full"><label>SPRITE DEFAULT</label><input name="spriteDefault" type="text"></div>
-          <div class="field full"><label>SPRITE SHINY</label><input name="spriteShiny" type="text"></div>
-          <div class="field full"><label>SPRITE ARTWORK</label><input name="spriteArtwork" type="text"></div>
+        </details>
+      {/if}
+    </div>
+    <div class="evo-panel">
+      <h4 class="evo-panel-title">ALT FORMS ({data.altForms.length})</h4>
+      {#if data.altForms.length === 0}
+        <p class="evo-empty">No alt forms. To add one, edit the alt Pokémon and set this as its form base.</p>
+      {:else}
+        <div class="evo-successors">
+          {#each data.altForms as f (f.id)}
+            <a href="/editor/pokemon/{f.slug}" class="evo-link card-interactive">
+              → {f.name}
+              {#if f.formType}<span class="evo-conditions">{f.formType}</span>{/if}
+            </a>
+          {/each}
         </div>
-        <div class="form-card-actions"><button type="submit" class="save-btn-sm">CREATE FORM</button></div>
-      </form>
-    </details>
-    {#if form?.formError}<p class="form-error">{form.formError}</p>{/if}
+      {/if}
+    </div>
+    {#if form?.evoError}<p class="form-error">{form.evoError}</p>{/if}
   </section>
 
   <!-- EVOLUTION sub-section -->
@@ -722,20 +668,26 @@
   .content-grid {
     display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-6);
   }
-  .sprite-cell { display: flex; flex-direction: column; gap: var(--spacing-4); }
+  .sprite-cell { display: flex; flex-direction: column; }
   .stats-cell { display: flex; flex-direction: column; }
   .info-cell { display: flex; flex-direction: column; gap: var(--spacing-4); }
   .data-cell { display: flex; flex-direction: column; }
 
-  /* Image box */
+  /* Image box — column layout: image area on top, sprite inputs on bottom */
   .image-box {
-    position: relative; background-color: var(--theme-bg-secondary);
+    background-color: var(--theme-bg-secondary);
     border: 4px solid var(--theme-border-primary); box-shadow: var(--shadow-card);
+    display: flex; flex-direction: column;
+    transition: background-color 0.15s ease;
+    flex: 1;
+  }
+  .image-area {
+    position: relative;
     display: flex; justify-content: center; align-items: center;
     padding: var(--spacing-6); flex: 1; min-height: 240px;
     transition: background-color 0.15s ease;
   }
-  .image-box:has(.shiny-active) { background-color: color-mix(in srgb, var(--theme-bg-secondary) 85%, #b39ddb 15%); }
+  .image-box:has(.shiny-active) .image-area { background-color: color-mix(in srgb, var(--theme-bg-secondary) 85%, #b39ddb 15%); }
   .image-box img { max-width: 100%; max-height: 240px; object-fit: contain; }
   .no-sprite { font-family: var(--font-display); font-size: 11px; color: var(--theme-text-muted); }
   .shiny-toggle {
@@ -747,12 +699,17 @@
   }
   .shiny-toggle:hover { color: var(--theme-text-accent); border-color: var(--theme-text-accent); transform: translate(-1px, -1px); }
 
-  /* Sprite URL inputs */
-  .sprite-inputs { display: flex; flex-direction: column; gap: var(--spacing-2); }
+  /* Sprite URL inputs — docked inside image-box */
+  .sprite-inputs {
+    display: flex; flex-direction: column; gap: var(--spacing-2);
+    padding: var(--spacing-3);
+    border-top: 2px solid var(--theme-border-primary);
+    background-color: var(--theme-bg-primary);
+  }
   .sprite-field { display: flex; align-items: center; gap: var(--spacing-2); }
   .sprite-label { font-family: var(--font-display); font-size: 8px; color: var(--theme-text-muted); width: 60px; flex-shrink: 0; }
   .sprite-url-input {
-    flex: 1; background-color: var(--theme-bg-primary); border: 2px solid var(--theme-border-primary);
+    flex: 1; background-color: var(--theme-bg-secondary); border: 2px solid var(--theme-border-primary);
     color: var(--theme-text-secondary); font-family: var(--font-mono); font-size: 10px;
     padding: 2px var(--spacing-2);
   }
@@ -849,6 +806,7 @@
   .form-card-head { display: flex; justify-content: space-between; align-items: center; }
   .form-name { font-family: var(--font-mono); font-size: 12px; color: var(--theme-text-primary); }
   .default-flag { font-family: var(--font-display); font-size: 9px; color: var(--theme-text-accent); margin-left: var(--spacing-2); }
+  .default-badge { font-family: var(--font-display); font-size: 9px; color: var(--theme-text-accent); letter-spacing: 0.05em; }
   .form-card-actions { display: flex; gap: var(--spacing-3); align-items: center; }
   .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: var(--spacing-3); }
   .field { display: flex; flex-direction: column; gap: var(--spacing-1); }

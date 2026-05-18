@@ -86,6 +86,8 @@ export const pokemon = sqliteTable('pokemon', {
   isDefault: integer('is_default', { mode: 'boolean' }).notNull().default(true),
   order: integer('order'),
   evolvesFromPokemonId: integer('evolves_from_pokemon_id'), // self-FK to pokemon.id (no Drizzle constraint to avoid circular refs)
+  formOfPokemonId: integer('form_of_pokemon_id'),           // self-FK: set on alt forms (mega, gmax, regional) pointing to the base entry
+  formType: text('form_type'),                              // 'mega' | 'gmax' | 'regional' | 'battle' | 'other'
 });
 
 // Linked-list evolution: one row per pokemon-with-predecessor. The pokemon's evolves_from_pokemon_id

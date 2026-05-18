@@ -35,28 +35,13 @@ const UpdateSchema = z.object({
   spriteDefault: z.preprocess((v) => v === '' ? null : v, z.string().nullable()),
   spriteShiny:   z.preprocess((v) => v === '' ? null : v, z.string().nullable()),
   spriteArtwork: z.preprocess((v) => v === '' ? null : v, z.string().nullable()),
-  isDefault:     z.preprocess((v) => v === 'true' || v === 'on' || v === true, z.boolean()),
-  order:         intOrNull,
-});
-
-const TypesSchema = z.object({
-  slot1TypeId: z.coerce.number().int().positive(),
-  slot2TypeId: z.preprocess(
-    (v) => (v === '' || v === null || v === undefined ? null : Number(v)),
-    z.number().int().positive().nullable(),
-  ),
-});
-
-const AbilitiesSchema = z.object({
-  slot1AbilityId:  z.coerce.number().int().positive(),
-  slot2AbilityId:  z.preprocess(
-    (v) => (v === '' || v === null || v === undefined ? null : Number(v)),
-    z.number().int().positive().nullable(),
-  ),
-  hiddenAbilityId: z.preprocess(
-    (v) => (v === '' || v === null || v === undefined ? null : Number(v)),
-    z.number().int().positive().nullable(),
-  ),
+  isDefault:      z.preprocess((v) => v === 'true' || v === 'on' || v === true, z.boolean()),
+  order:          intOrNull,
+  slot1TypeId:    z.coerce.number().int().positive(),
+  slot2TypeId:    z.preprocess((v) => (v === '' || v == null ? null : Number(v)), z.number().int().positive().nullable()),
+  slot1AbilityId: z.coerce.number().int().positive(),
+  slot2AbilityId: z.preprocess((v) => (v === '' || v == null ? null : Number(v)), z.number().int().positive().nullable()),
+  hiddenAbilityId: z.preprocess((v) => (v === '' || v == null ? null : Number(v)), z.number().int().positive().nullable()),
 });
 
 const boolField = z.preprocess(
@@ -68,17 +53,6 @@ const textOrNull = z.preprocess(
   (v) => (v === '' || v === null || v === undefined ? null : String(v)),
   z.string().nullable(),
 );
-
-const FormSchema = z.object({
-  formName:      textOrNull,
-  isDefault:     boolField,
-  isBattleOnly:  boolField,
-  isMega:        boolField,
-  order:         intOrNull,
-  spriteDefault: textOrNull,
-  spriteShiny:   textOrNull,
-  spriteArtwork: textOrNull,
-});
 
 const EVO_TRIGGERS = ['level-up', 'use-item', 'use-move', 'trade', 'three-critical-hits', 'shed', 'spin', 'tower-of-darkness', 'tower-of-waters', 'agile-style-move', 'strong-style-move'] as const;
 
@@ -164,9 +138,23 @@ export const load: PageServerLoad = async ({ params, url }) => {
     slug: abilities.slug,
   }).from(abilities).orderBy(asc(abilities.name));
 
-  const formRows = await db.select().from(pokemonForms)
-    .where(eq(pokemonForms.pokemonId, row.id))
-    .orderBy(asc(pokemonForms.order), asc(pokemonForms.id));
+  // Alt form data: base (if this is an alt form) + alt forms (pokemon that point here)
+  let formBase: { id: number; slug: string; name: string } | null = null;
+  if (row.formOfPokemonId) {
+    const [base] = await db.select({ id: pokemon.id, slug: pokemon.slug, name: pokemon.name })
+      .from(pokemon).where(eq(pokemon.id, row.formOfPokemonId)).limit(1);
+    if (base) formBase = base;
+  }
+  const altForms = await db.select({
+    id:       pokemon.id,
+    slug:     pokemon.slug,
+    name:     pokemon.name,
+    formType: pokemon.formType,
+    source:   pokemon.source,
+  })
+    .from(pokemon)
+    .where(eq(pokemon.formOfPokemonId, row.id))
+    .orderBy(asc(pokemon.name));
 
   // Evolution data: predecessor + its conditions, and list of successors
   let predecessor: { id: number; slug: string; name: string } | null = null;
@@ -261,7 +249,8 @@ export const load: PageServerLoad = async ({ params, url }) => {
     pokemon:    row,
     types:      typeRows,
     abilities:  abilityRows,
-    forms:      formRows,
+    formBase,
+    altForms,
     species:    speciesList,
     allTypes:   typeList,
     allAbilities: abilityList,
@@ -322,6 +311,33 @@ export const actions: Actions = {
       .set({ spriteDefault: newRow.spriteDefault, spriteShiny: newRow.spriteShiny, spriteArtwork: newRow.spriteArtwork })
       .where(and(eq(pokemonForms.pokemonId, current.id), eq(pokemonForms.isDefault, true)));
 
+    // If there's only one form and it somehow lost its isDefault flag, restore it
+    if (data.isDefault) {
+      const forms = await db.select({ id: pokemonForms.id, isDefault: pokemonForms.isDefault })
+        .from(pokemonForms).where(eq(pokemonForms.pokemonId, current.id));
+      const hasDefault = forms.some(f => f.isDefault);
+      if (!hasDefault && forms.length === 1) {
+        await db.update(pokemonForms).set({ isDefault: true }).where(eq(pokemonForms.id, forms[0].id));
+      }
+    }
+
+    // Update types
+    await db.delete(pokemonTypes).where(eq(pokemonTypes.pokemonId, current.id));
+    await db.insert(pokemonTypes).values({ pokemonId: current.id, typeId: data.slot1TypeId, slot: 1 });
+    if (data.slot2TypeId) {
+      await db.insert(pokemonTypes).values({ pokemonId: current.id, typeId: data.slot2TypeId, slot: 2 });
+    }
+
+    // Update abilities
+    await db.delete(pokemonAbilities).where(eq(pokemonAbilities.pokemonId, current.id));
+    await db.insert(pokemonAbilities).values({ pokemonId: current.id, abilityId: data.slot1AbilityId, slot: 1, isHidden: false });
+    if (data.slot2AbilityId && data.slot2AbilityId !== data.slot1AbilityId) {
+      await db.insert(pokemonAbilities).values({ pokemonId: current.id, abilityId: data.slot2AbilityId, slot: 2, isHidden: false });
+    }
+    if (data.hiddenAbilityId && data.hiddenAbilityId !== data.slot1AbilityId && data.hiddenAbilityId !== data.slot2AbilityId) {
+      await db.insert(pokemonAbilities).values({ pokemonId: current.id, abilityId: data.hiddenAbilityId, slot: 3, isHidden: true });
+    }
+
     if (locals.user) {
       await recordEdit(locals.user.id, 'pokemon', current.id, current, { ...current, ...newRow });
     }
@@ -330,216 +346,34 @@ export const actions: Actions = {
     return { saved: true };
   },
 
-  updateTypes: async ({ request, params, locals }) => {
+  setFormBase: async ({ request, params, locals }) => {
     const form = Object.fromEntries(await request.formData());
-    const parsed = TypesSchema.safeParse(form);
-    if (!parsed.success) {
-      return fail(400, { typesError: parsed.error.issues[0]?.message ?? 'Inválido' });
+    const basePokemonId = Number(form.basePokemonId);
+    const formType = String(form.formType || 'other');
+    if (!Number.isInteger(basePokemonId) || basePokemonId <= 0) {
+      return fail(400, { evoError: 'basePokemonId inválido' });
     }
-    const data = parsed.data;
-
     const [current] = await db.select({ id: pokemon.id, source: pokemon.source })
       .from(pokemon).where(eq(pokemon.slug, params.slug)).limit(1);
     if (!current) throw error(404, 'Pokémon not found');
-
-    const previous = await db.select().from(pokemonTypes)
-      .where(eq(pokemonTypes.pokemonId, current.id));
-
-    await db.delete(pokemonTypes).where(eq(pokemonTypes.pokemonId, current.id));
-    await db.insert(pokemonTypes).values({
-      pokemonId: current.id,
-      typeId:    data.slot1TypeId,
-      slot:      1,
-    });
-    if (data.slot2TypeId) {
-      await db.insert(pokemonTypes).values({
-        pokemonId: current.id,
-        typeId:    data.slot2TypeId,
-        slot:      2,
-      });
-    }
-
+    if (basePokemonId === current.id) return fail(400, { evoError: 'Cannot be a form of itself' });
+    const [base] = await db.select({ id: pokemon.id }).from(pokemon)
+      .where(eq(pokemon.id, basePokemonId)).limit(1);
+    if (!base) return fail(400, { evoError: 'Base Pokémon not found' });
     await db.update(pokemon)
-      .set({ source: bumpSource(current.source) })
+      .set({ formOfPokemonId: basePokemonId, formType, source: bumpSource(current.source) })
       .where(eq(pokemon.id, current.id));
-
-    if (locals.user) {
-      const next = [
-        { pokemonId: current.id, typeId: data.slot1TypeId, slot: 1 },
-        ...(data.slot2TypeId ? [{ pokemonId: current.id, typeId: data.slot2TypeId, slot: 2 }] : []),
-      ];
-      await recordEdit(locals.user.id, 'pokemon_types', current.id, previous, next);
-    }
-
-    return { typesSaved: true };
+    return { evoSaved: true };
   },
 
-  updateAbilities: async ({ request, params, locals }) => {
-    const form = Object.fromEntries(await request.formData());
-    const parsed = AbilitiesSchema.safeParse(form);
-    if (!parsed.success) {
-      return fail(400, { abilitiesError: parsed.error.issues[0]?.message ?? 'Inválido' });
-    }
-    const data = parsed.data;
-
+  clearFormBase: async ({ params, locals }) => {
     const [current] = await db.select({ id: pokemon.id, source: pokemon.source })
       .from(pokemon).where(eq(pokemon.slug, params.slug)).limit(1);
     if (!current) throw error(404, 'Pokémon not found');
-
-    const previous = await db.select().from(pokemonAbilities)
-      .where(eq(pokemonAbilities.pokemonId, current.id));
-
-    await db.delete(pokemonAbilities).where(eq(pokemonAbilities.pokemonId, current.id));
-    await db.insert(pokemonAbilities).values({
-      pokemonId: current.id,
-      abilityId: data.slot1AbilityId,
-      slot:      1,
-      isHidden:  false,
-    });
-    if (data.slot2AbilityId && data.slot2AbilityId !== data.slot1AbilityId) {
-      await db.insert(pokemonAbilities).values({
-        pokemonId: current.id,
-        abilityId: data.slot2AbilityId,
-        slot:      2,
-        isHidden:  false,
-      });
-    }
-    if (data.hiddenAbilityId
-        && data.hiddenAbilityId !== data.slot1AbilityId
-        && data.hiddenAbilityId !== data.slot2AbilityId) {
-      await db.insert(pokemonAbilities).values({
-        pokemonId: current.id,
-        abilityId: data.hiddenAbilityId,
-        slot:      3,
-        isHidden:  true,
-      });
-    }
-
     await db.update(pokemon)
-      .set({ source: bumpSource(current.source) })
+      .set({ formOfPokemonId: null, formType: null, source: bumpSource(current.source) })
       .where(eq(pokemon.id, current.id));
-
-    if (locals.user) {
-      const next: any[] = [
-        { pokemonId: current.id, abilityId: data.slot1AbilityId, slot: 1, isHidden: false },
-      ];
-      if (data.slot2AbilityId && data.slot2AbilityId !== data.slot1AbilityId) {
-        next.push({ pokemonId: current.id, abilityId: data.slot2AbilityId, slot: 2, isHidden: false });
-      }
-      if (data.hiddenAbilityId
-          && data.hiddenAbilityId !== data.slot1AbilityId
-          && data.hiddenAbilityId !== data.slot2AbilityId) {
-        next.push({ pokemonId: current.id, abilityId: data.hiddenAbilityId, slot: 3, isHidden: true });
-      }
-      await recordEdit(locals.user.id, 'pokemon_abilities', current.id, previous, next);
-    }
-
-    return { abilitiesSaved: true };
-  },
-
-  addForm: async ({ request, params, locals }) => {
-    const form = Object.fromEntries(await request.formData());
-    const parsed = FormSchema.safeParse(form);
-    if (!parsed.success) {
-      return fail(400, { formError: parsed.error.issues[0]?.message ?? 'Inválido' });
-    }
-    const data = parsed.data;
-
-    const [current] = await db.select({ id: pokemon.id, speciesId: pokemon.speciesId })
-      .from(pokemon).where(eq(pokemon.slug, params.slug)).limit(1);
-    if (!current) throw error(404, 'Pokémon not found');
-
-    const [inserted] = await db.insert(pokemonForms).values({
-      pokemonId:     current.id,
-      speciesId:     current.speciesId,
-      formName:      data.formName,
-      isDefault:     data.isDefault,
-      isBattleOnly:  data.isBattleOnly,
-      isMega:        data.isMega,
-      order:         data.order,
-      spriteDefault: data.spriteDefault,
-      spriteShiny:   data.spriteShiny,
-      spriteArtwork: data.spriteArtwork,
-      source:        'custom',
-      pokeapiId:     null,
-    }).returning({ id: pokemonForms.id });
-
-    if (locals.user) {
-      await recordEdit(locals.user.id, 'pokemon_forms', inserted.id, null, data);
-    }
-
-    return { formSaved: true };
-  },
-
-  updateForm: async ({ request, locals }) => {
-    const form = Object.fromEntries(await request.formData());
-    const formId = Number(form.formId);
-    if (!Number.isInteger(formId) || formId <= 0) {
-      return fail(400, { formError: 'formId inválido' });
-    }
-
-    const parsed = FormSchema.safeParse(form);
-    if (!parsed.success) {
-      return fail(400, { formError: parsed.error.issues[0]?.message ?? 'Inválido' });
-    }
-    const data = parsed.data;
-
-    const [current] = await db.select().from(pokemonForms).where(eq(pokemonForms.id, formId)).limit(1);
-    if (!current) return fail(404, { formError: 'Form não encontrado' });
-
-    const newRow = {
-      formName:      data.formName,
-      isDefault:     data.isDefault,
-      isBattleOnly:  data.isBattleOnly,
-      isMega:        data.isMega,
-      order:         data.order,
-      spriteDefault: data.spriteDefault,
-      spriteShiny:   data.spriteShiny,
-      spriteArtwork: data.spriteArtwork,
-      source:        bumpSource(current.source),
-    };
-
-    await db.update(pokemonForms).set(newRow).where(eq(pokemonForms.id, formId));
-
-    if (locals.user) {
-      await recordEdit(locals.user.id, 'pokemon_forms', formId, current, { ...current, ...newRow });
-    }
-
-    return { formSaved: true };
-  },
-
-  deleteForm: async ({ request, locals }) => {
-    const form = Object.fromEntries(await request.formData());
-    const formId = Number(form.formId);
-    if (!Number.isInteger(formId) || formId <= 0) {
-      return fail(400, { formError: 'formId inválido' });
-    }
-
-    const [current] = await db.select().from(pokemonForms).where(eq(pokemonForms.id, formId)).limit(1);
-    if (!current) return fail(404, { formError: 'Form não encontrado' });
-    if (current.source !== 'custom') {
-      return fail(400, { formError: 'Apenas forms custom podem ser deletados' });
-    }
-
-    // Refuse if deleting would leave the pokemon without a default form
-    if (current.isDefault) {
-      const remaining = await db.select({ id: pokemonForms.id, isDefault: pokemonForms.isDefault })
-        .from(pokemonForms)
-        .where(eq(pokemonForms.pokemonId, current.pokemonId));
-      const hasOtherDefault = remaining.some(r => r.id !== formId && r.isDefault);
-      const wouldBeEmpty = remaining.length <= 1;
-      if (!hasOtherDefault && !wouldBeEmpty) {
-        return fail(400, { formError: 'Não é possível deletar o único form default — marque outro como default antes' });
-      }
-    }
-
-    await db.delete(pokemonForms).where(eq(pokemonForms.id, formId));
-
-    if (locals.user) {
-      await recordEdit(locals.user.id, 'pokemon_forms', formId, current, null);
-    }
-
-    return { formSaved: true };
+    return { evoSaved: true };
   },
 
   setPredecessor: async ({ request, params, locals }) => {
