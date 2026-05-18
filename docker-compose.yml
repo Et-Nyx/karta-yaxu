@@ -13,6 +13,11 @@ services:
       - HOST=0.0.0.0
       - NODE_ENV=production
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
 volumes:
   karta-data:
