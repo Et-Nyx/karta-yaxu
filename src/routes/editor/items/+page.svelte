@@ -1,6 +1,7 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
   import SearchBar from '$lib/components/SearchBar.svelte';
+  import ItemCard from '$lib/components/ItemCard.svelte';
 
   let { data, form } = $props();
 
@@ -21,15 +22,16 @@
 </svelte:head>
 
 <div class="entity-page">
-  <header class="page-header">
-    <div>
-      <h2>ITEMS</h2>
-      <span class="count">{data.total} total · {filtered.length} shown</span>
-    </div>
+  <div class="page-header">
+    <h2>ITEMS</h2>
+    <SearchBar bind:value={query} placeholder="Search items..." count={filtered.length} total={data.total} />
+  </div>
+
+  <div class="header-actions">
     <button type="button" class="new-btn" onclick={() => showCreate = !showCreate}>
       {showCreate ? '× CANCEL' : '+ NEW ITEM'}
     </button>
-  </header>
+  </div>
 
   {#if showCreate}
     <section class="create-section">
@@ -69,36 +71,27 @@
     </section>
   {/if}
 
-  <SearchBar bind:value={query} placeholder="Search items..." count={filtered.length} total={data.total} />
-
-  <div class="entity-table">
-    <div class="table-header">
-      <span>SPRITE</span>
-      <span>SLUG</span>
-      <span>NAME</span>
-      <span>CATEGORY</span>
-      <span>COST</span>
-      <span>SOURCE</span>
-      <span></span>
+  {#if filtered.length === 0}
+    <div class="empty-state">
+      <p>No items yet.</p>
+      <p class="hint">Click "+ NEW ITEM" above to create the first one.</p>
     </div>
-    {#each filtered as i (i.id)}
-      <div class="table-row">
-        <span class="row-sprite">
-          {#if i.spriteUrl}
-            <img src={i.spriteUrl} alt={i.name} />
-          {:else}
-            —
-          {/if}
-        </span>
-        <span class="row-slug">{i.slug}</span>
-        <span class="row-name">{i.name}</span>
-        <span class="row-cat">{i.category ?? '—'}</span>
-        <span class="row-cost">{i.cost ?? '—'}</span>
-        <span class="src-badge src-{i.source}">{i.source}</span>
-        <a href="/editor/items/{i.slug}" class="edit-link">EDIT →</a>
-      </div>
-    {/each}
-  </div>
+  {:else}
+    <div class="items-grid">
+      {#each filtered as i (i.id)}
+        <div class="card-wrapper">
+          <ItemCard
+            name={i.name}
+            slug={i.slug}
+            spriteUrl={i.spriteUrl}
+            category={i.category}
+            cost={i.cost}
+          />
+          <a href="/editor/items/{i.slug}" class="card-link-overlay" aria-label="Edit {i.name}"></a>
+        </div>
+      {/each}
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -110,13 +103,20 @@
 
   .page-header {
     display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
+    flex-direction: column;
+    gap: var(--spacing-4);
   }
 
   .page-header h2 {
     color: var(--theme-text-primary);
     margin: 0;
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-4);
   }
 
   .count {
@@ -127,9 +127,9 @@
 
   .new-btn {
     font-family: var(--font-display);
-    font-size: 10px;
-    padding: var(--spacing-2) var(--spacing-3);
-    background: none;
+    font-size: 9px;
+    padding: var(--spacing-2) var(--spacing-4);
+    background-color: var(--theme-bg-secondary);
     border: 2px solid var(--theme-border-primary);
     color: var(--theme-text-primary);
     cursor: pointer;
@@ -213,108 +213,38 @@
     color: var(--color-text-error);
   }
 
-  .entity-table {
-    display: flex;
-    flex-direction: column;
-    border: 3px solid var(--theme-border-primary);
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .table-header,
-  .table-row {
+  .items-grid {
     display: grid;
-    grid-template-columns: 60px 1fr 1fr 1fr 80px 80px 60px;
-    gap: var(--spacing-3);
-    padding: var(--spacing-2) var(--spacing-3);
-    align-items: center;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: var(--spacing-4);
   }
 
-  .table-header {
+  .card-wrapper {
+    position: relative;
+  }
+
+  .card-link-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+  }
+
+  .empty-state {
     background-color: var(--theme-bg-secondary);
-    border-bottom: 2px solid var(--theme-border-primary);
-    font-family: var(--font-display);
-    font-size: 9px;
-    color: var(--theme-text-muted);
-  }
-
-  .table-row {
-    border-bottom: 1px solid var(--theme-border-primary);
-  }
-
-  .table-row:last-child {
-    border-bottom: none;
-  }
-
-  .table-row:hover {
-    background-color: var(--theme-bg-hover);
-  }
-
-  .row-sprite {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-family: var(--font-mono);
-    font-size: 10px;
-    color: var(--theme-text-muted);
-  }
-
-  .row-sprite img {
-    max-width: 32px;
-    max-height: 32px;
-    object-fit: contain;
-    image-rendering: pixelated;
-  }
-
-  .row-slug {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--theme-text-secondary);
-  }
-
-  .row-name {
-    font-family: var(--font-display);
-    font-size: 11px;
-    color: var(--theme-text-primary);
-  }
-
-  .row-cat,
-  .row-cost {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    color: var(--theme-text-muted);
-  }
-
-  .src-badge {
-    font-family: var(--font-display);
-    font-size: 8px;
-    padding: 2px 6px;
-    border: 2px solid var(--theme-border-primary);
+    border: 3px solid var(--theme-border-primary);
+    padding: var(--spacing-5);
     text-align: center;
   }
 
-  .src-pokeapi {
+  .empty-state p {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--theme-text-secondary);
+    margin: 0 0 var(--spacing-2) 0;
+  }
+
+  .empty-state .hint {
+    font-size: 11px;
     color: var(--theme-text-muted);
-  }
-
-  .src-edited {
-    color: var(--theme-text-accent);
-    border-color: var(--theme-text-accent);
-  }
-
-  .src-custom {
-    color: var(--color-text-warning);
-    border-color: var(--color-text-warning);
-  }
-
-  .edit-link {
-    font-family: var(--font-display);
-    font-size: 9px;
-    color: var(--theme-text-accent);
-    text-decoration: none;
-  }
-
-  .edit-link:hover {
-    text-decoration: underline;
   }
 </style>

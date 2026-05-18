@@ -1,4 +1,6 @@
 <script lang="ts">
+  import DataTable from '$lib/components/DataTable.svelte';
+
   let { data } = $props();
 
   const statLabel: Record<string, string> = {
@@ -38,46 +40,40 @@
     <p class="subtitle">25 natures — affects stat growth and flavor preferences.</p>
   </div>
 
-  <div class="table-wrap">
-    <table class="natures-table">
-      <thead>
-        <tr>
-          <th>NAME</th>
-          <th>STAT ↑</th>
-          <th>STAT ↓</th>
-          <th>LIKES</th>
-          <th>HATES</th>
-        </tr>
-      </thead>
-      <tbody>
-        {#each data.natures as n (n.id)}
-          <tr class:neutral={isNeutral(n)}>
-            <td class="name-cell">{n.name.toUpperCase()}</td>
-            <td class="stat-cell">
-              {#if n.increasedStat}
-                <span class="stat-tag up" style="color: var({statVar[n.increasedStat] ?? '--theme-text-primary'})">
-                  {label(n.increasedStat)}
-                </span>
-              {:else}
-                <span class="neutral-dash">—</span>
-              {/if}
-            </td>
-            <td class="stat-cell">
-              {#if n.decreasedStat}
-                <span class="stat-tag down">
-                  {label(n.decreasedStat)}
-                </span>
-              {:else}
-                <span class="neutral-dash">—</span>
-              {/if}
-            </td>
-            <td class="flavor-cell">{n.likesFlavor ? n.likesFlavor.toUpperCase() : '—'}</td>
-            <td class="flavor-cell">{n.hatesFlavor ? n.hatesFlavor.toUpperCase() : '—'}</td>
-          </tr>
-        {/each}
-      </tbody>
-    </table>
-  </div>
+  <DataTable>
+    {#snippet head()}
+      <th>NAME</th>
+      <th style="text-align: center">STAT ↑</th>
+      <th style="text-align: center">STAT ↓</th>
+      <th style="text-align: center">LIKES</th>
+      <th style="text-align: center">HATES</th>
+    {/snippet}
+    {#each data.natures as n (n.id)}
+      <tr class:neutral={isNeutral(n)}>
+        <td class="name-cell">{n.name.toUpperCase()}</td>
+        <td class="stat-cell">
+          {#if n.increasedStat}
+            <span class="stat-tag up" style="color: var({statVar[n.increasedStat] ?? '--theme-text-primary'})">
+              {label(n.increasedStat)}
+            </span>
+          {:else}
+            <span class="neutral-dash">—</span>
+          {/if}
+        </td>
+        <td class="stat-cell">
+          {#if n.decreasedStat}
+            <span class="stat-tag down">
+              {label(n.decreasedStat)}
+            </span>
+          {:else}
+            <span class="neutral-dash">—</span>
+          {/if}
+        </td>
+        <td class="flavor-cell">{n.likesFlavor ? n.likesFlavor.toUpperCase() : '—'}</td>
+        <td class="flavor-cell">{n.hatesFlavor ? n.hatesFlavor.toUpperCase() : '—'}</td>
+      </tr>
+    {/each}
+  </DataTable>
 </div>
 
 <style>
@@ -101,59 +97,7 @@
     margin: 0;
   }
 
-  .table-wrap {
-    border: 4px solid var(--theme-border-primary);
-    box-shadow: var(--shadow-card);
-    overflow-x: auto;
-  }
-
-  .natures-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-family: var(--font-mono);
-    font-size: 13px;
-  }
-
-  thead tr {
-    background-color: var(--theme-bg-tertiary);
-    border-bottom: 3px solid var(--theme-border-primary);
-  }
-
-  th {
-    font-family: var(--font-display);
-    font-size: 9px;
-    color: var(--theme-text-inverse);
-    padding: var(--spacing-3) var(--spacing-4);
-    text-align: left;
-    white-space: nowrap;
-  }
-
-  th:not(:first-child) {
-    text-align: center;
-  }
-
-  tbody tr {
-    border-bottom: 1px solid var(--theme-border-primary);
-    background-color: var(--theme-bg-secondary);
-    transition: background-color 0.05s ease;
-  }
-
-  tbody tr:last-child {
-    border-bottom: none;
-  }
-
-  tbody tr:hover {
-    background-color: var(--theme-bg-primary);
-  }
-
-  tbody tr.neutral {
-    opacity: 0.55;
-  }
-
-  td {
-    padding: var(--spacing-3) var(--spacing-4);
-    color: var(--theme-text-primary);
-  }
+  :global(tr.neutral) { opacity: 0.55; }
 
   .name-cell {
     font-family: var(--font-display);
@@ -161,9 +105,7 @@
     white-space: nowrap;
   }
 
-  .stat-cell {
-    text-align: center;
-  }
+  .stat-cell { text-align: center; }
 
   .stat-tag {
     font-family: var(--font-display);
@@ -181,9 +123,7 @@
     background-color: color-mix(in srgb, var(--color-text-error) 12%, transparent);
   }
 
-  .neutral-dash {
-    color: var(--theme-text-muted);
-  }
+  .neutral-dash { color: var(--theme-text-muted); }
 
   .flavor-cell {
     text-align: center;

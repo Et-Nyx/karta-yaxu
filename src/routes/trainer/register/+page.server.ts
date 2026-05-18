@@ -32,7 +32,7 @@ export const actions: Actions = {
     const existing = await db.select({ id: trainers.id })
       .from(trainers).where(eq(trainers.username, username)).limit(1);
     if (existing.length > 0) {
-      return fail(400, { errors: { username: ['Username já em uso'] } });
+      return fail(400, { errors: { username: ['Username já em uso'], password: undefined, confirm: undefined } });
     }
 
     const [{ total }] = await db.select({ total: count() }).from(trainers);

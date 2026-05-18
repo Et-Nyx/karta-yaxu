@@ -1,7 +1,10 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
+  import { pageSource } from '$lib/stores/pageSource';
 
   let { data, form } = $props();
+
+  $effect(() => { pageSource.set(data.pokedex.source); });
 
   let saved = $state(false);
 
@@ -26,14 +29,11 @@
 <div class="edit-page">
   <header class="page-header">
     <div class="header-left">
-      <a href="/editor/pokedex" class="back">← BACK</a>
       <h2>EDIT POKÉDEX: {data.pokedex.name.toUpperCase()}</h2>
-      <span class="src-badge src-{data.pokedex.source}">{data.pokedex.source}</span>
     </div>
     <div class="meta">
       <span>ID: {data.pokedex.id}</span>
       {#if data.pokedex.pokeapiId}<span>PokéAPI: {data.pokedex.pokeapiId}</span>{/if}
-      <a href="/wiki/pokedex/{data.pokedex.slug}" class="wiki-link">VIEW IN WIKI →</a>
     </div>
   </header>
 
@@ -57,7 +57,7 @@
     </div>
     <div class="field field-check">
       <label for="main">
-        <input id="main" name="isMainSeries" type="checkbox" value="true" checked={pokedex.isMainSeries}>
+        <input id="main" name="isMainSeries" type="checkbox" value="true" checked={Boolean(pokedex.isMainSeries)}>
         MAIN SERIES
       </label>
     </div>
@@ -164,14 +164,6 @@
     flex-wrap: wrap;
   }
 
-  .back {
-    font-family: var(--font-display);
-    font-size: 9px;
-    color: var(--theme-text-accent);
-    text-decoration: none;
-  }
-
-  .back:hover { text-decoration: underline; }
 
   .page-header h2 {
     color: var(--theme-text-primary);

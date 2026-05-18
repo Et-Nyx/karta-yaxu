@@ -12,9 +12,6 @@
   <div class="auth-card">
     <h2>REGISTRAR</h2>
 
-    {#if form?.errors?._errors}
-      <div class="error-banner">{form.errors._errors.join(', ')}</div>
-    {/if}
 
     <form method="post" use:enhance>
       <div class="field">

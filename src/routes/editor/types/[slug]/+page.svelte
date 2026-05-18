@@ -1,9 +1,14 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
+  import TypeIcon from '$lib/components/TypeIcon.svelte';
+  import TypeBadge from '$lib/components/TypeBadge.svelte';
+  import PokemonCard from '$lib/components/PokemonCard.svelte';
+  import SearchBar from '$lib/components/SearchBar.svelte';
+  import { pageSource } from '$lib/stores/pageSource';
 
   let { data, form } = $props();
 
-  const DMG_CLASS_OPTIONS = ['', 'physical', 'special', 'status'];
+  $effect(() => { pageSource.set(data.type.source); });
 
   let saved = $state(false);
 
@@ -18,76 +23,165 @@
     };
   }
 
-  let type = $derived(form?.values ?? data.type);
+  let nameVal = $state(data.type.name ?? '');
+  let slugVal = $state(data.type.slug ?? '');
+  let hexColorVal = $state(data.type.hexColor ?? '');
+  let iconUrlVal = $state(data.type.iconUrl ?? '');
+  let dmgClassVal = $state(data.type.moveDamageClass ?? '');
+  let genIdVal = $state(data.type.generationId ?? null);
+
+  $effect(() => {
+    const src = form?.values ?? data.type;
+    nameVal = (src.name as string) ?? '';
+    slugVal = (src.slug as string) ?? '';
+    hexColorVal = (src.hexColor as string) ?? '';
+    iconUrlVal = (src.iconUrl as string) ?? '';
+    dmgClassVal = (src.moveDamageClass as string) ?? '';
+    genIdVal = (src.generationId as number | null) ?? null;
+  });
+
+  let doubleDamageTo = $derived(data.attackingList.filter((x: { multiplier: number }) => x.multiplier === 2.0));
+  let halfDamageTo = $derived(data.attackingList.filter((x: { multiplier: number }) => x.multiplier === 0.5));
+  let noDamageTo = $derived(data.attackingList.filter((x: { multiplier: number }) => x.multiplier === 0.0));
+
+  let doubleDamageFrom = $derived(data.defendingList.filter((x: { multiplier: number }) => x.multiplier === 2.0));
+  let halfDamageFrom = $derived(data.defendingList.filter((x: { multiplier: number }) => x.multiplier === 0.5));
+  let noDamageFrom = $derived(data.defendingList.filter((x: { multiplier: number }) => x.multiplier === 0.0));
+
+  let searchQuery = $state('');
+
+  let filteredPokemon = $derived(
+    data.pokemonList.filter((p: { name: string; pokeapiId: number | null }) =>
+      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.pokeapiId?.toString() === searchQuery
+    )
+  );
 </script>
 
 <svelte:head>
-  <title>Edit {data.type.name} | Karta Yaxu</title>
+  <title>Edit {data.type.name} Type | Karta Yaxu</title>
 </svelte:head>
 
-<div class="edit-page">
-  <header class="page-header">
-    <div class="header-left">
-      <a href="/editor/types" class="back">← BACK</a>
-      <h2>EDIT TYPE: {data.type.name.toUpperCase()}</h2>
-      <span class="src-badge src-{data.type.source}">{data.type.source}</span>
-    </div>
-    <div class="meta">
-      <span>ID: {data.type.id}</span>
-      {#if data.type.pokeapiId}<span>PokéAPI: {data.type.pokeapiId}</span>{/if}
-    </div>
-  </header>
+<div class="type-detail-page">
+  <form action="?/update" method="post" use:enhance={handleSave}>
+    <header class="detail-header">
+      <div class="header-content">
+        <TypeIcon typeName={nameVal} size="lg" />
+        <div class="header-title">
+          <input class="type-label-input" name="name" bind:value={nameVal} maxlength="50" required />
+          <h1>TYPE</h1>
+        </div>
+      </div>
+      <div class="header-bar" style="background-color: {hexColorVal ? hexColorVal : `var(--color-type-${nameVal})`}"></div>
+      <div class="meta-strip">
+        <div class="meta-field"><label>SLUG</label><input name="slug" type="text" bind:value={slugVal}></div>
+        <div class="meta-field">
+          <label>HEX COLOR</label>
+          <div class="hex-row">
+            {#if hexColorVal}<span class="swatch" style="background-color: {hexColorVal}"></span>{/if}
+            <input name="hexColor" type="text" bind:value={hexColorVal} placeholder="#FF0000">
+          </div>
+        </div>
+        <div class="meta-field"><label>ICON URL</label><input name="iconUrl" type="text" bind:value={iconUrlVal}></div>
+        <div class="meta-field">
+          <label>DMG CLASS</label>
+          <select name="moveDamageClass" bind:value={dmgClassVal}>
+            <option value="">— none —</option>
+            {#each ['physical','special','status'] as v}<option value={v} selected={dmgClassVal===v}>{v}</option>{/each}
+          </select>
+        </div>
+        <div class="meta-field"><label>GEN ID</label><input name="generationId" type="number" min="1" bind:value={genIdVal}></div>
+        {#if data.type.pokeapiId}<span class="meta-id">PokéAPI: {data.type.pokeapiId}</span>{/if}
+        <div class="meta-actions">
+          <button type="submit" class="save-btn">SAVE</button>
+          <a href="." class="cancel-link">CANCEL</a>
+          {#if saved}<span class="save-ok">✓ SAVED</span>{/if}
+          {#if form?.updateError}<span class="form-error">{form.updateError}</span>{/if}
+        </div>
+      </div>
+    </header>
+  </form>
 
-  <form action="?/update" method="post" use:enhance={handleSave} class="edit-form">
-    <div class="field">
-      <label for="name">NAME</label>
-      <input id="name" name="name" type="text" maxlength="50" required value={type.name ?? ''}>
-    </div>
+  <!-- Damage Matchups (read-only) -->
+  <section class="matchups-grid">
+    <div class="matchup-box">
+      <h3>OFFENSIVE (ATTACKING)</h3>
 
-    <div class="field">
-      <label for="slug">SLUG</label>
-      <input id="slug" name="slug" type="text" maxlength="50" pattern="[a-z0-9-]+" required value={type.slug ?? ''}>
-    </div>
+      <div class="matchup-row">
+        <span class="label super">SUPER EFFECTIVE (2x):</span>
+        <div class="badges">
+          {#each doubleDamageTo as m} <TypeBadge name={m.defenderName} hexColor={m.defenderHexColor} size="sm" /> {/each}
+          {#if doubleDamageTo.length === 0}<span class="none">None</span>{/if}
+        </div>
+      </div>
 
-    <div class="field">
-      <label for="hex">HEX COLOR</label>
-      <div class="hex-row">
-        {#if type.hexColor}
-          <span class="swatch" style="background-color: {type.hexColor}"></span>
-        {/if}
-        <input id="hex" name="hexColor" type="text" placeholder="#FF0000" value={type.hexColor ?? ''}>
+      <div class="matchup-row">
+        <span class="label not-very">NOT VERY EFFECTIVE (0.5x):</span>
+        <div class="badges">
+          {#each halfDamageTo as m} <TypeBadge name={m.defenderName} hexColor={m.defenderHexColor} size="sm" /> {/each}
+          {#if halfDamageTo.length === 0}<span class="none">None</span>{/if}
+        </div>
+      </div>
+
+      <div class="matchup-row">
+        <span class="label immune">NO EFFECT (0x):</span>
+        <div class="badges">
+          {#each noDamageTo as m} <TypeBadge name={m.defenderName} hexColor={m.defenderHexColor} size="sm" /> {/each}
+          {#if noDamageTo.length === 0}<span class="none">None</span>{/if}
+        </div>
       </div>
     </div>
 
-    <div class="field">
-      <label for="icon">ICON URL</label>
-      <input id="icon" name="iconUrl" type="text" placeholder="/icons/types/normal.png" value={type.iconUrl ?? ''}>
+    <div class="matchup-box">
+      <h3>DEFENSIVE (DEFENDING)</h3>
+
+      <div class="matchup-row">
+        <span class="label super">WEAK TO (2x):</span>
+        <div class="badges">
+          {#each doubleDamageFrom as m} <TypeBadge name={m.attackerName} hexColor={m.attackerHexColor} size="sm" /> {/each}
+          {#if doubleDamageFrom.length === 0}<span class="none">None</span>{/if}
+        </div>
+      </div>
+
+      <div class="matchup-row">
+        <span class="label not-very">RESISTS (0.5x):</span>
+        <div class="badges">
+          {#each halfDamageFrom as m} <TypeBadge name={m.attackerName} hexColor={m.attackerHexColor} size="sm" /> {/each}
+          {#if halfDamageFrom.length === 0}<span class="none">None</span>{/if}
+        </div>
+      </div>
+
+      <div class="matchup-row">
+        <span class="label immune">IMMUNE TO (0x):</span>
+        <div class="badges">
+          {#each noDamageFrom as m} <TypeBadge name={m.attackerName} hexColor={m.attackerHexColor} size="sm" /> {/each}
+          {#if noDamageFrom.length === 0}<span class="none">None</span>{/if}
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Pokemon list (read-only) -->
+  <section class="pokemon-section">
+    <div class="section-header">
+      <h2>POKÉMON OF THIS TYPE</h2>
+      <SearchBar bind:value={searchQuery} placeholder="Filter Pokémon..." count={filteredPokemon.length} total={data.pokemonList.length} />
     </div>
 
-    <div class="field">
-      <label for="dmg">DMG CLASS</label>
-      <select id="dmg" name="moveDamageClass">
-        {#each DMG_CLASS_OPTIONS as v}
-          <option value={v} selected={(type.moveDamageClass ?? '') === v}>{v || '— none —'}</option>
-        {/each}
-      </select>
+    <div class="pokemon-grid">
+      {#each filteredPokemon as p (p.id)}
+        <PokemonCard
+          pokemon={{
+            pokeapiId: p.pokeapiId || 0,
+            name: p.name,
+            slug: p.slug,
+            spriteUrl: p.spriteDefault,
+            types: p.types
+          }}
+        />
+      {/each}
     </div>
-
-    <div class="field">
-      <label for="gen">GENERATION ID</label>
-      <input id="gen" name="generationId" type="number" min="1" value={type.generationId ?? ''}>
-    </div>
-
-    <div class="form-actions">
-      <button type="submit" class="save-btn">SAVE</button>
-      {#if form?.updateError}
-        <span class="form-error">{form.updateError}</span>
-      {/if}
-      {#if saved}
-        <span class="save-ok">✓ SAVED</span>
-      {/if}
-    </div>
-  </form>
+  </section>
 
   {#if data.type.source === 'edited' && data.type.pokeapiId}
     <form action="?/resource" method="post" use:enhance class="resource-form">
@@ -107,107 +201,99 @@
 </div>
 
 <style>
-  .edit-page {
+  .type-detail-page {
     display: flex;
     flex-direction: column;
-    gap: var(--spacing-5);
+    gap: var(--spacing-6);
   }
 
-  .page-header {
+
+  /* ── Header ── */
+
+  .detail-header {
+    background-color: var(--theme-bg-secondary);
+    border: 4px solid var(--theme-border-primary);
+    box-shadow: var(--shadow-card);
+    padding: 0;
+    overflow: hidden;
     display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-    gap: var(--spacing-3);
-    flex-wrap: wrap;
+    flex-direction: column;
   }
 
-  .header-left {
+  .header-content {
     display: flex;
     align-items: center;
+    gap: var(--spacing-4);
+    padding: var(--spacing-6);
+  }
+
+  .header-title {
+    display: flex;
+    align-items: baseline;
     gap: var(--spacing-3);
-    flex-wrap: wrap;
   }
 
-  .back {
+  .type-label-input {
     font-family: var(--font-display);
-    font-size: 9px;
-    color: var(--theme-text-accent);
-    text-decoration: none;
+    font-size: 14px;
+    color: var(--theme-text-secondary);
+    letter-spacing: 2px;
+    background: none;
+    border: none;
+    border-bottom: 1px solid transparent;
+    outline: none;
+    padding: 0;
+    width: auto;
   }
 
-  .back:hover {
-    text-decoration: underline;
+  .type-label-input:focus {
+    border-bottom-color: var(--theme-text-accent);
   }
 
-  .page-header h2 {
+  h1 {
+    font-family: var(--font-display);
+    font-size: 24px;
     color: var(--theme-text-primary);
     margin: 0;
   }
 
-  .meta {
+  .header-bar {
+    height: 4px;
+    width: 100%;
+    flex-shrink: 0;
+  }
+
+  /* ── Meta strip ── */
+
+  .meta-strip {
+    border-top: 2px dashed var(--theme-border-primary);
+    padding: var(--spacing-3) var(--spacing-6);
     display: flex;
-    gap: var(--spacing-3);
-    font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--theme-text-muted);
+    gap: var(--spacing-4);
+    align-items: center;
+    flex-wrap: wrap;
   }
 
-  .src-badge {
-    font-family: var(--font-display);
-    font-size: 8px;
-    padding: 2px 6px;
-    border: 2px solid var(--theme-border-primary);
-  }
-
-  .src-pokeapi {
-    color: var(--theme-text-muted);
-  }
-
-  .src-edited {
-    color: var(--theme-text-accent);
-    border-color: var(--theme-text-accent);
-  }
-
-  .src-custom {
-    color: var(--color-text-warning);
-    border-color: var(--color-text-warning);
-  }
-
-  .edit-form {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: var(--spacing-3);
-    background-color: var(--theme-bg-secondary);
-    border: 3px solid var(--theme-border-primary);
-    padding: var(--spacing-4);
-  }
-
-  .field {
+  .meta-field {
     display: flex;
     flex-direction: column;
-    gap: var(--spacing-1);
+    gap: 2px;
   }
 
-  .field label {
+  .meta-field label {
     font-family: var(--font-display);
     font-size: 9px;
     color: var(--theme-text-muted);
   }
 
-  .field input,
-  .field select {
+  .meta-field input,
+  .meta-field select {
     font-family: var(--font-mono);
     font-size: 12px;
-    padding: var(--spacing-2);
-    background-color: var(--theme-bg-primary);
-    border: 2px solid var(--theme-border-primary);
+    background: var(--theme-bg-primary);
+    border: 1px solid var(--theme-border-primary);
     color: var(--theme-text-primary);
-  }
-
-  .field input:focus,
-  .field select:focus {
-    outline: none;
-    border-color: var(--theme-text-accent);
+    padding: 2px var(--spacing-1);
   }
 
   .hex-row {
@@ -216,29 +302,25 @@
     gap: var(--spacing-2);
   }
 
-  .hex-row input {
-    flex: 1;
-  }
-
   .swatch {
     display: inline-block;
-    width: 22px;
-    height: 22px;
-    border: 2px solid var(--theme-border-primary);
+    width: 18px;
+    height: 18px;
+    border: 1px solid var(--theme-border-primary);
     flex-shrink: 0;
   }
 
-  .form-actions {
-    grid-column: 1 / -1;
+  .meta-actions {
     display: flex;
     align-items: center;
     gap: var(--spacing-3);
+    margin-left: auto;
   }
 
   .save-btn {
     font-family: var(--font-display);
     font-size: 11px;
-    padding: var(--spacing-2) var(--spacing-4);
+    padding: var(--spacing-1) var(--spacing-3);
     background: none;
     border: 2px solid var(--theme-text-accent);
     color: var(--theme-text-accent);
@@ -250,10 +332,15 @@
     color: var(--theme-bg-primary);
   }
 
-  .form-error {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--color-text-error);
+  .cancel-link {
+    font-family: var(--font-display);
+    font-size: 10px;
+    color: var(--theme-text-muted);
+    text-decoration: none;
+  }
+
+  .cancel-link:hover {
+    text-decoration: underline;
   }
 
   .save-ok {
@@ -262,10 +349,152 @@
     color: var(--theme-text-accent);
   }
 
-  .delete-form {
+  .form-error {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--color-text-error);
+  }
+
+  .src-badge {
+    font-family: var(--font-display);
+    font-size: 8px;
+    padding: 2px 6px;
+    border: 2px solid var(--theme-border-primary);
+  }
+
+  .src-pokeapi { color: var(--theme-text-muted); }
+  .src-edited { color: var(--theme-text-accent); border-color: var(--theme-text-accent); }
+  .src-custom { color: var(--color-text-warning); border-color: var(--color-text-warning); }
+
+  .meta-id {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--theme-text-muted);
+  }
+
+  .wiki-link {
+    font-family: var(--font-display);
+    font-size: 9px;
+    color: var(--theme-text-accent);
+    text-decoration: none;
+  }
+
+  .wiki-link:hover {
+    text-decoration: underline;
+  }
+
+  /* ── Matchups ── */
+
+  .matchups-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-6);
+  }
+
+  @media (max-width: 768px) {
+    .matchups-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .matchup-box {
+    background-color: var(--theme-bg-secondary);
+    border: 3px solid var(--theme-border-primary);
+    padding: var(--spacing-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-4);
+  }
+
+  .matchup-box h3 {
+    font-family: var(--font-display);
+    font-size: 14px;
+    color: var(--theme-text-primary);
+    margin: 0 0 var(--spacing-2) 0;
+    border-bottom: 2px dashed var(--theme-border-primary);
+    padding-bottom: var(--spacing-2);
+  }
+
+  .matchup-row {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-2);
+  }
+
+  .matchup-row .label {
+    font-family: var(--font-display);
+    font-size: 10px;
+  }
+
+  .label.super { color: var(--color-effective-positive); }
+  .label.not-very { color: var(--color-effective-negative); }
+  .label.immune { color: var(--theme-text-secondary); }
+
+  .badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-2);
+  }
+
+  .none {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--theme-text-secondary);
+  }
+
+  /* ── Pokemon section ── */
+
+  .pokemon-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-4);
+  }
+
+  .section-header {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-4);
+  }
+
+  .section-header h2 {
+    color: var(--theme-text-primary);
+    margin: 0;
+    font-size: 18px;
+  }
+
+  .pokemon-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: var(--spacing-4);
+  }
+
+  /* ── Resource / delete forms ── */
+
+  .resource-form, .delete-form {
     display: flex;
     align-items: center;
     gap: var(--spacing-3);
+  }
+
+  .resource-btn {
+    font-family: var(--font-display);
+    font-size: 10px;
+    padding: var(--spacing-2) var(--spacing-4);
+    background: none;
+    border: 2px solid var(--theme-text-muted);
+    color: var(--theme-text-muted);
+    cursor: pointer;
+  }
+
+  .resource-btn:hover {
+    border-color: var(--theme-text-accent);
+    color: var(--theme-text-accent);
+  }
+
+  .resource-hint {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--theme-text-muted);
   }
 
   .delete-btn {
@@ -287,5 +516,31 @@
     font-family: var(--font-mono);
     font-size: 10px;
     color: var(--theme-text-muted);
+  }
+
+  @media (max-width: 768px) {
+    .header-content {
+      padding: var(--spacing-4);
+    }
+
+    h1 {
+      font-size: 18px;
+    }
+
+    .type-label-input {
+      font-size: 12px;
+    }
+
+    .meta-strip {
+      flex-direction: column;
+      align-items: flex-start;
+      padding: var(--spacing-3) var(--spacing-4);
+    }
+
+    .meta-actions {
+      margin-left: 0;
+    }
+
+    .section-header { align-items: flex-start; }
   }
 </style>

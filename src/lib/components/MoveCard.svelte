@@ -25,7 +25,8 @@
   } = $props();
 </script>
 
-<a href="/wiki/moves/{slug}" class="move-card card-interactive">
+<a href="/wiki/moves/{slug}" class="move-card card-interactive"
+  style={typeHexColor ? `border-bottom: 3px solid ${typeHexColor}` : undefined}>
   <div class="move-info">
     {#if method !== undefined}
       <div class="move-method">{method}</div>

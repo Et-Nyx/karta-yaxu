@@ -2,20 +2,71 @@
   import { enhance } from '$app/forms';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
+  import TypeBadge from '$lib/components/TypeBadge.svelte';
+  import InfoBox from '$lib/components/InfoBox.svelte';
+  import Tabs from '$lib/components/Tabs.svelte';
+  import { pageSource } from '$lib/stores/pageSource';
 
   let { data, form } = $props();
 
+  $effect(() => { pageSource.set(data.pokemon.source); });
+
+  // Save states
   let saved = $state(false);
   let typesSaved = $state(false);
   let abilitiesSaved = $state(false);
 
+  // --- Main update form state ---
+  let nameVal = $state(data.pokemon.name);
+  let slugVal = $state(data.pokemon.slug);
+  let speciesIdVal = $state(data.pokemon.speciesId);
+  let heightVal = $state(data.pokemon.height);
+  let weightVal = $state(data.pokemon.weight);
+  let isDefaultVal = $state(data.pokemon.isDefault);
+  let orderVal = $state<number | ''>(data.pokemon.order ?? '');
+
+  let spriteDefaultVal = $state(data.pokemon.spriteDefault ?? '');
+  let spriteShinyVal = $state(data.pokemon.spriteShiny ?? '');
+  let spriteArtworkVal = $state(data.pokemon.spriteArtwork ?? '');
+  let isShiny = $state(false);
+  let currentSpriteUrl = $derived(
+    isShiny
+      ? (data.pokemon.pokeapiId
+          ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/shiny/${data.pokemon.pokeapiId}.png`
+          : (spriteShinyVal || null))
+      : (spriteArtworkVal || spriteDefaultVal || null)
+  );
+
+  let hpVal  = $state(data.pokemon.hp);
+  let atkVal = $state(data.pokemon.atk);
+  let defVal = $state(data.pokemon.def);
+  let spaVal = $state(data.pokemon.spa);
+  let spdVal = $state(data.pokemon.spd);
+  let speVal = $state(data.pokemon.spe);
+  let totalStats = $derived(hpVal + atkVal + defVal + spaVal + spdVal + speVal);
+
+  // --- Reactive types for header TypeBadges ---
+  let slot1TypeId = $state<number | null>(data.types.find(t => t.slot === 1)?.typeId ?? null);
+  let slot2TypeId = $state<number | null>(data.types.find(t => t.slot === 2)?.typeId ?? null);
+  let slot1Type = $derived(data.allTypes.find(t => t.id === slot1TypeId));
+  let slot2Type = $derived(data.allTypes.find(t => t.id === slot2TypeId));
+
+  // Current type IDs from DB (for selected state in type selects)
+  let currentSlot1Type = $derived(data.types.find(t => t.slot === 1)?.typeId ?? null);
+  let currentSlot2Type = $derived(data.types.find(t => t.slot === 2)?.typeId ?? null);
+
+  // --- Abilities ---
+  let slot1Ability = $derived(data.abilities.find(a => a.slot === 1 && !a.isHidden)?.abilityId ?? null);
+  let slot2Ability = $derived(data.abilities.find(a => a.slot === 2 && !a.isHidden)?.abilityId ?? null);
+  let hiddenAbility = $derived(data.abilities.find(a => a.isHidden)?.abilityId ?? null);
+
+  // --- Species lookup for header display ---
+  let currentSpecies = $derived(data.species.find(s => s.id === speciesIdVal));
+
+  // --- Learnset ---
   let moveQuery = $state('');
   let selectedMoveId = $derived(
     data.allMoves.find(m => m.name.toLowerCase() === moveQuery.toLowerCase())?.id ?? null
-  );
-
-  let selectedVgSlug = $derived(
-    data.vgCounts.find(v => v.id === data.selectedVgId)?.slug ?? ''
   );
 
   function onVgChange(event: Event) {
@@ -27,274 +78,362 @@
     goto(url.toString(), { keepFocus: true, noScroll: true, invalidateAll: true });
   }
 
+  // --- Page tabs ---
+  const PAGE_TABS = [
+    { key: 'info',     label: 'INFO' },
+    { key: 'forms',    label: 'FORMS' },
+    { key: 'learnset', label: 'LEARNSET' },
+    { key: 'location', label: 'LOCATION' },
+  ] as const;
+  let activePageTab = $state('info');
+
+  // --- Save handlers ---
   function handleSave() {
     saved = false;
     return async ({ result, update }: any) => {
-      await update();
       if (result.type === 'success') {
         saved = true;
         setTimeout(() => saved = false, 2500);
+      } else {
+        // failure → show error; redirect → follow new slug
+        await update({ reset: false });
       }
     };
   }
-
   function handleTypesSave() {
     typesSaved = false;
     return async ({ result, update }: any) => {
-      await update();
       if (result.type === 'success') {
         typesSaved = true;
         setTimeout(() => typesSaved = false, 2500);
+      } else {
+        await update({ reset: false });
       }
     };
   }
-
   function handleAbilitiesSave() {
     abilitiesSaved = false;
     return async ({ result, update }: any) => {
-      await update();
       if (result.type === 'success') {
         abilitiesSaved = true;
         setTimeout(() => abilitiesSaved = false, 2500);
+      } else {
+        await update({ reset: false });
       }
     };
   }
-
-  let p = $derived(form?.values ?? data.pokemon);
-
-  let currentSlot1Type = $derived(data.types.find(t => t.slot === 1)?.typeId ?? null);
-  let currentSlot2Type = $derived(data.types.find(t => t.slot === 2)?.typeId ?? null);
-
-  let slot1Ability = $derived(data.abilities.find(a => a.slot === 1 && !a.isHidden)?.abilityId ?? null);
-  let slot2Ability = $derived(data.abilities.find(a => a.slot === 2 && !a.isHidden)?.abilityId ?? null);
-  let hiddenAbility = $derived(data.abilities.find(a => a.isHidden)?.abilityId ?? null);
 </script>
 
 <svelte:head>
   <title>Edit {data.pokemon.name} | Karta Yaxu</title>
 </svelte:head>
 
-<div class="edit-page">
-  <header class="page-header">
-    <div class="header-left">
-      <a href="/editor/pokemon" class="back">← BACK</a>
-      <h2>EDIT POKÉMON: {data.pokemon.name.toUpperCase()}</h2>
-      <span class="src-badge src-{data.pokemon.source}">{data.pokemon.source}</span>
-    </div>
-    <div class="meta">
-      <span>ID: {data.pokemon.id}</span>
-      {#if data.pokemon.pokeapiId}<span>PokéAPI: {data.pokemon.pokeapiId}</span>{/if}
-      <a href="/wiki/pokemon/{data.pokemon.slug}" class="wiki-link">VIEW IN WIKI →</a>
-    </div>
-  </header>
+<div class="pokemon-detail">
 
-  {#if data.pokemon.spriteDefault}
-    <div class="sprite-preview">
-      <img src={data.pokemon.spriteDefault} alt={data.pokemon.name}>
-    </div>
-  {/if}
+  <!-- ── Main update form: header + meta-strip ──────────────────────────── -->
+  <form id="main-form" action="?/update" method="post" use:enhance={handleSave}>
+    <!-- Hidden mirrors for INFO-tab fields -->
+    <input type="hidden" name="hp"            value={hpVal} />
+    <input type="hidden" name="atk"           value={atkVal} />
+    <input type="hidden" name="def"           value={defVal} />
+    <input type="hidden" name="spa"           value={spaVal} />
+    <input type="hidden" name="spd"           value={spdVal} />
+    <input type="hidden" name="spe"           value={speVal} />
+    <input type="hidden" name="height"        value={heightVal} />
+    <input type="hidden" name="weight"        value={weightVal} />
+    <input type="hidden" name="spriteDefault" value={spriteDefaultVal} />
+    <input type="hidden" name="spriteShiny"   value={spriteShinyVal} />
+    <input type="hidden" name="spriteArtwork" value={spriteArtworkVal} />
+    <input type="hidden" name="order"         value={orderVal} />
+    <input type="hidden" name="isDefault"     value={isDefaultVal ? 'true' : ''} />
 
-  <form action="?/update" method="post" use:enhance={handleSave} class="edit-form">
-    <div class="field">
-      <label for="name">NAME</label>
-      <input id="name" name="name" type="text" maxlength="80" required value={p.name ?? ''}>
-    </div>
-    <div class="field">
-      <label for="slug">SLUG</label>
-      <input id="slug" name="slug" type="text" maxlength="80" pattern="[a-z0-9-]+" required value={p.slug ?? ''}>
-    </div>
-    <div class="field">
-      <label for="species">SPECIES</label>
-      <select id="species" name="speciesId" required>
-        {#each data.species as s}
-          <option value={s.id} selected={(p.speciesId ?? null) === s.id}>#{s.dexNumber} {s.name}</option>
-        {/each}
-      </select>
-    </div>
-    <div class="field">
-      <label for="height">HEIGHT (dm)</label>
-      <input id="height" name="height" type="number" min="0" required value={p.height ?? 0}>
-    </div>
-    <div class="field">
-      <label for="weight">WEIGHT (hg)</label>
-      <input id="weight" name="weight" type="number" min="0" required value={p.weight ?? 0}>
-    </div>
-    <div class="field field-check">
-      <label for="default">
-        <input id="default" name="isDefault" type="checkbox" value="true" checked={p.isDefault}>
-        IS DEFAULT
-      </label>
-    </div>
-    <div class="field">
-      <label for="order">ORDER</label>
-      <input id="order" name="order" type="number" value={p.order ?? ''}>
-    </div>
-
-    <fieldset class="stats-group">
-      <legend>STATS</legend>
-      <div class="stat-row">
-        {#each ['hp','atk','def','spa','spd','spe'] as stat}
-          <div class="field stat-field">
-            <label for={stat}>{stat.toUpperCase()}</label>
-            <input id={stat} name={stat} type="number" min="0" max="255" required value={(p as any)[stat] ?? 0}>
-          </div>
-        {/each}
+    <!-- Wiki-style header card -->
+    <header class="detail-header">
+      <div class="dex-num">#{(currentSpecies?.dexNumber ?? 0).toString().padStart(3, '0')}</div>
+      <div class="header-main">
+        <input class="h1-input" name="name" type="text" maxlength="80" required bind:value={nameVal} />
+        {#if currentSpecies}
+          <div class="genus">{currentSpecies.name}</div>
+        {/if}
       </div>
-    </fieldset>
+      <div class="types">
+        {#if slot1Type}
+          <TypeBadge name={slot1Type.name} hexColor={slot1Type.hexColor ?? null} size="lg" />
+        {/if}
+        {#if slot2Type}
+          <TypeBadge name={slot2Type.name} hexColor={slot2Type.hexColor ?? null} size="lg" />
+        {/if}
+      </div>
+    </header>
 
-    <div class="field full">
-      <label for="spriteDefault">SPRITE DEFAULT</label>
-      <input id="spriteDefault" name="spriteDefault" type="text" value={p.spriteDefault ?? ''}>
-    </div>
-    <div class="field full">
-      <label for="spriteShiny">SPRITE SHINY</label>
-      <input id="spriteShiny" name="spriteShiny" type="text" value={p.spriteShiny ?? ''}>
-    </div>
-    <div class="field full">
-      <label for="spriteArtwork">SPRITE ARTWORK</label>
-      <input id="spriteArtwork" name="spriteArtwork" type="text" value={p.spriteArtwork ?? ''}>
-    </div>
-
-    <div class="form-actions">
-      <button type="submit" class="save-btn">SAVE</button>
-      {#if form?.updateError}
-        <span class="form-error">{form.updateError}</span>
+    <!-- Editor-only meta-strip -->
+    <div class="meta-strip">
+      <div class="meta-field">
+        <label class="meta-label">SLUG</label>
+        <input class="meta-input" name="slug" type="text" maxlength="80" pattern="[a-z0-9-]+" required bind:value={slugVal} />
+      </div>
+      <div class="meta-field">
+        <label class="meta-label">SPECIES</label>
+        <select class="meta-select" name="speciesId" required bind:value={speciesIdVal}>
+          {#each data.species as s}
+            <option value={s.id}>#{s.dexNumber} {s.name}</option>
+          {/each}
+        </select>
+      </div>
+      {#if data.pokemon.pokeapiId}
       {/if}
-      {#if saved}
-        <span class="save-ok">✓ SAVED</span>
-      {/if}
+      <div class="meta-actions">
+        <button type="submit" class="save-btn">SAVE</button>
+        <a href="." class="cancel-link">CANCEL</a>
+        {#if saved}<span class="save-ok">✓ SAVED</span>{/if}
+        {#if form?.updateError}<span class="form-error">{form.updateError}</span>{/if}
+      </div>
     </div>
   </form>
 
-  <!-- Types sub-form -->
-  <section class="sub-section">
-    <h3 class="section-title">TYPES</h3>
-    <form action="?/updateTypes" method="post" use:enhance={handleTypesSave} class="sub-form">
-      <div class="field">
-        <label for="t1">SLOT 1 (PRIMARY)</label>
-        <select id="t1" name="slot1TypeId" required>
-          {#each data.allTypes as t}
-            <option value={t.id} selected={currentSlot1Type === t.id}>{t.name}</option>
-          {/each}
-        </select>
-      </div>
-      <div class="field">
-        <label for="t2">SLOT 2 (SECONDARY)</label>
-        <select id="t2" name="slot2TypeId">
-          <option value="">— none —</option>
-          {#each data.allTypes as t}
-            <option value={t.id} selected={currentSlot2Type === t.id}>{t.name}</option>
-          {/each}
-        </select>
-      </div>
-      <div class="form-actions">
-        <button type="submit" class="save-btn">SAVE TYPES</button>
-        {#if form?.typesError}
-          <span class="form-error">{form.typesError}</span>
-        {/if}
-        {#if typesSaved}
-          <span class="save-ok">✓ SAVED</span>
-        {/if}
-      </div>
-    </form>
-  </section>
+  <!-- ── Tabs ──────────────────────────────────────────────────────────── -->
+  <Tabs tabs={PAGE_TABS} bind:active={activePageTab}>
 
-  <!-- Abilities sub-form -->
-  <section class="sub-section">
-    <h3 class="section-title">ABILITIES</h3>
-    <form action="?/updateAbilities" method="post" use:enhance={handleAbilitiesSave} class="sub-form">
-      <div class="field">
-        <label for="a1">SLOT 1</label>
-        <select id="a1" name="slot1AbilityId" required>
-          {#each data.allAbilities as a}
-            <option value={a.id} selected={slot1Ability === a.id}>{a.name}</option>
-          {/each}
-        </select>
-      </div>
-      <div class="field">
-        <label for="a2">SLOT 2</label>
-        <select id="a2" name="slot2AbilityId">
-          <option value="">— none —</option>
-          {#each data.allAbilities as a}
-            <option value={a.id} selected={slot2Ability === a.id}>{a.name}</option>
-          {/each}
-        </select>
-      </div>
-      <div class="field">
-        <label for="ah">HIDDEN</label>
-        <select id="ah" name="hiddenAbilityId">
-          <option value="">— none —</option>
-          {#each data.allAbilities as a}
-            <option value={a.id} selected={hiddenAbility === a.id}>{a.name}</option>
-          {/each}
-        </select>
-      </div>
-      <div class="form-actions">
-        <button type="submit" class="save-btn">SAVE ABILITIES</button>
-        {#if form?.abilitiesError}
-          <span class="form-error">{form.abilitiesError}</span>
+  {#if activePageTab === 'info'}
+  <!-- INFO tab: 2×2 content-grid -->
+  <div class="content-grid">
+
+    <!-- Top-left: Sprite -->
+    <div class="sprite-cell">
+      <div class="image-box">
+        {#if currentSpriteUrl}
+          <img src={currentSpriteUrl} alt={nameVal} class:shiny-active={isShiny} />
+        {:else}
+          <div class="no-sprite">NO SPRITE</div>
         {/if}
-        {#if abilitiesSaved}
-          <span class="save-ok">✓ SAVED</span>
-        {/if}
+        <button type="button" class="shiny-toggle" onclick={() => isShiny = !isShiny}>
+          {isShiny ? '◼ NORMAL' : '✦ SHINY'}
+        </button>
       </div>
-    </form>
-  </section>
+      <div class="sprite-inputs">
+        <div class="sprite-field">
+          <label class="sprite-label">DEFAULT</label>
+          <input class="sprite-url-input" type="text" placeholder="URL…" bind:value={spriteDefaultVal} />
+        </div>
+        <div class="sprite-field">
+          <label class="sprite-label">SHINY</label>
+          <input class="sprite-url-input" type="text" placeholder="URL…" bind:value={spriteShinyVal} />
+        </div>
+        <div class="sprite-field">
+          <label class="sprite-label">ARTWORK</label>
+          <input class="sprite-url-input" type="text" placeholder="URL…" bind:value={spriteArtworkVal} />
+        </div>
+      </div>
+    </div>
+
+    <!-- Top-right: Stats -->
+    <div class="stats-cell">
+      <InfoBox title="BASE STATS">
+        <div class="stats-container">
+          {#each [
+            { label: 'HP',      key: 'hp',  get: () => hpVal,  set: (v: number) => { hpVal  = v; } },
+            { label: 'ATTACK',  key: 'atk', get: () => atkVal, set: (v: number) => { atkVal = v; } },
+            { label: 'DEFENSE', key: 'def', get: () => defVal, set: (v: number) => { defVal = v; } },
+            { label: 'SP. ATK', key: 'spa', get: () => spaVal, set: (v: number) => { spaVal = v; } },
+            { label: 'SP. DEF', key: 'spd', get: () => spdVal, set: (v: number) => { spdVal = v; } },
+            { label: 'SPEED',   key: 'spe', get: () => speVal, set: (v: number) => { speVal = v; } },
+          ] as stat}
+            <div class="stat-edit-row">
+              <span class="stat-edit-label">{stat.label}</span>
+              <input
+                class="stat-edit-input"
+                type="number" min="0" max="255"
+                value={stat.get()}
+                oninput={(e) => stat.set(Math.max(0, Math.min(255, Number((e.currentTarget as HTMLInputElement).value))))}
+              />
+              <div class="stat-bar-only">
+                <div class="stat-bar-fill" style="width: {(stat.get() / 255) * 100}%;"></div>
+              </div>
+            </div>
+          {/each}
+          <div class="stat-total">
+            <span class="label">TOTAL:</span>
+            <span class="value">{totalStats}</span>
+          </div>
+          <div class="stat-save-row">
+            <button type="submit" form="main-form" class="save-btn-sm">SAVE</button>
+            {#if saved}<span class="save-ok-sm">✓ SAVED</span>{/if}
+            {#if form?.updateError}<span class="form-error-sm">{form.updateError}</span>{/if}
+          </div>
+        </div>
+      </InfoBox>
+    </div>
+
+    <!-- Bottom-left: Types + Abilities -->
+    <div class="info-cell">
+      <InfoBox title="TYPES">
+        <form action="?/updateTypes" method="post" use:enhance={handleTypesSave} class="sub-form-inline">
+          <div class="sub-field">
+            <label class="sub-label">SLOT 1</label>
+            <select name="slot1TypeId" required
+              onchange={(e) => { slot1TypeId = Number((e.currentTarget as HTMLSelectElement).value); }}>
+              {#each data.allTypes as t}
+                <option value={t.id} selected={currentSlot1Type === t.id}>{t.name}</option>
+              {/each}
+            </select>
+          </div>
+          <div class="sub-field">
+            <label class="sub-label">SLOT 2</label>
+            <select name="slot2TypeId"
+              onchange={(e) => { const v = (e.currentTarget as HTMLSelectElement).value; slot2TypeId = v ? Number(v) : null; }}>
+              <option value="">— none —</option>
+              {#each data.allTypes as t}
+                <option value={t.id} selected={currentSlot2Type === t.id}>{t.name}</option>
+              {/each}
+            </select>
+          </div>
+          <div class="sub-actions">
+            <button type="submit" class="save-btn-sm">SAVE TYPES</button>
+            {#if typesSaved}<span class="save-ok-sm">✓</span>{/if}
+            {#if form?.typesError}<span class="form-error-sm">{form.typesError}</span>{/if}
+          </div>
+        </form>
+      </InfoBox>
+
+      <InfoBox title="ABILITIES">
+        <form action="?/updateAbilities" method="post" use:enhance={handleAbilitiesSave} class="sub-form-inline">
+          <div class="sub-field">
+            <label class="sub-label">SLOT 1</label>
+            <select name="slot1AbilityId" required>
+              {#each data.allAbilities as a}
+                <option value={a.id} selected={slot1Ability === a.id}>{a.name}</option>
+              {/each}
+            </select>
+          </div>
+          <div class="sub-field">
+            <label class="sub-label">SLOT 2</label>
+            <select name="slot2AbilityId">
+              <option value="">— none —</option>
+              {#each data.allAbilities as a}
+                <option value={a.id} selected={slot2Ability === a.id}>{a.name}</option>
+              {/each}
+            </select>
+          </div>
+          <div class="sub-field">
+            <label class="sub-label">HIDDEN</label>
+            <select name="hiddenAbilityId">
+              <option value="">— none —</option>
+              {#each data.allAbilities as a}
+                <option value={a.id} selected={hiddenAbility === a.id}>{a.name}</option>
+              {/each}
+            </select>
+          </div>
+          <div class="sub-actions">
+            <button type="submit" class="save-btn-sm">SAVE ABILITIES</button>
+            {#if abilitiesSaved}<span class="save-ok-sm">✓</span>{/if}
+            {#if form?.abilitiesError}<span class="form-error-sm">{form.abilitiesError}</span>{/if}
+          </div>
+        </form>
+      </InfoBox>
+    </div>
+
+    <!-- Bottom-right: Data -->
+    <div class="data-cell">
+      <InfoBox title="DATA">
+        <ul class="data-edit-list">
+          <li class="data-edit-row">
+            <span class="data-label">HEIGHT</span>
+            <div class="data-input-wrap">
+              <input class="data-input" type="number" min="0" bind:value={heightVal} />
+              <span class="data-unit">dm</span>
+            </div>
+          </li>
+          <li class="data-edit-row">
+            <span class="data-label">WEIGHT</span>
+            <div class="data-input-wrap">
+              <input class="data-input" type="number" min="0" bind:value={weightVal} />
+              <span class="data-unit">hg</span>
+            </div>
+          </li>
+          <li class="data-edit-row">
+            <span class="data-label">ORDER</span>
+            <input class="data-input" type="number" bind:value={orderVal} />
+          </li>
+          <li class="data-edit-row">
+            <span class="data-label">ID</span>
+            <span class="data-value">{data.pokemon.id}</span>
+          </li>
+          {#if data.pokemon.pokeapiId}
+            <li class="data-edit-row">
+              <span class="data-label">POKEAPI</span>
+              <span class="data-value">{data.pokemon.pokeapiId}</span>
+            </li>
+          {/if}
+          <li class="data-check-row">
+            <label class="data-check-label">
+              <input type="checkbox" bind:checked={isDefaultVal} />
+              IS DEFAULT FORM
+            </label>
+          </li>
+        </ul>
+      </InfoBox>
+    </div>
+
+  </div><!-- end .content-grid -->
+
+
+  {:else if activePageTab === 'forms'}
+  <!-- FORMS tab: forms editor + evolution editor -->
 
   <!-- FORMS sub-section -->
-  <section class="sub-section">
+  <section class="tab-section">
     <h3 class="section-title">FORMS ({data.forms.length})</h3>
-
     {#if data.forms.length === 0}
       <div class="empty-state">
         <p>No forms recorded for this Pokémon.</p>
-        <p class="hint">Most Pokémon have exactly one default form. Use "+ NEW FORM" to add Gmax/Mega/Cosplay variants.</p>
       </div>
     {:else}
       <div class="forms-list">
         {#each data.forms as f (f.id)}
-          <form action="?/updateForm" method="post" use:enhance class="form-row">
+          <form action="?/updateForm" method="post" use:enhance class="form-card">
             <input type="hidden" name="formId" value={f.id}>
-            <div class="form-row-head">
+            <div class="form-card-head">
               <span class="form-name">
-                {f.formName ? `“${f.formName}”` : '— default —'}
+                {f.formName ? `"${f.formName}"` : '— default —'}
                 {#if f.isDefault}<span class="default-flag">[DEFAULT]</span>{/if}
               </span>
               <span class="src-badge src-{f.source}">{f.source}</span>
             </div>
             <div class="form-grid">
-              <div class="field">
-                <label for="fn-{f.id}">FORM NAME</label>
-                <input id="fn-{f.id}" name="formName" type="text" value={f.formName ?? ''} placeholder="gmax / mega-x / alola / ...">
-              </div>
-              <div class="field">
-                <label for="fo-{f.id}">ORDER</label>
-                <input id="fo-{f.id}" name="order" type="number" value={f.order ?? ''}>
-              </div>
-              <div class="field field-check">
-                <label><input name="isDefault" type="checkbox" value="true" checked={f.isDefault}> DEFAULT</label>
-              </div>
-              <div class="field field-check">
-                <label><input name="isBattleOnly" type="checkbox" value="true" checked={f.isBattleOnly}> BATTLE ONLY</label>
-              </div>
-              <div class="field field-check">
-                <label><input name="isMega" type="checkbox" value="true" checked={f.isMega}> MEGA</label>
-              </div>
-              <div class="field full">
-                <label for="fsd-{f.id}">SPRITE DEFAULT</label>
-                <input id="fsd-{f.id}" name="spriteDefault" type="text" value={f.spriteDefault ?? ''}>
-              </div>
-              <div class="field full">
-                <label for="fss-{f.id}">SPRITE SHINY</label>
-                <input id="fss-{f.id}" name="spriteShiny" type="text" value={f.spriteShiny ?? ''}>
-              </div>
-              <div class="field full">
-                <label for="fsa-{f.id}">SPRITE ARTWORK</label>
-                <input id="fsa-{f.id}" name="spriteArtwork" type="text" value={f.spriteArtwork ?? ''}>
-              </div>
+              <div class="field"><label>FORM NAME</label><input name="formName" type="text" value={f.formName ?? ''} placeholder="gmax / mega-x / …"></div>
+              <div class="field"><label>ORDER</label><input name="order" type="number" value={f.order ?? ''}></div>
+              <div class="field field-check"><label><input name="isDefault" type="checkbox" value="true" checked={f.isDefault}> DEFAULT</label></div>
+              <div class="field field-check"><label><input name="isBattleOnly" type="checkbox" value="true" checked={f.isBattleOnly}> BATTLE ONLY</label></div>
+              <div class="field field-check"><label><input name="isMega" type="checkbox" value="true" checked={f.isMega}> MEGA</label></div>
             </div>
-            <div class="form-row-actions">
-              <button type="submit" class="save-btn">SAVE FORM</button>
+            {#if f.isDefault}
+              <input type="hidden" name="spriteDefault" value={f.spriteDefault ?? ''}>
+              <input type="hidden" name="spriteShiny"   value={f.spriteShiny   ?? ''}>
+              <input type="hidden" name="spriteArtwork" value={f.spriteArtwork ?? ''}>
+              <div class="form-sprites-managed">
+                Sprites are managed in the <span class="info-tab-ref">INFO</span> tab — synced automatically on save.
+              </div>
+            {:else}
+              <div class="form-sprites-box">
+                <span class="form-sprites-title">SPRITES</span>
+                <div class="sprite-inputs">
+                  <div class="sprite-field">
+                    <span class="sprite-label">DEFAULT</span>
+                    <input class="sprite-url-input" name="spriteDefault" type="text" value={f.spriteDefault ?? ''}>
+                  </div>
+                  <div class="sprite-field">
+                    <span class="sprite-label">SHINY</span>
+                    <input class="sprite-url-input" name="spriteShiny" type="text" value={f.spriteShiny ?? ''}>
+                  </div>
+                  <div class="sprite-field">
+                    <span class="sprite-label">ARTWORK</span>
+                    <input class="sprite-url-input" name="spriteArtwork" type="text" value={f.spriteArtwork ?? ''}>
+                  </div>
+                </div>
+              </div>
+            {/if}
+            <div class="form-card-actions">
+              <button type="submit" class="save-btn-sm">SAVE FORM</button>
               {#if f.source === 'custom'}
                 <button type="submit" formaction="?/deleteForm" class="delete-btn-sm" onclick={(e) => { if (!confirm('Delete this form?')) e.preventDefault(); }}>DELETE</button>
               {/if}
@@ -303,57 +442,28 @@
         {/each}
       </div>
     {/if}
-
-    <details class="add-form-toggle">
+    <details class="add-toggle">
       <summary>+ NEW FORM</summary>
-      <form action="?/addForm" method="post" use:enhance class="form-row add-form">
+      <form action="?/addForm" method="post" use:enhance class="form-card add-form">
         <div class="form-grid">
-          <div class="field">
-            <label for="new-fn">FORM NAME</label>
-            <input id="new-fn" name="formName" type="text" placeholder="gmax / mega / ...">
-          </div>
-          <div class="field">
-            <label for="new-fo">ORDER</label>
-            <input id="new-fo" name="order" type="number">
-          </div>
-          <div class="field field-check">
-            <label><input name="isDefault" type="checkbox" value="true"> DEFAULT</label>
-          </div>
-          <div class="field field-check">
-            <label><input name="isBattleOnly" type="checkbox" value="true"> BATTLE ONLY</label>
-          </div>
-          <div class="field field-check">
-            <label><input name="isMega" type="checkbox" value="true"> MEGA</label>
-          </div>
-          <div class="field full">
-            <label for="new-fsd">SPRITE DEFAULT</label>
-            <input id="new-fsd" name="spriteDefault" type="text">
-          </div>
-          <div class="field full">
-            <label for="new-fss">SPRITE SHINY</label>
-            <input id="new-fss" name="spriteShiny" type="text">
-          </div>
-          <div class="field full">
-            <label for="new-fsa">SPRITE ARTWORK</label>
-            <input id="new-fsa" name="spriteArtwork" type="text">
-          </div>
+          <div class="field"><label>FORM NAME</label><input name="formName" type="text" placeholder="gmax / mega / …"></div>
+          <div class="field"><label>ORDER</label><input name="order" type="number"></div>
+          <div class="field field-check"><label><input name="isDefault" type="checkbox" value="true"> DEFAULT</label></div>
+          <div class="field field-check"><label><input name="isBattleOnly" type="checkbox" value="true"> BATTLE ONLY</label></div>
+          <div class="field field-check"><label><input name="isMega" type="checkbox" value="true"> MEGA</label></div>
+          <div class="field full"><label>SPRITE DEFAULT</label><input name="spriteDefault" type="text"></div>
+          <div class="field full"><label>SPRITE SHINY</label><input name="spriteShiny" type="text"></div>
+          <div class="field full"><label>SPRITE ARTWORK</label><input name="spriteArtwork" type="text"></div>
         </div>
-        <div class="form-row-actions">
-          <button type="submit" class="save-btn">CREATE FORM</button>
-        </div>
+        <div class="form-card-actions"><button type="submit" class="save-btn-sm">CREATE FORM</button></div>
       </form>
     </details>
-
-    {#if form?.formError}
-      <p class="form-error">{form.formError}</p>
-    {/if}
+    {#if form?.formError}<p class="form-error">{form.formError}</p>{/if}
   </section>
 
   <!-- EVOLUTION sub-section -->
-  <section class="sub-section">
+  <section class="tab-section">
     <h3 class="section-title">EVOLUTION</h3>
-
-    <!-- Predecessor panel -->
     <div class="evo-panel">
       <h4 class="evo-panel-title">PREDECESSOR</h4>
       {#if data.predecessor}
@@ -370,194 +480,79 @@
             </span>
           {/if}
         </div>
-        <details class="evo-edit-toggle">
+        <details class="add-toggle">
           <summary>EDIT CONDITIONS</summary>
           <form action="?/updateConditions" method="post" use:enhance class="sub-form">
-            <div class="field">
-              <label for="cond-trigger">TRIGGER</label>
-              <select id="cond-trigger" name="trigger" required>
-                {#each ['level-up', 'use-item', 'use-move', 'trade', 'three-critical-hits', 'shed', 'spin'] as t}
-                  <option value={t} selected={data.predecessorConditions?.trigger === t}>{t}</option>
-                {/each}
-              </select>
-            </div>
-            <div class="field">
-              <label for="cond-level">MIN LEVEL</label>
-              <input id="cond-level" name="minLevel" type="number" min="0" max="100" value={data.predecessorConditions?.minLevel ?? ''}>
-            </div>
-            <div class="field">
-              <label for="cond-item">ITEM (use-item)</label>
-              <select id="cond-item" name="itemId">
-                <option value="">— none —</option>
-                {#each data.allItems as i}
-                  <option value={i.id} selected={(data.predecessorConditions?.itemId ?? null) === i.id}>{i.name}</option>
-                {/each}
-              </select>
-            </div>
-            <div class="field">
-              <label for="cond-held">HELD ITEM</label>
-              <select id="cond-held" name="heldItemId">
-                <option value="">— none —</option>
-                {#each data.allItems as i}
-                  <option value={i.id} selected={(data.predecessorConditions?.heldItemId ?? null) === i.id}>{i.name}</option>
-                {/each}
-              </select>
-            </div>
-            <div class="field">
-              <label for="cond-move">KNOWN MOVE</label>
-              <select id="cond-move" name="knownMoveId">
-                <option value="">— none —</option>
-                {#each data.allMoves as m}
-                  <option value={m.id} selected={(data.predecessorConditions?.knownMoveId ?? null) === m.id}>{m.name}</option>
-                {/each}
-              </select>
-            </div>
-            <div class="field">
-              <label for="cond-movetype">KNOWN MOVE TYPE</label>
-              <select id="cond-movetype" name="knownMoveTypeId">
-                <option value="">— none —</option>
-                {#each data.allTypes as t}
-                  <option value={t.id} selected={(data.predecessorConditions?.knownMoveTypeId ?? null) === t.id}>{t.name}</option>
-                {/each}
-              </select>
-            </div>
-            <div class="field">
-              <label for="cond-happy">MIN HAPPINESS</label>
-              <input id="cond-happy" name="minHappiness" type="number" min="0" max="255" value={data.predecessorConditions?.minHappiness ?? ''}>
-            </div>
-            <div class="field">
-              <label for="cond-time">TIME OF DAY</label>
-              <select id="cond-time" name="timeOfDay">
-                <option value="">— any —</option>
-                {#each ['day', 'night', 'dusk'] as t}
-                  <option value={t} selected={data.predecessorConditions?.timeOfDay === t}>{t}</option>
-                {/each}
-              </select>
-            </div>
-            <div class="field">
-              <label for="cond-gender">GENDER</label>
-              <select id="cond-gender" name="gender">
-                <option value="">— any —</option>
-                <option value="1" selected={data.predecessorConditions?.gender === 1}>female</option>
-                <option value="2" selected={data.predecessorConditions?.gender === 2}>male</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="cond-loc">LOCATION</label>
-              <input id="cond-loc" name="location" type="text" value={data.predecessorConditions?.location ?? ''}>
-            </div>
-            <div class="form-actions">
-              <button type="submit" class="save-btn">SAVE CONDITIONS</button>
-            </div>
+            <div class="field"><label>TRIGGER</label><select name="trigger" required>{#each ['level-up','use-item','use-move','trade','three-critical-hits','shed','spin'] as t}<option value={t} selected={data.predecessorConditions?.trigger === t}>{t}</option>{/each}</select></div>
+            <div class="field"><label>MIN LEVEL</label><input name="minLevel" type="number" min="0" max="100" value={data.predecessorConditions?.minLevel ?? ''}></div>
+            <div class="field"><label>ITEM (use-item)</label><select name="itemId"><option value="">— none —</option>{#each data.allItems as i}<option value={i.id} selected={(data.predecessorConditions?.itemId ?? null) === i.id}>{i.name}</option>{/each}</select></div>
+            <div class="field"><label>HELD ITEM</label><select name="heldItemId"><option value="">— none —</option>{#each data.allItems as i}<option value={i.id} selected={(data.predecessorConditions?.heldItemId ?? null) === i.id}>{i.name}</option>{/each}</select></div>
+            <div class="field"><label>KNOWN MOVE</label><select name="knownMoveId"><option value="">— none —</option>{#each data.allMoves as m}<option value={m.id} selected={(data.predecessorConditions?.knownMoveId ?? null) === m.id}>{m.name}</option>{/each}</select></div>
+            <div class="field"><label>KNOWN MOVE TYPE</label><select name="knownMoveTypeId"><option value="">— none —</option>{#each data.allTypes as t}<option value={t.id} selected={(data.predecessorConditions?.knownMoveTypeId ?? null) === t.id}>{t.name}</option>{/each}</select></div>
+            <div class="field"><label>MIN HAPPINESS</label><input name="minHappiness" type="number" min="0" max="255" value={data.predecessorConditions?.minHappiness ?? ''}></div>
+            <div class="field"><label>TIME OF DAY</label><select name="timeOfDay"><option value="">— any —</option>{#each ['day','night','dusk'] as t}<option value={t} selected={data.predecessorConditions?.timeOfDay === t}>{t}</option>{/each}</select></div>
+            <div class="field"><label>GENDER</label><select name="gender"><option value="">— any —</option><option value="1" selected={data.predecessorConditions?.gender === 1}>female</option><option value="2" selected={data.predecessorConditions?.gender === 2}>male</option></select></div>
+            <div class="field"><label>LOCATION</label><input name="location" type="text" value={data.predecessorConditions?.location ?? ''}></div>
+            <div class="form-actions"><button type="submit" class="save-btn-sm">SAVE CONDITIONS</button></div>
           </form>
         </details>
-        <form action="?/clearPredecessor" method="post" use:enhance class="delete-form">
-          <button type="submit" class="delete-btn-sm" onclick={(e) => { if (!confirm('Remove predecessor and conditions?')) e.preventDefault(); }}>CLEAR PREDECESSOR</button>
+        <form action="?/clearPredecessor" method="post" use:enhance class="inline-form">
+          <button type="submit" class="delete-btn-sm" onclick={(e) => { if (!confirm('Remove predecessor?')) e.preventDefault(); }}>CLEAR PREDECESSOR</button>
         </form>
       {:else}
         <p class="evo-empty">Root of an evolution chain (no predecessor).</p>
-        <details class="evo-edit-toggle">
+        <details class="add-toggle">
           <summary>+ SET PREDECESSOR</summary>
           <form action="?/setPredecessor" method="post" use:enhance class="sub-form">
-            <div class="field full">
-              <label for="set-parent">PARENT POKÉMON</label>
-              <select id="set-parent" name="parentPokemonId" required>
-                <option value="">— pick a parent —</option>
-                {#each data.allPokemon as p}
-                  <option value={p.id}>{p.name} ({p.slug})</option>
-                {/each}
-              </select>
-            </div>
-            <div class="field">
-              <label for="set-trigger">TRIGGER</label>
-              <select id="set-trigger" name="trigger" required>
-                {#each ['level-up', 'use-item', 'use-move', 'trade', 'three-critical-hits', 'shed', 'spin'] as t}
-                  <option value={t}>{t}</option>
-                {/each}
-              </select>
-            </div>
-            <div class="field">
-              <label for="set-level">MIN LEVEL</label>
-              <input id="set-level" name="minLevel" type="number" min="0" max="100">
-            </div>
-            <div class="field">
-              <label for="set-item">ITEM</label>
-              <select id="set-item" name="itemId">
-                <option value="">— none —</option>
-                {#each data.allItems as i}<option value={i.id}>{i.name}</option>{/each}
-              </select>
-            </div>
-            <div class="field">
-              <label for="set-happy">MIN HAPPINESS</label>
-              <input id="set-happy" name="minHappiness" type="number" min="0" max="255">
-            </div>
-            <div class="field">
-              <label for="set-time">TIME OF DAY</label>
-              <select id="set-time" name="timeOfDay">
-                <option value="">— any —</option>
-                {#each ['day', 'night', 'dusk'] as t}<option value={t}>{t}</option>{/each}
-              </select>
-            </div>
-            <div class="form-actions">
-              <button type="submit" class="save-btn">SET PREDECESSOR</button>
-            </div>
+            <div class="field full"><label>PARENT POKÉMON</label><select name="parentPokemonId" required><option value="">— pick a parent —</option>{#each data.allPokemon as pk}<option value={pk.id}>{pk.name} ({pk.slug})</option>{/each}</select></div>
+            <div class="field"><label>TRIGGER</label><select name="trigger" required>{#each ['level-up','use-item','use-move','trade','three-critical-hits','shed','spin'] as t}<option value={t}>{t}</option>{/each}</select></div>
+            <div class="field"><label>MIN LEVEL</label><input name="minLevel" type="number" min="0" max="100"></div>
+            <div class="field"><label>ITEM</label><select name="itemId"><option value="">— none —</option>{#each data.allItems as i}<option value={i.id}>{i.name}</option>{/each}</select></div>
+            <div class="field"><label>MIN HAPPINESS</label><input name="minHappiness" type="number" min="0" max="255"></div>
+            <div class="field"><label>TIME OF DAY</label><select name="timeOfDay"><option value="">— any —</option>{#each ['day','night','dusk'] as t}<option value={t}>{t}</option>{/each}</select></div>
+            <div class="form-actions"><button type="submit" class="save-btn-sm">SET PREDECESSOR</button></div>
           </form>
         </details>
       {/if}
     </div>
-
-    <!-- Successors panel -->
     <div class="evo-panel">
       <h4 class="evo-panel-title">SUCCESSORS ({data.successors.length})</h4>
       {#if data.successors.length === 0}
-        <p class="evo-empty">No successors recorded. To add one, edit the target pokemon and set this one as its predecessor.</p>
+        <p class="evo-empty">No successors. To add one, edit the target pokémon and set this as its predecessor.</p>
       {:else}
         <div class="evo-successors">
           {#each data.successors as s (s.id)}
-            <a href="/editor/pokemon/{s.slug}" class="evo-link evo-successor card-interactive">
+            <a href="/editor/pokemon/{s.slug}" class="evo-link card-interactive">
               → {s.name}
-              {#if s.trigger}
-                <span class="evo-conditions">
-                  {s.trigger}
-                  {#if s.minLevel}· lvl {s.minLevel}{/if}
-                  {#if s.itemId}· item {data.allItems.find(i => i.id === s.itemId)?.name ?? `#${s.itemId}`}{/if}
-                </span>
-              {/if}
+              {#if s.trigger}<span class="evo-conditions">{s.trigger}{#if s.minLevel}· lvl {s.minLevel}{/if}{#if s.itemId}· item {data.allItems.find(i => i.id === s.itemId)?.name ?? `#${s.itemId}`}{/if}</span>{/if}
             </a>
           {/each}
         </div>
       {/if}
     </div>
-
-    {#if form?.evoError}
-      <p class="form-error">{form.evoError}</p>
-    {/if}
+    {#if form?.evoError}<p class="form-error">{form.evoError}</p>{/if}
   </section>
 
-  <!-- LEARNSET sub-section -->
-  <section class="sub-section">
-    <h3 class="section-title">LEARNSET</h3>
 
+  {:else if activePageTab === 'learnset'}
+  <!-- LEARNSET tab -->
+  <section class="tab-section">
     <div class="learnset-controls">
       <div class="field">
-        <label for="vg-select">VERSION GROUP</label>
-        <select id="vg-select" onchange={onVgChange}>
+        <label>VERSION GROUP</label>
+        <select onchange={onVgChange}>
           {#each data.vgCounts as v}
             <option value={v.slug} selected={v.id === data.selectedVgId}>{v.slug} ({v.count})</option>
           {/each}
         </select>
       </div>
-
       {#if data.selectedVgId != null && data.learnset.length > 0}
         <form action="?/clearLearnsetForVg" method="post" use:enhance>
           <input type="hidden" name="versionGroupId" value={data.selectedVgId}>
-          <button type="submit" class="delete-btn-sm" onclick={(e) => { if (!confirm(`Clear all ${data.learnset.length} entries in this version group?`)) e.preventDefault(); }}>
-            CLEAR THIS VG
-          </button>
+          <button type="submit" class="delete-btn-sm" onclick={(e) => { if (!confirm(`Clear all ${data.learnset.length} entries?`)) e.preventDefault(); }}>CLEAR THIS VG</button>
         </form>
       {/if}
-
-      <details class="copy-toggle">
+      <details class="add-toggle">
         <summary>COPY FROM ANOTHER VG</summary>
         <form action="?/copyLearnsetFromVg" method="post" use:enhance class="copy-form">
           <input type="hidden" name="targetVgId" value={data.selectedVgId}>
@@ -567,24 +562,17 @@
               <option value={v.id}>{v.slug} ({v.count})</option>
             {/each}
           </select>
-          <button type="submit" class="save-btn">COPY</button>
+          <button type="submit" class="save-btn-sm">COPY</button>
         </form>
       </details>
     </div>
-
     {#if data.selectedVgId == null}
-      <p class="evo-empty">No version groups with learnset data for this Pokémon. Add an entry below to start one.</p>
+      <p class="evo-empty">No version groups with data. Add an entry below to start one.</p>
     {/if}
-
     {#if data.learnset.length > 0}
       <div class="learnset-table">
-        <div class="learnset-head">
-          <span>METHOD</span>
-          <span>MOVE</span>
-          <span>LEVEL</span>
-          <span></span>
-        </div>
-        {#each data.learnset as entry, i (`${entry.moveId}-${entry.learnMethodId}-${entry.level}`)}
+        <div class="learnset-head"><span>METHOD</span><span>MOVE</span><span>LEVEL</span><span></span></div>
+        {#each data.learnset as entry (`${entry.moveId}-${entry.learnMethodId}-${entry.level}`)}
           <form action="?/removeLearnsetEntry" method="post" use:enhance class="learnset-row">
             <input type="hidden" name="moveId" value={entry.moveId}>
             <input type="hidden" name="learnMethodId" value={entry.learnMethodId}>
@@ -598,369 +586,311 @@
         {/each}
       </div>
     {:else if data.selectedVgId != null}
-      <p class="evo-empty">No entries in this version group yet. Use the form below to add one.</p>
+      <p class="evo-empty">No entries in this version group yet.</p>
     {/if}
-
-    <details class="add-form-toggle">
+    <details class="add-toggle">
       <summary>+ ADD MOVE TO LEARNSET</summary>
       <form action="?/addLearnsetEntry" method="post" use:enhance class="sub-form add-form">
         <input type="hidden" name="versionGroupId" value={data.selectedVgId}>
         <div class="field">
-          <label for="add-move">MOVE</label>
-          <input
-            id="add-move"
-            list="all-moves-list"
-            bind:value={moveQuery}
-            placeholder="type to search…"
-            autocomplete="off"
-            required
-          >
-          <datalist id="all-moves-list">
-            {#each data.allMoves as m}
-              <option value={m.name}></option>
-            {/each}
-          </datalist>
+          <label>MOVE</label>
+          <input list="all-moves-list" bind:value={moveQuery} placeholder="type to search…" autocomplete="off" required>
+          <datalist id="all-moves-list">{#each data.allMoves as m}<option value={m.name}></option>{/each}</datalist>
           <input type="hidden" name="moveId" value={selectedMoveId ?? ''}>
-          {#if moveQuery && selectedMoveId == null}
-            <span class="prefill-msg">no match (type a move name from the list)</span>
-          {/if}
+          {#if moveQuery && selectedMoveId == null}<span class="prefill-msg">no match</span>{/if}
         </div>
-        <div class="field">
-          <label for="add-method">METHOD</label>
-          <select id="add-method" name="learnMethodId" required>
-            {#each data.allLearnMethods as m}
-              <option value={m.id} selected={m.slug === 'level-up'}>{m.name}</option>
-            {/each}
-          </select>
-        </div>
-        <div class="field">
-          <label for="add-level">LEVEL</label>
-          <input id="add-level" name="level" type="number" min="0" max="100" value="0">
-        </div>
-        <div class="form-actions">
-          <button type="submit" class="save-btn">ADD ENTRY</button>
-        </div>
+        <div class="field"><label>METHOD</label><select name="learnMethodId" required>{#each data.allLearnMethods as m}<option value={m.id} selected={m.slug === 'level-up'}>{m.name}</option>{/each}</select></div>
+        <div class="field"><label>LEVEL</label><input name="level" type="number" min="0" max="100" value="0"></div>
+        <div class="form-actions"><button type="submit" class="save-btn-sm">ADD ENTRY</button></div>
       </form>
     </details>
-
-    {#if form?.learnsetError}
-      <p class="form-error">{form.learnsetError}</p>
-    {/if}
+    {#if form?.learnsetError}<p class="form-error">{form.learnsetError}</p>{/if}
   </section>
 
+
+  {:else if activePageTab === 'location'}
+  <div class="location-stub">
+    <p class="evo-empty">Encounter data is read-only.</p>
+    <a href="/wiki/pokemon/{data.pokemon.slug}" class="wiki-link-lg">View location data in wiki →</a>
+  </div>
+  {/if}
+
+  </Tabs>
+
+  <!-- ── Resource / Delete (outside tabs, at bottom) ───────────────────── -->
   {#if data.pokemon.source === 'edited' && data.pokemon.pokeapiId}
     <form action="?/resource" method="post" use:enhance class="resource-form">
-      <button type="submit" class="resource-btn" onclick={(e) => { if (!confirm('Re-import this Pokémon from PokeAPI? Stats, types, abilities, sprites, and learnset will be restored to canonical PokeAPI data. Form-specific evolution edges (linked-list) are NOT re-sourced.')) e.preventDefault(); }}>
+      <button type="submit" class="resource-btn" onclick={(e) => { if (!confirm('Re-import from PokeAPI? Stats, types, abilities, sprites, and learnset will be restored to canonical data.')) e.preventDefault(); }}>
         ⟲ RE-SOURCE FROM POKEAPI
       </button>
-      <span class="resource-hint">Restores stats / types / abilities / learnset. Evolution pointer is preserved.</span>
+      <span class="resource-hint">Restores stats / types / abilities / learnset. Evolution pointer preserved.</span>
     </form>
   {/if}
 
   {#if data.pokemon.source === 'custom'}
     <form action="?/delete" method="post" use:enhance class="delete-form">
-      <button type="submit" class="delete-btn">DELETE THIS POKÉMON</button>
-      <span class="delete-hint">Apenas pokémon custom podem ser deletados. Sub-tabelas (types, abilities, forms) são removidas junto.</span>
+      <button type="submit" class="delete-btn" onclick={(e) => { if (!confirm('Delete this Pokémon? Sub-tables (types, abilities, forms) removed too.')) e.preventDefault(); }}>DELETE THIS POKÉMON</button>
+      <span class="delete-hint">Only custom pokémon can be deleted.</span>
     </form>
   {/if}
+
 </div>
 
 <style>
-  .edit-page { display: flex; flex-direction: column; gap: var(--spacing-5); }
-  .page-header {
-    display: flex; justify-content: space-between; align-items: flex-end;
-    gap: var(--spacing-3); flex-wrap: wrap;
+  .pokemon-detail {
+    display: flex; flex-direction: column; gap: var(--spacing-6);
   }
-  .header-left { display: flex; align-items: center; gap: var(--spacing-3); flex-wrap: wrap; }
-  .back { font-family: var(--font-display); font-size: 9px; color: var(--theme-text-accent); text-decoration: none; }
-  .back:hover { text-decoration: underline; }
-  .page-header h2 { color: var(--theme-text-primary); margin: 0; }
-  .meta { display: flex; gap: var(--spacing-3); font-family: var(--font-mono); font-size: 11px; color: var(--theme-text-muted); }
-  .wiki-link { color: var(--theme-text-accent); text-decoration: none; }
-  .wiki-link:hover { text-decoration: underline; }
 
+  /* Header - identical to wiki */
+  .detail-header {
+    display: flex; align-items: center; gap: var(--spacing-4);
+    background-color: var(--theme-bg-secondary);
+    border: 4px solid var(--theme-border-primary);
+    padding: var(--spacing-4) var(--spacing-6);
+    box-shadow: var(--shadow-card);
+    flex-wrap: wrap;
+  }
+  .dex-num { font-family: var(--font-display); font-size: 16px; color: var(--theme-text-secondary); flex-shrink: 0; }
+  .header-main { flex: 1; display: flex; flex-direction: column; gap: var(--spacing-1); }
+  .h1-input {
+    font-family: var(--font-display); font-size: 24px;
+    color: var(--theme-text-primary); background: none;
+    border: none; border-bottom: 2px solid transparent;
+    width: 100%; outline: none; padding: 0;
+  }
+  .h1-input:focus { border-bottom-color: var(--theme-text-accent); }
+  .genus { font-family: var(--font-mono); font-size: 12px; color: var(--theme-text-secondary); }
+  .types { display: flex; gap: var(--spacing-2); }
+
+  /* Meta-strip (editor-only) */
+  .meta-strip {
+    display: flex; align-items: center; flex-wrap: wrap; gap: var(--spacing-4);
+    border-left: 4px solid var(--theme-border-primary);
+    border-right: 4px solid var(--theme-border-primary);
+    border-bottom: 4px solid var(--theme-border-primary);
+    border-top: 2px dashed var(--theme-border-primary);
+    padding: var(--spacing-3) var(--spacing-6);
+    background-color: var(--theme-bg-secondary);
+    box-shadow: var(--shadow-card);
+    margin-top: -4px;
+  }
+  .meta-field { display: flex; align-items: center; gap: var(--spacing-2); }
+  .meta-label { font-family: var(--font-display); font-size: 9px; color: var(--theme-text-muted); white-space: nowrap; }
+  .meta-input, .meta-select {
+    background-color: var(--theme-bg-primary); border: 2px solid var(--theme-border-primary);
+    color: var(--theme-text-primary); font-family: var(--font-mono); font-size: 11px;
+    padding: 2px var(--spacing-2);
+  }
+  .meta-input { width: 120px; }
+  .wiki-link { font-family: var(--font-display); font-size: 9px; color: var(--theme-text-accent); text-decoration: none; }
+  .wiki-link:hover { text-decoration: underline; }
+  .meta-actions { display: flex; align-items: center; gap: var(--spacing-3); margin-left: auto; }
+
+  /* Source badges */
   .src-badge { font-family: var(--font-display); font-size: 8px; padding: 2px 6px; border: 2px solid var(--theme-border-primary); }
   .src-pokeapi { color: var(--theme-text-muted); }
   .src-edited  { color: var(--theme-text-accent); border-color: var(--theme-text-accent); }
   .src-custom  { color: var(--color-text-warning); border-color: var(--color-text-warning); }
 
-  .sprite-preview {
-    background-color: var(--theme-bg-secondary);
-    border: 3px solid var(--theme-border-primary);
-    padding: var(--spacing-3);
-    display: flex; justify-content: center;
-  }
-  .sprite-preview img {
-    max-height: 96px;
-    image-rendering: pixelated;
-  }
-
-  .edit-form, .sub-form {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    gap: var(--spacing-3);
-    background-color: var(--theme-bg-secondary);
-    border: 3px solid var(--theme-border-primary);
-    padding: var(--spacing-4);
-  }
-
-  .field { display: flex; flex-direction: column; gap: var(--spacing-1); }
-  .field.full { grid-column: 1 / -1; }
-  .field-check { flex-direction: row; align-items: center; }
-  .field-check label {
-    display: flex; align-items: center; gap: var(--spacing-2);
-    font-family: var(--font-display); font-size: 9px; color: var(--theme-text-muted);
-    cursor: pointer;
-  }
-  .field label { font-family: var(--font-display); font-size: 9px; color: var(--theme-text-muted); }
-  .field input, .field select {
-    font-family: var(--font-mono);
-    font-size: 12px;
-    padding: var(--spacing-2);
-    background-color: var(--theme-bg-primary);
-    border: 2px solid var(--theme-border-primary);
-    color: var(--theme-text-primary);
-  }
-  .field input[type="checkbox"] { width: auto; padding: 0; }
-  .field input:focus, .field select:focus {
-    outline: none; border-color: var(--theme-text-accent);
-  }
-
-  .stats-group {
-    grid-column: 1 / -1;
-    border: 2px dashed var(--theme-border-primary);
-    padding: var(--spacing-3);
-  }
-  .stats-group legend {
-    font-family: var(--font-display); font-size: 9px;
-    color: var(--theme-text-muted); padding: 0 var(--spacing-2);
-  }
-  .stat-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: var(--spacing-2); }
-  .stat-field input { font-size: 11px; }
-
-  .form-actions {
-    grid-column: 1 / -1;
-    display: flex; align-items: center; gap: var(--spacing-3);
-  }
+  /* Shared button styles */
   .save-btn {
-    font-family: var(--font-display); font-size: 11px;
-    padding: var(--spacing-2) var(--spacing-4);
+    font-family: var(--font-display); font-size: 10px; color: var(--theme-text-primary);
+    background-color: var(--theme-bg-secondary); border: 2px solid var(--theme-border-primary);
+    padding: var(--spacing-2) var(--spacing-4); cursor: pointer;
+    box-shadow: var(--shadow-card-subtle); transition: all 0.1s ease;
+  }
+  .save-btn:hover { background-color: var(--theme-bg-hover); transform: translate(-1px, -1px); box-shadow: var(--shadow-card-hover); }
+  .save-btn-sm {
+    font-family: var(--font-display); font-size: 9px; color: var(--theme-text-primary);
+    background-color: var(--theme-bg-primary); border: 2px solid var(--theme-border-primary);
+    padding: 2px var(--spacing-3); cursor: pointer; transition: all 0.1s ease;
+  }
+  .save-btn-sm:hover { background-color: var(--theme-bg-hover); }
+  .cancel-link { font-family: var(--font-display); font-size: 9px; color: var(--theme-text-secondary); text-decoration: none; }
+  .cancel-link:hover { color: var(--theme-text-primary); }
+  .save-ok { font-family: var(--font-mono); font-size: 10px; color: var(--theme-text-accent); }
+  .save-ok-sm { font-family: var(--font-mono); font-size: 10px; color: var(--theme-text-accent); }
+  .form-error { font-family: var(--font-mono); font-size: 10px; color: var(--color-text-error); }
+  .form-error-sm { font-family: var(--font-mono); font-size: 9px; color: var(--color-text-error); }
+  .delete-btn-sm {
+    font-family: var(--font-display); font-size: 9px; color: var(--color-text-error);
+    background: none; border: 2px solid var(--color-text-error);
+    padding: 2px var(--spacing-3); cursor: pointer;
+  }
+
+  /* Content grid - identical to wiki */
+  .content-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-6);
+  }
+  .sprite-cell { display: flex; flex-direction: column; gap: var(--spacing-4); }
+  .stats-cell { display: flex; flex-direction: column; }
+  .info-cell { display: flex; flex-direction: column; gap: var(--spacing-4); }
+  .data-cell { display: flex; flex-direction: column; }
+
+  /* Image box */
+  .image-box {
+    position: relative; background-color: var(--theme-bg-secondary);
+    border: 4px solid var(--theme-border-primary); box-shadow: var(--shadow-card);
+    display: flex; justify-content: center; align-items: center;
+    padding: var(--spacing-6); flex: 1; min-height: 240px;
+    transition: background-color 0.15s ease;
+  }
+  .image-box:has(.shiny-active) { background-color: color-mix(in srgb, var(--theme-bg-secondary) 85%, #b39ddb 15%); }
+  .image-box img { max-width: 100%; max-height: 240px; object-fit: contain; }
+  .no-sprite { font-family: var(--font-display); font-size: 11px; color: var(--theme-text-muted); }
+  .shiny-toggle {
+    position: absolute; bottom: var(--spacing-2); right: var(--spacing-2);
+    font-family: var(--font-display); font-size: 8px; padding: 4px 8px;
+    background-color: var(--theme-bg-primary); color: var(--theme-text-secondary);
+    border: 2px solid var(--theme-border-primary); cursor: pointer;
+    box-shadow: 2px 2px 0px var(--theme-border-primary); transition: all 0.05s ease;
+  }
+  .shiny-toggle:hover { color: var(--theme-text-accent); border-color: var(--theme-text-accent); transform: translate(-1px, -1px); }
+
+  /* Sprite URL inputs */
+  .sprite-inputs { display: flex; flex-direction: column; gap: var(--spacing-2); }
+  .sprite-field { display: flex; align-items: center; gap: var(--spacing-2); }
+  .sprite-label { font-family: var(--font-display); font-size: 8px; color: var(--theme-text-muted); width: 60px; flex-shrink: 0; }
+  .sprite-url-input {
+    flex: 1; background-color: var(--theme-bg-primary); border: 2px solid var(--theme-border-primary);
+    color: var(--theme-text-secondary); font-family: var(--font-mono); font-size: 10px;
+    padding: 2px var(--spacing-2);
+  }
+
+  /* Stat editing rows */
+  .stats-container { display: flex; flex-direction: column; gap: var(--spacing-1); }
+  .stat-edit-row { display: flex; align-items: center; gap: var(--spacing-2); }
+  .stat-edit-label { width: 60px; font-family: var(--font-display); font-size: 8px; color: var(--theme-text-secondary); text-align: right; flex-shrink: 0; }
+  .stat-edit-input {
+    width: 44px; background: none; border: none; border-bottom: 1px solid var(--theme-border-primary);
+    color: var(--theme-text-primary); font-family: var(--font-mono); font-size: 12px;
+    font-weight: bold; text-align: center; outline: none; flex-shrink: 0;
+  }
+  .stat-edit-input:focus { border-bottom-color: var(--theme-text-accent); }
+  .stat-bar-only {
+    flex: 1;
+    height: 10px;
+    background-color: var(--theme-bg-secondary);
+    border: 2px solid var(--theme-border-primary);
+  }
+  .stat-bar-fill {
+    height: 100%;
+    background-color: var(--theme-text-accent);
+  }
+  .stat-total { display: flex; justify-content: flex-end; gap: var(--spacing-3); margin-top: var(--spacing-2); font-family: var(--font-display); font-size: 10px; color: var(--theme-text-secondary); }
+  .stat-total .value { color: var(--theme-text-primary); font-family: var(--font-mono); }
+  .stat-save-row { display: flex; align-items: center; gap: var(--spacing-3); margin-top: var(--spacing-2); }
+  .save-btn-sm {
+    font-family: var(--font-display); font-size: 10px;
+    padding: 2px var(--spacing-3);
     background: none; border: 2px solid var(--theme-text-accent); color: var(--theme-text-accent);
     cursor: pointer;
   }
-  .save-btn:hover { background-color: var(--theme-text-accent); color: var(--theme-bg-primary); }
-  .form-error { font-family: var(--font-mono); font-size: 11px; color: var(--color-text-error); }
-  .save-ok { font-family: var(--font-display); font-size: 10px; color: var(--theme-text-accent); }
+  .save-btn-sm:hover { background-color: var(--theme-text-accent); color: var(--theme-bg-primary); }
 
-  .sub-section { display: flex; flex-direction: column; gap: var(--spacing-3); }
-  .section-title {
-    font-family: var(--font-display); font-size: 11px; color: var(--theme-text-secondary);
-    margin: 0; padding-bottom: var(--spacing-2); border-bottom: 2px solid var(--theme-border-primary);
+  /* Data cell */
+  .data-edit-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--spacing-3); }
+  .data-edit-row { display: flex; align-items: center; gap: var(--spacing-3); }
+  .data-label { font-family: var(--font-display); font-size: 9px; color: var(--theme-text-muted); width: 60px; flex-shrink: 0; }
+  .data-value { font-family: var(--font-mono); font-size: 12px; color: var(--theme-text-primary); }
+  .data-input-wrap { display: flex; align-items: center; gap: var(--spacing-2); }
+  .data-input {
+    width: 70px; background-color: var(--theme-bg-primary); border: 2px solid var(--theme-border-primary);
+    color: var(--theme-text-primary); font-family: var(--font-mono); font-size: 12px;
+    padding: 2px var(--spacing-2);
   }
+  .data-unit { font-family: var(--font-mono); font-size: 10px; color: var(--theme-text-muted); }
+  .data-check-row { display: flex; align-items: center; }
+  .data-check-label { display: flex; align-items: center; gap: var(--spacing-2); font-family: var(--font-display); font-size: 9px; color: var(--theme-text-muted); cursor: pointer; }
 
-  /* Forms sub-section */
-  .forms-list { display: flex; flex-direction: column; gap: var(--spacing-3); }
-  .form-row {
-    background-color: var(--theme-bg-secondary);
-    border: 3px solid var(--theme-border-primary);
-    padding: var(--spacing-3);
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-3);
+  /* Sub-forms inside InfoBox (types, abilities) */
+  .sub-form-inline { display: flex; flex-direction: column; gap: var(--spacing-3); }
+  .sub-field { display: flex; flex-direction: column; gap: var(--spacing-1); }
+  .sub-label { font-family: var(--font-display); font-size: 8px; color: var(--theme-text-muted); }
+  .sub-field select {
+    background-color: var(--theme-bg-primary); border: 2px solid var(--theme-border-primary);
+    color: var(--theme-text-primary); font-family: var(--font-mono); font-size: 11px;
+    padding: 2px var(--spacing-2);
   }
-  .form-row-head {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  .form-name {
-    font-family: var(--font-display); font-size: 11px;
-    color: var(--theme-text-primary);
-  }
-  .default-flag {
-    font-size: 9px; color: var(--theme-text-accent); margin-left: var(--spacing-2);
-  }
-  .form-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    gap: var(--spacing-2);
-  }
-  .form-row-actions {
-    display: flex; align-items: center; gap: var(--spacing-3);
-  }
-  .delete-btn-sm {
-    font-family: var(--font-display); font-size: 9px;
-    padding: var(--spacing-2) var(--spacing-3);
-    background: none; border: 2px solid var(--color-text-error); color: var(--color-text-error);
-    cursor: pointer;
-  }
-  .delete-btn-sm:hover { background-color: var(--color-text-error); color: var(--theme-bg-primary); }
-  .add-form-toggle {
-    background-color: var(--theme-bg-secondary);
-    border: 2px dashed var(--theme-border-primary);
-    padding: var(--spacing-3);
-  }
-  .add-form-toggle summary {
-    font-family: var(--font-display); font-size: 10px;
-    color: var(--theme-text-accent);
-    cursor: pointer;
-    list-style: none;
-  }
-  .add-form-toggle[open] summary { margin-bottom: var(--spacing-3); }
-  .add-form { border: none; padding: 0; }
+  .sub-actions { display: flex; align-items: center; gap: var(--spacing-3); margin-top: var(--spacing-1); }
 
-  .empty-state {
-    background-color: var(--theme-bg-secondary);
-    border: 2px dashed var(--theme-border-primary);
-    padding: var(--spacing-3);
-    text-align: center;
-  }
-  .empty-state p {
-    font-family: var(--font-mono); font-size: 12px;
-    color: var(--theme-text-secondary);
-    margin: 0 0 var(--spacing-1) 0;
-  }
-  .empty-state .hint { font-size: 10px; color: var(--theme-text-muted); }
+  /* Tab sections */
+  .tab-section { display: flex; flex-direction: column; gap: var(--spacing-4); }
+  .section-title { font-family: var(--font-display); font-size: 12px; color: var(--theme-text-primary); margin: 0; border-bottom: 2px solid var(--theme-border-primary); padding-bottom: var(--spacing-2); }
+  .evo-panel { display: flex; flex-direction: column; gap: var(--spacing-3); }
+  .evo-panel-title { font-family: var(--font-display); font-size: 10px; color: var(--theme-text-muted); margin: 0; }
+  .evo-empty { font-family: var(--font-mono); font-size: 11px; color: var(--theme-text-muted); margin: 0; }
+  .evo-link { font-family: var(--font-mono); font-size: 12px; color: var(--theme-text-accent); text-decoration: none; }
+  .evo-conditions { font-family: var(--font-mono); font-size: 10px; color: var(--theme-text-muted); margin-left: var(--spacing-2); }
+  .evo-successors { display: flex; flex-direction: column; gap: var(--spacing-2); }
+  .evo-row { display: flex; align-items: center; gap: var(--spacing-2); }
+  .card-interactive { display: block; padding: var(--spacing-2); border: 2px solid var(--theme-border-primary); transition: all 0.1s ease; }
+  .card-interactive:hover { background-color: var(--theme-bg-hover); transform: translate(-1px, -1px); }
 
-  .src-badge {
-    font-family: var(--font-display); font-size: 8px;
-    padding: 2px 6px; border: 2px solid var(--theme-border-primary);
-  }
-  .src-pokeapi { color: var(--theme-text-muted); }
-  .src-edited  { color: var(--theme-text-accent); border-color: var(--theme-text-accent); }
-  .src-custom  { color: var(--color-text-warning); border-color: var(--color-text-warning); }
-
-  /* Evolution sub-section */
-  .evo-panel {
-    background-color: var(--theme-bg-secondary);
-    border: 3px solid var(--theme-border-primary);
-    padding: var(--spacing-3);
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-3);
-  }
-  .evo-panel-title {
-    font-family: var(--font-display); font-size: 9px;
-    color: var(--theme-text-muted);
-    margin: 0;
-  }
-  .evo-row { display: flex; align-items: center; gap: var(--spacing-3); flex-wrap: wrap; }
-  .evo-link {
-    font-family: var(--font-display); font-size: 11px;
-    color: var(--theme-text-accent);
-    text-decoration: none;
-  }
-  .evo-link:hover { text-decoration: underline; }
-  .evo-conditions {
-    font-family: var(--font-mono); font-size: 10px;
-    color: var(--theme-text-muted);
-  }
-  .evo-empty {
-    font-family: var(--font-mono); font-size: 11px;
-    color: var(--theme-text-muted);
-    margin: 0;
-  }
-  .evo-edit-toggle {
-    border: 2px dashed var(--theme-border-primary);
-    padding: var(--spacing-2);
-  }
-  .evo-edit-toggle summary {
-    font-family: var(--font-display); font-size: 9px;
-    color: var(--theme-text-accent);
-    cursor: pointer;
-    list-style: none;
-  }
-  .evo-edit-toggle[open] summary { margin-bottom: var(--spacing-3); }
-  .evo-successors {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-2);
-  }
-  .evo-successor {
-    display: flex; flex-direction: column; gap: var(--spacing-1);
-    padding: var(--spacing-2) var(--spacing-3);
-    background-color: var(--theme-bg-primary);
+  /* Forms list in FORMS tab */
+  .forms-list { display: flex; flex-direction: column; gap: var(--spacing-4); }
+  .form-card { background-color: var(--theme-bg-primary); border: 2px solid var(--theme-border-primary); padding: var(--spacing-4); display: flex; flex-direction: column; gap: var(--spacing-3); }
+  .form-sprites-box {
     border: 2px solid var(--theme-border-primary);
-  }
-
-  /* Learnset sub-section */
-  .learnset-controls {
-    display: flex;
-    gap: var(--spacing-3);
-    align-items: end;
-    flex-wrap: wrap;
     background-color: var(--theme-bg-secondary);
-    border: 3px solid var(--theme-border-primary);
     padding: var(--spacing-3);
+    display: flex; flex-direction: column; gap: var(--spacing-2);
   }
-  .learnset-controls .field { min-width: 220px; }
-  .copy-toggle {
-    border: 2px dashed var(--theme-border-primary);
-    padding: var(--spacing-2);
-  }
-  .copy-toggle summary {
-    font-family: var(--font-display); font-size: 9px;
-    color: var(--theme-text-accent);
-    cursor: pointer;
-    list-style: none;
-  }
-  .copy-form {
-    display: flex; align-items: center; gap: var(--spacing-2);
-    margin-top: var(--spacing-2);
-  }
-  .copy-form select {
-    font-family: var(--font-mono); font-size: 11px;
-    padding: var(--spacing-1) var(--spacing-2);
-    background-color: var(--theme-bg-primary);
-    border: 2px solid var(--theme-border-primary);
-    color: var(--theme-text-primary);
-  }
-
-  .learnset-table {
-    display: flex;
-    flex-direction: column;
-    border: 3px solid var(--theme-border-primary);
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-  .learnset-head, .learnset-row {
-    display: grid;
-    grid-template-columns: 140px 1fr 60px 80px;
-    gap: var(--spacing-3);
-    padding: var(--spacing-2) var(--spacing-3);
-    align-items: center;
-  }
-  .learnset-head {
-    background-color: var(--theme-bg-secondary);
-    border-bottom: 2px solid var(--theme-border-primary);
+  .form-sprites-title {
     font-family: var(--font-display); font-size: 9px; color: var(--theme-text-muted);
+    padding-bottom: var(--spacing-2); border-bottom: 1px solid var(--theme-border-primary);
   }
-  .learnset-row { border-bottom: 1px solid var(--theme-border-primary); }
-  .learnset-row:last-child { border-bottom: none; }
-  .learnset-row:hover { background-color: var(--theme-bg-hover); }
-  .learnset-method { font-family: var(--font-mono); font-size: 10px; color: var(--theme-text-muted); }
-  .learnset-move {
-    font-family: var(--font-display); font-size: 11px;
-    color: var(--theme-text-primary);
-    text-decoration: none;
+  .form-sprites-managed {
+    font-family: var(--font-mono); font-size: 10px; color: var(--theme-text-muted);
+    padding: var(--spacing-2) var(--spacing-3);
+    border: 2px dashed var(--theme-border-primary);
   }
-  .learnset-move:hover { color: var(--theme-text-accent); text-decoration: underline; }
+  .info-tab-ref { font-family: var(--font-display); font-size: 10px; color: var(--theme-text-accent); }
+  .form-card-head { display: flex; justify-content: space-between; align-items: center; }
+  .form-name { font-family: var(--font-mono); font-size: 12px; color: var(--theme-text-primary); }
+  .default-flag { font-family: var(--font-display); font-size: 9px; color: var(--theme-text-accent); margin-left: var(--spacing-2); }
+  .form-card-actions { display: flex; gap: var(--spacing-3); align-items: center; }
+  .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: var(--spacing-3); }
+  .field { display: flex; flex-direction: column; gap: var(--spacing-1); }
+  .field label { font-family: var(--font-display); font-size: 9px; color: var(--theme-text-muted); }
+  .field input[type=text], .field input[type=number], .field select {
+    background-color: var(--theme-bg-secondary); border: 2px solid var(--theme-border-primary);
+    color: var(--theme-text-primary); font-family: var(--font-mono); font-size: 11px;
+    padding: var(--spacing-1) var(--spacing-2);
+  }
+  .field.full { grid-column: 1 / -1; }
+  .field-check { flex-direction: row; align-items: center; }
+  .field-check label { display: flex; align-items: center; gap: var(--spacing-2); flex-direction: row; }
+  .add-toggle { margin-top: var(--spacing-2); }
+  .add-toggle summary { font-family: var(--font-display); font-size: 10px; color: var(--theme-text-accent); cursor: pointer; }
+  .add-form { margin-top: var(--spacing-3); }
+
+  /* Learnset styles */
+  .learnset-controls { display: flex; align-items: center; gap: var(--spacing-4); flex-wrap: wrap; }
+  .learnset-table { display: flex; flex-direction: column; }
+  .learnset-head { display: grid; grid-template-columns: 120px 1fr 60px 60px; gap: var(--spacing-3); padding: var(--spacing-2) var(--spacing-3); background-color: var(--theme-bg-primary); border-bottom: 2px solid var(--theme-border-primary); font-family: var(--font-display); font-size: 9px; color: var(--theme-text-muted); }
+  .learnset-row { display: grid; grid-template-columns: 120px 1fr 60px 60px; gap: var(--spacing-3); padding: var(--spacing-2) var(--spacing-3); border-bottom: 1px solid var(--theme-border-primary); align-items: center; }
+  .learnset-method { font-family: var(--font-mono); font-size: 11px; color: var(--theme-text-muted); }
+  .learnset-move { font-family: var(--font-mono); font-size: 12px; color: var(--theme-text-accent); text-decoration: none; }
   .learnset-level { font-family: var(--font-mono); font-size: 11px; color: var(--theme-text-secondary); }
+  .copy-form { display: flex; align-items: center; gap: var(--spacing-2); margin-top: var(--spacing-2); }
+  .prefill-msg { font-family: var(--font-mono); font-size: 10px; color: var(--color-text-error); }
+  .sub-form { display: flex; flex-direction: column; gap: var(--spacing-3); margin-top: var(--spacing-3); }
+  .form-actions { display: flex; align-items: center; gap: var(--spacing-3); }
+  .inline-form { display: inline; }
 
-  .delete-form { display: flex; align-items: center; gap: var(--spacing-3); }
-  .delete-btn {
-    font-family: var(--font-display); font-size: 10px;
-    padding: var(--spacing-2) var(--spacing-4);
-    background: none; border: 2px solid var(--color-text-error); color: var(--color-text-error);
-    cursor: pointer;
-  }
-  .delete-btn:hover { background-color: var(--color-text-error); color: var(--theme-bg-primary); }
+  /* Location stub */
+  .location-stub { display: flex; flex-direction: column; gap: var(--spacing-4); align-items: flex-start; }
+  .wiki-link-lg { font-family: var(--font-display); font-size: 11px; color: var(--theme-text-accent); text-decoration: none; }
+  .wiki-link-lg:hover { text-decoration: underline; }
+
+  /* Resource / delete */
+  .resource-form { display: flex; align-items: center; gap: var(--spacing-4); padding: var(--spacing-3); border: 2px dashed var(--theme-border-primary); }
+  .resource-btn { font-family: var(--font-display); font-size: 10px; color: var(--theme-text-secondary); background: none; border: 2px solid var(--theme-border-primary); padding: var(--spacing-2) var(--spacing-4); cursor: pointer; transition: all 0.1s ease; }
+  .resource-btn:hover { color: var(--theme-text-primary); }
+  .resource-hint { font-family: var(--font-mono); font-size: 10px; color: var(--theme-text-muted); }
+  .delete-form { display: flex; align-items: center; gap: var(--spacing-4); padding: var(--spacing-3); border: 2px dashed var(--color-text-error); }
+  .delete-btn { font-family: var(--font-display); font-size: 10px; color: var(--color-text-error); background: none; border: 2px solid var(--color-text-error); padding: var(--spacing-2) var(--spacing-4); cursor: pointer; }
   .delete-hint { font-family: var(--font-mono); font-size: 10px; color: var(--theme-text-muted); }
-
-  .prefill-msg {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    color: var(--color-text-warning);
-    margin-top: var(--spacing-1);
-  }
+  .empty-state { font-family: var(--font-mono); font-size: 11px; color: var(--theme-text-muted); }
 </style>

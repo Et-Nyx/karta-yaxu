@@ -1,6 +1,7 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
   import SearchBar from '$lib/components/SearchBar.svelte';
+  import PokemonCard from '$lib/components/PokemonCard.svelte';
 
   let { data, form } = $props();
 
@@ -15,8 +16,10 @@
     )
   );
 
-  function dexFor(speciesId: number): number | null {
-    return data.species.find(s => s.id === speciesId)?.dexNumber ?? null;
+  function getTypes(pokemonId: number) {
+    return data.typeRows
+      .filter(t => t.pokemonId === pokemonId)
+      .map(t => ({ name: t.name, hexColor: t.hexColor }));
   }
 
   function toggleCreate() {
@@ -41,10 +44,10 @@
         return;
       }
 
-      const form = target.form as HTMLFormElement;
+      const formEl = target.form as HTMLFormElement;
       const isEmpty = (v: string) => v === '' || v === '0';
       for (const [key, val] of Object.entries(body.pokemon)) {
-        const input = form.elements.namedItem(key) as HTMLInputElement | null;
+        const input = formEl.elements.namedItem(key) as HTMLInputElement | null;
         if (input && isEmpty(input.value) && val != null) {
           input.value = String(val);
         }
@@ -62,15 +65,16 @@
 </svelte:head>
 
 <div class="entity-page">
-  <header class="page-header">
-    <div>
-      <h2>POKÉMON</h2>
-      <span class="count">{data.total} total · {filtered.length} shown</span>
-    </div>
+  <div class="page-header">
+    <h2>POKÉMON</h2>
+    <SearchBar bind:value={query} placeholder="Search pokémon..." count={filtered.length} total={data.total} />
+  </div>
+
+  <div class="header-actions">
     <button type="button" class="new-btn" onclick={toggleCreate}>
       {showCreate ? '× CANCEL' : '+ NEW POKÉMON'}
     </button>
-  </header>
+  </div>
 
   {#if showCreate}
     <section class="create-section">
@@ -140,39 +144,26 @@
     </section>
   {/if}
 
-  <SearchBar bind:value={query} placeholder="Search pokémon..." count={filtered.length} total={data.total} />
-
   {#if filtered.length === 0}
     <div class="empty-state">
       <p>No pokémon yet.</p>
       <p class="hint">Click "+ NEW POKÉMON" above to create the first one.</p>
     </div>
   {:else}
-    <div class="entity-table">
-      <div class="table-header">
-        <span>SPRITE</span>
-        <span>DEX</span>
-        <span>SLUG</span>
-        <span>NAME</span>
-        <span>STATS</span>
-        <span>SOURCE</span>
-        <span></span>
-      </div>
+    <div class="pokemon-grid">
       {#each filtered as p (p.id)}
-        <div class="table-row">
-          <span class="row-sprite">
-            {#if p.spriteDefault}
-              <img src={p.spriteDefault} alt={p.name} loading="lazy">
-            {:else}
-              <span class="no-sprite">—</span>
-            {/if}
-          </span>
-          <span class="row-dex">{dexFor(p.speciesId) != null ? `#${String(dexFor(p.speciesId)).padStart(4, '0')}` : '—'}</span>
-          <span class="row-slug">{p.slug}</span>
-          <span class="row-name">{p.name}</span>
-          <span class="row-stats">{p.hp}/{p.atk}/{p.def}/{p.spa}/{p.spd}/{p.spe}</span>
-          <span class="src-badge src-{p.source}">{p.source}</span>
-          <a href="/editor/pokemon/{p.slug}" class="edit-link">EDIT →</a>
+        <div class="card-wrapper">
+          <PokemonCard
+            pokemon={{
+              pokeapiId: p.pokeapiId || 0,
+              name: p.name,
+              slug: p.slug,
+              spriteUrl: p.spriteDefault,
+              types: getTypes(p.id),
+              dexNumber: p.dexNumber,
+            }}
+          />
+          <a href="/editor/pokemon/{p.slug}" class="card-link-overlay" aria-label="Edit {p.name}"></a>
         </div>
       {/each}
     </div>
@@ -188,13 +179,20 @@
 
   .page-header {
     display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
+    flex-direction: column;
+    gap: var(--spacing-4);
   }
 
   .page-header h2 {
     color: var(--theme-text-primary);
     margin: 0;
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-4);
   }
 
   .count {
@@ -205,9 +203,9 @@
 
   .new-btn {
     font-family: var(--font-display);
-    font-size: 10px;
-    padding: var(--spacing-2) var(--spacing-3);
-    background: none;
+    font-size: 9px;
+    padding: var(--spacing-2) var(--spacing-4);
+    background-color: var(--theme-bg-secondary);
     border: 2px solid var(--theme-border-primary);
     color: var(--theme-text-primary);
     cursor: pointer;
@@ -311,99 +309,20 @@
     margin-top: var(--spacing-1);
   }
 
-  .entity-table {
-    display: flex;
-    flex-direction: column;
-    border: 3px solid var(--theme-border-primary);
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .table-header,
-  .table-row {
+  .pokemon-grid {
     display: grid;
-    grid-template-columns: 50px 70px 1fr 1fr 1.4fr 80px 60px;
-    gap: var(--spacing-3);
-    padding: var(--spacing-2) var(--spacing-3);
-    align-items: center;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: var(--spacing-4);
   }
 
-  .table-header {
-    background-color: var(--theme-bg-secondary);
-    border-bottom: 2px solid var(--theme-border-primary);
-    font-family: var(--font-display);
-    font-size: 9px;
-    color: var(--theme-text-muted);
+  .card-wrapper {
+    position: relative;
   }
 
-  .table-row {
-    border-bottom: 1px solid var(--theme-border-primary);
-  }
-
-  .table-row:last-child { border-bottom: none; }
-
-  .table-row:hover {
-    background-color: var(--theme-bg-hover);
-  }
-
-  .row-sprite {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .row-sprite img {
-    width: 40px;
-    height: 40px;
-    image-rendering: pixelated;
-    object-fit: contain;
-  }
-
-  .no-sprite {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--theme-text-muted);
-  }
-
-  .row-dex,
-  .row-slug,
-  .row-stats {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--theme-text-secondary);
-  }
-
-  .row-name {
-    font-family: var(--font-display);
-    font-size: 11px;
-    color: var(--theme-text-primary);
-  }
-
-  .row-stats {
-    color: var(--theme-text-muted);
-  }
-
-  .src-badge {
-    font-family: var(--font-display);
-    font-size: 8px;
-    padding: 2px 6px;
-    border: 2px solid var(--theme-border-primary);
-    text-align: center;
-  }
-
-  .src-pokeapi { color: var(--theme-text-muted); }
-  .src-edited  { color: var(--theme-text-accent); border-color: var(--theme-text-accent); }
-  .src-custom  { color: var(--color-text-warning); border-color: var(--color-text-warning); }
-
-  .edit-link {
-    font-family: var(--font-display);
-    font-size: 9px;
-    color: var(--theme-text-accent);
-    text-decoration: none;
-  }
-
-  .edit-link:hover {
-    text-decoration: underline;
+  .card-link-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
   }
 
   .empty-state {

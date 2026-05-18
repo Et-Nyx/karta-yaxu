@@ -497,7 +497,13 @@ export function mapPokemonForm(data: PokeApiPokemonForm, pokemonDbId: number, sp
       order: data.order,
       spriteDefault: data.sprites.front_default,
       spriteShiny: data.sprites.front_shiny,
-      spriteArtwork: null,
+      spriteArtwork: (() => {
+        const segments = data.pokemon.url.replace(/\/$/, '').split('/');
+        const pokemonId = parseInt(segments[segments.length - 1]);
+        return pokemonId
+          ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${pokemonId}.png`
+          : null;
+      })(),
     },
   };
 }

@@ -125,6 +125,7 @@ export const load: PageServerLoad = async ({ params, url }) => {
     typeId:   pokemonTypes.typeId,
     typeName: types.name,
     typeSlug: types.slug,
+    hexColor: types.hexColor,
   })
     .from(pokemonTypes)
     .innerJoin(types, eq(pokemonTypes.typeId, types.id))
@@ -151,9 +152,10 @@ export const load: PageServerLoad = async ({ params, url }) => {
   }).from(pokemonSpecies).orderBy(asc(pokemonSpecies.dexNumber));
 
   const typeList = await db.select({
-    id:   types.id,
-    name: types.name,
-    slug: types.slug,
+    id:       types.id,
+    name:     types.name,
+    slug:     types.slug,
+    hexColor: types.hexColor,
   }).from(types).orderBy(asc(types.id));
 
   const abilityList = await db.select({
@@ -315,6 +317,10 @@ export const actions: Actions = {
     };
 
     await db.update(pokemon).set(newRow).where(eq(pokemon.id, current.id));
+
+    await db.update(pokemonForms)
+      .set({ spriteDefault: newRow.spriteDefault, spriteShiny: newRow.spriteShiny, spriteArtwork: newRow.spriteArtwork })
+      .where(and(eq(pokemonForms.pokemonId, current.id), eq(pokemonForms.isDefault, true)));
 
     if (locals.user) {
       await recordEdit(locals.user.id, 'pokemon', current.id, current, { ...current, ...newRow });

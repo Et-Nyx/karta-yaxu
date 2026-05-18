@@ -4,12 +4,50 @@
   import '../app.css';
   import ImportActivity from '$lib/components/ImportActivity.svelte';
   import { handleImportEvent } from '$lib/stores/importActivity';
+  import { pageSource } from '$lib/stores/pageSource';
   import NavTab from '$lib/components/NavTab.svelte';
 
   let { children, data } = $props();
 
   let isAdminRoute = $derived($page.url.pathname.startsWith('/import') || $page.url.pathname.startsWith('/editor'));
   let isEditorRoute = $derived($page.url.pathname.startsWith('/editor'));
+
+  const editorSections = new Set(['pokemon', 'types', 'moves', 'abilities', 'items', 'natures', 'locations', 'pokedex']);
+  const wikiSections   = new Set(['pokemon', 'types', 'moves', 'abilities', 'items', 'locations', 'pokedex']);
+
+  let wikiUrl = $derived.by(() => {
+    const path = $page.url.pathname;
+    if (!path.startsWith('/editor/')) return null;
+    const rest    = path.slice('/editor/'.length);
+    const parts   = rest.split('/');
+    const section = parts[0];
+    const slug    = parts[1];
+    if (!slug) return null;
+    if (wikiSections.has(section)) return `/wiki/${rest}`;
+    if (section === 'species')  return `/wiki/pokemon/${slug}`;
+    if (section === 'trainers') return `/trainer/${slug}`;
+    return null;
+  });
+
+  let editorUrl = $derived.by(() => {
+    if (data.user?.role !== 'editor') return null;
+    const path = $page.url.pathname;
+
+    if (path === '/trainer') return '/editor/trainers';
+    if (path.startsWith('/trainer/')) {
+      const rest = path.slice('/trainer/'.length);
+      if (rest && !['login', 'register'].includes(rest)) return `/editor/trainers/${rest}`;
+      return null;
+    }
+
+    if (path.startsWith('/wiki/')) {
+      const rest = path.slice('/wiki/'.length);
+      const section = rest.split('/')[0];
+      if (editorSections.has(section)) return `/editor/${rest}`;
+    }
+
+    return null;
+  });
 
   let selectedTheme = $state('auto');
   let mobileMenuOpen = $state(false);
@@ -136,38 +174,39 @@
         </div>
 
         <nav class="side-nav">
-          {#if !isEditorRoute}
+          {#if !isAdminRoute}
           <div class="nav-section">
             <h3>WIKI</h3>
             <a href="/wiki"            class:active={$page.url.pathname === '/wiki'}>Home</a>
             <a href="/wiki/pokemon"    class:active={$page.url.pathname.startsWith('/wiki/pokemon')}>Pokémon</a>
+            <a href="/wiki/types"      class:active={$page.url.pathname.startsWith('/wiki/types')}>Types</a>
             <a href="/wiki/moves"      class:active={$page.url.pathname.startsWith('/wiki/moves')}>Moves</a>
             <a href="/wiki/abilities"  class:active={$page.url.pathname.startsWith('/wiki/abilities')}>Abilities</a>
-            <a href="/wiki/types"      class:active={$page.url.pathname.startsWith('/wiki/types')}>Types</a>
-            <a href="/wiki/natures"    class:active={$page.url.pathname.startsWith('/wiki/natures')}>Natures</a>
             <a href="/wiki/items"      class:active={$page.url.pathname.startsWith('/wiki/items')}>Items</a>
+            <a href="/wiki/natures"    class:active={$page.url.pathname.startsWith('/wiki/natures')}>Natures</a>
             <a href="/wiki/locations"  class:active={$page.url.pathname.startsWith('/wiki/locations')}>Locations</a>
-            <a href="/wiki/games"      class:active={$page.url.pathname.startsWith('/wiki/games')}>Games</a>
             <a href="/wiki/pokedex"    class:active={$page.url.pathname.startsWith('/wiki/pokedex')}>Pokédex</a>
             <a href="/trainer"         class:active={$page.url.pathname.startsWith('/trainer')}>Trainers</a>
+            <a href="/wiki/games"      class:active={$page.url.pathname.startsWith('/wiki/games')}>Games</a>
           </div>
           {/if}
 
           {#if data.user?.role === 'editor'}
-            {#if isEditorRoute}
+            {#if isAdminRoute}
               <div class="nav-section">
                 <h3>EDITOR</h3>
                 <a href="/editor"           class:active={$page.url.pathname === '/editor'}>Dashboard</a>
+                <a href="/editor/pokemon"   class:active={$page.url.pathname.startsWith('/editor/pokemon')}>Pokémon</a>
                 <a href="/editor/types"     class:active={$page.url.pathname.startsWith('/editor/types')}>Types</a>
-                <a href="/editor/natures"   class:active={$page.url.pathname.startsWith('/editor/natures')}>Natures</a>
+                <a href="/editor/moves"     class:active={$page.url.pathname.startsWith('/editor/moves')}>Moves</a>
                 <a href="/editor/abilities" class:active={$page.url.pathname.startsWith('/editor/abilities')}>Abilities</a>
                 <a href="/editor/items"     class:active={$page.url.pathname.startsWith('/editor/items')}>Items</a>
+                <a href="/editor/natures"    class:active={$page.url.pathname.startsWith('/editor/natures')}>Natures</a>
+                <a href="/editor/locations" class:active={$page.url.pathname.startsWith('/editor/locations')}>Locations</a>
                 <a href="/editor/pokedex"   class:active={$page.url.pathname.startsWith('/editor/pokedex')}>Pokédex</a>
-                <a href="/editor/moves"     class:active={$page.url.pathname.startsWith('/editor/moves')}>Moves</a>
-                <a href="/editor/pokemon"   class:active={$page.url.pathname.startsWith('/editor/pokemon')}>Pokémon</a>
+                <a href="/editor/trainers"  class:active={$page.url.pathname.startsWith('/editor/trainers')}>Trainers</a>
                 <a href="/editor/species"   class:active={$page.url.pathname.startsWith('/editor/species')}>Species</a>
-
-                <a href="/import">PokeAPI Import</a>
+                <a href="/import"           class:active={$page.url.pathname.startsWith('/import')}>PokeAPI Import</a>
               </div>
             {/if}
           {/if}
@@ -191,6 +230,19 @@
               <span class="crumb active">{crumb.label}</span>
             {/if}
           {/each}
+          {#if editorUrl || wikiUrl}
+            <div class="breadcrumb-actions">
+              {#if editorUrl}
+                <a href={editorUrl} class="edit-this-link">EDIT THIS →</a>
+              {/if}
+              {#if wikiUrl}
+                {#if $pageSource}
+                  <span class="src-badge src-{$pageSource}">{$pageSource}</span>
+                {/if}
+                <a href={wikiUrl} class="edit-this-link">VIEW IN WIKI →</a>
+              {/if}
+            </div>
+          {/if}
         </div>
 
         <div class="content">
@@ -351,6 +403,36 @@
     color: var(--theme-text-accent);
     border-color: var(--theme-text-accent);
   }
+
+  .edit-this-link {
+    font-family: var(--font-display);
+    font-size: 10px;
+    color: var(--theme-text-accent);
+    text-decoration: none;
+    flex-shrink: 0;
+  }
+
+  .edit-this-link:hover {
+    text-decoration: underline;
+  }
+
+  .breadcrumb-actions {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    flex-shrink: 0;
+  }
+
+  .src-badge {
+    font-family: var(--font-display);
+    font-size: 8px;
+    padding: 2px 6px;
+    border: 2px solid var(--theme-border-primary);
+  }
+  .src-pokeapi { color: var(--theme-text-muted); }
+  .src-edited  { color: var(--theme-text-accent); border-color: var(--theme-text-accent); }
+  .src-custom  { color: var(--color-text-warning); border-color: var(--color-text-warning); }
 
   .nav-link-disabled {
     display: block;

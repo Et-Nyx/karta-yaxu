@@ -10,6 +10,7 @@ import {
   pokemonSpecies,
   pokemonTypes,
 } from '$lib/db/schema/pokemon';
+import { types } from '$lib/db/schema/core-data';
 import { recordEdit } from '$lib/editor/audit';
 import type { PageServerLoad, Actions } from './$types';
 
@@ -57,9 +58,19 @@ export const load: PageServerLoad = async () => {
     dexNumber: pokemonSpecies.dexNumber,
   }).from(pokemonSpecies).orderBy(asc(pokemonSpecies.dexNumber));
 
+  const typeRows = await db.select({
+    pokemonId: pokemonTypes.pokemonId,
+    name:      types.name,
+    hexColor:  types.hexColor,
+    slot:      pokemonTypes.slot,
+  })
+    .from(pokemonTypes)
+    .innerJoin(types, eq(pokemonTypes.typeId, types.id))
+    .orderBy(asc(pokemonTypes.pokemonId), asc(pokemonTypes.slot));
+
   const [{ total }] = await db.select({ total: count() }).from(pokemon);
 
-  return { pokemon: rows, species: speciesList, total };
+  return { pokemon: rows, species: speciesList, typeRows, total };
 };
 
 export const actions: Actions = {
@@ -144,13 +155,14 @@ export const actions: Actions = {
           pokemonId: row.id, abilityId: a.abilityId, slot: a.slot, isHidden: a.isHidden,
         }))).run();
       }
-      if (baseLearnset.length > 0) {
-        tx.insert(pokemonMoves).values(baseLearnset.map(m => ({
+      const validLearnset = baseLearnset.filter(m => m.versionGroupId !== null);
+      if (validLearnset.length > 0) {
+        tx.insert(pokemonMoves).values(validLearnset.map(m => ({
           pokemonId:      row.id,
           moveId:         m.moveId,
           learnMethodId:  m.learnMethodId,
-          level:          m.level,
-          versionGroupId: m.versionGroupId,
+          level:          m.level ?? undefined,
+          versionGroupId: m.versionGroupId!,
         }))).run();
       }
 

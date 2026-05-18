@@ -1,7 +1,10 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
+  import { pageSource } from '$lib/stores/pageSource';
 
   let { data, form } = $props();
+
+  $effect(() => { pageSource.set(data.nature.source); });
 
   const STAT_OPTIONS = ['', 'attack', 'defense', 'special-attack', 'special-defense', 'speed'];
   const FLAVOR_OPTIONS = ['', 'spicy', 'sour', 'sweet', 'bitter', 'dry'];
@@ -29,9 +32,7 @@
 <div class="edit-page">
   <header class="page-header">
     <div class="header-left">
-      <a href="/editor/natures" class="back">← BACK</a>
       <h2>EDIT NATURE: {data.nature.name.toUpperCase()}</h2>
-      <span class="src-badge src-{data.nature.source}">{data.nature.source}</span>
     </div>
     <div class="meta">
       <span>ID: {data.nature.id}</span>
@@ -136,16 +137,6 @@
     flex-wrap: wrap;
   }
 
-  .back {
-    font-family: var(--font-display);
-    font-size: 9px;
-    color: var(--theme-text-accent);
-    text-decoration: none;
-  }
-
-  .back:hover {
-    text-decoration: underline;
-  }
 
   .page-header h2 {
     color: var(--theme-text-primary);

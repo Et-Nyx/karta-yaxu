@@ -1,4 +1,5 @@
 <script lang="ts">
+  import DataTable from '$lib/components/DataTable.svelte';
   import Tabs from '$lib/components/Tabs.svelte';
 
   let { data } = $props();
@@ -12,23 +13,17 @@
     return titleCase(name);
   }
 
-const versionTabs = data.availableVersions.map(v => ({
-    key: v.slug,
-    label: v.name.toUpperCase().replace(/-/g, ' '),
-  }));
+  function versionLabel(name: string): string {
+    return name.toUpperCase().replace(/-/g, ' ');
+  }
 
-  let activeVersionSlug = $state(
-    data.availableVersions.find(v => v.id === data.selectedVersionId)?.slug ?? ''
-  );
+  let selectedVersionId = $state<number | null>(data.selectedVersionId);
 
-  $effect(() => {
-    const currentSlug = data.availableVersions.find(v => v.id === data.selectedVersionId)?.slug;
-    if (activeVersionSlug && activeVersionSlug !== currentSlug) {
-      const url = new URL(window.location.href);
-      url.searchParams.set('version', activeVersionSlug);
-      window.location.href = url.toString();
-    }
-  });
+  function goToVersion(versionSlug: string) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('version', versionSlug);
+    window.location.href = url.toString();
+  }
 
   type EncounterRow = {
     methodName: string;
@@ -87,60 +82,68 @@ const versionTabs = data.availableVersions.map(v => ({
       <p class="hint">Import encounter data via the <a href="/import">Import Panel</a>.</p>
     </div>
   {:else}
-    <Tabs tabs={versionTabs} bind:active={activeVersionSlug}>
-      <div class="areas-list">
-        {#each data.areas as area}
-          {#if area.encounters.length > 0}
-            {@const methodGroups = groupByMethod(area.encounters)}
-            {@const areaTabs = methodGroups.map(g => ({ key: g.methodName, label: g.methodName.replace(/-/g, ' ').toUpperCase() }))}
-            {@const activeGroup = methodGroups.find(g => g.methodName === activeMethodByArea[area.id])}
-            <Tabs title={areaLabel(area.name)} tabs={areaTabs} bind:active={activeMethodByArea[area.id]}>
-              {#if activeGroup}
-                <div class="table-wrap">
-                  <table class="encounter-table">
-                    <thead>
-                      <tr>
-                        <th>POKÉMON</th>
-                        <th>LEVEL</th>
-                        <th>CHANCE</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {#each activeGroup.encounters as enc}
-                        <tr>
-                          <td class="pokemon-cell">
-                            {#if enc.pokemonSprite}
-                              <img src={enc.pokemonSprite} alt={enc.pokemonName} class="mini-sprite" style="image-rendering: pixelated;" />
-                            {/if}
-                            <a href="/wiki/pokemon/{enc.pokemonSlug}" class="pokemon-link">
-                              {enc.pokemonName.toUpperCase()}
-                            </a>
-                          </td>
-                          <td class="level-cell">
-                            {#if enc.minLevel === enc.maxLevel}
-                              {enc.minLevel}
-                            {:else}
-                              {enc.minLevel}–{enc.maxLevel}
-                            {/if}
-                          </td>
-                          <td class="chance-cell">{enc.chance}%</td>
-                        </tr>
-                      {/each}
-                    </tbody>
-                  </table>
-                </div>
-              {/if}
-            </Tabs>
-          {/if}
+    <div class="version-selector-container">
+      <label for="versionSelect">VERSION:</label>
+      <select
+        id="versionSelect"
+        class="version-select"
+        onchange={(e) => goToVersion((e.target as HTMLSelectElement).value)}
+      >
+        {#each data.availableVersions as v}
+          <option value={v.slug} selected={v.id === data.selectedVersionId}>
+            {versionLabel(v.name)}
+          </option>
         {/each}
+      </select>
+    </div>
 
-        {#if data.areas.every(a => a.encounters.length === 0)}
-          <div class="empty-state">
-            <p>No encounters for this version in this location.</p>
-          </div>
+    <div class="areas-list">
+      {#each data.areas as area}
+        {#if area.encounters.length > 0}
+          {@const methodGroups = groupByMethod(area.encounters)}
+          {@const areaTabs = methodGroups.map(g => ({ key: g.methodName, label: g.methodName.replace(/-/g, ' ').toUpperCase() }))}
+          {@const activeGroup = methodGroups.find(g => g.methodName === activeMethodByArea[area.id])}
+          <Tabs title={areaLabel(area.name)} tabs={areaTabs} bind:active={activeMethodByArea[area.id]}>
+            {#if activeGroup}
+              <DataTable compact>
+                {#snippet head()}
+                  <th>POKÉMON</th>
+                  <th style="text-align: center">LEVEL</th>
+                  <th style="text-align: center">CHANCE</th>
+                {/snippet}
+                {#each activeGroup.encounters as enc}
+                  <tr>
+
+                    <td class="pokemon-cell">
+                      {#if enc.pokemonSprite}
+                        <img src={enc.pokemonSprite} alt={enc.pokemonName} class="mini-sprite" style="image-rendering: pixelated;" />
+                      {/if}
+                      <a href="/wiki/pokemon/{enc.pokemonSlug}" class="pokemon-link">
+                        {enc.pokemonName.toUpperCase()}
+                      </a>
+                    </td>
+                    <td class="level-cell">
+                      {#if enc.minLevel === enc.maxLevel}
+                        {enc.minLevel}
+                      {:else}
+                        {enc.minLevel}–{enc.maxLevel}
+                      {/if}
+                    </td>
+                    <td class="chance-cell">{enc.chance}%</td>
+                  </tr>
+                {/each}
+              </DataTable>
+            {/if}
+          </Tabs>
         {/if}
-      </div>
-    </Tabs>
+      {/each}
+
+      {#if data.areas.every(a => a.encounters.length === 0)}
+        <div class="empty-state">
+          <p>No encounters for this version in this location.</p>
+        </div>
+      {/if}
+    </div>
   {/if}
 </div>
 
@@ -189,6 +192,35 @@ const versionTabs = data.availableVersions.map(v => ({
     border-color: var(--theme-text-accent);
   }
 
+  /* ── Version selector ── */
+
+  .version-selector-container {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-4);
+    background-color: var(--theme-bg-secondary);
+    border: 3px solid var(--theme-border-primary);
+    padding: var(--spacing-3) var(--spacing-4);
+    box-shadow: 2px 2px 0px var(--theme-border-primary);
+  }
+
+  .version-selector-container label {
+    font-family: var(--font-display);
+    font-size: 10px;
+    color: var(--theme-text-primary);
+  }
+
+  .version-select {
+    flex: 1;
+    background-color: var(--theme-bg-primary);
+    color: var(--theme-text-primary);
+    border: 2px solid var(--theme-border-primary);
+    padding: var(--spacing-2);
+    font-family: var(--font-display);
+    font-size: 10px;
+    max-width: 300px;
+  }
+
   /* ── Areas ── */
 
   .areas-list {
@@ -197,49 +229,7 @@ const versionTabs = data.availableVersions.map(v => ({
     gap: var(--spacing-6);
   }
 
-  /* ── Encounter table ── */
-
-  .table-wrap {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .encounter-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-family: var(--font-mono);
-    font-size: 13px;
-    border: 3px solid var(--theme-border-primary);
-  }
-
-  thead tr {
-    background-color: var(--theme-bg-tertiary);
-    border-bottom: 2px solid var(--theme-border-primary);
-  }
-
-  th {
-    font-family: var(--font-display);
-    font-size: 9px;
-    color: var(--theme-text-inverse);
-    padding: var(--spacing-2) var(--spacing-4);
-    text-align: left;
-    white-space: nowrap;
-  }
-
-  th:not(:first-child) { text-align: center; }
-
-  tbody tr {
-    border-bottom: 1px solid var(--theme-border-primary);
-    background-color: var(--theme-bg-secondary);
-  }
-
-  tbody tr:last-child { border-bottom: none; }
-  tbody tr:hover { background-color: var(--theme-bg-primary); }
-
-  td {
-    padding: var(--spacing-2) var(--spacing-4);
-    color: var(--theme-text-primary);
-  }
+  /* ── Encounter table cells ── */
 
   .pokemon-cell {
     display: flex;
@@ -248,8 +238,8 @@ const versionTabs = data.availableVersions.map(v => ({
   }
 
   .mini-sprite {
-    width: 32px;
-    height: 32px;
+    width: 48px;
+    height: 48px;
     object-fit: contain;
     flex-shrink: 0;
   }

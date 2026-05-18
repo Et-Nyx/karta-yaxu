@@ -8,7 +8,7 @@
   import VersionSelector from '$lib/components/VersionSelector.svelte';
   import FlavorTextBox from '$lib/components/FlavorTextBox.svelte';
   import Tabs from '$lib/components/Tabs.svelte';
-  import { goto } from '$app/navigation';
+  import { goto, afterNavigate } from '$app/navigation';
 
   let { data } = $props();
 
@@ -101,6 +101,20 @@
 
   let activeMethod = $state('');
 
+  const PAGE_TABS = [
+    { key: 'info',     label: 'INFO' },
+    { key: 'forms',    label: 'FORMS' },
+    { key: 'learnset', label: 'LEARNSET' },
+    { key: 'location', label: 'LOCATION' },
+  ] as const;
+
+  let activePageTab = $state('info');
+
+  afterNavigate(() => {
+    activePageTab = 'info';
+    activeChainTab = data.formSuffix ? data.formSuffix.toUpperCase() : 'EVOLUTION';
+  });
+
   $effect(() => {
     const methods = learnsetMethods();
     if (methods.length > 0 && !methods.includes(activeMethod)) {
@@ -119,6 +133,34 @@
       return moves.sort((a, b) => (a.level ?? 0) - (b.level ?? 0));
     }
     return moves.sort((a, b) => a.moveName.localeCompare(b.moveName));
+  });
+
+  // Location encounters
+  type LocationEncounterRow = typeof data.locationEncounters[0];
+
+  type LocationGroup = {
+    name: string;
+    slug: string;
+    areas: { areaName: string; encounters: LocationEncounterRow[] }[];
+  };
+
+  let currentLocationEncounters = $derived(() => {
+    if (!selectedVersionId) return [];
+    return data.locationEncounters.filter(e => e.versionGroupId === selectedVersionId);
+  });
+
+  let locationGroups = $derived((): LocationGroup[] => {
+    const groups = new Map<string, LocationGroup>();
+    for (const enc of currentLocationEncounters()) {
+      if (!groups.has(enc.locationSlug)) {
+        groups.set(enc.locationSlug, { name: enc.locationName, slug: enc.locationSlug, areas: [] });
+      }
+      const loc = groups.get(enc.locationSlug)!;
+      let area = loc.areas.find(a => a.areaName === enc.areaName);
+      if (!area) { area = { areaName: enc.areaName, encounters: [] }; loc.areas.push(area); }
+      area.encounters.push(enc);
+    }
+    return [...groups.values()];
   });
 
   function chunkArray<T>(arr: T[], size: number): T[][] {
@@ -187,7 +229,9 @@
   type ChainTab =
     | { kind: 'default';   label: string }
     | { kind: 'regional';  label: string; suffix: string }
-    | { kind: 'alternate'; label: string; forms: ChainForm[] };
+    | { kind: 'alternate'; label: string; forms: ChainForm[] }
+    | { kind: 'gmax';      label: string; forms: ChainForm[] }
+    | { kind: 'mega';      label: string; forms: ChainForm[] };
 
   const REGIONAL_SUFFIXES_CHAIN = ['alola', 'galar', 'hisui', 'paldea'];
 
@@ -200,10 +244,22 @@
   }
 
   let chainTabs = $derived((): ChainTab[] => {
-    const tabs: ChainTab[] = [{ kind: 'default', label: 'DEFAULT' }];
+    const tabs: ChainTab[] = [{ kind: 'default', label: 'EVOLUTION' }];
     const rootIds = new Set(evoTree().roots);
     const seenSuffixes = new Set<string>();
-    const altForms: ChainForm[] = [];
+    const gmaxForms: ChainForm[] = [];
+    const megaForms: ChainForm[] = [];
+    const otherAltForms: ChainForm[] = [];
+
+    function bucketAlt(form: ChainForm) {
+      if (form.slug.includes('-gmax')) {
+        if (!gmaxForms.some(f => f.slug === form.slug)) gmaxForms.push(form);
+      } else if (form.slug.includes('-mega')) {
+        if (!megaForms.some(f => f.slug === form.slug)) megaForms.push(form);
+      } else {
+        if (!otherAltForms.some(f => f.slug === form.slug)) otherAltForms.push(form);
+      }
+    }
 
     for (const sp of data.chainSpecies) {
       for (const form of sp.forms) {
@@ -212,27 +268,33 @@
         if (suffix) {
           const afterSuffix = form.slug.slice(form.slug.indexOf('-' + suffix) + 1 + suffix.length);
           if (afterSuffix.length > 0) {
-            // Sub-regional form (e.g. tauros-paldea-combat) — treat as alt form so all variants show
-            if (!altForms.some(f => f.slug === form.slug)) altForms.push(form);
+            // Sub-regional form (e.g. tauros-paldea-combat) — treat as alt form
+            bucketAlt(form);
           } else if (rootIds.has(sp.speciesId) && !seenSuffixes.has(suffix)) {
             seenSuffixes.add(suffix);
             tabs.push({ kind: 'regional', label: suffix.toUpperCase(), suffix });
           }
         } else {
-          if (!altForms.some(f => f.slug === form.slug)) altForms.push(form);
+          bucketAlt(form);
         }
       }
     }
 
-    if (altForms.length > 0) tabs.push({ kind: 'alternate', label: 'FORMS', forms: altForms });
+    if (megaForms.length > 0)     tabs.push({ kind: 'mega',      label: 'MEGA',  forms: megaForms });
+    if (gmaxForms.length > 0)     tabs.push({ kind: 'gmax',      label: 'GMAX',  forms: gmaxForms });
+    if (otherAltForms.length > 0) tabs.push({ kind: 'alternate', label: 'FORMS', forms: otherAltForms });
     return tabs;
   });
 
   let activeChainTab = $state<string>(
-    data.formSuffix ? data.formSuffix.toUpperCase() : 'DEFAULT'
+    data.formSuffix ? data.formSuffix.toUpperCase() : 'EVOLUTION'
   );
 
   let activeTab = $derived(chainTabs().find(t => t.label === activeChainTab) ?? chainTabs()[0]);
+
+  let chainTabItems = $derived(() =>
+    chainTabs().map(t => ({ key: t.label, label: t.label }))
+  );
 
   // Evolution chain tree builder
   type EvoMethod = { text: string; itemSlug: string | null };
@@ -367,42 +429,53 @@
     </div>
   </header>
 
-  {#if data.nav}
-    <nav class="dex-nav">
-      {#if data.nav.prev}
-        <a
-          href="/wiki/pokemon/{data.nav.prev.pokemonSlug}?dex={data.nav.selectedDex.slug}"
-          class="nav-link nav-prev"
-        >← #{data.nav.prev.entryNumber} {data.nav.prev.speciesName.toUpperCase()}</a>
-      {:else}
-        <span class="nav-disabled">←</span>
-      {/if}
+  <div class="meta-row">
+    {#if validVersions.length > 0}
+      <VersionSelector
+        bind:value={selectedVersionId}
+        options={validVersions.map(v => ({ value: v.id, label: v.name.toUpperCase().replace(/-/g, ' ') }))}
+      />
+    {/if}
 
-      <div class="nav-center">
-        <span class="nav-entry">#{data.nav.currentEntry}</span>
-        <select
-          class="dex-select"
-          onchange={(e) => goto(`?dex=${(e.currentTarget as HTMLSelectElement).value}`)}
-        >
-          {#each data.nav.dexList as dex}
-            <option value={dex.slug} selected={dex.slug === data.nav.selectedDex.slug}>
-              {dex.name.toUpperCase().replace(/-/g, ' ')}
-            </option>
-          {/each}
-        </select>
-      </div>
+    {#if data.nav}
+      <nav class="dex-nav">
+        {#if data.nav.prev}
+          <a
+            href="/wiki/pokemon/{data.nav.prev.pokemonSlug}?dex={data.nav.selectedDex.slug}"
+            class="nav-link nav-prev"
+          >← {data.nav.prev.speciesName.toUpperCase()}</a>
+        {:else}
+          <span class="nav-disabled">←</span>
+        {/if}
 
-      {#if data.nav.next}
-        <a
-          href="/wiki/pokemon/{data.nav.next.pokemonSlug}?dex={data.nav.selectedDex.slug}"
-          class="nav-link nav-next"
-        >#{data.nav.next.entryNumber} {data.nav.next.speciesName.toUpperCase()} →</a>
-      {:else}
-        <span class="nav-disabled">→</span>
-      {/if}
-    </nav>
-  {/if}
+        <div class="nav-center">
+          <span class="nav-entry">#{data.nav.currentEntry}</span>
+          <select
+            class="dex-select"
+            onchange={(e) => goto(`?dex=${(e.currentTarget as HTMLSelectElement).value}`)}
+          >
+            {#each data.nav.dexList as dex}
+              <option value={dex.slug} selected={dex.slug === data.nav.selectedDex.slug}>
+                {dex.name.toUpperCase().replace(/-/g, ' ')}
+              </option>
+            {/each}
+          </select>
+        </div>
 
+        {#if data.nav.next}
+          <a
+            href="/wiki/pokemon/{data.nav.next.pokemonSlug}?dex={data.nav.selectedDex.slug}"
+            class="nav-link nav-next"
+          >{data.nav.next.speciesName.toUpperCase()} →</a>
+        {:else}
+          <span class="nav-disabled">→</span>
+        {/if}
+      </nav>
+    {/if}
+  </div>
+
+  <Tabs tabs={PAGE_TABS} bind:active={activePageTab}>
+  {#if activePageTab === 'info'}
   <div class="content-grid">
     <!-- Top-left: Sprite only -->
     <div class="sprite-cell">
@@ -433,11 +506,6 @@
     <!-- Bottom-left: Version Selector + Flavor Text + Abilities -->
     <div class="info-cell">
       {#if validVersions.length > 0}
-        <VersionSelector
-          bind:value={selectedVersionId}
-          options={validVersions.map(v => ({ value: v.id, label: v.name.toUpperCase().replace(/-/g, ' ') }))}
-        />
-
         <FlavorTextBox text={currentFlavorText()} />
       {/if}
 
@@ -511,11 +579,10 @@
   </div>
 
   {#if data.typeMatchup.length > 0 || data.offensiveMatchup.length > 0}
-    <div class="type-matchup-section">
-      <TypeMatchupDisplay offensive={data.offensiveMatchup} defensive={data.typeMatchup} />
-    </div>
+    <TypeMatchupDisplay offensive={data.offensiveMatchup} defensive={data.typeMatchup} />
   {/if}
 
+  {:else if activePageTab === 'forms'}
   <!-- Evolution Chain -->
   {#snippet evoNode(speciesId: number, tabSuffix: string | null, edgeLocation: string | null)}
     {@const effectiveSuffix = edgeLocation ?? tabSuffix}
@@ -590,20 +657,8 @@
     {/if}
   {/snippet}
 
-  <InfoBox title="EVOLUTION CHAIN">
-      {#if chainTabs().length > 1}
-        <div class="chain-tab-bar">
-          {#each chainTabs() as tab}
-            <button
-              class="chain-tab-btn"
-              class:active={activeChainTab === tab.label}
-              onclick={() => activeChainTab = tab.label}
-            >{tab.label}</button>
-          {/each}
-        </div>
-      {/if}
-
-      {#if activeTab?.kind === 'alternate'}
+  <Tabs tabs={chainTabItems()} bind:active={activeChainTab}>
+      {#if activeTab && 'forms' in activeTab}
         <div class="alt-forms-grid">
           {#each activeTab.forms as form}
             <PokemonCard pokemon={{
@@ -624,11 +679,12 @@
           {/each}
         </div>
       {/if}
-  </InfoBox>
+  </Tabs>
 
+  {:else if activePageTab === 'learnset'}
   <!-- Learnset -->
   {#if validVersions.length > 0}
-    <Tabs title="LEARNSET" tabs={learnsetTabs()} bind:active={activeMethod}>
+    <Tabs tabs={learnsetTabs()} bind:active={activeMethod}>
       {#if activeLearnset().length > 0}
         <div class="move-list">
           {#each activeLearnset() as move (move.moveSlug + move.methodName + move.level)}
@@ -649,7 +705,35 @@
         <p class="empty-text">No moves learned in this version.</p>
       {/if}
     </Tabs>
+  {:else}
+    <p class="empty-text">No learnset data available.</p>
   {/if}
+
+  {:else if activePageTab === 'location'}
+  {#if locationGroups().length === 0}
+    <p class="empty-text">No encounter data for this version.</p>
+  {:else}
+    <div class="location-encounter-list">
+      {#each locationGroups() as loc}
+        <div class="location-section">
+          <a href="/wiki/locations/{loc.slug}" class="location-heading">
+            {loc.name.replace(/-/g, ' ').toUpperCase()}
+          </a>
+          {#each loc.areas as area}
+            {#each area.encounters as enc}
+              <div class="enc-row">
+                <span class="enc-method">{enc.methodName.replace(/-/g, ' ').toUpperCase()}</span>
+                <span class="enc-level">LV.{enc.minLevel === enc.maxLevel ? enc.minLevel : `${enc.minLevel}–${enc.maxLevel}`}</span>
+                <span class="enc-chance">{enc.chance}%</span>
+              </div>
+            {/each}
+          {/each}
+        </div>
+      {/each}
+    </div>
+  {/if}
+  {/if}
+</Tabs>
 </div>
 
 <style>
@@ -713,6 +797,8 @@
 
   @media (max-width: 768px) {
     .pokemon-detail { gap: var(--spacing-3); }
+
+    .meta-row { flex-direction: column; }
 
     .detail-header {
       padding: var(--spacing-2) var(--spacing-3);
@@ -940,12 +1026,6 @@
     color: var(--theme-text-primary);
   }
 
-  /* ── Type Matchup Section ───────────────────────────────────────────────── */
-
-  .type-matchup-section {
-    width: 100%;
-  }
-
   /* ── Evolution Chain ─────────────────────────────────────────────────────── */
 
   .evo-tree {
@@ -1112,28 +1192,6 @@
     box-shadow: 3px 3px 0px var(--theme-text-accent);
   }
 
-  .chain-tab-bar {
-    display: flex;
-    gap: var(--spacing-2);
-    margin-bottom: var(--spacing-4);
-    flex-wrap: wrap;
-  }
-
-  .chain-tab-btn {
-    font-family: var(--font-display);
-    font-size: 10px;
-    padding: 4px 10px;
-    border: 2px solid var(--theme-border-primary);
-    background: transparent;
-    color: var(--theme-text-secondary);
-    cursor: pointer;
-  }
-
-  .chain-tab-btn.active {
-    background-color: var(--theme-border-primary);
-    color: var(--theme-bg-primary);
-  }
-
   .alt-forms-grid {
     display: flex;
     flex-wrap: wrap;
@@ -1154,12 +1212,24 @@
     color: var(--theme-text-secondary);
   }
 
+  /* Dex nav + version selector side by side */
+  .meta-row {
+    display: flex;
+    gap: var(--spacing-4);
+    align-items: stretch;
+  }
+
+  .meta-row > :global(.version-selector-container) {
+    flex-shrink: 0;
+  }
+
   /* Dex navigation strip */
   .dex-nav {
     display: flex;
     align-items: center;
     gap: var(--spacing-4);
     flex-wrap: wrap;
+    flex: 1;
     background-color: var(--theme-bg-secondary);
     border: 3px solid var(--theme-border-primary);
     box-shadow: 2px 2px 0px var(--theme-border-primary);
@@ -1214,5 +1284,65 @@
     color: var(--theme-text-secondary);
     opacity: 0.3;
     padding: 4px 8px;
+  }
+
+  /* ── Location encounters ─────────────────────────────────────────────────── */
+
+  .location-encounter-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: var(--spacing-3);
+  }
+
+  .location-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-2);
+    background-color: var(--theme-bg-secondary);
+    border: 3px solid var(--theme-border-primary);
+    padding: var(--spacing-3);
+    box-shadow: var(--shadow-card);
+  }
+
+  .location-heading {
+    font-family: var(--font-display);
+    font-size: 10px;
+    color: var(--theme-text-primary);
+    text-decoration: none;
+    border-bottom: 2px solid var(--theme-border-primary);
+    padding-bottom: var(--spacing-2);
+    line-height: 1.4;
+    transition: color 0.05s ease;
+  }
+
+  .location-heading:hover { color: var(--theme-text-accent); }
+
+  .enc-row {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    font-family: var(--font-mono);
+    font-size: 11px;
+  }
+
+  .enc-method {
+    flex: 1;
+    color: var(--theme-text-secondary);
+    font-family: var(--font-display);
+    font-size: 9px;
+  }
+
+  .enc-level {
+    color: var(--theme-text-primary);
+    font-size: 10px;
+    white-space: nowrap;
+  }
+
+  .enc-chance {
+    color: var(--theme-text-muted);
+    font-size: 10px;
+    white-space: nowrap;
+    min-width: 28px;
+    text-align: right;
   }
 </style>

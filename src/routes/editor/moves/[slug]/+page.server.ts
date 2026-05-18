@@ -2,6 +2,7 @@ import { error, fail, redirect } from '@sveltejs/kit';
 import { and, asc, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '$lib/db';
+import * as schema from '$lib/db/schema';
 import { moves, moveEffects, types } from '$lib/db/schema/core-data';
 import { generations, languages } from '$lib/db/schema/game-metadata';
 import { bumpSource } from '$lib/editor/source';
@@ -46,9 +47,10 @@ export const load: PageServerLoad = async ({ params }) => {
 
   const [enLang] = await db.select({ id: languages.id })
     .from(languages).where(eq(languages.name, 'en')).limit(1);
+  const englishId = enLang?.id ?? null;
 
   let effects: { effect: string; shortEffect: string } | null = null;
-  if (enLang) {
+  if (englishId) {
     const [eff] = await db.select({
       effect:      moveEffects.effect,
       shortEffect: moveEffects.shortEffect,
@@ -56,15 +58,69 @@ export const load: PageServerLoad = async ({ params }) => {
       .from(moveEffects)
       .where(and(
         eq(moveEffects.moveId, row.id),
-        eq(moveEffects.languageId, enLang.id),
+        eq(moveEffects.languageId, englishId),
       )).limit(1);
     if (eff) effects = eff;
   }
 
+  // Flavor texts per version group
+  const flavorTexts = englishId ? await db.select({
+    flavorText: schema.moveFlavorTexts.flavorText,
+    versionGroupId: schema.moveFlavorTexts.versionGroupId,
+    versionGroupName: schema.versionGroups.name,
+  })
+  .from(schema.moveFlavorTexts)
+  .innerJoin(schema.versionGroups, eq(schema.moveFlavorTexts.versionGroupId, schema.versionGroups.id))
+  .where(and(
+    eq(schema.moveFlavorTexts.moveId, row.id),
+    eq(schema.moveFlavorTexts.languageId, englishId),
+  ))
+  .orderBy(asc(schema.versionGroups.order)) : [];
+
+  // Pokemon that learn this move
+  const pokemonLearnersData = await db.select({
+    id: schema.pokemon.id,
+    pokeapiId: schema.pokemon.pokeapiId,
+    name: schema.pokemon.name,
+    slug: schema.pokemon.slug,
+    spriteDefault: schema.pokemon.spriteDefault,
+  })
+  .from(schema.pokemonMoves)
+  .innerJoin(schema.pokemon, eq(schema.pokemonMoves.pokemonId, schema.pokemon.id))
+  .where(eq(schema.pokemonMoves.moveId, row.id))
+  .groupBy(schema.pokemon.id)
+  .orderBy(asc(schema.pokemon.pokeapiId));
+
+  const typesMap = new Map<number, Array<{ name: string; hexColor: string | null }>>();
+
+  if (pokemonLearnersData.length > 0) {
+    const pTypes = await db.select({
+      pokemonId: schema.pokemonTypes.pokemonId,
+      typeName: schema.types.name,
+      typeHexColor: schema.types.hexColor,
+    })
+    .from(schema.pokemonTypes)
+    .innerJoin(schema.types, eq(schema.pokemonTypes.typeId, schema.types.id))
+    .orderBy(asc(schema.pokemonTypes.slot));
+
+    for (const pt of pTypes) {
+      if (!typesMap.has(pt.pokemonId)) {
+        typesMap.set(pt.pokemonId, []);
+      }
+      typesMap.get(pt.pokemonId)!.push({ name: pt.typeName, hexColor: pt.typeHexColor });
+    }
+  }
+
+  const learners = pokemonLearnersData.map(p => ({
+    ...p,
+    types: typesMap.get(p.id) || [],
+  }));
+
   const typeList = await db.select({
-    id:   types.id,
-    name: types.name,
-    slug: types.slug,
+    id:       types.id,
+    name:     types.name,
+    slug:     types.slug,
+    hexColor: types.hexColor,
   }).from(types).orderBy(asc(types.id));
 
   const generationList = await db.select({
@@ -76,9 +132,13 @@ export const load: PageServerLoad = async ({ params }) => {
   return {
     move:          row,
     effects,
+    shortEffect:   effects?.shortEffect ?? null,
+    effect:        effects?.effect ?? null,
+    flavorTexts,
+    learners,
     types:         typeList,
     generations:   generationList,
-    englishLangId: enLang?.id ?? null,
+    englishLangId: englishId,
   };
 };
 

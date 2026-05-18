@@ -21,7 +21,7 @@
   let filteredPokemon = $derived(
     data.pokemonList.filter(p =>
       p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.pokeapiId.toString() === searchQuery
+      p.pokeapiId?.toString() === searchQuery
     )
   );
 </script>

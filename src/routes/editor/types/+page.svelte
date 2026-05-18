@@ -1,6 +1,7 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
   import SearchBar from '$lib/components/SearchBar.svelte';
+  import TypeIcon from '$lib/components/TypeIcon.svelte';
 
   let { data, form } = $props();
 
@@ -21,15 +22,16 @@
 </svelte:head>
 
 <div class="entity-page">
-  <header class="page-header">
-    <div>
-      <h2>TYPES</h2>
-      <span class="count">{data.total} total · {filtered.length} shown</span>
-    </div>
+  <div class="page-header">
+    <h2>TYPES</h2>
+    <SearchBar bind:value={query} placeholder="Search types..." count={filtered.length} total={data.total} />
+  </div>
+
+  <div class="header-actions">
     <button type="button" class="new-btn" onclick={() => showCreate = !showCreate}>
       {showCreate ? '× CANCEL' : '+ NEW TYPE'}
     </button>
-  </header>
+  </div>
 
   {#if showCreate}
     <section class="create-section">
@@ -73,37 +75,27 @@
     </section>
   {/if}
 
-  <SearchBar bind:value={query} placeholder="Search types..." count={filtered.length} total={data.total} />
-
-  <div class="entity-table">
-    <div class="table-header">
-      <span>SLUG</span>
-      <span>NAME</span>
-      <span>COLOR</span>
-      <span>DMG CLASS</span>
-      <span>GEN</span>
-      <span>SOURCE</span>
-      <span></span>
+  {#if filtered.length === 0}
+    <div class="empty-state">
+      <p>No types yet.</p>
+      <p class="hint">Click "+ NEW TYPE" above to create the first one.</p>
     </div>
-    {#each filtered as t (t.id)}
-      <div class="table-row">
-        <span class="row-slug">{t.slug}</span>
-        <span class="row-name">{t.name}</span>
-        <span class="row-color">
-          {#if t.hexColor}
-            <span class="swatch" style="background-color: {t.hexColor}"></span>
-            <span class="hex">{t.hexColor}</span>
-          {:else}
-            <span class="muted">—</span>
-          {/if}
-        </span>
-        <span class="row-dmg">{t.moveDamageClass ?? '—'}</span>
-        <span class="row-gen">{t.generationId ?? '—'}</span>
-        <span class="src-badge src-{t.source}">{t.source}</span>
-        <a href="/editor/types/{t.slug}" class="edit-link">EDIT →</a>
-      </div>
-    {/each}
-  </div>
+  {:else}
+    <div class="types-grid">
+      {#each filtered as t (t.id)}
+        <div class="card-wrapper">
+          <div class="type-card card-interactive">
+            <div class="type-content">
+              <TypeIcon typeName={t.name} size="lg" />
+              <span class="type-name">{t.name.toUpperCase()}</span>
+            </div>
+            <div class="type-bar" style="background-color: {t.hexColor ?? `var(--color-type-${t.name})`}"></div>
+          </div>
+          <a href="/editor/types/{t.slug}" class="card-link-overlay" aria-label="Edit {t.name}"></a>
+        </div>
+      {/each}
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -115,13 +107,20 @@
 
   .page-header {
     display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
+    flex-direction: column;
+    gap: var(--spacing-4);
   }
 
   .page-header h2 {
     color: var(--theme-text-primary);
     margin: 0;
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-4);
   }
 
   .count {
@@ -132,9 +131,9 @@
 
   .new-btn {
     font-family: var(--font-display);
-    font-size: 10px;
-    padding: var(--spacing-2) var(--spacing-3);
-    background: none;
+    font-size: 9px;
+    padding: var(--spacing-2) var(--spacing-4);
+    background-color: var(--theme-bg-secondary);
     border: 2px solid var(--theme-border-primary);
     color: var(--theme-text-primary);
     cursor: pointer;
@@ -220,119 +219,84 @@
     color: var(--color-text-error);
   }
 
-  .entity-table {
+  .types-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: var(--spacing-4);
+  }
+
+  .card-wrapper {
+    position: relative;
+  }
+
+  .type-card {
     display: flex;
     flex-direction: column;
-    border: 3px solid var(--theme-border-primary);
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
+    padding: 0;
+    overflow: hidden;
+    text-align: center;
+    min-height: 120px;
   }
 
-  .table-header,
-  .table-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr 130px 100px 60px 80px 60px;
-    gap: var(--spacing-3);
-    padding: var(--spacing-2) var(--spacing-3);
-    align-items: center;
-  }
-
-  .table-header {
-    background-color: var(--theme-bg-secondary);
-    border-bottom: 2px solid var(--theme-border-primary);
-    font-family: var(--font-display);
-    font-size: 9px;
-    color: var(--theme-text-muted);
-  }
-
-  .table-row {
-    border-bottom: 1px solid var(--theme-border-primary);
-  }
-
-  .table-row:last-child {
-    border-bottom: none;
-  }
-
-  .table-row:hover {
-    background-color: var(--theme-bg-hover);
-  }
-
-  .row-slug {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--theme-text-secondary);
-  }
-
-  .row-name {
-    font-family: var(--font-display);
-    font-size: 11px;
-    color: var(--theme-text-primary);
-  }
-
-  .row-color {
+  .type-content {
     display: flex;
+    flex-direction: column;
     align-items: center;
+    justify-content: center;
     gap: var(--spacing-2);
-    font-family: var(--font-mono);
-    font-size: 10px;
-    color: var(--theme-text-muted);
+    padding: var(--spacing-4) var(--spacing-4) var(--spacing-3);
+    flex: 1;
   }
 
-  .swatch {
-    display: inline-block;
-    width: 14px;
-    height: 14px;
-    border: 1px solid var(--theme-border-primary);
+  .type-name {
+    font-family: var(--font-display);
+    font-size: 10px;
+    color: var(--theme-text-primary);
+    letter-spacing: 1px;
+  }
+
+  .type-bar {
+    height: 4px;
+    width: 100%;
     flex-shrink: 0;
   }
 
-  .hex {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    color: var(--theme-text-secondary);
+  .card-link-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
   }
 
-  .muted {
-    color: var(--theme-text-muted);
-  }
-
-  .row-dmg,
-  .row-gen {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    color: var(--theme-text-muted);
-  }
-
-  .src-badge {
-    font-family: var(--font-display);
-    font-size: 8px;
-    padding: 2px 6px;
-    border: 2px solid var(--theme-border-primary);
+  .empty-state {
+    background-color: var(--theme-bg-secondary);
+    border: 3px solid var(--theme-border-primary);
+    padding: var(--spacing-5);
     text-align: center;
   }
 
-  .src-pokeapi {
+  .empty-state p {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--theme-text-secondary);
+    margin: 0 0 var(--spacing-2) 0;
+  }
+
+  .empty-state .hint {
+    font-size: 11px;
     color: var(--theme-text-muted);
   }
 
-  .src-edited {
-    color: var(--theme-text-accent);
-    border-color: var(--theme-text-accent);
-  }
+  @media (max-width: 768px) {
+    .types-grid {
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    }
 
-  .src-custom {
-    color: var(--color-text-warning);
-    border-color: var(--color-text-warning);
-  }
+    .type-content {
+      padding: var(--spacing-3) var(--spacing-2) var(--spacing-2);
+    }
 
-  .edit-link {
-    font-family: var(--font-display);
-    font-size: 9px;
-    color: var(--theme-text-accent);
-    text-decoration: none;
-  }
-
-  .edit-link:hover {
-    text-decoration: underline;
+    .type-name {
+      font-size: 8px;
+    }
   }
 </style>

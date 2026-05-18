@@ -4,35 +4,32 @@
   import PokemonCard from '$lib/components/PokemonCard.svelte';
   import SearchBar from '$lib/components/SearchBar.svelte';
   import InfoBox from '$lib/components/InfoBox.svelte';
+  import VersionSelector from '$lib/components/VersionSelector.svelte';
   import FlavorTextBox from '$lib/components/FlavorTextBox.svelte';
   import EffectText from '$lib/components/EffectText.svelte';
-  import Tabs from '$lib/components/Tabs.svelte';
 
   let { data } = $props();
 
   const m = data.move;
 
-  const versionTabs = data.flavorTexts.map(f => ({
-    key: String(f.versionGroupId),
-    label: f.versionGroupName.toUpperCase().replace(/-/g, ' '),
-  }));
+  let selectedVersionGroupId = $state<number | null>(null);
 
-  let activeVersionGroupId = $state(
-    data.flavorTexts.length > 0
-      ? String(data.flavorTexts[data.flavorTexts.length - 1].versionGroupId)
-      : ''
-  );
+  $effect(() => {
+    if (selectedVersionGroupId === null && data.flavorTexts.length > 0) {
+      selectedVersionGroupId = data.flavorTexts[data.flavorTexts.length - 1].versionGroupId;
+    }
+  });
 
   let selectedFlavorText = $derived(
-    data.flavorTexts.find(f => String(f.versionGroupId) === activeVersionGroupId)?.flavorText ?? null
+    data.flavorTexts.find(f => f.versionGroupId === selectedVersionGroupId)?.flavorText ?? null
   );
 
   let searchQuery = $state('');
 
   let filteredLearners = $derived(
-    data.learners.filter(p => 
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      p.pokeapiId.toString() === searchQuery
+    data.learners.filter(p =>
+      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.pokeapiId?.toString() === searchQuery
     )
   );
 </script>
@@ -51,7 +48,7 @@
         <TypeBadge name={m.typeName} hexColor={m.typeHexColor} size="lg" />
       {/if}
     </div>
-    
+
     <div class="stats-row">
       <div class="stat">
         <span class="label">POWER</span>
@@ -80,13 +77,16 @@
     <div class="detail-grid">
       {#if data.flavorTexts.length > 0}
         <div class="left-col">
-          <Tabs tabs={versionTabs} bind:active={activeVersionGroupId}>
-            {#if selectedFlavorText}
-              <FlavorTextBox text={selectedFlavorText} />
-            {:else}
-              <p class="no-flavor">No entry available for this version.</p>
-            {/if}
-          </Tabs>
+          <VersionSelector
+            bind:value={selectedVersionGroupId}
+            options={data.flavorTexts.map(f => ({
+              value: f.versionGroupId,
+              label: f.versionGroupName.toUpperCase().replace(/-/g, ' ')
+            }))}
+          />
+          {#if selectedFlavorText}
+            <FlavorTextBox text={selectedFlavorText} />
+          {/if}
         </div>
       {/if}
 
@@ -106,21 +106,21 @@
       <h2>LEARNED BY</h2>
       <SearchBar bind:value={searchQuery} placeholder="Filter Pokémon..." count={filteredLearners.length} total={data.learners.length} />
     </div>
-    
+
     <div class="pokemon-grid">
       {#each filteredLearners as p (p.id)}
-        <PokemonCard 
+        <PokemonCard
           pokemon={{
             pokeapiId: p.pokeapiId || 0,
             name: p.name,
             slug: p.slug,
             spriteUrl: p.spriteDefault,
             types: p.types
-          }} 
+          }}
         />
       {/each}
     </div>
-    
+
     {#if filteredLearners.length === 0}
       <div class="empty-state">
         <p>No Pokémon found.</p>
@@ -216,13 +216,6 @@
     padding: var(--spacing-8);
     font-family: var(--font-mono);
     color: var(--theme-text-secondary);
-  }
-
-  .no-flavor {
-    font-family: var(--font-mono);
-    font-size: 12px;
-    color: var(--theme-text-muted);
-    margin: 0;
   }
 
   .detail-grid {

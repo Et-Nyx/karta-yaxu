@@ -1,4 +1,4 @@
-<script lang="ts">
+<script module lang="ts">
   export type LogEntry = {
     id: number;
     entityType: string;
@@ -7,7 +7,9 @@
     reason: string | null;
     timestamp: Date | null;
   };
+</script>
 
+<script lang="ts">
   let { logs = [] as LogEntry[] } = $props();
 
   function formatTime(date: Date | null): string {

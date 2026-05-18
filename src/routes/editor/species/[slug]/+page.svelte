@@ -1,7 +1,10 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
+  import { pageSource } from '$lib/stores/pageSource';
 
   let { data, form } = $props();
+
+  $effect(() => { pageSource.set(data.species.source); });
 
   let saved = $state(false);
   let eggGroupsSaved = $state(false);
@@ -38,14 +41,11 @@
 <div class="edit-page">
   <header class="page-header">
     <div class="header-left">
-      <a href="/editor/species" class="back">← BACK</a>
       <h2>EDIT SPECIES: {data.species.name.toUpperCase()}</h2>
-      <span class="src-badge src-{data.species.source}">{data.species.source}</span>
     </div>
     <div class="meta">
       <span>ID: {data.species.id}</span>
       {#if data.species.pokeapiId}<span>PokéAPI: {data.species.pokeapiId}</span>{/if}
-      <a href="/wiki/pokemon/{data.species.slug}" class="wiki-link">VIEW IN WIKI →</a>
     </div>
   </header>
 
@@ -79,9 +79,9 @@
     <fieldset class="flags-group">
       <legend>FLAGS</legend>
       <div class="flag-row">
-        <label><input name="isBaby" type="checkbox" value="true" checked={s.isBaby}> BABY</label>
-        <label><input name="isLegendary" type="checkbox" value="true" checked={s.isLegendary}> LEGENDARY</label>
-        <label><input name="isMythical" type="checkbox" value="true" checked={s.isMythical}> MYTHICAL</label>
+        <label><input name="isBaby" type="checkbox" value="true" checked={Boolean(s.isBaby)}> BABY</label>
+        <label><input name="isLegendary" type="checkbox" value="true" checked={Boolean(s.isLegendary)}> LEGENDARY</label>
+        <label><input name="isMythical" type="checkbox" value="true" checked={Boolean(s.isMythical)}> MYTHICAL</label>
       </div>
     </fieldset>
 
@@ -203,8 +203,6 @@
   .edit-page { display: flex; flex-direction: column; gap: var(--spacing-5); }
   .page-header { display: flex; justify-content: space-between; align-items: flex-end; gap: var(--spacing-3); flex-wrap: wrap; }
   .header-left { display: flex; align-items: center; gap: var(--spacing-3); flex-wrap: wrap; }
-  .back { font-family: var(--font-display); font-size: 9px; color: var(--theme-text-accent); text-decoration: none; }
-  .back:hover { text-decoration: underline; }
   .page-header h2 { color: var(--theme-text-primary); margin: 0; }
   .meta { display: flex; gap: var(--spacing-3); font-family: var(--font-mono); font-size: 11px; color: var(--theme-text-muted); }
   .wiki-link { color: var(--theme-text-accent); text-decoration: none; }

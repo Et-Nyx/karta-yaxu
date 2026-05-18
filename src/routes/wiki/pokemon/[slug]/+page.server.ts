@@ -428,7 +428,8 @@ export const load: PageServerLoad = async ({ params, url }) => {
       pokeapiId:    chainPokemonAlias.pokeapiId,
       name:         chainPokemonAlias.name,
       slug:         chainPokemonAlias.slug,
-      spriteUrl:    chainPokemonAlias.spriteDefault,
+      spriteDefault: chainPokemonAlias.spriteDefault,
+      spriteArtwork: chainPokemonAlias.spriteArtwork,
       isDefault:    chainPokemonAlias.isDefault,
       typeName:     schema.types.name,
       typeHexColor: schema.types.hexColor,
@@ -454,7 +455,7 @@ export const load: PageServerLoad = async ({ params, url }) => {
           pokeapiId: row.pokeapiId,
           name: row.name,
           slug: row.slug,
-          spriteUrl: row.spriteUrl,
+          spriteUrl: row.spriteArtwork ?? row.spriteDefault,
           isDefault: row.isDefault,
           dexNumber: row.dexNumber,
           types: [],
@@ -492,6 +493,32 @@ export const load: PageServerLoad = async ({ params, url }) => {
     )?.requiredSuffix ?? null,
   }));
 
+  // 12. Location encounters (wild encounter data)
+  const locationEncounters = await db.selectDistinct({
+    locationName:   schema.locations.name,
+    locationSlug:   schema.locations.slug,
+    areaName:       schema.locationAreas.name,
+    methodName:     schema.encounterMethods.name,
+    methodOrder:    schema.encounterMethods.order,
+    minLevel:       schema.encounters.minLevel,
+    maxLevel:       schema.encounters.maxLevel,
+    chance:         schema.encounters.chance,
+    versionGroupId: schema.versionGroups.id,
+  })
+  .from(schema.encounters)
+  .innerJoin(schema.locationAreas, eq(schema.encounters.locationAreaId, schema.locationAreas.id))
+  .innerJoin(schema.locations, eq(schema.locationAreas.locationId, schema.locations.id))
+  .innerJoin(schema.encounterMethods, eq(schema.encounters.encounterMethodId, schema.encounterMethods.id))
+  .innerJoin(schema.versions, eq(schema.encounters.versionId, schema.versions.id))
+  .innerJoin(schema.versionGroups, eq(schema.versions.versionGroupId, schema.versionGroups.id))
+  .where(eq(schema.encounters.pokemonId, pokemon.id))
+  .orderBy(
+    asc(schema.locations.name),
+    asc(schema.locationAreas.gameIndex),
+    asc(schema.encounterMethods.order),
+    desc(schema.encounters.chance),
+  );
+
   return {
     pokemon,
     species,
@@ -501,6 +528,7 @@ export const load: PageServerLoad = async ({ params, url }) => {
     availableVersions,
     flavorTexts,
     learnset,
+    locationEncounters,
     genus,
     eggGroups: eggGroupsData,
     typeMatchup,

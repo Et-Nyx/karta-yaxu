@@ -1,5 +1,4 @@
-<script lang="ts">
-  // Tipos para o status de importação
+<script module lang="ts">
   export type SourceCounts = {
     total: number;
     pokeapi: number;
@@ -8,7 +7,9 @@
   };
 
   export type ImportStatus = Record<string, SourceCounts>;
+</script>
 
+<script lang="ts">
   let { status = {} as ImportStatus } = $props();
 
   const ENTITIES = [

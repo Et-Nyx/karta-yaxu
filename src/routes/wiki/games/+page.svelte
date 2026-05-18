@@ -1,6 +1,6 @@
 <script lang="ts">
-  import CollapsibleSection from '$lib/components/CollapsibleSection.svelte';
   import SearchBar from '$lib/components/SearchBar.svelte';
+  import Tabs from '$lib/components/Tabs.svelte';
 
   let { data } = $props();
 
@@ -26,21 +26,23 @@
 
   let isSearching = $derived(searchQuery.trim().length > 0);
 
-  let genOpen = $state<Record<string, boolean>>(
-    Object.fromEntries(data.generations.map((g, i) => [g.slug, i === 0]))
-  );
+  const genTabs = data.generations.map(g => ({
+    key: g.slug,
+    label: g.name.replace('generation-', 'GEN ').toUpperCase(),
+  }));
 
+  let activeGen = $state(data.generations[0]?.slug ?? '');
+
+  // While searching, switch to the first matching generation
   $effect(() => {
-    if (isSearching) {
-      for (const g of filteredGenerations) {
-        genOpen[g.slug] = true;
-      }
+    if (isSearching && filteredGenerations.length > 0) {
+      activeGen = filteredGenerations[0].slug;
     }
   });
 
-  function formatGenName(name: string): string {
-    return name.replace('generation-', 'GEN ').toUpperCase();
-  }
+  let activeGenData = $derived(
+    filteredGenerations.find(g => g.slug === activeGen) ?? filteredGenerations[0]
+  );
 </script>
 
 <svelte:head>
@@ -68,14 +70,10 @@
   {:else if filteredGenerations.length === 0}
     <p class="empty">No games found matching "{searchQuery}".</p>
   {:else}
-    {#each filteredGenerations as gen (gen.slug)}
-      <CollapsibleSection
-        title={formatGenName(gen.name)}
-        count={gen.versionGroups.length}
-        bind:open={genOpen[gen.slug]}
-      >
+    <Tabs tabs={genTabs} bind:active={activeGen}>
+      {#if activeGenData}
         <div class="vg-grid">
-          {#each gen.versionGroups as vg (vg.id)}
+          {#each activeGenData.versionGroups as vg (vg.id)}
             <a href="/wiki/games/{vg.slug}" class="vg-card card-interactive">
               <div class="vg-name">{vg.name.toUpperCase().replace(/-/g, ' ')}</div>
               {#if vg.versions.length > 0}
@@ -88,8 +86,8 @@
             </a>
           {/each}
         </div>
-      </CollapsibleSection>
-    {/each}
+      {/if}
+    </Tabs>
   {/if}
 </div>
 

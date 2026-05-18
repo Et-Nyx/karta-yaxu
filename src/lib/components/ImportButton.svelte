@@ -9,28 +9,27 @@
     disabled = false
   } = $props();
 
-  let state = $state<'idle' | 'loading' | 'success' | 'error'>('idle');
+  let btnState: 'idle' | 'loading' | 'success' | 'error' = $state('idle');
   let resultMessage = $state('');
 
   function handleSubmit() {
-    state = 'loading';
+    btnState = 'loading';
     resultMessage = '';
     startImport();
-    
+
     return async ({ result, update }: any) => {
       if (result.type === 'success') {
-        state = 'success';
+        btnState = 'success';
         resultMessage = result.data?.message || 'Success!';
       } else {
-        state = 'error';
+        btnState = 'error';
         resultMessage = result.data?.error || 'Failed.';
       }
       await update();
-      
-      // Reset after 3 seconds if success
-      if (state === 'success') {
+
+      if (btnState === 'success') {
         setTimeout(() => {
-          state = 'idle';
+          btnState = 'idle';
           resultMessage = '';
         }, 3000);
       }
@@ -43,16 +42,16 @@
     <button 
       type="submit" 
       class="btn" 
-      class:loading={state === 'loading'}
-      class:success={state === 'success'}
-      class:error={state === 'error'}
-      disabled={disabled || state === 'loading'}
+      class:loading={btnState === 'loading'}
+      class:success={btnState === 'success'}
+      class:error={btnState === 'error'}
+      disabled={disabled || btnState === 'loading'}
     >
-      {#if state === 'loading'}
+      {#if btnState === 'loading'}
         <span class="spinner"></span> {loadingLabel}
-      {:else if state === 'success'}
+      {:else if btnState === 'success'}
         ✅ DONE
-      {:else if state === 'error'}
+      {:else if btnState === 'error'}
         ❌ ERROR
       {:else}
         {label}
@@ -61,7 +60,7 @@
   </form>
   
   {#if resultMessage}
-    <div class="result-message" class:error-msg={state === 'error'}>
+    <div class="result-message" class:error-msg={btnState === 'error'}>
       {resultMessage}
     </div>
   {/if}

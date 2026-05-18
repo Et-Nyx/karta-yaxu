@@ -1,4 +1,5 @@
 <script lang="ts">
+  import DataTable from '$lib/components/DataTable.svelte';
   import TypeBadge from '$lib/components/TypeBadge.svelte';
 
   let { data } = $props();
@@ -32,32 +33,36 @@
       <p class="hint">Import Pokémon data and game metadata to populate this pokédex.</p>
     </div>
   {:else}
-    <div class="entries-table">
-      <div class="table-header">
-        <span class="col-num">#</span>
-        <span class="col-sprite"></span>
-        <span class="col-name">NAME</span>
-        <span class="col-types">TYPE</span>
-      </div>
+    <DataTable compact>
+      {#snippet head()}
+        <th style="width: 48px; text-align: right">#</th>
+        <th style="width: 56px"></th>
+        <th>NAME</th>
+        <th style="text-align: right">TYPE</th>
+      {/snippet}
       {#each data.entries as entry (entry.entryNumber)}
-        <a href="/wiki/pokemon/{entry.slug}" class="table-row card-interactive">
-          <span class="col-num entry-num">{entry.entryNumber}</span>
-          <span class="col-sprite">
+        <tr>
+          <td class="entry-num">{entry.entryNumber}</td>
+          <td class="col-sprite">
             {#if entry.spriteUrl}
               <img src={entry.spriteUrl} alt={entry.name} class="sprite" loading="lazy" />
             {:else}
               <div class="sprite-placeholder"></div>
             {/if}
-          </span>
-          <span class="col-name entry-name">{entry.name.toUpperCase()}</span>
-          <span class="col-types">
-            {#each entry.types as t}
-              <TypeBadge name={t.name} hexColor={t.hexColor} size="sm" />
-            {/each}
-          </span>
-        </a>
+          </td>
+          <td class="entry-name">
+            <a href="/wiki/pokemon/{entry.slug}">{entry.name.toUpperCase()}</a>
+          </td>
+          <td class="col-types">
+            <div class="types-stack">
+              {#each entry.types as t}
+                <TypeBadge name={t.name} hexColor={t.hexColor} size="sm" />
+              {/each}
+            </div>
+          </td>
+        </tr>
       {/each}
-    </div>
+    </DataTable>
   {/if}
 </div>
 
@@ -106,47 +111,10 @@
     color: var(--theme-text-secondary);
   }
 
-  .entries-table {
-    display: flex;
-    flex-direction: column;
-    border: 3px solid var(--theme-border-primary);
-    overflow: hidden;
-  }
-
-  .table-header {
-    display: grid;
-    grid-template-columns: 48px 48px 1fr auto;
-    align-items: center;
-    gap: var(--spacing-3);
-    padding: var(--spacing-2) var(--spacing-4);
-    background-color: var(--theme-bg-tertiary);
-    border-bottom: 2px solid var(--theme-border-primary);
-    font-family: var(--font-display);
-    font-size: 9px;
+  .entry-num {
+    font-family: var(--font-mono);
+    font-size: 11px;
     color: var(--theme-text-muted);
-  }
-
-  .table-row {
-    display: grid;
-    grid-template-columns: 48px 48px 1fr auto;
-    align-items: center;
-    gap: var(--spacing-3);
-    padding: var(--spacing-2) var(--spacing-4);
-    border-bottom: 1px solid var(--theme-border-primary);
-    border-left: none;
-    border-right: none;
-    border-top: none;
-  }
-
-  .table-row:last-child {
-    border-bottom: none;
-  }
-
-  .table-row:hover {
-    background-color: var(--theme-bg-hover);
-  }
-
-  .col-num {
     text-align: right;
   }
 
@@ -155,36 +123,34 @@
     justify-content: center;
   }
 
-  .col-types {
-    display: flex;
-    gap: var(--spacing-1);
-    justify-content: flex-end;
-  }
-
-  .entry-num {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--theme-text-muted);
-  }
-
   .sprite {
-    width: 40px;
-    height: 40px;
+    width: 56px;
+    height: 56px;
     image-rendering: pixelated;
     object-fit: contain;
   }
 
   .sprite-placeholder {
-    width: 40px;
-    height: 40px;
+    width: 56px;
+    height: 56px;
     background-color: var(--theme-bg-secondary);
     border: 1px solid var(--theme-border-primary);
   }
 
-  .entry-name {
-    font-family: var(--font-display);
-    font-size: 10px;
-    color: var(--theme-text-primary);
+  .entry-name { font-family: var(--font-display); font-size: 10px; }
+  .entry-name a { color: var(--theme-text-primary); text-decoration: none; }
+  .entry-name a:hover { color: var(--theme-text-accent); }
+
+  .col-types {
+    text-align: right;
+    vertical-align: middle;
+  }
+
+  .types-stack {
+    display: inline-flex;
+    flex-direction: column;
+    gap: var(--spacing-1);
+    align-items: flex-end;
   }
 
   .empty-state {

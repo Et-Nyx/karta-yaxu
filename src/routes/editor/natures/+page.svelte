@@ -25,7 +25,6 @@
   <header class="page-header">
     <div>
       <h2>NATURES</h2>
-      <span class="count">{data.total} total · {filtered.length} shown</span>
     </div>
     <button type="button" class="new-btn" onclick={() => showCreate = !showCreate}>
       {showCreate ? '× CANCEL' : '+ NEW NATURE'}

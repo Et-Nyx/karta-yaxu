@@ -1,7 +1,7 @@
 <script lang="ts">
   import SearchBar from '$lib/components/SearchBar.svelte';
   import LocationCard from '$lib/components/LocationCard.svelte';
-  import CollapsibleSection from '$lib/components/CollapsibleSection.svelte';
+  import Tabs from '$lib/components/Tabs.svelte';
 
   let { data } = $props();
 
@@ -24,19 +24,23 @@
 
   let isSearching = $derived(searchQuery.trim().length > 0);
 
-  // Per-region open state; first region open by default
-  let regionOpen = $state<Record<string, boolean>>(
-    Object.fromEntries(data.regions.map((r, i) => [r.slug, i === 0]))
-  );
+  const regionTabs = data.regions.map(r => ({
+    key: r.slug,
+    label: r.name.toUpperCase(),
+  }));
 
-  // Auto-open all matching regions while searching
+  let activeRegion = $state(data.regions[0]?.slug ?? '');
+
+  // While searching, switch to the first matching region
   $effect(() => {
-    if (isSearching) {
-      for (const r of filteredRegions) {
-        regionOpen[r.slug] = true;
-      }
+    if (isSearching && filteredRegions.length > 0) {
+      activeRegion = filteredRegions[0].slug;
     }
   });
+
+  let activeRegionData = $derived(
+    filteredRegions.find(r => r.slug === activeRegion) ?? filteredRegions[0]
+  );
 </script>
 
 <svelte:head>
@@ -64,23 +68,19 @@
   {:else if filteredRegions.length === 0}
     <p class="empty">No locations found matching "{searchQuery}".</p>
   {:else}
-    {#each filteredRegions as region (region.slug)}
-      <CollapsibleSection
-        title={region.name.toUpperCase()}
-        count={region.locations.length}
-        bind:open={regionOpen[region.slug]}
-      >
+    <Tabs tabs={regionTabs} bind:active={activeRegion}>
+      {#if activeRegionData}
         <div class="location-grid">
-          {#each region.locations as loc (loc.id)}
+          {#each activeRegionData.locations as loc (loc.id)}
             <LocationCard
               name={loc.name}
               slug={loc.slug}
-              regionName={isSearching ? region.name : null}
+              regionName={null}
             />
           {/each}
         </div>
-      </CollapsibleSection>
-    {/each}
+      {/if}
+    </Tabs>
   {/if}
 </div>
 
