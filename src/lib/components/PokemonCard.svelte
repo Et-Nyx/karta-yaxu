@@ -12,7 +12,11 @@
     isDefault?: boolean;
   };
 
-  let { pokemon } = $props<{ pokemon: PokemonCardData }>();
+  let { pokemon, href, highlighted = false } = $props<{
+    pokemon: PokemonCardData;
+    href?: string;
+    highlighted?: boolean;
+  }>();
 
   let displayName = $derived(pokemon.name ?? '???');
   let displaySlug = $derived(pokemon.slug ?? 'unknown');
@@ -25,7 +29,7 @@
   let dexNum = $derived((pokemon.dexNumber ?? pokemon.pokeapiId)?.toString().padStart(3, '0') ?? '???');
 </script>
 
-<a href="/wiki/pokemon/{displaySlug}" class="pokemon-card card-interactive">
+<a href={href ?? `/wiki/pokemon/${displaySlug}`} class="pokemon-card card-interactive" class:highlighted>
   <div class="card-header">
     <div class="dex-number">#{dexNum}</div>
     <div class="name">{displayName.toUpperCase()}</div>
@@ -111,5 +115,8 @@
     text-align: center;
   }
 
-
+  .pokemon-card.highlighted {
+    border: 2px solid var(--theme-text-accent);
+    box-shadow: 3px 3px 0 var(--theme-text-accent);
+  }
 </style>

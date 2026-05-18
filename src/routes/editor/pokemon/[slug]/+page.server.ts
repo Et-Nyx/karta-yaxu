@@ -225,6 +225,7 @@ export const load: PageServerLoad = async ({ params, url }) => {
   const allChainIds = [...chainIds];
   const evoChainRows = await db.select({
     id:            pokemon.id,
+    pokeapiId:     pokemon.pokeapiId,
     slug:          pokemon.slug,
     name:          pokemon.name,
     spriteArtwork: pokemon.spriteArtwork,
@@ -252,7 +253,7 @@ export const load: PageServerLoad = async ({ params, url }) => {
   const chainCondById = new Map(chainCondRows.map(c => [c.pokemonId, c]));
 
   const evoNodeMap = new Map<number, {
-    id: number; slug: string; name: string; spriteUrl: string | null;
+    id: number; pokeapiId: number; slug: string; name: string; spriteUrl: string | null;
     evolvesFromId: number | null; dexNumber: number;
     types: { name: string; hexColor: string | null }[];
     conditions: { trigger: string; minLevel: number | null; minHappiness: number | null;
@@ -263,7 +264,7 @@ export const load: PageServerLoad = async ({ params, url }) => {
       const cond = chainCondById.get(r.id) ?? null;
       const item = cond?.itemId != null ? (chainItemById.get(cond.itemId) ?? null) : null;
       evoNodeMap.set(r.id, {
-        id: r.id, slug: r.slug, name: r.name,
+        id: r.id, pokeapiId: r.pokeapiId ?? 0, slug: r.slug, name: r.name,
         spriteUrl: r.spriteArtwork ?? r.spriteDefault,
         evolvesFromId: r.evolvesFromId ?? null,
         dexNumber: r.dexNumber, types: [],

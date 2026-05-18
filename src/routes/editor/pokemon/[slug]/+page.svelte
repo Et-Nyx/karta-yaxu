@@ -5,6 +5,7 @@
   import TypeBadge from '$lib/components/TypeBadge.svelte';
   import InfoBox from '$lib/components/InfoBox.svelte';
   import Tabs from '$lib/components/Tabs.svelte';
+  import PokemonCard from '$lib/components/PokemonCard.svelte';
   import { pageSource } from '$lib/stores/pageSource';
 
   let { data, form } = $props();
@@ -247,22 +248,18 @@
     {@const children = evoTreeData().childrenOf.get(nodeId) ?? []}
     {#if node}
       <div class="evo-node-wrap">
-        <a href="/editor/pokemon/{node.slug}" class="pokemon-card" class:is-current={node.id === data.pokemon.id}>
-          <div class="pokemon-card-header">
-            <span class="pokemon-card-num">#{String(node.dexNumber).padStart(3, '0')}</span>
-            <span class="pokemon-card-name">{node.name.toUpperCase()}</span>
-          </div>
-          {#if node.spriteUrl}
-            <img src={node.spriteUrl} alt={node.name} class="pokemon-card-sprite" />
-          {:else}
-            <div class="pokemon-card-no-sprite"></div>
-          {/if}
-          <div class="pokemon-card-types">
-            {#each node.types as t}
-              <TypeBadge name={t.name} hexColor={t.hexColor} size="sm" />
-            {/each}
-          </div>
-        </a>
+        <PokemonCard
+          pokemon={{
+            pokeapiId: node.pokeapiId,
+            name: node.name,
+            slug: node.slug,
+            spriteUrl: node.spriteUrl,
+            dexNumber: node.dexNumber,
+            types: node.types,
+          }}
+          href="/editor/pokemon/{node.slug}"
+          highlighted={node.id === data.pokemon.id}
+        />
         {#if children.length === 1}
           {@const ct = evoCondText(children[0].conditions)}
           <div class="evo-conn-single">
@@ -937,21 +934,6 @@
   .evo-down-arrow { font-size: 18px; color: var(--theme-text-secondary); line-height: 1; position: relative; z-index: 1; }
   .evo-edit-controls { display: flex; flex-direction: column; gap: var(--spacing-4); margin-top: var(--spacing-5); }
 
-  /* Inline pokemon cards (editor version — links to editor, not wiki) */
-  .pokemon-card {
-    display: flex; flex-direction: column; align-items: center; gap: var(--spacing-2);
-    padding: var(--spacing-3); background: var(--theme-bg-secondary);
-    border: 2px solid var(--theme-border-primary);
-    text-decoration: none; color: var(--theme-text-primary); min-width: 110px;
-  }
-  .pokemon-card:hover:not(.is-current) { border-color: var(--theme-text-accent); }
-  .pokemon-card.is-current { border-color: var(--theme-text-accent); box-shadow: 3px 3px 0 var(--theme-text-accent); }
-  .pokemon-card-header { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-  .pokemon-card-num { font-family: var(--font-mono); font-size: 10px; color: var(--theme-text-muted); }
-  .pokemon-card-name { font-family: var(--font-display); font-size: 9px; }
-  .pokemon-card-sprite { width: 80px; height: 80px; object-fit: contain; image-rendering: pixelated; }
-  .pokemon-card-no-sprite { width: 80px; height: 80px; }
-  .pokemon-card-types { display: flex; gap: var(--spacing-1); flex-wrap: wrap; justify-content: center; }
   .card-interactive { display: block; padding: var(--spacing-2); border: 2px solid var(--theme-border-primary); transition: all 0.1s ease; }
   .card-interactive:hover { background-color: var(--theme-bg-hover); transform: translate(-1px, -1px); }
 
