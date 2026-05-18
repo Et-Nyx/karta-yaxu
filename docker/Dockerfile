@@ -1,17 +1,15 @@
 # ═══════════════════════════════════════════════
 # Stage 1: Build
 # ═══════════════════════════════════════════════
-FROM node:20-alpine AS build
-
-# better-sqlite3 requires native compilation tools for Alpine (musl)
-RUN apk add --no-cache python3 make g++
+FROM node:20-bookworm-slim AS build
 
 WORKDIR /app
 
 COPY package.json package-lock.json ./
+# We don't need to rebuild or install python/make anymore because
+# Debian slim uses glibc, which is perfectly compatible with the 
+# pre-built better-sqlite3 binaries downloaded by npm ci.
 RUN npm ci
-# Rebuild native modules for Alpine's musl libc
-RUN npm rebuild better-sqlite3 --build-from-source
 
 COPY . .
 RUN npm run build
@@ -22,11 +20,10 @@ RUN npm run build
 # ═══════════════════════════════════════════════
 # Stage 2: Runtime
 # ═══════════════════════════════════════════════
-FROM node:20-alpine AS runtime
+FROM node:20-bookworm-slim AS runtime
 
-# python3 + make + g++ needed for better-sqlite3 if rebuild needed
 # curl needed for healthcheck
-RUN apk add --no-cache curl
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
