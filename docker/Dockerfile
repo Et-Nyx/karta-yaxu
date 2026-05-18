@@ -11,7 +11,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 # Rebuild native modules for Alpine's musl libc
-RUN npm rebuild better-sqlite3
+RUN npm rebuild better-sqlite3 --build-from-source
 
 COPY . .
 RUN npm run build
