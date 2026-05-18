@@ -119,6 +119,33 @@
   let activeFormTab = $state<string>(_currentSuffix ? _currentSuffix.toUpperCase() : 'EVOLUTION');
   let activeFormTabObj = $derived(formTabs().find(t => t.label === activeFormTab) ?? formTabs()[0]);
 
+  // --- Evo tree helpers ---
+  function evoCondText(cond: typeof data.evoChain[number]['conditions']): string {
+    if (!cond) return '';
+    if (cond.trigger === 'level-up') {
+      if (cond.minLevel)     return `Lv. ${cond.minLevel}`;
+      if (cond.minHappiness) return `Happiness ${cond.minHappiness}`;
+      if (cond.timeOfDay)    return `Level up (${cond.timeOfDay})`;
+      return 'Level up';
+    }
+    if (cond.trigger === 'use-item') return cond.itemName ?? 'Use item';
+    if (cond.trigger === 'trade')    return 'Trade';
+    return cond.trigger;
+  }
+
+  let evoTreeData = $derived(() => {
+    const nodeMap = new Map(data.evoChain.map(n => [n.id, n]));
+    const childrenOf = new Map<number, typeof data.evoChain>();
+    for (const n of data.evoChain) {
+      if (n.evolvesFromId == null) continue;
+      if (!childrenOf.has(n.evolvesFromId)) childrenOf.set(n.evolvesFromId, []);
+      childrenOf.get(n.evolvesFromId)!.push(n);
+    }
+    const chainIdSet = new Set(data.evoChain.map(n => n.id));
+    const roots = data.evoChain.filter(n => n.evolvesFromId == null || !chainIdSet.has(n.evolvesFromId));
+    return { nodeMap, childrenOf, roots };
+  });
+
   // --- Page tabs ---
   const PAGE_TABS = [
     { key: 'info',     label: 'INFO' },
@@ -214,6 +241,58 @@
       </div>
     </div>
   </form>
+
+  {#snippet evoNode(nodeId: number)}
+    {@const node = evoTreeData().nodeMap.get(nodeId)}
+    {@const children = evoTreeData().childrenOf.get(nodeId) ?? []}
+    {#if node}
+      <div class="evo-node-wrap">
+        <a href="/editor/pokemon/{node.slug}" class="pokemon-card" class:is-current={node.id === data.pokemon.id}>
+          <div class="pokemon-card-header">
+            <span class="pokemon-card-num">#{String(node.dexNumber).padStart(3, '0')}</span>
+            <span class="pokemon-card-name">{node.name.toUpperCase()}</span>
+          </div>
+          {#if node.spriteUrl}
+            <img src={node.spriteUrl} alt={node.name} class="pokemon-card-sprite" />
+          {:else}
+            <div class="pokemon-card-no-sprite"></div>
+          {/if}
+          <div class="pokemon-card-types">
+            {#each node.types as t}
+              <TypeBadge name={t.name} hexColor={t.hexColor} size="sm" />
+            {/each}
+          </div>
+        </a>
+        {#if children.length === 1}
+          {@const ct = evoCondText(children[0].conditions)}
+          <div class="evo-conn-single">
+            {#if ct}<span class="evo-method-tag">{ct}</span>{/if}
+            <span class="evo-down-arrow">↓</span>
+          </div>
+          {@render evoNode(children[0].id)}
+        {:else if children.length > 1}
+          <div class="evo-chunks-wrap">
+            <div class="evo-stem"></div>
+            <div class="evo-branch-row">
+              {#each children as child, i}
+                {@const ct = evoCondText(child.conditions)}
+                <div class="evo-branch-child"
+                  class:first-branch={i === 0}
+                  class:last-branch={i === children.length - 1}
+                  class:mid-branch={i > 0 && i < children.length - 1}>
+                  <div class="evo-conn-cell">
+                    {#if ct}<span class="evo-method-tag">{ct}</span>{/if}
+                    <span class="evo-down-arrow">↓</span>
+                  </div>
+                  {@render evoNode(child.id)}
+                </div>
+              {/each}
+            </div>
+          </div>
+        {/if}
+      </div>
+    {/if}
+  {/snippet}
 
   <!-- ── Tabs ──────────────────────────────────────────────────────────── -->
   <Tabs tabs={PAGE_TABS} bind:active={activePageTab}>
@@ -400,75 +479,89 @@
   </nav>
 
   {#if activeFormTabObj?.kind === 'evolution'}
-  <!-- EVOLUTION sub-tab: editable predecessor / successors -->
+  <!-- EVOLUTION sub-tab: visual tree + edit controls -->
   <section class="tab-section">
-    <div class="evo-panel">
-      <h4 class="evo-panel-title">PREDECESSOR</h4>
-      {#if data.predecessor}
-        <div class="evo-row">
-          <a href="/editor/pokemon/{data.predecessor.slug}" class="evo-link">← {data.predecessor.name}</a>
-          {#if data.predecessorConditions}
-            <span class="evo-conditions">
-              {data.predecessorConditions.trigger}
-              {#if data.predecessorConditions.minLevel}· lvl {data.predecessorConditions.minLevel}{/if}
-              {#if data.predecessorConditions.itemId}· item {data.allItems.find(i => i.id === data.predecessorConditions?.itemId)?.name ?? `#${data.predecessorConditions.itemId}`}{/if}
-              {#if data.predecessorConditions.minHappiness}· happiness {data.predecessorConditions.minHappiness}{/if}
-              {#if data.predecessorConditions.timeOfDay}· {data.predecessorConditions.timeOfDay}{/if}
-              {#if data.predecessorConditions.location}· at {data.predecessorConditions.location}{/if}
-            </span>
-          {/if}
-        </div>
-        <details class="add-toggle">
-          <summary>EDIT CONDITIONS</summary>
-          <form action="?/updateConditions" method="post" use:enhance class="sub-form">
-            <div class="field"><label>TRIGGER</label><select name="trigger" required>{#each ['level-up','use-item','use-move','trade','three-critical-hits','shed','spin'] as t}<option value={t} selected={data.predecessorConditions?.trigger === t}>{t}</option>{/each}</select></div>
-            <div class="field"><label>MIN LEVEL</label><input name="minLevel" type="number" min="0" max="100" value={data.predecessorConditions?.minLevel ?? ''}></div>
-            <div class="field"><label>ITEM (use-item)</label><select name="itemId"><option value="">— none —</option>{#each data.allItems as i}<option value={i.id} selected={(data.predecessorConditions?.itemId ?? null) === i.id}>{i.name}</option>{/each}</select></div>
-            <div class="field"><label>HELD ITEM</label><select name="heldItemId"><option value="">— none —</option>{#each data.allItems as i}<option value={i.id} selected={(data.predecessorConditions?.heldItemId ?? null) === i.id}>{i.name}</option>{/each}</select></div>
-            <div class="field"><label>KNOWN MOVE</label><select name="knownMoveId"><option value="">— none —</option>{#each data.allMoves as m}<option value={m.id} selected={(data.predecessorConditions?.knownMoveId ?? null) === m.id}>{m.name}</option>{/each}</select></div>
-            <div class="field"><label>KNOWN MOVE TYPE</label><select name="knownMoveTypeId"><option value="">— none —</option>{#each data.allTypes as t}<option value={t.id} selected={(data.predecessorConditions?.knownMoveTypeId ?? null) === t.id}>{t.name}</option>{/each}</select></div>
-            <div class="field"><label>MIN HAPPINESS</label><input name="minHappiness" type="number" min="0" max="255" value={data.predecessorConditions?.minHappiness ?? ''}></div>
-            <div class="field"><label>TIME OF DAY</label><select name="timeOfDay"><option value="">— any —</option>{#each ['day','night','dusk'] as t}<option value={t} selected={data.predecessorConditions?.timeOfDay === t}>{t}</option>{/each}</select></div>
-            <div class="field"><label>GENDER</label><select name="gender"><option value="">— any —</option><option value="1" selected={data.predecessorConditions?.gender === 1}>female</option><option value="2" selected={data.predecessorConditions?.gender === 2}>male</option></select></div>
-            <div class="field"><label>LOCATION</label><input name="location" type="text" value={data.predecessorConditions?.location ?? ''}></div>
-            <div class="form-actions"><button type="submit" class="save-btn-sm">SAVE CONDITIONS</button></div>
-          </form>
-        </details>
-        <form action="?/clearPredecessor" method="post" use:enhance class="inline-form">
-          <button type="submit" class="delete-btn-sm" onclick={(e) => { if (!confirm('Remove predecessor?')) e.preventDefault(); }}>CLEAR PREDECESSOR</button>
-        </form>
-      {:else}
-        <p class="evo-empty">Root of an evolution chain (no predecessor).</p>
-        <details class="add-toggle">
-          <summary>+ SET PREDECESSOR</summary>
-          <form action="?/setPredecessor" method="post" use:enhance class="sub-form">
-            <div class="field full"><label>PARENT POKÉMON</label><select name="parentPokemonId" required><option value="">— pick a parent —</option>{#each data.allPokemon as pk}<option value={pk.id}>{pk.name} ({pk.slug})</option>{/each}</select></div>
-            <div class="field"><label>TRIGGER</label><select name="trigger" required>{#each ['level-up','use-item','use-move','trade','three-critical-hits','shed','spin'] as t}<option value={t}>{t}</option>{/each}</select></div>
-            <div class="field"><label>MIN LEVEL</label><input name="minLevel" type="number" min="0" max="100"></div>
-            <div class="field"><label>ITEM</label><select name="itemId"><option value="">— none —</option>{#each data.allItems as i}<option value={i.id}>{i.name}</option>{/each}</select></div>
-            <div class="field"><label>MIN HAPPINESS</label><input name="minHappiness" type="number" min="0" max="255"></div>
-            <div class="field"><label>TIME OF DAY</label><select name="timeOfDay"><option value="">— any —</option>{#each ['day','night','dusk'] as t}<option value={t}>{t}</option>{/each}</select></div>
-            <div class="form-actions"><button type="submit" class="save-btn-sm">SET PREDECESSOR</button></div>
-          </form>
-        </details>
-      {/if}
+
+    <!-- Visual evo tree -->
+    {#if data.evoChain.length > 1}
+    <div class="evo-tree">
+      {#each evoTreeData().roots as root (root.id)}
+        {@render evoNode(root.id)}
+      {/each}
     </div>
-    <div class="evo-panel">
-      <h4 class="evo-panel-title">SUCCESSORS ({data.successors.length})</h4>
-      {#if data.successors.length === 0}
-        <p class="evo-empty">No successors. To add one, edit the target pokémon and set this as its predecessor.</p>
-      {:else}
-        <div class="evo-successors">
-          {#each data.successors as s (s.id)}
-            <a href="/editor/pokemon/{s.slug}" class="evo-link card-interactive">
-              → {s.name}
-              {#if s.trigger}<span class="evo-conditions">{s.trigger}{#if s.minLevel}· lvl {s.minLevel}{/if}{#if s.itemId}· item {data.allItems.find(i => i.id === s.itemId)?.name ?? `#${s.itemId}`}{/if}</span>{/if}
-            </a>
-          {/each}
-        </div>
-      {/if}
+    {/if}
+
+    <!-- Edit controls -->
+    <div class="evo-edit-controls">
+      <div class="evo-panel">
+        <h4 class="evo-panel-title">PREDECESSOR</h4>
+        {#if data.predecessor}
+          <div class="evo-row">
+            <a href="/editor/pokemon/{data.predecessor.slug}" class="evo-link">← {data.predecessor.name}</a>
+            {#if data.predecessorConditions}
+              <span class="evo-conditions">
+                {data.predecessorConditions.trigger}
+                {#if data.predecessorConditions.minLevel}· lvl {data.predecessorConditions.minLevel}{/if}
+                {#if data.predecessorConditions.itemId}· item {data.allItems.find(i => i.id === data.predecessorConditions?.itemId)?.name ?? `#${data.predecessorConditions.itemId}`}{/if}
+                {#if data.predecessorConditions.minHappiness}· happiness {data.predecessorConditions.minHappiness}{/if}
+                {#if data.predecessorConditions.timeOfDay}· {data.predecessorConditions.timeOfDay}{/if}
+                {#if data.predecessorConditions.location}· at {data.predecessorConditions.location}{/if}
+              </span>
+            {/if}
+          </div>
+          <details class="add-toggle">
+            <summary>EDIT CONDITIONS</summary>
+            <form action="?/updateConditions" method="post" use:enhance class="sub-form">
+              <div class="field"><label>TRIGGER</label><select name="trigger" required>{#each ['level-up','use-item','use-move','trade','three-critical-hits','shed','spin'] as t}<option value={t} selected={data.predecessorConditions?.trigger === t}>{t}</option>{/each}</select></div>
+              <div class="field"><label>MIN LEVEL</label><input name="minLevel" type="number" min="0" max="100" value={data.predecessorConditions?.minLevel ?? ''}></div>
+              <div class="field"><label>ITEM (use-item)</label><select name="itemId"><option value="">— none —</option>{#each data.allItems as i}<option value={i.id} selected={(data.predecessorConditions?.itemId ?? null) === i.id}>{i.name}</option>{/each}</select></div>
+              <div class="field"><label>HELD ITEM</label><select name="heldItemId"><option value="">— none —</option>{#each data.allItems as i}<option value={i.id} selected={(data.predecessorConditions?.heldItemId ?? null) === i.id}>{i.name}</option>{/each}</select></div>
+              <div class="field"><label>KNOWN MOVE</label><select name="knownMoveId"><option value="">— none —</option>{#each data.allMoves as m}<option value={m.id} selected={(data.predecessorConditions?.knownMoveId ?? null) === m.id}>{m.name}</option>{/each}</select></div>
+              <div class="field"><label>KNOWN MOVE TYPE</label><select name="knownMoveTypeId"><option value="">— none —</option>{#each data.allTypes as t}<option value={t.id} selected={(data.predecessorConditions?.knownMoveTypeId ?? null) === t.id}>{t.name}</option>{/each}</select></div>
+              <div class="field"><label>MIN HAPPINESS</label><input name="minHappiness" type="number" min="0" max="255" value={data.predecessorConditions?.minHappiness ?? ''}></div>
+              <div class="field"><label>TIME OF DAY</label><select name="timeOfDay"><option value="">— any —</option>{#each ['day','night','dusk'] as t}<option value={t} selected={data.predecessorConditions?.timeOfDay === t}>{t}</option>{/each}</select></div>
+              <div class="field"><label>GENDER</label><select name="gender"><option value="">— any —</option><option value="1" selected={data.predecessorConditions?.gender === 1}>female</option><option value="2" selected={data.predecessorConditions?.gender === 2}>male</option></select></div>
+              <div class="field"><label>LOCATION</label><input name="location" type="text" value={data.predecessorConditions?.location ?? ''}></div>
+              <div class="form-actions"><button type="submit" class="save-btn-sm">SAVE CONDITIONS</button></div>
+            </form>
+          </details>
+          <form action="?/clearPredecessor" method="post" use:enhance class="inline-form">
+            <button type="submit" class="delete-btn-sm" onclick={(e) => { if (!confirm('Remove predecessor?')) e.preventDefault(); }}>CLEAR PREDECESSOR</button>
+          </form>
+        {:else}
+          <p class="evo-empty">Root of an evolution chain (no predecessor).</p>
+          <details class="add-toggle">
+            <summary>+ SET PREDECESSOR</summary>
+            <form action="?/setPredecessor" method="post" use:enhance class="sub-form">
+              <div class="field full"><label>PARENT POKÉMON</label><select name="parentPokemonId" required><option value="">— pick a parent —</option>{#each data.allPokemon as pk}<option value={pk.id}>{pk.name} ({pk.slug})</option>{/each}</select></div>
+              <div class="field"><label>TRIGGER</label><select name="trigger" required>{#each ['level-up','use-item','use-move','trade','three-critical-hits','shed','spin'] as t}<option value={t}>{t}</option>{/each}</select></div>
+              <div class="field"><label>MIN LEVEL</label><input name="minLevel" type="number" min="0" max="100"></div>
+              <div class="field"><label>ITEM</label><select name="itemId"><option value="">— none —</option>{#each data.allItems as i}<option value={i.id}>{i.name}</option>{/each}</select></div>
+              <div class="field"><label>MIN HAPPINESS</label><input name="minHappiness" type="number" min="0" max="255"></div>
+              <div class="field"><label>TIME OF DAY</label><select name="timeOfDay"><option value="">— any —</option>{#each ['day','night','dusk'] as t}<option value={t}>{t}</option>{/each}</select></div>
+              <div class="form-actions"><button type="submit" class="save-btn-sm">SET PREDECESSOR</button></div>
+            </form>
+          </details>
+        {/if}
+      </div>
+      <div class="evo-panel">
+        <h4 class="evo-panel-title">SUCCESSORS ({data.successors.length})</h4>
+        {#if data.successors.length === 0}
+          <p class="evo-empty">No successors. To add one, edit the target pokémon and set this as its predecessor.</p>
+        {:else}
+          <div class="evo-successors">
+            {#each data.successors as s (s.id)}
+              <a href="/editor/pokemon/{s.slug}" class="evo-link card-interactive">
+                → {s.name}
+                {#if s.trigger}<span class="evo-conditions">{s.trigger}{#if s.minLevel}· lvl {s.minLevel}{/if}{#if s.itemId}· item {data.allItems.find(i => i.id === s.itemId)?.name ?? `#${s.itemId}`}{/if}</span>{/if}
+              </a>
+            {/each}
+          </div>
+        {/if}
+      </div>
+      {#if form?.evoError}<p class="form-error">{form.evoError}</p>{/if}
     </div>
-    {#if form?.evoError}<p class="form-error">{form.evoError}</p>{/if}
+
   </section>
 
   {:else}
@@ -800,6 +893,65 @@
   .evo-conditions { font-family: var(--font-mono); font-size: 10px; color: var(--theme-text-muted); margin-left: var(--spacing-2); }
   .evo-successors { display: flex; flex-direction: column; gap: var(--spacing-2); }
   .evo-row { display: flex; align-items: center; gap: var(--spacing-2); }
+
+  /* Visual evo tree */
+  .evo-tree { display: flex; flex-direction: column; align-items: center; overflow-x: auto; padding-bottom: var(--spacing-2); }
+  .evo-node-wrap { display: flex; flex-direction: column; align-items: center; }
+  .evo-conn-single {
+    display: flex; flex-direction: column; align-items: center; gap: var(--spacing-1);
+    padding: var(--spacing-3) 0 var(--spacing-2); position: relative; z-index: 0;
+  }
+  .evo-conn-single::before {
+    content: ''; position: absolute; top: 0; bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 2px; background: var(--theme-border-primary); z-index: -1;
+  }
+  .evo-stem { width: 2px; height: var(--spacing-4); background: var(--theme-border-primary); flex-shrink: 0; }
+  .evo-chunks-wrap { display: flex; flex-direction: column; align-items: center; position: relative; }
+  .evo-branch-row { display: flex; flex-direction: row; align-items: flex-start; gap: var(--spacing-4); }
+  .evo-branch-child { display: flex; flex-direction: column; align-items: center; position: relative; overflow: visible; }
+  .evo-branch-child::after {
+    content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+    width: 2px; height: var(--spacing-4); background: var(--theme-border-primary);
+  }
+  .evo-branch-child.first-branch::before {
+    content: ''; position: absolute; top: 0; left: 50%; right: calc(-1 * var(--spacing-4) / 2);
+    height: 2px; background: var(--theme-border-primary);
+  }
+  .evo-branch-child.last-branch::before {
+    content: ''; position: absolute; top: 0; right: 50%; left: calc(-1 * var(--spacing-4) / 2);
+    height: 2px; background: var(--theme-border-primary);
+  }
+  .evo-branch-child.mid-branch::before {
+    content: ''; position: absolute; top: 0; left: calc(-1 * var(--spacing-4) / 2); right: calc(-1 * var(--spacing-4) / 2);
+    height: 2px; background: var(--theme-border-primary);
+  }
+  .evo-conn-cell {
+    display: flex; flex-direction: column; align-items: center; gap: var(--spacing-1);
+    padding: var(--spacing-4) 0 var(--spacing-2); position: relative; z-index: 1;
+  }
+  .evo-method-tag {
+    font-family: var(--font-display); font-size: 8px; color: var(--theme-text-secondary);
+    background: var(--theme-bg-secondary); padding: 3px 6px; text-align: center;
+    white-space: nowrap; position: relative; z-index: 1;
+  }
+  .evo-down-arrow { font-size: 18px; color: var(--theme-text-secondary); line-height: 1; position: relative; z-index: 1; }
+  .evo-edit-controls { display: flex; flex-direction: column; gap: var(--spacing-4); margin-top: var(--spacing-5); }
+
+  /* Inline pokemon cards (editor version — links to editor, not wiki) */
+  .pokemon-card {
+    display: flex; flex-direction: column; align-items: center; gap: var(--spacing-2);
+    padding: var(--spacing-3); background: var(--theme-bg-secondary);
+    border: 2px solid var(--theme-border-primary);
+    text-decoration: none; color: var(--theme-text-primary); min-width: 110px;
+  }
+  .pokemon-card:hover:not(.is-current) { border-color: var(--theme-text-accent); }
+  .pokemon-card.is-current { border-color: var(--theme-text-accent); box-shadow: 3px 3px 0 var(--theme-text-accent); }
+  .pokemon-card-header { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .pokemon-card-num { font-family: var(--font-mono); font-size: 10px; color: var(--theme-text-muted); }
+  .pokemon-card-name { font-family: var(--font-display); font-size: 9px; }
+  .pokemon-card-sprite { width: 80px; height: 80px; object-fit: contain; image-rendering: pixelated; }
+  .pokemon-card-no-sprite { width: 80px; height: 80px; }
+  .pokemon-card-types { display: flex; gap: var(--spacing-1); flex-wrap: wrap; justify-content: center; }
   .card-interactive { display: block; padding: var(--spacing-2); border: 2px solid var(--theme-border-primary); transition: all 0.1s ease; }
   .card-interactive:hover { background-color: var(--theme-bg-hover); transform: translate(-1px, -1px); }
 

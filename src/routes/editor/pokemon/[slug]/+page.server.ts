@@ -199,6 +199,84 @@ export const load: PageServerLoad = async ({ params, url }) => {
     .where(eq(pokemon.evolvesFromPokemonId, row.id))
     .orderBy(asc(pokemon.id));
 
+  // Full evolution chain: walk up to root, BFS down, batch-load node data
+  let evoRootId = row.id;
+  {
+    const seen = new Set<number>([evoRootId]);
+    let cursor: number | null = row.evolvesFromPokemonId ?? null;
+    while (cursor != null && !seen.has(cursor)) {
+      seen.add(cursor);
+      evoRootId = cursor;
+      const [p] = await db.select({ e: pokemon.evolvesFromPokemonId })
+        .from(pokemon).where(eq(pokemon.id, cursor)).limit(1);
+      cursor = p?.e ?? null;
+    }
+  }
+  const chainIds = new Set<number>([evoRootId]);
+  {
+    let frontier = [evoRootId];
+    while (frontier.length > 0) {
+      const children = await db.select({ id: pokemon.id })
+        .from(pokemon).where(inArray(pokemon.evolvesFromPokemonId, frontier));
+      frontier = children.filter(c => !chainIds.has(c.id)).map(c => c.id);
+      frontier.forEach(id => chainIds.add(id));
+    }
+  }
+  const allChainIds = [...chainIds];
+  const evoChainRows = await db.select({
+    id:            pokemon.id,
+    slug:          pokemon.slug,
+    name:          pokemon.name,
+    spriteArtwork: pokemon.spriteArtwork,
+    spriteDefault: pokemon.spriteDefault,
+    evolvesFromId: pokemon.evolvesFromPokemonId,
+    dexNumber:     pokemonSpecies.dexNumber,
+    typeName:      types.name,
+    typeHexColor:  types.hexColor,
+  })
+    .from(pokemon)
+    .innerJoin(pokemonSpecies, eq(pokemon.speciesId, pokemonSpecies.id))
+    .innerJoin(pokemonTypes, eq(pokemonTypes.pokemonId, pokemon.id))
+    .innerJoin(types, eq(pokemonTypes.typeId, types.id))
+    .where(inArray(pokemon.id, allChainIds))
+    .orderBy(asc(pokemonSpecies.dexNumber), asc(pokemonTypes.slot));
+
+  const chainCondRows = await db.select().from(pokemonEvolutionDetails)
+    .where(inArray(pokemonEvolutionDetails.pokemonId, allChainIds));
+  const chainItemIds = [...new Set(chainCondRows.map(c => c.itemId).filter((v): v is number => v != null))];
+  const chainItems = chainItemIds.length > 0
+    ? await db.select({ id: items.id, name: items.name, slug: items.slug })
+        .from(items).where(inArray(items.id, chainItemIds))
+    : [];
+  const chainItemById = new Map(chainItems.map(i => [i.id, i]));
+  const chainCondById = new Map(chainCondRows.map(c => [c.pokemonId, c]));
+
+  const evoNodeMap = new Map<number, {
+    id: number; slug: string; name: string; spriteUrl: string | null;
+    evolvesFromId: number | null; dexNumber: number;
+    types: { name: string; hexColor: string | null }[];
+    conditions: { trigger: string; minLevel: number | null; minHappiness: number | null;
+                  itemName: string | null; itemSlug: string | null; timeOfDay: string | null; } | null;
+  }>();
+  for (const r of evoChainRows) {
+    if (!evoNodeMap.has(r.id)) {
+      const cond = chainCondById.get(r.id) ?? null;
+      const item = cond?.itemId != null ? (chainItemById.get(cond.itemId) ?? null) : null;
+      evoNodeMap.set(r.id, {
+        id: r.id, slug: r.slug, name: r.name,
+        spriteUrl: r.spriteArtwork ?? r.spriteDefault,
+        evolvesFromId: r.evolvesFromId ?? null,
+        dexNumber: r.dexNumber, types: [],
+        conditions: cond ? {
+          trigger: cond.trigger, minLevel: cond.minLevel, minHappiness: cond.minHappiness,
+          itemName: item?.name ?? null, itemSlug: item?.slug ?? null, timeOfDay: cond.timeOfDay,
+        } : null,
+      });
+    }
+    evoNodeMap.get(r.id)!.types.push({ name: r.typeName, hexColor: r.typeHexColor });
+  }
+  const evoChain = [...evoNodeMap.values()];
+
   // FK dropdowns
   const allPokemon = await db.select({ id: pokemon.id, slug: pokemon.slug, name: pokemon.name })
     .from(pokemon).orderBy(asc(pokemon.name));
@@ -268,6 +346,7 @@ export const load: PageServerLoad = async ({ params, url }) => {
     types:      typeRows,
     abilities:  abilityRows,
     speciesForms,
+    evoChain,
     species:    speciesList,
     allTypes:   typeList,
     allAbilities: abilityList,
