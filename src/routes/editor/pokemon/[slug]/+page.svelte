@@ -72,6 +72,53 @@
     goto(url.toString(), { keepFocus: true, noScroll: true, invalidateAll: true });
   }
 
+  // --- Form sub-tabs (species forms grouped by slug pattern) ---
+  const REGIONAL_SUFFIXES = ['alola', 'galar', 'hisui', 'paldea'] as const;
+  type SpeciesForm = typeof data.speciesForms[number];
+  type FormTab =
+    | { kind: 'evolution'; label: string }
+    | { kind: 'regional';  label: string; suffix: string }
+    | { kind: 'mega';      label: string; forms: SpeciesForm[] }
+    | { kind: 'gmax';      label: string; forms: SpeciesForm[] }
+    | { kind: 'alternate'; label: string; forms: SpeciesForm[] };
+
+  let formTabs = $derived((): FormTab[] => {
+    const tabs: FormTab[] = [{ kind: 'evolution', label: 'EVOLUTION' }];
+    const seenSuffixes = new Set<string>();
+    const mega: SpeciesForm[] = [];
+    const gmax: SpeciesForm[] = [];
+    const alt:  SpeciesForm[] = [];
+
+    for (const f of data.speciesForms) {
+      if (f.isDefault) continue;
+      const suffix = REGIONAL_SUFFIXES.find(r => f.slug.includes('-' + r));
+      if (suffix) {
+        const after = f.slug.slice(f.slug.indexOf('-' + suffix) + 1 + suffix.length);
+        if (after.length > 0) {
+          if (!alt.some(x => x.slug === f.slug)) alt.push(f);
+        } else if (!seenSuffixes.has(suffix)) {
+          seenSuffixes.add(suffix);
+          tabs.push({ kind: 'regional', label: suffix.toUpperCase(), suffix });
+        }
+      } else if (f.slug.includes('-gmax')) {
+        if (!gmax.some(x => x.slug === f.slug)) gmax.push(f);
+      } else if (f.slug.includes('-mega')) {
+        if (!mega.some(x => x.slug === f.slug)) mega.push(f);
+      } else {
+        if (!alt.some(x => x.slug === f.slug)) alt.push(f);
+      }
+    }
+
+    if (mega.length > 0) tabs.push({ kind: 'mega',      label: 'MEGA',  forms: mega });
+    if (gmax.length > 0) tabs.push({ kind: 'gmax',      label: 'GMAX',  forms: gmax });
+    if (alt.length  > 0) tabs.push({ kind: 'alternate', label: 'FORMS', forms: alt  });
+    return tabs;
+  });
+
+  const _currentSuffix = REGIONAL_SUFFIXES.find(r => data.pokemon.slug.endsWith('-' + r));
+  let activeFormTab = $state<string>(_currentSuffix ? _currentSuffix.toUpperCase() : 'EVOLUTION');
+  let activeFormTabObj = $derived(formTabs().find(t => t.label === activeFormTab) ?? formTabs()[0]);
+
   // --- Page tabs ---
   const PAGE_TABS = [
     { key: 'info',     label: 'INFO' },
@@ -340,76 +387,21 @@
 
 
   {:else if activePageTab === 'forms'}
-  <!-- FORMS tab: forms editor + evolution editor -->
+  <!-- FORMS tab: inner sub-tabs (EVOLUTION + regional/mega/gmax form tiles) -->
 
-  <!-- ALT FORMS sub-section -->
-  <section class="tab-section">
-    <h3 class="section-title">ALT FORMS</h3>
-    <div class="evo-panel">
-      <h4 class="evo-panel-title">FORM BASE</h4>
-      {#if data.formBase}
-        <div class="evo-row">
-          <a href="/editor/pokemon/{data.formBase.slug}" class="evo-link">← {data.formBase.name}</a>
-          {#if data.pokemon.formType}
-            <span class="evo-conditions">{data.pokemon.formType}</span>
-          {/if}
-        </div>
-        <form action="?/clearFormBase" method="post" use:enhance class="inline-form">
-          <button type="submit" class="delete-btn-sm"
-            onclick={(e) => { if (!confirm('Remove form link?')) e.preventDefault(); }}>
-            CLEAR FORM BASE
-          </button>
-        </form>
-      {:else}
-        <p class="evo-empty">Not linked as an alt form of any Pokémon.</p>
-        <details class="add-toggle">
-          <summary>+ SET FORM BASE</summary>
-          <form action="?/setFormBase" method="post" use:enhance class="sub-form">
-            <div class="field full">
-              <label>BASE POKÉMON</label>
-              <select name="basePokemonId" required>
-                <option value="">— pick a base —</option>
-                {#each data.allPokemon as pk}
-                  <option value={pk.id}>{pk.name} ({pk.slug})</option>
-                {/each}
-              </select>
-            </div>
-            <div class="field">
-              <label>FORM TYPE</label>
-              <select name="formType">
-                {#each ['mega', 'gmax', 'regional', 'battle', 'other'] as t}
-                  <option value={t}>{t}</option>
-                {/each}
-              </select>
-            </div>
-            <div class="form-actions">
-              <button type="submit" class="save-btn-sm">SET FORM BASE</button>
-            </div>
-          </form>
-        </details>
-      {/if}
-    </div>
-    <div class="evo-panel">
-      <h4 class="evo-panel-title">ALT FORMS ({data.altForms.length})</h4>
-      {#if data.altForms.length === 0}
-        <p class="evo-empty">No alt forms. To add one, edit the alt Pokémon and set this as its form base.</p>
-      {:else}
-        <div class="evo-successors">
-          {#each data.altForms as f (f.id)}
-            <a href="/editor/pokemon/{f.slug}" class="evo-link card-interactive">
-              → {f.name}
-              {#if f.formType}<span class="evo-conditions">{f.formType}</span>{/if}
-            </a>
-          {/each}
-        </div>
-      {/if}
-    </div>
-    {#if form?.evoError}<p class="form-error">{form.evoError}</p>{/if}
-  </section>
+  <nav class="form-tabs-bar">
+    {#each formTabs() as tab}
+      <button
+        class="form-tab-btn"
+        class:active={activeFormTab === tab.label}
+        onclick={() => activeFormTab = tab.label}
+      >{tab.label}</button>
+    {/each}
+  </nav>
 
-  <!-- EVOLUTION sub-section -->
+  {#if activeFormTabObj?.kind === 'evolution'}
+  <!-- EVOLUTION sub-tab: editable predecessor / successors -->
   <section class="tab-section">
-    <h3 class="section-title">EVOLUTION</h3>
     <div class="evo-panel">
       <h4 class="evo-panel-title">PREDECESSOR</h4>
       {#if data.predecessor}
@@ -478,6 +470,33 @@
     </div>
     {#if form?.evoError}<p class="form-error">{form.evoError}</p>{/if}
   </section>
+
+  {:else}
+  <!-- Form tiles for ALOLA / MEGA / GMAX / FORMS sub-tabs -->
+  {@const tabForms = activeFormTabObj?.kind === 'regional'
+    ? data.speciesForms.filter(f => f.slug.includes('-' + (activeFormTabObj as { suffix: string }).suffix))
+    : ((activeFormTabObj as { forms?: SpeciesForm[] }).forms ?? [])}
+  <section class="tab-section">
+    <div class="form-tiles">
+      {#each tabForms as f (f.slug)}
+        <a href="/editor/pokemon/{f.slug}" class="form-tile" class:current={f.slug === data.pokemon.slug}>
+          <span class="form-tile-num">{f.pokeapiId ? `#${String(f.pokeapiId).padStart(3, '0')}` : ''}</span>
+          <span class="form-tile-name">{f.name.toUpperCase()}</span>
+          {#if f.spriteUrl}
+            <img src={f.spriteUrl} alt={f.name} class="form-tile-sprite" />
+          {:else}
+            <div class="form-tile-no-sprite"></div>
+          {/if}
+          <div class="form-tile-types">
+            {#each f.types as t}
+              <TypeBadge name={t.name} hexColor={t.hexColor} size="sm" />
+            {/each}
+          </div>
+        </a>
+      {/each}
+    </div>
+  </section>
+  {/if}
 
 
   {:else if activePageTab === 'learnset'}
@@ -784,31 +803,41 @@
   .card-interactive { display: block; padding: var(--spacing-2); border: 2px solid var(--theme-border-primary); transition: all 0.1s ease; }
   .card-interactive:hover { background-color: var(--theme-bg-hover); transform: translate(-1px, -1px); }
 
-  /* Forms list in FORMS tab */
-  .forms-list { display: flex; flex-direction: column; gap: var(--spacing-4); }
-  .form-card { background-color: var(--theme-bg-primary); border: 2px solid var(--theme-border-primary); padding: var(--spacing-4); display: flex; flex-direction: column; gap: var(--spacing-3); }
-  .form-sprites-box {
-    border: 2px solid var(--theme-border-primary);
-    background-color: var(--theme-bg-secondary);
+  /* FORMS tab inner sub-tabs */
+  .form-tabs-bar {
+    display: flex; gap: 0; border-bottom: 2px solid var(--theme-border-primary);
+    margin-bottom: var(--spacing-4);
+  }
+  .form-tab-btn {
+    font-family: var(--font-display); font-size: 10px; letter-spacing: 0.05em;
+    padding: var(--spacing-2) var(--spacing-4);
+    background: none; border: none; border-bottom: 3px solid transparent;
+    color: var(--theme-text-muted); cursor: pointer; margin-bottom: -2px;
+  }
+  .form-tab-btn:hover { color: var(--theme-text-primary); }
+  .form-tab-btn.active { color: var(--theme-text-accent); border-bottom-color: var(--theme-text-accent); }
+
+  /* Form tiles */
+  .form-tiles { display: flex; flex-wrap: wrap; gap: var(--spacing-3); }
+  .form-tile {
+    display: flex; flex-direction: column; align-items: center; gap: var(--spacing-1);
     padding: var(--spacing-3);
-    display: flex; flex-direction: column; gap: var(--spacing-2);
+    background: var(--theme-bg-secondary);
+    border: 2px solid var(--theme-border-primary);
+    text-decoration: none; color: var(--theme-text-primary);
+    min-width: 110px;
   }
-  .form-sprites-title {
-    font-family: var(--font-display); font-size: 9px; color: var(--theme-text-muted);
-    padding-bottom: var(--spacing-2); border-bottom: 1px solid var(--theme-border-primary);
-  }
-  .form-sprites-managed {
-    font-family: var(--font-mono); font-size: 10px; color: var(--theme-text-muted);
-    padding: var(--spacing-2) var(--spacing-3);
-    border: 2px dashed var(--theme-border-primary);
-  }
-  .info-tab-ref { font-family: var(--font-display); font-size: 10px; color: var(--theme-text-accent); }
-  .form-card-head { display: flex; justify-content: space-between; align-items: center; }
-  .form-name { font-family: var(--font-mono); font-size: 12px; color: var(--theme-text-primary); }
+  .form-tile:hover { border-color: var(--theme-text-accent); }
+  .form-tile.current { border-color: var(--theme-text-accent); }
+  .form-tile-num { font-family: var(--font-mono); font-size: 10px; color: var(--theme-text-muted); }
+  .form-tile-name { font-family: var(--font-display); font-size: 9px; text-align: center; }
+  .form-tile-sprite { width: 80px; height: 80px; object-fit: contain; image-rendering: pixelated; }
+  .form-tile-no-sprite { width: 80px; height: 80px; }
+  .form-tile-types { display: flex; gap: var(--spacing-1); flex-wrap: wrap; justify-content: center; }
+
   .default-flag { font-family: var(--font-display); font-size: 9px; color: var(--theme-text-accent); margin-left: var(--spacing-2); }
   .default-badge { font-family: var(--font-display); font-size: 9px; color: var(--theme-text-accent); letter-spacing: 0.05em; }
-  .form-card-actions { display: flex; gap: var(--spacing-3); align-items: center; }
-  .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: var(--spacing-3); }
+  .field { display: flex; flex-direction: column; gap: var(--spacing-1); }
   .field { display: flex; flex-direction: column; gap: var(--spacing-1); }
   .field label { font-family: var(--font-display); font-size: 9px; color: var(--theme-text-muted); }
   .field input[type=text], .field input[type=number], .field select {

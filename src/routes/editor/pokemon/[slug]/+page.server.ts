@@ -5,7 +5,7 @@ import { pokemon, pokemonAbilities, pokemonEvolutionDetails, pokemonForms, pokem
 import { abilities, moveLearnMethods, moves, types } from '$lib/db/schema/core-data';
 import { versionGroups } from '$lib/db/schema/game-metadata';
 import { items } from '$lib/db/schema/items';
-import { and, asc, count, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray, sql } from 'drizzle-orm';
 import { bumpSource } from '$lib/editor/source';
 import { recordEdit } from '$lib/editor/audit';
 import { reimportEntity } from '$lib/editor/resource';
@@ -138,23 +138,41 @@ export const load: PageServerLoad = async ({ params, url }) => {
     slug: abilities.slug,
   }).from(abilities).orderBy(asc(abilities.name));
 
-  // Alt form data: base (if this is an alt form) + alt forms (pokemon that point here)
-  let formBase: { id: number; slug: string; name: string } | null = null;
-  if (row.formOfPokemonId) {
-    const [base] = await db.select({ id: pokemon.id, slug: pokemon.slug, name: pokemon.name })
-      .from(pokemon).where(eq(pokemon.id, row.formOfPokemonId)).limit(1);
-    if (base) formBase = base;
-  }
-  const altForms = await db.select({
-    id:       pokemon.id,
-    slug:     pokemon.slug,
-    name:     pokemon.name,
-    formType: pokemon.formType,
-    source:   pokemon.source,
+  // All pokemon of the same species (for form sub-tabs: ALOLA, MEGA, GMAX, etc.)
+  const FORM_SKIP = ['-totem', '-cap', '-cosplay', '-rock-star', '-belle', '-pop-star', '-phd', '-libre', '-starter'];
+  const speciesFormRows = await db.select({
+    pokeapiId:    pokemon.pokeapiId,
+    name:         pokemon.name,
+    slug:         pokemon.slug,
+    isDefault:    pokemon.isDefault,
+    spriteDefault: pokemon.spriteDefault,
+    spriteArtwork: pokemon.spriteArtwork,
+    typeName:     types.name,
+    typeHexColor: types.hexColor,
   })
     .from(pokemon)
-    .where(eq(pokemon.formOfPokemonId, row.id))
-    .orderBy(asc(pokemon.name));
+    .innerJoin(pokemonTypes, eq(pokemonTypes.pokemonId, pokemon.id))
+    .innerJoin(types, eq(pokemonTypes.typeId, types.id))
+    .where(eq(pokemon.speciesId, row.speciesId))
+    .orderBy(desc(pokemon.isDefault), asc(pokemon.name), asc(pokemonTypes.slot));
+
+  const formMap = new Map<string, {
+    pokeapiId: number | null; name: string; slug: string;
+    isDefault: boolean; spriteUrl: string | null;
+    types: { name: string; hexColor: string | null }[];
+  }>();
+  for (const r of speciesFormRows) {
+    if (FORM_SKIP.some(p => r.slug.includes(p))) continue;
+    if (!formMap.has(r.slug)) {
+      formMap.set(r.slug, {
+        pokeapiId: r.pokeapiId, name: r.name, slug: r.slug,
+        isDefault: r.isDefault, spriteUrl: r.spriteArtwork ?? r.spriteDefault,
+        types: [],
+      });
+    }
+    formMap.get(r.slug)!.types.push({ name: r.typeName, hexColor: r.typeHexColor });
+  }
+  const speciesForms = [...formMap.values()];
 
   // Evolution data: predecessor + its conditions, and list of successors
   let predecessor: { id: number; slug: string; name: string } | null = null;
@@ -249,8 +267,7 @@ export const load: PageServerLoad = async ({ params, url }) => {
     pokemon:    row,
     types:      typeRows,
     abilities:  abilityRows,
-    formBase,
-    altForms,
+    speciesForms,
     species:    speciesList,
     allTypes:   typeList,
     allAbilities: abilityList,
