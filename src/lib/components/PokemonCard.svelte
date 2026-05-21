@@ -79,7 +79,8 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 120px;
+    flex: 1;
+    margin-left: var(--spacing-2);
   }
 
   .sprite-container {
@@ -116,7 +117,7 @@
   }
 
   .pokemon-card.highlighted {
-    border: 2px solid var(--theme-text-accent);
+    border-color: var(--theme-text-accent);
     box-shadow: 3px 3px 0 var(--theme-text-accent);
   }
 </style>

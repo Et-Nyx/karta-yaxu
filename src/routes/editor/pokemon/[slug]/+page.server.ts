@@ -322,6 +322,7 @@ export const load: PageServerLoad = async ({ params, url }) => {
 
   let learnset: {
     moveId: number; moveName: string; moveSlug: string; typeId: number;
+    typeName: string; typeHexColor: string | null; damageClass: string | null;
     learnMethodId: number; learnMethodName: string;
     level: number | null;
   }[] = [];
@@ -331,12 +332,16 @@ export const load: PageServerLoad = async ({ params, url }) => {
       moveName:        moves.name,
       moveSlug:        moves.slug,
       typeId:          moves.typeId,
+      typeName:        types.name,
+      typeHexColor:    types.hexColor,
+      damageClass:     moves.damageClass,
       learnMethodId:   pokemonMoves.learnMethodId,
       learnMethodName: moveLearnMethods.name,
       level:           pokemonMoves.level,
     })
       .from(pokemonMoves)
       .innerJoin(moves, eq(pokemonMoves.moveId, moves.id))
+      .innerJoin(types, eq(moves.typeId, types.id))
       .innerJoin(moveLearnMethods, eq(pokemonMoves.learnMethodId, moveLearnMethods.id))
       .where(and(eq(pokemonMoves.pokemonId, row.id), eq(pokemonMoves.versionGroupId, selectedVgId)))
       .orderBy(asc(pokemonMoves.learnMethodId), asc(pokemonMoves.level), asc(moves.name));
@@ -608,6 +613,33 @@ export const actions: Actions = {
 
     if (locals.user) {
       await recordEdit(locals.user.id, 'pokemon_evolution_details', current.id, previousCond[0] ?? null, data);
+    }
+
+    return { evoSaved: true };
+  },
+
+  addSuccessor: async ({ request, params, locals }) => {
+    const formData = await request.formData();
+    const childId = intOrNull.parse(formData.get('childPokemonId'));
+    if (!childId) return fail(400, { evoError: 'childPokemonId required' });
+
+    const [cur] = await db.select({ id: pokemon.id })
+      .from(pokemon).where(eq(pokemon.slug, params.slug)).limit(1);
+    if (!cur) throw error(404, 'Pokémon not found');
+
+    const [child] = await db.select({ id: pokemon.id, source: pokemon.source })
+      .from(pokemon).where(eq(pokemon.id, childId)).limit(1);
+    if (!child) return fail(404, { evoError: 'Target pokemon not found' });
+
+    await db.update(pokemon)
+      .set({ evolvesFromPokemonId: cur.id, source: bumpSource(child.source) })
+      .where(eq(pokemon.id, childId));
+    await db.insert(pokemonEvolutionDetails)
+      .values({ pokemonId: childId, trigger: 'level-up', source: 'edited' })
+      .onConflictDoNothing();
+
+    if (locals.user) {
+      await recordEdit(locals.user.id, 'pokemon', childId, child, { evolvesFromPokemonId: cur.id });
     }
 
     return { evoSaved: true };

@@ -6,6 +6,7 @@
   import TypeMatchupDisplay from '$lib/components/TypeMatchupDisplay.svelte';
   import InfoBox from '$lib/components/InfoBox.svelte';
   import VersionSelector from '$lib/components/VersionSelector.svelte';
+  import RetroSelect from '$lib/components/RetroSelect.svelte';
   import FlavorTextBox from '$lib/components/FlavorTextBox.svelte';
   import Tabs from '$lib/components/Tabs.svelte';
   import { goto, afterNavigate } from '$app/navigation';
@@ -443,30 +444,26 @@
           <a
             href="/wiki/pokemon/{data.nav.prev.pokemonSlug}?dex={data.nav.selectedDex.slug}"
             class="nav-link nav-prev"
-          >← {data.nav.prev.speciesName.toUpperCase()}</a>
+          >← <span class="nav-text">{data.nav.prev.speciesName.toUpperCase()}</span></a>
         {:else}
           <span class="nav-disabled">←</span>
         {/if}
 
         <div class="nav-center">
           <span class="nav-entry">#{data.nav.currentEntry}</span>
-          <select
+          <RetroSelect
+            value={data.nav.selectedDex.slug}
+            options={data.nav.dexList.map(dex => ({ value: dex.slug, label: dex.name.toUpperCase().replace(/-/g, ' ') }))}
+            onchange={(val) => goto(`?dex=${val}`)}
             class="dex-select"
-            onchange={(e) => goto(`?dex=${(e.currentTarget as HTMLSelectElement).value}`)}
-          >
-            {#each data.nav.dexList as dex}
-              <option value={dex.slug} selected={dex.slug === data.nav.selectedDex.slug}>
-                {dex.name.toUpperCase().replace(/-/g, ' ')}
-              </option>
-            {/each}
-          </select>
+          />
         </div>
 
         {#if data.nav.next}
           <a
             href="/wiki/pokemon/{data.nav.next.pokemonSlug}?dex={data.nav.selectedDex.slug}"
             class="nav-link nav-next"
-          >{data.nav.next.speciesName.toUpperCase()} →</a>
+          ><span class="nav-text">{data.nav.next.speciesName.toUpperCase()}</span> →</a>
         {:else}
           <span class="nav-disabled">→</span>
         {/if}
@@ -753,6 +750,7 @@
     border: 4px solid var(--theme-border-primary);
     padding: var(--spacing-4) var(--spacing-6);
     box-shadow: var(--shadow-card);
+    flex-wrap: wrap;
   }
 
   .dex-num {
@@ -795,7 +793,7 @@
     gap: var(--spacing-6);
   }
 
-  @media (max-width: 768px) {
+  @media (max-width: 992px) {
     .pokemon-detail { gap: var(--spacing-3); }
 
     .meta-row { flex-direction: column; }
@@ -1220,7 +1218,8 @@
   }
 
   .meta-row > :global(.version-selector-container) {
-    flex-shrink: 0;
+    flex: 1;
+    min-width: 0;
   }
 
   /* Dex navigation strip */
@@ -1230,19 +1229,15 @@
     gap: var(--spacing-4);
     flex-wrap: wrap;
     flex: 1;
+    min-width: 0;
     background-color: var(--theme-bg-secondary);
     border: 3px solid var(--theme-border-primary);
     box-shadow: 2px 2px 0px var(--theme-border-primary);
     padding: var(--spacing-3) var(--spacing-4);
   }
 
-  .dex-select {
-    background-color: var(--theme-bg-primary);
-    color: var(--theme-text-primary);
-    border: 2px solid var(--theme-border-primary);
-    padding: var(--spacing-2);
-    font-family: var(--font-display);
-    font-size: 10px;
+  :global(.dex-select) {
+    min-width: 160px;
   }
 
   .nav-center {
@@ -1284,6 +1279,25 @@
     color: var(--theme-text-secondary);
     opacity: 0.3;
     padding: 4px 8px;
+  }
+
+  .nav-text {
+    display: inline;
+  }
+
+  @media (max-width: 600px) {
+    .nav-text {
+      display: none;
+    }
+    .dex-nav {
+      flex-wrap: nowrap;
+      justify-content: space-between;
+      gap: var(--spacing-2);
+      padding: var(--spacing-2) var(--spacing-3);
+    }
+    .nav-center {
+      gap: var(--spacing-1);
+    }
   }
 
   /* ── Location encounters ─────────────────────────────────────────────────── */

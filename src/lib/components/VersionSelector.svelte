@@ -1,4 +1,6 @@
 <script lang="ts">
+  import RetroSelect from './RetroSelect.svelte';
+
   let {
     options,
     value = $bindable(),
@@ -7,11 +9,7 @@
 
 <div class="version-selector-container">
   <label for="versionSelect">VERSION:</label>
-  <select id="versionSelect" bind:value class="version-select">
-    {#each options as opt}
-      <option value={opt.value}>{opt.label}</option>
-    {/each}
-  </select>
+  <RetroSelect id="versionSelect" bind:value={value} options={options} class="version-select" />
 </div>
 
 <style>
@@ -32,19 +30,13 @@
     white-space: nowrap;
   }
 
-  .version-select {
+  :global(.version-select) {
     flex: 1;
-    background-color: var(--theme-bg-primary);
-    color: var(--theme-text-primary);
-    border: 2px solid var(--theme-border-primary);
-    padding: var(--spacing-2);
-    font-family: var(--font-display);
-    font-size: 10px;
     min-width: 0;
   }
 
   @media (max-width: 768px) {
     .version-selector-container { flex-wrap: wrap; width: 100%; box-sizing: border-box; }
-    .version-select { max-width: 100%; }
+    :global(.version-select) { max-width: 100%; }
   }
 </style>

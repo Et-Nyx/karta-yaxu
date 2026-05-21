@@ -37,6 +37,7 @@
     display: inline-flex;
     align-items: center;
     line-height: 1;
+    flex-shrink: 0;
   }
 
   .nav-tab:hover {

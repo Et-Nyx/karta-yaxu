@@ -81,7 +81,8 @@
     font-size: 12px;
     color: var(--theme-text-primary);
     font-weight: bold;
-    width: 200px;
+    flex: 1;
+    min-width: 100px;
   }
 
   .move-stats {

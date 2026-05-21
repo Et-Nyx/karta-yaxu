@@ -6,6 +6,7 @@
   import { handleImportEvent } from '$lib/stores/importActivity';
   import { pageSource } from '$lib/stores/pageSource';
   import NavTab from '$lib/components/NavTab.svelte';
+  import RetroSelect from '$lib/components/RetroSelect.svelte';
 
   let { children, data } = $props();
 
@@ -51,6 +52,13 @@
 
   let selectedTheme = $state('auto');
   let mobileMenuOpen = $state(false);
+
+  const themeOptions = [
+    { value: 'auto', label: 'Theme: Auto' },
+    { value: 'light', label: 'Theme: Light' },
+    { value: 'dark', label: 'Theme: Dark' },
+    { value: 'admin', label: 'Theme: Admin' }
+  ];
 
   // Close mobile menu on navigation
   $effect(() => {
@@ -118,12 +126,7 @@
         <span class="edition">GAMEBOY EDITION</span>
       </div>
       <div class="nav-tabs">
-        <select bind:value={selectedTheme} class="theme-select">
-          <option value="auto">Theme: Auto</option>
-          <option value="light">Theme: Light</option>
-          <option value="dark">Theme: Dark</option>
-          <option value="admin">Theme: Admin (Verde)</option>
-        </select>
+        <RetroSelect bind:value={selectedTheme} options={themeOptions} variant="header" class="theme-select" />
         <NavTab href="/wiki" active={$page.url.pathname.startsWith('/wiki')}>WIKI</NavTab>
         <NavTab href="/editor" active={$page.url.pathname.startsWith('/editor')}>EDITOR</NavTab>
         <NavTab href="/import" active={$page.url.pathname.startsWith('/import')}>IMPORT</NavTab>
@@ -153,12 +156,7 @@
       <aside class="sidebar" class:open={mobileMenuOpen}>
         <!-- Mobile-only: nav tabs + theme selector inside drawer -->
         <div class="mobile-nav-tabs">
-          <select bind:value={selectedTheme} class="theme-select-mobile">
-            <option value="auto">Theme: Auto</option>
-            <option value="light">Theme: Light</option>
-            <option value="dark">Theme: Dark</option>
-            <option value="admin">Theme: Admin</option>
-          </select>
+          <RetroSelect bind:value={selectedTheme} options={themeOptions} variant="header" class="theme-select-mobile" />
           <a href="/wiki"    class="mobile-tab" class:active={$page.url.pathname.startsWith('/wiki')}>WIKI</a>
           <a href="/editor"  class="mobile-tab" class:active={$page.url.pathname.startsWith('/editor')}>EDITOR</a>
           <a href="/import"  class="mobile-tab" class:active={$page.url.pathname.startsWith('/import')}>IMPORT</a>
@@ -512,7 +510,7 @@
 
   /* ── Mobile ──────────────────────────────────────────────────────────────── */
 
-  @media (max-width: 768px) {
+  @media (max-width: 992px) {
     .app-container {
       padding: 0;
       height: auto;
