@@ -9,6 +9,7 @@
   import RetroSelect from '$lib/components/RetroSelect.svelte';
   import FlavorTextBox from '$lib/components/FlavorTextBox.svelte';
   import Tabs from '$lib/components/Tabs.svelte';
+  import PokemonSpriteViewer from '$lib/components/PokemonSpriteViewer.svelte';
   import { goto, afterNavigate } from '$app/navigation';
 
   let { data } = $props();
@@ -16,21 +17,7 @@
   let p = $derived(data.pokemon);
   let s = $derived(data.species);
 
-  let isShiny = $state(false);
 
-  let spriteUrl = $derived(
-    isShiny
-      ? (p.spriteArtworkShiny ||
-          p.spriteShiny ||
-          (p.pokeapiId
-            ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/shiny/${p.pokeapiId}.png`
-            : null))
-      : (p.spriteArtwork ||
-          p.spriteDefault ||
-          (p.pokeapiId
-            ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${p.pokeapiId}.png`
-            : null))
-  );
 
   let totalStats = $derived(data.stats.reduce((acc, stat) => acc + stat.baseStat, 0));
 
@@ -485,12 +472,16 @@
   <div class="content-grid">
     <!-- Top-left: Sprite only -->
     <div class="sprite-cell">
-      <div class="image-box">
-        <img src={spriteUrl} alt={p.name} class:shiny-active={isShiny} style="image-rendering: pixelated;" />
-        <button class="shiny-toggle" onclick={() => isShiny = !isShiny} title={isShiny ? 'Switch to Normal' : 'Switch to Shiny'}>
-          {isShiny ? '◼ NORMAL' : '✦ SHINY'}
-        </button>
-      </div>
+      <PokemonSpriteViewer
+        spriteDefault={p.spriteDefault}
+        spriteShiny={p.spriteShiny}
+        spriteArtwork={p.spriteArtwork}
+        spriteArtworkShiny={p.spriteArtworkShiny}
+        spriteBackDefault={p.spriteBackDefault}
+        spriteBackShiny={p.spriteBackShiny}
+        pokeapiId={p.pokeapiId}
+        name={p.name}
+      />
     </div>
 
     <!-- Top-right: Base Stats -->
@@ -877,52 +868,7 @@
 
   /* ── Image ───────────────────────────────────────────────────────────────── */
 
-  .image-box {
-    position: relative;
-    background-color: var(--theme-bg-secondary);
-    border: 4px solid var(--theme-border-primary);
-    box-shadow: var(--shadow-card);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: var(--spacing-6);
-    flex: 1;
-    min-height: 300px;
-    max-height: 355px;
-    transition: background-color 0.15s ease;
-  }
 
-  .image-box:has(.shiny-active) {
-    background-color: color-mix(in srgb, var(--theme-bg-secondary) 85%, #b39ddb 15%);
-  }
-
-  .image-box img {
-    max-width: 100%;
-    max-height: 100%;
-    object-fit: contain;
-  }
-
-  .shiny-toggle {
-    position: absolute;
-    bottom: var(--spacing-2);
-    right: var(--spacing-2);
-    font-family: var(--font-display);
-    font-size: 8px;
-    padding: 4px 8px;
-    background-color: var(--theme-bg-primary);
-    color: var(--theme-text-secondary);
-    border: 2px solid var(--theme-border-primary);
-    cursor: pointer;
-    box-shadow: 2px 2px 0px var(--theme-border-primary);
-    transition: all 0.05s ease;
-  }
-
-  .shiny-toggle:hover {
-    color: var(--theme-text-accent);
-    border-color: var(--theme-text-accent);
-    box-shadow: 2px 2px 0px var(--theme-text-accent);
-    transform: translate(-1px, -1px);
-  }
 
   /* ── Data List ───────────────────────────────────────────────────────────── */
 

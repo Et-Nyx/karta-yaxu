@@ -9,6 +9,7 @@
   import PokemonCard from '$lib/components/PokemonCard.svelte';
   import RetroSelect from '$lib/components/RetroSelect.svelte';
   import MoveCategoryIcon from '$lib/components/MoveCategoryIcon.svelte';
+  import PokemonSpriteViewer from '$lib/components/PokemonSpriteViewer.svelte';
   import { pageSource } from '$lib/stores/pageSource';
 
   let { data, form } = $props();
@@ -41,6 +42,7 @@
   let spriteBackDefaultVal = $state(data.pokemon.spriteBackDefault ?? '');
   let spriteBackShinyVal = $state(data.pokemon.spriteBackShiny ?? '');
   let isShiny = $state(false);
+  let activeImageTab = $state<'artwork' | 'front' | 'back'>('artwork');
   let copySourceVgId = $state('');
 
   let defaultFileSelected = $state(false);
@@ -70,12 +72,6 @@
       if (type === 'back-shiny') spriteBackShinyVal = objectUrl;
     }
   }
-
-  let currentSpriteUrl = $derived(
-    isShiny
-      ? (spriteArtworkShinyVal || spriteShinyVal || (data.pokemon.pokeapiId ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/shiny/${data.pokemon.pokeapiId}.png` : null))
-      : (spriteArtworkVal || spriteDefaultVal || (data.pokemon.pokeapiId ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${data.pokemon.pokeapiId}.png` : null))
-  );
 
   let hpVal  = $state(data.pokemon.hp);
   let atkVal = $state(data.pokemon.atk);
@@ -408,6 +404,73 @@
     {/if}
   {/snippet}
 
+  {#snippet spriteInputs(activeTab: 'artwork' | 'front' | 'back')}
+    {#if activeTab === 'artwork'}
+      <div class="sprite-field">
+        <label class="sprite-label">Artwork</label>
+        <div class="sprite-input-row">
+          <input class="sprite-url-input" type="text" placeholder="URL…" bind:value={spriteArtworkVal} />
+          <label class="retro-upload-btn" class:selected={artworkFileSelected}>
+            {artworkFileSelected ? 'READY' : 'UPLOAD'}
+            <input type="file" accept="image/*" form="main-form" name="spriteArtworkFile" class="hidden-file-input" onchange={(e) => handleFileSelected(e, 'artwork')} />
+          </label>
+        </div>
+      </div>
+      <div class="sprite-field">
+        <label class="sprite-label">Shiny Artwork</label>
+        <div class="sprite-input-row">
+          <input class="sprite-url-input" type="text" placeholder="URL…" bind:value={spriteArtworkShinyVal} />
+          <label class="retro-upload-btn" class:selected={artworkShinyFileSelected}>
+            {artworkShinyFileSelected ? 'READY' : 'UPLOAD'}
+            <input type="file" accept="image/*" form="main-form" name="spriteArtworkShinyFile" class="hidden-file-input" onchange={(e) => handleFileSelected(e, 'artwork-shiny')} />
+          </label>
+        </div>
+      </div>
+    {:else if activeTab === 'front'}
+      <div class="sprite-field">
+        <label class="sprite-label">Front</label>
+        <div class="sprite-input-row">
+          <input class="sprite-url-input" type="text" placeholder="URL…" bind:value={spriteDefaultVal} />
+          <label class="retro-upload-btn" class:selected={defaultFileSelected}>
+            {defaultFileSelected ? 'READY' : 'UPLOAD'}
+            <input type="file" accept="image/*" form="main-form" name="spriteDefaultFile" class="hidden-file-input" onchange={(e) => handleFileSelected(e, 'default')} />
+          </label>
+        </div>
+      </div>
+      <div class="sprite-field">
+        <label class="sprite-label">Shiny Front</label>
+        <div class="sprite-input-row">
+          <input class="sprite-url-input" type="text" placeholder="URL…" bind:value={spriteShinyVal} />
+          <label class="retro-upload-btn" class:selected={shinyFileSelected}>
+            {shinyFileSelected ? 'READY' : 'UPLOAD'}
+            <input type="file" accept="image/*" form="main-form" name="spriteShinyFile" class="hidden-file-input" onchange={(e) => handleFileSelected(e, 'shiny')} />
+          </label>
+        </div>
+      </div>
+    {:else if activeTab === 'back'}
+      <div class="sprite-field">
+        <label class="sprite-label">Back</label>
+        <div class="sprite-input-row">
+          <input class="sprite-url-input" type="text" placeholder="URL…" bind:value={spriteBackDefaultVal} />
+          <label class="retro-upload-btn" class:selected={backDefaultFileSelected}>
+            {backDefaultFileSelected ? 'READY' : 'UPLOAD'}
+            <input type="file" accept="image/*" form="main-form" name="spriteBackDefaultFile" class="hidden-file-input" onchange={(e) => handleFileSelected(e, 'back-default')} />
+          </label>
+        </div>
+      </div>
+      <div class="sprite-field">
+        <label class="sprite-label">Shiny Back</label>
+        <div class="sprite-input-row">
+          <input class="sprite-url-input" type="text" placeholder="URL…" bind:value={spriteBackShinyVal} />
+          <label class="retro-upload-btn" class:selected={backShinyFileSelected}>
+            {backShinyFileSelected ? 'READY' : 'UPLOAD'}
+            <input type="file" accept="image/*" form="main-form" name="spriteBackShinyFile" class="hidden-file-input" onchange={(e) => handleFileSelected(e, 'back-shiny')} />
+          </label>
+        </div>
+      </div>
+    {/if}
+  {/snippet}
+
   <!-- ── Tabs ──────────────────────────────────────────────────────────── -->
   <Tabs tabs={PAGE_TABS} bind:active={activePageTab}>
 
@@ -417,83 +480,19 @@
 
     <!-- Top-left: Sprite -->
     <div class="sprite-cell">
-      <div class="image-box">
-        <div class="image-area">
-          {#if currentSpriteUrl}
-            <img src={currentSpriteUrl} alt={nameVal} class:shiny-active={isShiny} />
-          {:else}
-            <div class="no-sprite">NO SPRITE</div>
-          {/if}
-          <button type="button" class="shiny-toggle" onclick={() => isShiny = !isShiny}>
-            {isShiny ? '◼ NORMAL' : '✦ SHINY'}
-          </button>
-        </div>
-        <div class="sprite-inputs">
-          <div class="sprite-field">
-            <label class="sprite-label">DEFAULT</label>
-            <div class="sprite-input-row">
-              <input class="sprite-url-input" type="text" placeholder="URL…" bind:value={spriteDefaultVal} />
-              <label class="retro-upload-btn" class:selected={defaultFileSelected}>
-                {defaultFileSelected ? 'READY' : 'UPLOAD'}
-                <input type="file" accept="image/*" form="main-form" name="spriteDefaultFile" class="hidden-file-input" onchange={(e) => handleFileSelected(e, 'default')} />
-              </label>
-            </div>
-          </div>
-          <div class="sprite-field">
-            <label class="sprite-label">SHINY</label>
-            <div class="sprite-input-row">
-              <input class="sprite-url-input" type="text" placeholder="URL…" bind:value={spriteShinyVal} />
-              <label class="retro-upload-btn" class:selected={shinyFileSelected}>
-                {shinyFileSelected ? 'READY' : 'UPLOAD'}
-                <input type="file" accept="image/*" form="main-form" name="spriteShinyFile" class="hidden-file-input" onchange={(e) => handleFileSelected(e, 'shiny')} />
-              </label>
-            </div>
-          </div>
-          <div class="sprite-field">
-            <label class="sprite-label">ARTWORK</label>
-            <div class="sprite-input-row">
-              <input class="sprite-url-input" type="text" placeholder="URL…" bind:value={spriteArtworkVal} />
-              <label class="retro-upload-btn" class:selected={artworkFileSelected}>
-                {artworkFileSelected ? 'READY' : 'UPLOAD'}
-                <input type="file" accept="image/*" form="main-form" name="spriteArtworkFile" class="hidden-file-input" onchange={(e) => handleFileSelected(e, 'artwork')} />
-              </label>
-            </div>
-          </div>
-          <div class="sprite-field">
-            <label class="sprite-label">SHINY ART</label>
-            <div class="sprite-input-row">
-              <input class="sprite-url-input" type="text" placeholder="URL…" bind:value={spriteArtworkShinyVal} />
-              <label class="retro-upload-btn" class:selected={artworkShinyFileSelected}>
-                {artworkShinyFileSelected ? 'READY' : 'UPLOAD'}
-                <input type="file" accept="image/*" form="main-form" name="spriteArtworkShinyFile" class="hidden-file-input" onchange={(e) => handleFileSelected(e, 'artwork-shiny')} />
-              </label>
-            </div>
-          </div>
-
-          <div class="sprite-section-divider">BACK SPRITES</div>
-
-          <div class="sprite-field">
-            <label class="sprite-label">BACK DEF</label>
-            <div class="sprite-input-row">
-              <input class="sprite-url-input" type="text" placeholder="URL…" bind:value={spriteBackDefaultVal} />
-              <label class="retro-upload-btn" class:selected={backDefaultFileSelected}>
-                {backDefaultFileSelected ? 'READY' : 'UPLOAD'}
-                <input type="file" accept="image/*" form="main-form" name="spriteBackDefaultFile" class="hidden-file-input" onchange={(e) => handleFileSelected(e, 'back-default')} />
-              </label>
-            </div>
-          </div>
-          <div class="sprite-field">
-            <label class="sprite-label">BACK SHINY</label>
-            <div class="sprite-input-row">
-              <input class="sprite-url-input" type="text" placeholder="URL…" bind:value={spriteBackShinyVal} />
-              <label class="retro-upload-btn" class:selected={backShinyFileSelected}>
-                {backShinyFileSelected ? 'READY' : 'UPLOAD'}
-                <input type="file" accept="image/*" form="main-form" name="spriteBackShinyFile" class="hidden-file-input" onchange={(e) => handleFileSelected(e, 'back-shiny')} />
-              </label>
-            </div>
-          </div>
-        </div>
-      </div>
+      <PokemonSpriteViewer
+        spriteDefault={spriteDefaultVal}
+        spriteShiny={spriteShinyVal}
+        spriteArtwork={spriteArtworkVal}
+        spriteArtworkShiny={spriteArtworkShinyVal}
+        spriteBackDefault={spriteBackDefaultVal}
+        spriteBackShiny={spriteBackShinyVal}
+        pokeapiId={data.pokemon.pokeapiId}
+        name={nameVal}
+        bind:activeTab={activeImageTab}
+        bind:isShiny={isShiny}
+        inputsSnippet={spriteInputs}
+      />
     </div>
 
     <!-- Top-right: Stats -->
