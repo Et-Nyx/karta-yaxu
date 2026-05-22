@@ -20,19 +20,14 @@
 
   // --- Main update form state ---
   let nameVal = $state(data.pokemon.name);
-  let slugVal = $state(data.pokemon.slug);
-  let slugManuallyEdited = $state(false);
-
-  $effect(() => {
-    if (!slugManuallyEdited) {
-      slugVal = nameVal
-        .toLowerCase()
-        .trim()
-        .replace(/[^\w\s-]/g, '')
-        .replace(/[\s_-]+/g, '-')
-        .replace(/^-+|-+$/g, '');
-    }
-  });
+  let slugVal = $derived(
+    nameVal
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w\s-]/g, '')
+      .replace(/[\s_-]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+  );
 
   let speciesIdVal = $state(data.pokemon.speciesId);
   let heightVal = $state(data.pokemon.height);
@@ -246,10 +241,7 @@
 
     <!-- Editor-only meta-strip -->
     <div class="meta-strip">
-      <div class="meta-field">
-        <label class="meta-label">SLUG</label>
-        <input class="meta-input" name="slug" type="text" maxlength="80" pattern="[a-z0-9-]+" required bind:value={slugVal} oninput={() => slugManuallyEdited = true} />
-      </div>
+      <input type="hidden" name="slug" value={slugVal} />
       <div class="meta-field">
         <label class="meta-label">SPECIES</label>
         <RetroSelect
