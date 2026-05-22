@@ -267,7 +267,7 @@
           if (afterSuffix.length > 0) {
             // Sub-regional form (e.g. tauros-paldea-combat) — treat as alt form
             bucketAlt(form);
-          } else if (rootIds.has(sp.speciesId) && !seenSuffixes.has(suffix)) {
+          } else if (!seenSuffixes.has(suffix)) {
             seenSuffixes.add(suffix);
             tabs.push({ kind: 'regional', label: suffix.toUpperCase(), suffix });
           }

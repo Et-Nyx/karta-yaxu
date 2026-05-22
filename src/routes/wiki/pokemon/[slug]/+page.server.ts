@@ -274,10 +274,14 @@ export const load: PageServerLoad = async ({ params, url }) => {
 
   {
     // Walk up to find the root pokemon id (iterative; trees are ≤ 4 levels deep in canon)
-    let rootId = pokemon.id;
+    // Always start from the default/base Pokemon of the species to let alternate/regional/battle forms
+    // inherit the complete evolutionary lineage of the species family!
+    let rootId = species.defaultPokemonId ?? pokemon.id;
     {
+      const [startPk] = await db.select({ e: schema.pokemon.evolvesFromPokemonId })
+        .from(schema.pokemon).where(eq(schema.pokemon.id, rootId)).limit(1);
       const seen = new Set<number>([rootId]);
-      let cursor: number | null = pokemon.evolvesFromPokemonId ?? null;
+      let cursor: number | null = startPk?.e ?? null;
       while (cursor != null && !seen.has(cursor)) {
         seen.add(cursor);
         rootId = cursor;

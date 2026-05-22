@@ -204,10 +204,14 @@ export const load: PageServerLoad = async ({ params, url }) => {
     .orderBy(asc(pokemon.id));
 
   // Full evolution chain: walk up to root, BFS down, batch-load node data
-  let evoRootId = row.id;
+  const [evoSpeciesRow] = await db.select({ defaultPokemonId: pokemonSpecies.defaultPokemonId })
+    .from(pokemonSpecies).where(eq(pokemonSpecies.id, row.speciesId)).limit(1);
+  let evoRootId = evoSpeciesRow?.defaultPokemonId ?? row.id;
   {
+    const [startPk] = await db.select({ e: pokemon.evolvesFromPokemonId })
+      .from(pokemon).where(eq(pokemon.id, evoRootId)).limit(1);
     const seen = new Set<number>([evoRootId]);
-    let cursor: number | null = row.evolvesFromPokemonId ?? null;
+    let cursor: number | null = startPk?.e ?? null;
     while (cursor != null && !seen.has(cursor)) {
       seen.add(cursor);
       evoRootId = cursor;
