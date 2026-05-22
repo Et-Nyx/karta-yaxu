@@ -942,7 +942,24 @@
   .sprite-cell :global(.sprite-viewer) {
     --image-area-height: 160px;
   }
-  .stats-cell { display: flex; flex-direction: column; }
+  .stats-cell {
+    display: flex;
+    flex-direction: column;
+  }
+  .stats-cell :global(.info-box) {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+  }
+  .stats-cell :global(.stats-container) {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+  }
+  .stats-cell :global(.stat-total) {
+    margin-top: auto;
+  }
   .info-cell { display: flex; flex-direction: column; gap: var(--spacing-4); }
   .data-cell { display: flex; flex-direction: column; }
 
