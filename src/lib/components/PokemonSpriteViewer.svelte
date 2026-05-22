@@ -140,7 +140,8 @@
     align-items: center;
     padding: var(--spacing-6);
     flex: 1;
-    min-height: 240px;
+    min-height: var(--image-area-height, 240px);
+    max-height: var(--image-area-height, 240px);
     transition: background-color 0.15s ease;
   }
 
@@ -150,7 +151,7 @@
 
   .viewer-img {
     max-width: 100%;
-    max-height: 240px;
+    max-height: var(--image-area-height, 240px);
     object-fit: contain;
   }
 

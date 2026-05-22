@@ -935,7 +935,13 @@
   .content-grid {
     display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-6);
   }
-  .sprite-cell { display: flex; flex-direction: column; }
+  .sprite-cell {
+    display: flex;
+    flex-direction: column;
+  }
+  .sprite-cell :global(.sprite-viewer) {
+    --image-area-height: 160px;
+  }
   .stats-cell { display: flex; flex-direction: column; }
   .info-cell { display: flex; flex-direction: column; gap: var(--spacing-4); }
   .data-cell { display: flex; flex-direction: column; }
