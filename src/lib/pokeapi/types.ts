@@ -306,6 +306,8 @@ export interface PokemonMove {
 export interface PokemonSprites {
   front_default: string | null;
   front_shiny: string | null;
+  back_default?: string | null;
+  back_shiny?: string | null;
   other?: {
     'official-artwork'?: {
       front_default: string | null;
@@ -372,6 +374,8 @@ export interface PokeApiPokemonSpecies {
 export interface PokemonFormSprites {
   front_default: string | null;
   front_shiny: string | null;
+  back_default?: string | null;
+  back_shiny?: string | null;
 }
 
 export interface PokeApiPokemonForm {

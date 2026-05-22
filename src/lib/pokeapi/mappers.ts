@@ -454,6 +454,9 @@ export function mapPokemon(
       spriteDefault: data.sprites.front_default,
       spriteShiny: data.sprites.front_shiny,
       spriteArtwork: artwork,
+      spriteArtworkShiny: data.sprites.other?.['official-artwork']?.front_shiny ?? null,
+      spriteBackDefault: data.sprites.back_default ?? null,
+      spriteBackShiny: data.sprites.back_shiny ?? null,
     },
     isDefault: data.is_default,
     types: data.types.map(t => ({
@@ -503,6 +506,15 @@ export function mapPokemonForm(data: PokeApiPokemonForm, pokemonDbId: number, sp
           ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${pokemonId}.png`
           : null;
       })(),
+      spriteArtworkShiny: (() => {
+        const segments = data.pokemon.url.replace(/\/$/, '').split('/');
+        const pokemonId = parseInt(segments[segments.length - 1]);
+        return pokemonId
+          ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/shiny/${pokemonId}.png`
+          : null;
+      })(),
+      spriteBackDefault: data.sprites.back_default ?? null,
+      spriteBackShiny: data.sprites.back_shiny ?? null,
     },
   };
 }
