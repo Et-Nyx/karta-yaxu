@@ -1,5 +1,7 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import { z } from 'zod';
+import fs from 'fs';
+import path from 'path';
 import { db } from '$lib/db';
 import { pokemon, pokemonAbilities, pokemonEvolutionDetails, pokemonForms, pokemonGenera, pokemonMoves, pokemonSpecies, pokemonTypes, eggGroups, speciesEggGroups } from '$lib/db/schema/pokemon';
 import { abilities, moveLearnMethods, moves, types } from '$lib/db/schema/core-data';
@@ -401,9 +403,51 @@ export const load: PageServerLoad = async ({ params, url }) => {
   };
 };
 
+// Helper to save a file upload locally inside static/sprites/
+async function saveUploadedFile(file: unknown, pokemonSlug: string, suffix: string): Promise<string | null> {
+  if (!file || !(file instanceof File) || file.size === 0) {
+    return null;
+  }
+
+  // Ensure output directory exists inside static
+  const outputDir = path.join('static', 'sprites');
+  fs.mkdirSync(outputDir, { recursive: true });
+
+  // Get extension from original file name, fallback to png
+  let ext = 'png';
+  if (file.name) {
+    const parsedExt = path.extname(file.name).toLowerCase();
+    if (parsedExt) {
+      ext = parsedExt.slice(1); // remove the leading dot
+    }
+  }
+
+  // Clean the file extension (alphanumeric only)
+  ext = ext.replace(/[^\w]/g, '') || 'png';
+
+  const filename = `${pokemonSlug}-${suffix}.${ext}`;
+  const filePath = path.join(outputDir, filename);
+
+  // Convert File object to Buffer and write
+  const arrayBuffer = await file.arrayBuffer();
+  fs.writeFileSync(filePath, Buffer.from(arrayBuffer));
+
+  // Return the public web-accessible URL path
+  return `/sprites/${filename}`;
+}
+
 export const actions: Actions = {
   update: async ({ request, params, locals }) => {
-    const form = Object.fromEntries(await request.formData());
+    const formData = await request.formData();
+    
+    // Extract regular text/number fields to validate with Zod schema
+    const form: Record<string, any> = {};
+    for (const key of formData.keys()) {
+      if (!key.endsWith('File')) {
+        form[key] = formData.get(key);
+      }
+    }
+
     const parsed = UpdateSchema.safeParse(form);
     if (!parsed.success) {
       return fail(400, { updateError: parsed.error.issues[0]?.message ?? 'Inválido', values: form });
@@ -419,6 +463,24 @@ export const actions: Actions = {
       if (clash) return fail(400, { updateError: 'slug já em uso', values: form });
     }
 
+    // Save uploaded files if any
+    const defaultFile = formData.get('spriteDefaultFile');
+    const shinyFile = formData.get('spriteShinyFile');
+    const artworkFile = formData.get('spriteArtworkFile');
+
+    let spriteDefault = data.spriteDefault;
+    let spriteShiny = data.spriteShiny;
+    let spriteArtwork = data.spriteArtwork;
+
+    const savedDefault = await saveUploadedFile(defaultFile, data.slug, 'default');
+    if (savedDefault) spriteDefault = savedDefault;
+
+    const savedShiny = await saveUploadedFile(shinyFile, data.slug, 'shiny');
+    if (savedShiny) spriteShiny = savedShiny;
+
+    const savedArtwork = await saveUploadedFile(artworkFile, data.slug, 'artwork');
+    if (savedArtwork) spriteArtwork = savedArtwork;
+
     const newRow = {
       name:          data.name,
       slug:          data.slug,
@@ -431,9 +493,9 @@ export const actions: Actions = {
       spa:           data.spa,
       spd:           data.spd,
       spe:           data.spe,
-      spriteDefault: data.spriteDefault,
-      spriteShiny:   data.spriteShiny,
-      spriteArtwork: data.spriteArtwork,
+      spriteDefault,
+      spriteShiny,
+      spriteArtwork,
       source:        bumpSource(current.source),
     };
 

@@ -39,12 +39,30 @@
   let spriteArtworkVal = $state(data.pokemon.spriteArtwork ?? '');
   let isShiny = $state(false);
   let copySourceVgId = $state('');
+
+  let defaultFileSelected = $state(false);
+  let shinyFileSelected = $state(false);
+  let artworkFileSelected = $state(false);
+
+  function handleFileSelected(e: Event, type: 'default' | 'shiny' | 'artwork') {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (file) {
+      if (type === 'default') defaultFileSelected = true;
+      if (type === 'shiny') shinyFileSelected = true;
+      if (type === 'artwork') artworkFileSelected = true;
+
+      const objectUrl = URL.createObjectURL(file);
+      if (type === 'default') spriteDefaultVal = objectUrl;
+      if (type === 'shiny') spriteShinyVal = objectUrl;
+      if (type === 'artwork') spriteArtworkVal = objectUrl;
+    }
+  }
+
   let currentSpriteUrl = $derived(
     isShiny
-      ? (data.pokemon.pokeapiId
-          ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/shiny/${data.pokemon.pokeapiId}.png`
-          : (spriteShinyVal || null))
-      : (spriteArtworkVal || spriteDefaultVal || null)
+      ? (spriteShinyVal || (data.pokemon.pokeapiId ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/shiny/${data.pokemon.pokeapiId}.png` : null))
+      : (spriteArtworkVal || spriteDefaultVal || (data.pokemon.pokeapiId ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${data.pokemon.pokeapiId}.png` : null))
   );
 
   let hpVal  = $state(data.pokemon.hp);
@@ -201,7 +219,7 @@
 <div class="pokemon-detail">
 
   <!-- ── Main update form: header + meta-strip ──────────────────────────── -->
-  <form id="main-form" action="?/update" method="post" use:enhance={handleSave}>
+  <form id="main-form" action="?/update" method="post" enctype="multipart/form-data" use:enhance={handleSave}>
     <!-- Hidden mirrors for INFO-tab fields -->
     <input type="hidden" name="hp"            value={hpVal} />
     <input type="hidden" name="atk"           value={atkVal} />
@@ -398,15 +416,33 @@
         <div class="sprite-inputs">
           <div class="sprite-field">
             <label class="sprite-label">DEFAULT</label>
-            <input class="sprite-url-input" type="text" placeholder="URL…" bind:value={spriteDefaultVal} />
+            <div class="sprite-input-row">
+              <input class="sprite-url-input" type="text" placeholder="URL…" bind:value={spriteDefaultVal} />
+              <label class="retro-upload-btn" class:selected={defaultFileSelected}>
+                {defaultFileSelected ? 'READY' : 'UPLOAD'}
+                <input type="file" accept="image/*" form="main-form" name="spriteDefaultFile" class="hidden-file-input" onchange={(e) => handleFileSelected(e, 'default')} />
+              </label>
+            </div>
           </div>
           <div class="sprite-field">
             <label class="sprite-label">SHINY</label>
-            <input class="sprite-url-input" type="text" placeholder="URL…" bind:value={spriteShinyVal} />
+            <div class="sprite-input-row">
+              <input class="sprite-url-input" type="text" placeholder="URL…" bind:value={spriteShinyVal} />
+              <label class="retro-upload-btn" class:selected={shinyFileSelected}>
+                {shinyFileSelected ? 'READY' : 'UPLOAD'}
+                <input type="file" accept="image/*" form="main-form" name="spriteShinyFile" class="hidden-file-input" onchange={(e) => handleFileSelected(e, 'shiny')} />
+              </label>
+            </div>
           </div>
           <div class="sprite-field">
             <label class="sprite-label">ARTWORK</label>
-            <input class="sprite-url-input" type="text" placeholder="URL…" bind:value={spriteArtworkVal} />
+            <div class="sprite-input-row">
+              <input class="sprite-url-input" type="text" placeholder="URL…" bind:value={spriteArtworkVal} />
+              <label class="retro-upload-btn" class:selected={artworkFileSelected}>
+                {artworkFileSelected ? 'READY' : 'UPLOAD'}
+                <input type="file" accept="image/*" form="main-form" name="spriteArtworkFile" class="hidden-file-input" onchange={(e) => handleFileSelected(e, 'artwork')} />
+              </label>
+            </div>
           </div>
         </div>
       </div>
@@ -887,7 +923,7 @@
   .sprite-inputs {
     display: flex; flex-direction: column; gap: var(--spacing-2);
     padding: var(--spacing-3);
-    border-top: 2px solid var(--theme-border-primary);
+    border-top: 2px dashed var(--theme-border-primary);
     background-color: var(--theme-bg-primary);
   }
   .sprite-field { display: flex; align-items: center; gap: var(--spacing-2); }
@@ -1139,5 +1175,41 @@
   .delete-form { display: flex; align-items: center; gap: var(--spacing-4); padding: var(--spacing-3); border: 2px dashed var(--color-text-error); }
   .delete-btn { font-family: var(--font-display); font-size: 10px; color: var(--color-text-error); background: none; border: 2px solid var(--color-text-error); padding: var(--spacing-2) var(--spacing-4); cursor: pointer; }
   .delete-hint { font-family: var(--font-mono); font-size: 10px; color: var(--theme-text-muted); }
+
+  .sprite-input-row {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    width: 100%;
+  }
+  .retro-upload-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-display);
+    font-size: 8px;
+    background-color: var(--theme-bg-secondary);
+    color: var(--theme-text-primary);
+    border: 2px solid var(--theme-border-primary);
+    box-shadow: 2px 2px 0 var(--theme-border-primary);
+    padding: 4px 10px;
+    cursor: pointer;
+    white-space: nowrap;
+    text-transform: uppercase;
+    transition: all 0.05s ease;
+  }
+  .retro-upload-btn:hover {
+    background-color: var(--theme-text-accent);
+    color: var(--theme-bg-primary);
+    transform: translate(-1px, -1px);
+    box-shadow: 3px 3px 0 var(--theme-border-primary);
+  }
+  .retro-upload-btn.selected {
+    border-color: var(--theme-text-accent);
+    color: var(--theme-text-accent);
+  }
+  .hidden-file-input {
+    display: none !important;
+  }
 
 </style>
