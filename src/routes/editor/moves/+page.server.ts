@@ -45,7 +45,7 @@ export const load: PageServerLoad = async () => {
     pp:          moves.pp,
     source:      moves.source,
     pokeapiId:   moves.pokeapiId,
-  }).from(moves).orderBy(asc(moves.slug));
+  }).from(moves).orderBy(asc(moves.id));
 
   const typeList = await db.select({
     id:   types.id,

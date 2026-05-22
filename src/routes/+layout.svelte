@@ -14,7 +14,7 @@
   let isEditorRoute = $derived($page.url.pathname.startsWith('/editor'));
 
   const editorSections = new Set(['pokemon', 'types', 'moves', 'abilities', 'items', 'natures', 'locations', 'pokedex']);
-  const wikiSections   = new Set(['pokemon', 'types', 'moves', 'abilities', 'items', 'locations', 'pokedex']);
+  const wikiSections   = new Set(['pokemon', 'types', 'moves', 'abilities', 'items', 'natures', 'locations', 'pokedex']);
 
   let wikiUrl = $derived.by(() => {
     const path = $page.url.pathname;
@@ -23,7 +23,14 @@
     const parts   = rest.split('/');
     const section = parts[0];
     const slug    = parts[1];
-    if (!slug) return null;
+    
+    if (!slug) {
+      if (wikiSections.has(section)) return `/wiki/${section}`;
+      if (section === 'species') return `/wiki/pokemon`;
+      if (section === 'trainers') return `/trainer`;
+      return null;
+    }
+    
     if (wikiSections.has(section)) return `/wiki/${rest}`;
     if (section === 'species')  return `/wiki/pokemon/${slug}`;
     if (section === 'trainers') return `/trainer/${slug}`;

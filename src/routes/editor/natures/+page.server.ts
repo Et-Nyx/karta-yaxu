@@ -21,7 +21,7 @@ const CreateSchema = z.object({
 });
 
 export const load: PageServerLoad = async () => {
-  const rows = await db.select().from(natures).orderBy(asc(natures.slug));
+  const rows = await db.select().from(natures).orderBy(asc(natures.name));
   const [{ total }] = await db.select({ total: count() }).from(natures);
   return { natures: rows, total };
 };

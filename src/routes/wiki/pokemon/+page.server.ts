@@ -1,23 +1,24 @@
 import { db } from '$lib/db';
-import { eq, asc, desc } from 'drizzle-orm';
+import { eq, asc, desc, sql } from 'drizzle-orm';
 import * as schema from '$lib/db/schema';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async () => {
   // 1. Fetch all pokemon (including regional forms), ordered by Regional Dex.
   // Within a species: default form first, then regional variants alphabetically.
+  const isDefaultExpr = sql<boolean>`(${schema.pokemon.id} = ${schema.pokemonSpecies.defaultPokemonId})`;
   const pokemonList = await db.select({
     id: schema.pokemon.id,
     pokeapiId: schema.pokemon.pokeapiId,
     name: schema.pokemon.name,
     slug: schema.pokemon.slug,
     spriteDefault: schema.pokemon.spriteDefault,
-    isDefault: schema.pokemon.isDefault,
+    isDefault: isDefaultExpr,
     dexNumber: schema.pokemonSpecies.dexNumber,
   })
   .from(schema.pokemon)
   .innerJoin(schema.pokemonSpecies, eq(schema.pokemon.speciesId, schema.pokemonSpecies.id))
-  .orderBy(asc(schema.pokemonSpecies.dexOrder), desc(schema.pokemon.isDefault), asc(schema.pokemon.name))
+  .orderBy(asc(schema.pokemonSpecies.dexOrder), desc(isDefaultExpr), asc(schema.pokemon.name))
   .limit(2000);
 
   // 2. Fetch all types for these pokemon

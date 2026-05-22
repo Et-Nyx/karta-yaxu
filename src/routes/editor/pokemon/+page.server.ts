@@ -1,5 +1,5 @@
 import { fail, redirect } from '@sveltejs/kit';
-import { and, asc, count, eq } from 'drizzle-orm';
+import { and, asc, count, desc, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '$lib/db';
 import {
@@ -49,7 +49,11 @@ export const load: PageServerLoad = async () => {
   })
     .from(pokemon)
     .innerJoin(pokemonSpecies, eq(pokemon.speciesId, pokemonSpecies.id))
-    .orderBy(asc(pokemon.speciesId));
+    .orderBy(
+      asc(pokemonSpecies.dexOrder),
+      desc(sql<boolean>`(${pokemon.id} = ${pokemonSpecies.defaultPokemonId})`),
+      asc(pokemon.name)
+    );
 
   const speciesList = await db.select({
     id:        pokemonSpecies.id,
@@ -109,17 +113,22 @@ export const actions: Actions = {
       spriteDefault: null,
       spriteShiny:   null,
       spriteArtwork: null,
-      isDefault:     false, // new variants are NOT the base form by default
-      order:         null,
       source:        'custom' as const,
       pokeapiId:     null,
     };
 
     // Look up the existing Base Form for this species (if any) to copy from.
-    const [baseForm] = await db.select({ id: pokemon.id })
-      .from(pokemon)
-      .where(and(eq(pokemon.speciesId, data.speciesId), eq(pokemon.isDefault, true)))
+    const [speciesRecord] = await db.select({ defaultPokemonId: pokemonSpecies.defaultPokemonId })
+      .from(pokemonSpecies)
+      .where(eq(pokemonSpecies.id, data.speciesId))
       .limit(1);
+
+    const [baseForm] = speciesRecord && speciesRecord.defaultPokemonId != null
+      ? await db.select({ id: pokemon.id })
+          .from(pokemon)
+          .where(eq(pokemon.id, speciesRecord.defaultPokemonId))
+          .limit(1)
+      : [];
 
     let baseTypes: { typeId: number; slot: number }[] = [];
     let baseAbilities: { abilityId: number; slot: number; isHidden: boolean }[] = [];

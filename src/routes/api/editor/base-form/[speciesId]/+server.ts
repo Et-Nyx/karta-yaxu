@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import { and, asc, eq } from 'drizzle-orm';
 import { db } from '$lib/db';
-import { pokemon, pokemonAbilities, pokemonTypes } from '$lib/db/schema/pokemon';
+import { pokemon, pokemonAbilities, pokemonTypes, pokemonSpecies } from '$lib/db/schema/pokemon';
 import { requireEditor } from '$lib/auth/guards';
 import type { RequestHandler } from './$types';
 
@@ -29,7 +29,8 @@ export const GET: RequestHandler = async ({ params, locals }) => {
     spriteArtwork: pokemon.spriteArtwork,
   })
     .from(pokemon)
-    .where(and(eq(pokemon.speciesId, speciesId), eq(pokemon.isDefault, true)))
+    .innerJoin(pokemonSpecies, eq(pokemon.id, pokemonSpecies.defaultPokemonId))
+    .where(eq(pokemon.speciesId, speciesId))
     .limit(1);
 
   if (!base) return json({ found: false });

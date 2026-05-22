@@ -30,7 +30,7 @@ const CreateSchema = z.object({
 });
 
 export const load: PageServerLoad = async () => {
-  const rows = await db.select().from(abilities).orderBy(asc(abilities.slug));
+  const rows = await db.select().from(abilities).orderBy(asc(abilities.id));
   const [{ total }] = await db.select({ total: count() }).from(abilities);
   return { abilities: rows, total };
 };

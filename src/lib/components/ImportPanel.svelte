@@ -175,21 +175,20 @@
         <button class="mode-btn" class:active={mode === 'region'} onclick={() => mode = 'region'}>BY REGION</button>
       </div>
       {#if mode === 'id'}
-        <ImportForm action="?/importSinglePokemon" fields={[{ name: 'pokeapiId', type: 'number', placeholder: '25', min: 1, label: 'ID:' }]} submitLabel="IMPORT" />
+        <ImportForm action="?/importSinglePokemon" fields={[{ name: 'pokeapiId', type: 'number', placeholder: '25', min: 1, label: 'ID:' }]} submitLabel="IMPORT" showOverwriteOption={true} />
       {:else if mode === 'range'}
-        <ImportForm action="?/importRangePokemon" fields={[{ name: 'fromId', type: 'number', placeholder: '1', min: 1, label: 'FROM:' }, { name: 'toId', type: 'number', placeholder: '151', min: 1, label: 'TO:' }]} submitLabel="IMPORT RANGE" />
+        <ImportForm action="?/importRangePokemon" fields={[{ name: 'fromId', type: 'number', placeholder: '1', min: 1, label: 'FROM:' }, { name: 'toId', type: 'number', placeholder: '151', min: 1, label: 'TO:' }]} submitLabel="IMPORT RANGE" showOverwriteOption={true} />
       {:else}
         {#if regionOptions.length === 0}
           <p class="hint">No regions in database. Import Game Data first.</p>
         {:else}
-          <ImportForm action="?/importPokemonByRegion" fields={regionField} submitLabel="IMPORT BY REGION" />
+          <ImportForm action="?/importPokemonByRegion" fields={regionField} submitLabel="IMPORT BY REGION" showOverwriteOption={true} />
         {/if}
       {/if}
 
       <div class="extras">
         <span class="extras-label">UTILITIES:</span>
-        <ImportButton action="?/importRegionalForms" label="Regional Forms" />
-        <ImportButton action="?/computeDexOrder" label="Compute Dex Order" />
+        <ImportForm action="?/importRegionalForms" fields={[]} submitLabel="Regional Forms" showOverwriteOption={true} />
       </div>
 
     <!-- ── Pokédexes ─────────────────────────────────────────────────────── -->

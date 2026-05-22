@@ -1,5 +1,5 @@
 import { db } from '$lib/db';
-import { eq, and, asc, desc, inArray, lt, gt } from 'drizzle-orm';
+import { eq, and, asc, desc, inArray, lt, gt, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/sqlite-core';
 import * as schema from '$lib/db/schema';
 import { error } from '@sveltejs/kit';
@@ -64,10 +64,7 @@ export const load: PageServerLoad = async ({ params, url }) => {
     })
     .from(schema.pokedexEntries)
     .innerJoin(schema.pokemonSpecies, eq(schema.pokedexEntries.speciesId, schema.pokemonSpecies.id))
-    .innerJoin(schema.pokemon, and(
-      eq(schema.pokemon.speciesId, schema.pokemonSpecies.id),
-      eq(schema.pokemon.isDefault, true)
-    ))
+    .innerJoin(schema.pokemon, eq(schema.pokemon.id, schema.pokemonSpecies.defaultPokemonId))
     .where(and(
       eq(schema.pokedexEntries.pokedexId, selectedDex.id),
       lt(schema.pokedexEntries.entryNumber, currentEntry)
@@ -82,10 +79,7 @@ export const load: PageServerLoad = async ({ params, url }) => {
     })
     .from(schema.pokedexEntries)
     .innerJoin(schema.pokemonSpecies, eq(schema.pokedexEntries.speciesId, schema.pokemonSpecies.id))
-    .innerJoin(schema.pokemon, and(
-      eq(schema.pokemon.speciesId, schema.pokemonSpecies.id),
-      eq(schema.pokemon.isDefault, true)
-    ))
+    .innerJoin(schema.pokemon, eq(schema.pokemon.id, schema.pokemonSpecies.defaultPokemonId))
     .where(and(
       eq(schema.pokedexEntries.pokedexId, selectedDex.id),
       gt(schema.pokedexEntries.entryNumber, currentEntry)
@@ -430,7 +424,7 @@ export const load: PageServerLoad = async ({ params, url }) => {
       slug:         chainPokemonAlias.slug,
       spriteDefault: chainPokemonAlias.spriteDefault,
       spriteArtwork: chainPokemonAlias.spriteArtwork,
-      isDefault:    chainPokemonAlias.isDefault,
+      isDefault:    sql<boolean>`(${chainPokemonAlias.id} = ${schema.pokemonSpecies.defaultPokemonId})`,
       typeName:     schema.types.name,
       typeHexColor: schema.types.hexColor,
     })
@@ -439,7 +433,7 @@ export const load: PageServerLoad = async ({ params, url }) => {
     .innerJoin(schema.pokemonTypes, eq(schema.pokemonTypes.pokemonId, chainPokemonAlias.id))
     .innerJoin(schema.types, eq(schema.pokemonTypes.typeId, schema.types.id))
     .where(inArray(schema.pokemonSpecies.id, chainSpeciesIds))
-    .orderBy(desc(chainPokemonAlias.isDefault), asc(chainPokemonAlias.name), asc(schema.pokemonTypes.slot));
+    .orderBy(desc(sql<boolean>`(${chainPokemonAlias.id} = ${schema.pokemonSpecies.defaultPokemonId})`), asc(chainPokemonAlias.name), asc(schema.pokemonTypes.slot));
 
     // Accumulate: speciesId → forms (deduplicated by slug, types accumulated)
     const speciesMap = new Map<number, { speciesId: number; formMap: Map<string, ChainForm> }>();

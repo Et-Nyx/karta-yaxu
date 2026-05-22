@@ -179,12 +179,15 @@ export async function ensureItem(
  * evolution edges — that happens later via `populateChainLinkedList`, once the corresponding
  * default pokemon rows have been imported (chicken-and-egg: edges need pokemon ids).
  */
-export async function ensureEvolutionChain(pokeapiId: number): Promise<void> {
+export async function ensureEvolutionChain(
+  pokeapiId: number,
+  opts: { forceRefresh?: boolean; overwriteEdited?: boolean } = {},
+): Promise<void> {
   const data = await client.fetchEvolutionChain(pokeapiId);
   const speciesIds = mappers.extractSpeciesFromChain(data.chain);
   for (const spId of speciesIds) {
     try {
-      await ensurePokemonSpeciesBase(spId);
+      await ensurePokemonSpeciesBase(spId, opts);
     } catch {
       // skip species that fail
     }
@@ -272,15 +275,11 @@ export async function populateChainLinkedList(chainPokeapiId: number): Promise<v
 }
 
 async function defaultPokemonForSpeciesPokeapiId(speciesPokeapiId: number): Promise<{ id: number } | null> {
-  const [sp] = await db.select({ id: schema.pokemonSpecies.id })
+  const [sp] = await db.select({ defaultPokemonId: schema.pokemonSpecies.defaultPokemonId })
     .from(schema.pokemonSpecies)
     .where(eq(schema.pokemonSpecies.pokeapiId, speciesPokeapiId)).limit(1);
-  if (!sp) return null;
-  const [pk] = await db.select({ id: schema.pokemon.id })
-    .from(schema.pokemon)
-    .where(and(eq(schema.pokemon.speciesId, sp.id), eq(schema.pokemon.isDefault, true)))
-    .limit(1);
-  return pk ?? null;
+  if (!sp || sp.defaultPokemonId == null) return null;
+  return { id: sp.defaultPokemonId };
 }
 
 /**
@@ -290,9 +289,14 @@ async function defaultPokemonForSpeciesPokeapiId(speciesPokeapiId: number): Prom
  */
 async function ensurePokemonSpeciesBase(
   pokeapiId: number,
-  opts: { forceRefresh?: boolean } = {},
+  opts: { forceRefresh?: boolean; overwriteEdited?: boolean } = {},
 ): Promise<number> {
   const existing = await db.select().from(schema.pokemonSpecies).where(eq(schema.pokemonSpecies.pokeapiId, pokeapiId)).get();
+
+  if (existing && existing.source === 'edited' && !opts.overwriteEdited) {
+    console.log(`  🛡️ Species "${existing.name}" has manual edits. Skipping refresh.`);
+    return existing.id;
+  }
 
   // Always fetch to upsert flavor texts, even if species already exists
   const data = await client.fetchPokemonSpecies(pokeapiId);
@@ -302,7 +306,7 @@ async function ensurePokemonSpeciesBase(
   // Handle evolvesFrom — recursively ensure the pre-evolution (do NOT propagate forceRefresh)
   if (data.evolves_from_species) {
     const fromPokeapiId = client.extractIdFromUrl(data.evolves_from_species.url);
-    await ensurePokemonSpeciesBase(fromPokeapiId);
+    await ensurePokemonSpeciesBase(fromPokeapiId, { overwriteEdited: opts.overwriteEdited });
   }
 
   // Ensure egg groups
@@ -373,20 +377,24 @@ async function ensurePokemonSpeciesBase(
  */
 export async function ensurePokemonSpecies(
   pokeapiId: number,
-  opts: { forceRefresh?: boolean } = {},
+  opts: { forceRefresh?: boolean; overwriteEdited?: boolean } = {},
 ): Promise<number> {
   const existing = await db.select().from(schema.pokemonSpecies).where(eq(schema.pokemonSpecies.pokeapiId, pokeapiId)).get();
+  if (existing && existing.source === 'edited' && !opts.overwriteEdited) {
+    console.log(`  🛡️ Species "${existing.name}" has manual edits. Skipping refresh.`);
+    return existing.id;
+  }
   if (existing && !opts.forceRefresh) return existing.id;
 
   if (existing && opts.forceRefresh) {
     // Re-import species data in place; do NOT recursively refresh the evolution chain
-    return await ensurePokemonSpeciesBase(pokeapiId, { forceRefresh: true });
+    return await ensurePokemonSpeciesBase(pokeapiId, { forceRefresh: true, overwriteEdited: opts.overwriteEdited });
   }
 
   // No existing row — go through the chain-import path which creates it
   const data = await client.fetchPokemonSpecies(pokeapiId);
   const chainPokeapiId = client.extractIdFromUrl(data.evolution_chain.url);
-  await ensureEvolutionChain(chainPokeapiId);
+  await ensureEvolutionChain(chainPokeapiId, opts);
 
   const species = await db.select().from(schema.pokemonSpecies).where(eq(schema.pokemonSpecies.pokeapiId, pokeapiId)).get();
   if (!species) throw new Error(`Failed to import species ${pokeapiId} via evolution chain`);
@@ -395,13 +403,18 @@ export async function ensurePokemonSpecies(
 
 export async function ensurePokemon(
   pokeapiId: number,
-  opts: { forceRefresh?: boolean } = {},
+  opts: { forceRefresh?: boolean; overwriteEdited?: boolean } = {},
 ): Promise<number> {
   const existing = await db.select().from(schema.pokemon).where(eq(schema.pokemon.pokeapiId, pokeapiId)).get();
 
+  if (existing && existing.source === 'edited' && !opts.overwriteEdited) {
+    console.log(`  🛡️ Pokémon "${existing.name}" has manual edits. Skipping refresh.`);
+    return existing.id;
+  }
+
   const data = await client.fetchPokemon(pokeapiId);
   const speciesPokeapiId = client.extractIdFromUrl(data.species.url);
-  const speciesDbId = await ensurePokemonSpecies(speciesPokeapiId);
+  const speciesDbId = await ensurePokemonSpecies(speciesPokeapiId, opts);
   const mapped = mappers.mapPokemon(data, speciesDbId);
 
   let pokemonDbId: number;
@@ -433,6 +446,12 @@ export async function ensurePokemon(
     const { id } = await protectedUpsert(schema.pokemon, mapped.main, pokeapiId);
     pokemonDbId = id;
 
+    if (mapped.isDefault) {
+      await db.update(schema.pokemonSpecies)
+        .set({ defaultPokemonId: pokemonDbId })
+        .where(eq(schema.pokemonSpecies.id, speciesDbId));
+    }
+
     // Types
     for (const t of mapped.types) {
       const typeDbId = await ensureType(t.typePokeapiId);
@@ -453,7 +472,7 @@ export async function ensurePokemon(
     // Forms (force-refresh propagates so existing form rows get updated, not skipped)
     for (const formRef of data.forms) {
       const formPokeapiId = client.extractIdFromUrl(formRef.url);
-      await ensurePokemonForm(formPokeapiId, pokemonDbId, speciesDbId, { forceRefresh: opts.forceRefresh });
+      await ensurePokemonForm(formPokeapiId, pokemonDbId, speciesDbId, opts);
     }
 
     if (!existing) await logImport('pokemon', pokeapiId, 'inserted');
@@ -499,9 +518,13 @@ async function ensurePokemonForm(
   pokeapiId: number,
   pokemonDbId: number,
   speciesDbId: number,
-  opts: { forceRefresh?: boolean } = {},
+  opts: { forceRefresh?: boolean; overwriteEdited?: boolean } = {},
 ): Promise<number> {
   const existing = await db.select().from(schema.pokemonForms).where(eq(schema.pokemonForms.pokeapiId, pokeapiId)).get();
+  if (existing && existing.source === 'edited' && !opts.overwriteEdited) {
+    console.log(`  🛡️ Form "${existing.formName}" has manual edits. Skipping refresh.`);
+    return existing.id;
+  }
   if (existing && !opts.forceRefresh) return existing.id;
 
   const data = await client.fetchPokemonForm(pokeapiId);
@@ -588,9 +611,12 @@ export async function importAllItems(): Promise<ImportResult> {
 }
 
 /** Import a single Pokémon by PokeAPI ID with full dependency resolution */
-export async function importPokemonById(pokeapiId: number): Promise<number> {
+export async function importPokemonById(
+  pokeapiId: number,
+  opts: { forceRefresh?: boolean; overwriteEdited?: boolean } = {},
+): Promise<number> {
   console.log(`🔴 Importing Pokémon #${pokeapiId}...`);
-  const dbId = await ensurePokemon(pokeapiId);
+  const dbId = await ensurePokemon(pokeapiId, opts);
 
   // Find the chain via PokeAPI (cached fetch — no DB roundtrip needed)
   try {
@@ -612,7 +638,7 @@ export async function importPokemonById(pokeapiId: number): Promise<number> {
           const defaultPokeapiId = client.extractIdFromUrl(defaultVariety.pokemon.url);
           if (defaultPokeapiId !== pokeapiId) {
             console.log(`  ↪ Also importing family member #${defaultPokeapiId}...`);
-            await ensurePokemon(defaultPokeapiId);
+            await ensurePokemon(defaultPokeapiId, opts);
           }
         }
       } catch (e) {
@@ -637,65 +663,7 @@ export async function importPokemonById(pokeapiId: number): Promise<number> {
  * with siblings sorted by dexNumber.
  * Run after any Pokemon import to keep ordering up-to-date.
  */
-export async function computeDexOrder(): Promise<void> {
-  const allSpecies = await db.select({
-    id: schema.pokemonSpecies.id,
-    dexNumber: schema.pokemonSpecies.dexNumber,
-  }).from(schema.pokemonSpecies);
 
-  const speciesById = new Map(allSpecies.map(sp => [sp.id, sp]));
-
-  // Derive species-level parent from the linked-list: each species' default pokemon
-  // has an evolvesFromPokemonId pointing at a parent pokemon → that pokemon's species
-  // is the parent species.
-  const defaultRows = await db.select({
-    id: schema.pokemon.id,
-    speciesId: schema.pokemon.speciesId,
-    evolvesFromPokemonId: schema.pokemon.evolvesFromPokemonId,
-  }).from(schema.pokemon).where(eq(schema.pokemon.isDefault, true));
-
-  const pokemonToSpecies = new Map<number, number>();
-  for (const d of defaultRows) pokemonToSpecies.set(d.id, d.speciesId);
-
-  const speciesParent = new Map<number, number | null>();
-  for (const d of defaultRows) {
-    const parent = d.evolvesFromPokemonId != null ? (pokemonToSpecies.get(d.evolvesFromPokemonId) ?? null) : null;
-    speciesParent.set(d.speciesId, parent);
-  }
-
-  // Build parent → children map (null key = roots)
-  const children = new Map<number | null, number[]>();
-  children.set(null, []);
-  for (const sp of allSpecies) {
-    const parentId = speciesParent.get(sp.id) ?? null;
-    if (!children.has(parentId)) children.set(parentId, []);
-    children.get(parentId)!.push(sp.id);
-  }
-
-  const byDexNumber = (a: number, b: number) =>
-    (speciesById.get(a)!.dexNumber) - (speciesById.get(b)!.dexNumber);
-
-  const roots = (children.get(null) ?? []).sort(byDexNumber);
-
-  const updates: { id: number; dexOrder: number }[] = [];
-  let counter = 1;
-
-  function visit(id: number) {
-    updates.push({ id, dexOrder: counter++ });
-    const kids = (children.get(id) ?? []).sort(byDexNumber);
-    for (const kid of kids) visit(kid);
-  }
-
-  for (const rootId of roots) visit(rootId);
-
-  for (const { id, dexOrder } of updates) {
-    await db.update(schema.pokemonSpecies)
-      .set({ dexOrder })
-      .where(eq(schema.pokemonSpecies.id, id));
-  }
-
-  console.log(`✅ computeDexOrder: assigned order to ${updates.length} species`);
-}
 
 // Cosmetic/event-only variety name patterns irrelevant for a ROM hack wiki.
 const SKIP_VARIETY_PATTERNS = [
@@ -714,7 +682,9 @@ function isUnwantedVariety(name: string): boolean {
  * Skips cosmetic/event-only variants (totems, cap Pikachus, Let's Go starters).
  * Call this after a range import to pick up Alolan, Galarian, Hisuian, Gigantamax, etc.
  */
-export async function importAllRegionalForms(): Promise<ImportResult> {
+export async function importAllRegionalForms(
+  opts: { forceRefresh?: boolean; overwriteEdited?: boolean } = {},
+): Promise<ImportResult> {
   const result = emptyResult('regional_forms');
 
   const allSpecies = await db.select({
@@ -736,7 +706,7 @@ export async function importAllRegionalForms(): Promise<ImportResult> {
         const pokemonPokeapiId = client.extractIdFromUrl(variety.pokemon.url);
         try {
           console.log(`  🌍 Importing variant: ${variety.pokemon.name} (#${pokemonPokeapiId})`);
-          await ensurePokemon(pokemonPokeapiId);
+          await ensurePokemon(pokemonPokeapiId, opts);
           result.inserted++;
         } catch (e) {
           result.errors.push({ id: pokemonPokeapiId, error: (e as Error).message });
@@ -796,13 +766,16 @@ export async function importMovesByRegion(regionPokeapiId: number): Promise<Impo
   return result;
 }
 
-export async function importPokemonByRegion(regionPokeapiId: number): Promise<ImportResult> {
+export async function importPokemonByRegion(
+  regionPokeapiId: number,
+  opts: { forceRefresh?: boolean; overwriteEdited?: boolean } = {},
+): Promise<ImportResult> {
   const result = emptyResult('pokemon');
   const gen = await fetchGenerationForRegion(regionPokeapiId);
   result.total = gen.pokemon_species.length;
   for (const ref of gen.pokemon_species) {
     const id = client.extractIdFromUrl(ref.url);
-    try { await ensurePokemon(id); result.inserted++; }
+    try { await ensurePokemon(id, opts); result.inserted++; }
     catch (e) { result.errors.push({ id, error: (e as Error).message }); }
   }
   return result;
@@ -810,13 +783,17 @@ export async function importPokemonByRegion(regionPokeapiId: number): Promise<Im
 
 /** Import a range of Pokémon (e.g. 1-151 for Gen 1).
  *  Uses importPokemonById so evo chain members and cross-gen evolutions are included. */
-export async function importPokemonByRange(from: number, to: number): Promise<ImportResult> {
+export async function importPokemonByRange(
+  from: number,
+  to: number,
+  opts: { forceRefresh?: boolean; overwriteEdited?: boolean } = {},
+): Promise<ImportResult> {
   const result = emptyResult('pokemon');
   result.total = to - from + 1;
 
   for (let id = from; id <= to; id++) {
     try {
-      await importPokemonById(id);
+      await importPokemonById(id, opts);
       result.inserted++;
       console.log(`  ✅ #${id} done (${result.inserted}/${result.total})`);
     } catch (e) {

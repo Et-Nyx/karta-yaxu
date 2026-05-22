@@ -3,6 +3,7 @@
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import TypeBadge from '$lib/components/TypeBadge.svelte';
+  import StatBar from '$lib/components/StatBar.svelte';
   import InfoBox from '$lib/components/InfoBox.svelte';
   import Tabs from '$lib/components/Tabs.svelte';
   import PokemonCard from '$lib/components/PokemonCard.svelte';
@@ -20,16 +21,29 @@
   // --- Main update form state ---
   let nameVal = $state(data.pokemon.name);
   let slugVal = $state(data.pokemon.slug);
+  let slugManuallyEdited = $state(false);
+
+  $effect(() => {
+    if (!slugManuallyEdited) {
+      slugVal = nameVal
+        .toLowerCase()
+        .trim()
+        .replace(/[^\w\s-]/g, '')
+        .replace(/[\s_-]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+    }
+  });
+
   let speciesIdVal = $state(data.pokemon.speciesId);
   let heightVal = $state(data.pokemon.height);
   let weightVal = $state(data.pokemon.weight);
-  let isDefaultVal = $state(data.pokemon.isDefault);
-  let orderVal = $state<number | ''>(data.pokemon.order ?? '');
+  let isDefaultVal = $derived(data.pokemon.isDefault);
 
   let spriteDefaultVal = $state(data.pokemon.spriteDefault ?? '');
   let spriteShinyVal = $state(data.pokemon.spriteShiny ?? '');
   let spriteArtworkVal = $state(data.pokemon.spriteArtwork ?? '');
   let isShiny = $state(false);
+  let copySourceVgId = $state('');
   let currentSpriteUrl = $derived(
     isShiny
       ? (data.pokemon.pokeapiId
@@ -59,6 +73,17 @@
 
   // --- Species lookup for header display ---
   let currentSpecies = $derived(data.species.find(s => s.id === speciesIdVal));
+
+  // --- Species detailed derived helpers ---
+  let genderText = $derived(() => {
+    const gr = data.currentSpeciesDetail?.genderRate;
+    if (gr === null || gr === undefined) return 'UNKNOWN';
+    if (gr === -1)   return 'GENDERLESS';
+    if (gr === 0)    return '100% ♂';
+    if (gr === 8)    return '100% ♀';
+    const femaleChance = Math.round((gr / 8) * 100);
+    return `${100 - femaleChance}% ♂ / ${femaleChance}% ♀`;
+  });
 
   // --- Learnset ---
   let moveQuery = $state('');
@@ -194,8 +219,6 @@
     <input type="hidden" name="spriteDefault" value={spriteDefaultVal} />
     <input type="hidden" name="spriteShiny"   value={spriteShinyVal} />
     <input type="hidden" name="spriteArtwork" value={spriteArtworkVal} />
-    <input type="hidden" name="order"          value={orderVal} />
-    <input type="hidden" name="isDefault"      value={isDefaultVal ? 'true' : ''} />
     <input type="hidden" name="slot1TypeId"    value={slot1TypeId    ?? ''} />
     <input type="hidden" name="slot2TypeId"    value={slot2TypeId    ?? ''} />
     <input type="hidden" name="slot1AbilityId" value={slot1AbilityVal ?? ''} />
@@ -207,8 +230,8 @@
       <div class="dex-num">#{(currentSpecies?.dexNumber ?? 0).toString().padStart(3, '0')}</div>
       <div class="header-main">
         <input class="h1-input" name="name" type="text" maxlength="80" required bind:value={nameVal} />
-        {#if currentSpecies}
-          <div class="genus">{currentSpecies.name}</div>
+        {#if data.genus}
+          <div class="genus">{data.genus}</div>
         {/if}
       </div>
       <div class="types">
@@ -225,18 +248,17 @@
     <div class="meta-strip">
       <div class="meta-field">
         <label class="meta-label">SLUG</label>
-        <input class="meta-input" name="slug" type="text" maxlength="80" pattern="[a-z0-9-]+" required bind:value={slugVal} />
+        <input class="meta-input" name="slug" type="text" maxlength="80" pattern="[a-z0-9-]+" required bind:value={slugVal} oninput={() => slugManuallyEdited = true} />
       </div>
       <div class="meta-field">
         <label class="meta-label">SPECIES</label>
-        <select class="meta-select" name="speciesId" required bind:value={speciesIdVal}>
-          {#each data.species as s}
-            <option value={s.id}>#{s.dexNumber} {s.name}</option>
-          {/each}
-        </select>
+        <RetroSelect
+          name="speciesId"
+          bind:value={speciesIdVal}
+          options={data.species.map(s => ({ value: s.id, label: `#${s.dexNumber} ${s.name}` }))}
+          variant="editor"
+        />
       </div>
-      {#if data.pokemon.pokeapiId}
-      {/if}
       <div class="meta-actions">
         <button type="submit" class="save-btn">SAVE</button>
         <a href="." class="cancel-link">CANCEL</a>
@@ -402,27 +424,12 @@
     <div class="stats-cell">
       <InfoBox title="BASE STATS">
         <div class="stats-container">
-          {#each [
-            { label: 'HP',      key: 'hp',  get: () => hpVal,  set: (v: number) => { hpVal  = v; } },
-            { label: 'ATTACK',  key: 'atk', get: () => atkVal, set: (v: number) => { atkVal = v; } },
-            { label: 'DEFENSE', key: 'def', get: () => defVal, set: (v: number) => { defVal = v; } },
-            { label: 'SP. ATK', key: 'spa', get: () => spaVal, set: (v: number) => { spaVal = v; } },
-            { label: 'SP. DEF', key: 'spd', get: () => spdVal, set: (v: number) => { spdVal = v; } },
-            { label: 'SPEED',   key: 'spe', get: () => speVal, set: (v: number) => { speVal = v; } },
-          ] as stat}
-            <div class="stat-edit-row">
-              <span class="stat-edit-label">{stat.label}</span>
-              <input
-                class="stat-edit-input"
-                type="number" min="0" max="255"
-                value={stat.get()}
-                oninput={(e) => stat.set(Math.max(0, Math.min(255, Number((e.currentTarget as HTMLInputElement).value))))}
-              />
-              <div class="stat-bar-only">
-                <div class="stat-bar-fill" style="width: {(stat.get() / 255) * 100}%;"></div>
-              </div>
-            </div>
-          {/each}
+          <StatBar name="hp" bind:value={hpVal} max={255} editable={true} />
+          <StatBar name="attack" bind:value={atkVal} max={255} editable={true} />
+          <StatBar name="defense" bind:value={defVal} max={255} editable={true} />
+          <StatBar name="special-attack" bind:value={spaVal} max={255} editable={true} />
+          <StatBar name="special-defense" bind:value={spdVal} max={255} editable={true} />
+          <StatBar name="speed" bind:value={speVal} max={255} editable={true} />
           <div class="stat-total">
             <span class="label">TOTAL:</span>
             <span class="value">{totalStats}</span>
@@ -501,37 +508,56 @@
             <span class="data-label">HEIGHT</span>
             <div class="data-input-wrap">
               <input class="data-input" type="number" min="0" bind:value={heightVal} />
-              <span class="data-unit">dm</span>
+              <span class="data-unit">m</span>
             </div>
           </li>
           <li class="data-edit-row">
             <span class="data-label">WEIGHT</span>
             <div class="data-input-wrap">
               <input class="data-input" type="number" min="0" bind:value={weightVal} />
-              <span class="data-unit">hg</span>
+              <span class="data-unit">kg</span>
             </div>
           </li>
           <li class="data-edit-row">
-            <span class="data-label">ORDER</span>
-            <input class="data-input" type="number" bind:value={orderVal} />
+            <span class="data-label">CAPTURE</span>
+            <span class="data-value">{data.currentSpeciesDetail?.captureRate ?? '—'}</span>
+          </li>
+          <li class="data-edit-row">
+            <span class="data-label">GENDER</span>
+            <span class="data-value">{genderText()}</span>
+          </li>
+          <li class="data-edit-row">
+            <span class="data-label">EGG GROUPS</span>
+            <span class="data-value">
+              {data.currentEggGroups.map(e => e.name.toUpperCase()).join(', ') || '—'}
+            </span>
+          </li>
+          <li class="data-edit-row">
+            <span class="data-label">HABITAT</span>
+            <span class="data-value">{data.currentSpeciesDetail?.habitat?.toUpperCase() || '—'}</span>
+          </li>
+          <li class="data-edit-row">
+            <span class="data-label">GROWTH</span>
+            <span class="data-value">{data.currentSpeciesDetail?.growthRate?.toUpperCase() || '—'}</span>
+          </li>
+          <li class="data-edit-row">
+            <span class="data-label">HAPPINESS</span>
+            <span class="data-value">{data.currentSpeciesDetail?.baseHappiness ?? '—'}</span>
           </li>
           <li class="data-edit-row">
             <span class="data-label">ID</span>
             <span class="data-value">{data.pokemon.id}</span>
           </li>
-          {#if data.pokemon.pokeapiId}
-            <li class="data-edit-row">
-              <span class="data-label">POKEAPI</span>
-              <span class="data-value">{data.pokemon.pokeapiId}</span>
-            </li>
-          {/if}
-          <li class="data-check-row">
-            <label class="data-check-label">
-              <input type="checkbox" bind:checked={isDefaultVal} />
-              SPECIES DEFAULT
-            </label>
+          <li class="data-edit-row">
+            <span class="data-label">IS DEFAULT</span>
+            <span class="data-value">{isDefaultVal ? 'YES' : 'NO'}</span>
           </li>
         </ul>
+        {#if data.currentSpeciesDetail}
+          <a href="/editor/species/{data.currentSpeciesDetail.slug}" class="edit-species-btn">
+            ✎ EDIT SPECIES DETAILS
+          </a>
+        {/if}
       </InfoBox>
     </div>
 
@@ -656,6 +682,7 @@
           <input type="hidden" name="targetVgId" value={data.selectedVgId}>
           <RetroSelect
             name="sourceVgId"
+            bind:value={copySourceVgId}
             options={[
               { value: '', label: '— PICK SOURCE VG —' },
               ...data.vgCounts.filter(v => v.id !== data.selectedVgId && v.count > 0).map(v => ({ value: v.id, label: `${v.slug.toUpperCase()} (${v.count})` }))
@@ -773,6 +800,7 @@
     color: var(--theme-text-primary); background: none;
     border: none; border-bottom: 2px solid transparent;
     width: 100%; outline: none; padding: 0;
+    text-transform: uppercase;
   }
   .h1-input:focus { border-bottom-color: var(--theme-text-accent); }
   .genus { font-family: var(--font-mono); font-size: 12px; color: var(--theme-text-secondary); }
@@ -802,11 +830,7 @@
   .wiki-link:hover { text-decoration: underline; }
   .meta-actions { display: flex; align-items: center; gap: var(--spacing-3); margin-left: auto; }
 
-  /* Source badges */
-  .src-badge { font-family: var(--font-display); font-size: 8px; padding: 2px 6px; border: 2px solid var(--theme-border-primary); }
-  .src-pokeapi { color: var(--theme-text-muted); }
-  .src-edited  { color: var(--theme-text-accent); border-color: var(--theme-text-accent); }
-  .src-custom  { color: var(--color-text-warning); border-color: var(--color-text-warning); }
+
 
   /* Shared button styles */
   .save-btn {
@@ -825,9 +849,7 @@
   .cancel-link { font-family: var(--font-display); font-size: 9px; color: var(--theme-text-secondary); text-decoration: none; }
   .cancel-link:hover { color: var(--theme-text-primary); }
   .save-ok { font-family: var(--font-mono); font-size: 10px; color: var(--theme-text-accent); }
-  .save-ok-sm { font-family: var(--font-mono); font-size: 10px; color: var(--theme-text-accent); }
   .form-error { font-family: var(--font-mono); font-size: 10px; color: var(--color-text-error); }
-  .form-error-sm { font-family: var(--font-mono); font-size: 9px; color: var(--color-text-error); }
   .delete-btn-sm {
     font-family: var(--font-display); font-size: 9px; color: var(--color-text-error);
     background: none; border: 2px solid var(--color-text-error);
@@ -884,29 +906,18 @@
     padding: 2px var(--spacing-2);
   }
 
-  /* Stat editing rows */
-  .stats-container { display: flex; flex-direction: column; gap: var(--spacing-1); }
-  .stat-edit-row { display: flex; align-items: center; gap: var(--spacing-2); }
-  .stat-edit-label { width: 60px; font-family: var(--font-display); font-size: 8px; color: var(--theme-text-secondary); text-align: right; flex-shrink: 0; }
-  .stat-edit-input {
-    width: 44px; background: none; border: none; border-bottom: 1px solid var(--theme-border-primary);
-    color: var(--theme-text-primary); font-family: var(--font-mono); font-size: 12px;
-    font-weight: bold; text-align: center; outline: none; flex-shrink: 0;
+  .stats-container { display: flex; flex-direction: column; gap: var(--spacing-2); }
+  .stat-total {
+    display: flex;
+    justify-content: space-between;
+    margin-top: var(--spacing-4);
+    padding-top: var(--spacing-4);
+    border-top: 2px dashed var(--theme-border-primary);
+    font-family: var(--font-display);
+    font-size: 12px;
+    color: var(--theme-text-primary);
   }
-  .stat-edit-input:focus { border-bottom-color: var(--theme-text-accent); }
-  .stat-bar-only {
-    flex: 1;
-    height: 10px;
-    background-color: var(--theme-bg-secondary);
-    border: 2px solid var(--theme-border-primary);
-  }
-  .stat-bar-fill {
-    height: 100%;
-    background-color: var(--theme-text-accent);
-  }
-  .stat-total { display: flex; justify-content: flex-end; gap: var(--spacing-3); margin-top: var(--spacing-2); font-family: var(--font-display); font-size: 10px; color: var(--theme-text-secondary); }
-  .stat-total .value { color: var(--theme-text-primary); font-family: var(--font-mono); }
-  .stat-save-row { display: flex; align-items: center; gap: var(--spacing-3); margin-top: var(--spacing-2); }
+
   .save-btn-sm {
     font-family: var(--font-display); font-size: 10px;
     padding: 2px var(--spacing-3);
@@ -916,19 +927,63 @@
   .save-btn-sm:hover { background-color: var(--theme-text-accent); color: var(--theme-bg-primary); }
 
   /* Data cell */
-  .data-edit-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--spacing-3); }
-  .data-edit-row { display: flex; align-items: center; gap: var(--spacing-3); }
-  .data-label { font-family: var(--font-display); font-size: 9px; color: var(--theme-text-muted); width: 60px; flex-shrink: 0; }
+  .data-edit-list { list-style: none; padding: 0; margin: 0; }
+  .data-edit-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-2) 0;
+    border-bottom: 1px solid var(--theme-border-primary);
+  }
+  .data-edit-list li:last-child { border-bottom: none; }
+  .data-label { font-family: var(--font-display); font-size: 9px; color: var(--theme-text-muted); }
   .data-value { font-family: var(--font-mono); font-size: 12px; color: var(--theme-text-primary); }
   .data-input-wrap { display: flex; align-items: center; gap: var(--spacing-2); }
   .data-input {
-    width: 70px; background-color: var(--theme-bg-primary); border: 2px solid var(--theme-border-primary);
-    color: var(--theme-text-primary); font-family: var(--font-mono); font-size: 12px;
-    padding: 2px var(--spacing-2);
+    width: 50px;
+    height: 24px;
+    background-color: var(--theme-bg-secondary);
+    border: 2px solid var(--theme-border-primary);
+    box-shadow: 2px 2px 0 var(--theme-border-primary);
+    color: var(--theme-text-primary);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: bold;
+    text-align: center;
+    outline: none;
+    box-sizing: border-box;
+    padding: 0;
+    -moz-appearance: textfield;
+  }
+  .data-input::-webkit-outer-spin-button,
+  .data-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  .data-input:focus {
+    border-color: var(--theme-text-accent);
   }
   .data-unit { font-family: var(--font-mono); font-size: 10px; color: var(--theme-text-muted); }
-  .data-check-row { display: flex; align-items: center; }
-  .data-check-label { display: flex; align-items: center; gap: var(--spacing-2); font-family: var(--font-display); font-size: 9px; color: var(--theme-text-muted); cursor: pointer; }
+  .edit-species-btn {
+    display: block;
+    text-align: center;
+    font-family: var(--font-display);
+    font-size: 10px;
+    color: var(--theme-text-accent);
+    border: 2px solid var(--theme-border-primary);
+    background-color: var(--theme-bg-secondary);
+    padding: var(--spacing-2) var(--spacing-3);
+    margin-top: var(--spacing-3);
+    text-decoration: none;
+    box-shadow: 2px 2px 0 var(--theme-border-primary);
+    transition: all var(--transition-bounce);
+  }
+  .edit-species-btn:hover {
+    background-color: var(--theme-text-accent);
+    color: var(--theme-bg-primary);
+    transform: translate(-1px, -1px);
+    box-shadow: 3px 3px 0 var(--theme-border-primary);
+  }
 
   /* Sub-forms inside InfoBox (types, abilities) */
   .sub-form-inline { display: flex; flex-direction: column; gap: var(--spacing-3); }
@@ -939,7 +994,7 @@
     color: var(--theme-text-primary); font-family: var(--font-mono); font-size: 11px;
     padding: 2px var(--spacing-2);
   }
-  .sub-actions { display: flex; align-items: center; gap: var(--spacing-3); margin-top: var(--spacing-1); }
+
 
   /* Tab sections */
   .tab-section { display: flex; flex-direction: column; gap: var(--spacing-4); }
@@ -1047,8 +1102,7 @@
   .form-tile-no-sprite { width: 80px; height: 80px; }
   .form-tile-types { display: flex; gap: var(--spacing-1); flex-wrap: wrap; justify-content: center; }
 
-  .default-flag { font-family: var(--font-display); font-size: 9px; color: var(--theme-text-accent); margin-left: var(--spacing-2); }
-  .default-badge { font-family: var(--font-display); font-size: 9px; color: var(--theme-text-accent); letter-spacing: 0.05em; }
+
   .field { display: flex; flex-direction: column; gap: var(--spacing-1); }
   .field { display: flex; flex-direction: column; gap: var(--spacing-1); }
   .field label { font-family: var(--font-display); font-size: 9px; color: var(--theme-text-muted); }
@@ -1058,8 +1112,7 @@
     padding: var(--spacing-1) var(--spacing-2);
   }
   .field.full { grid-column: 1 / -1; }
-  .field-check { flex-direction: row; align-items: center; }
-  .field-check label { display: flex; align-items: center; gap: var(--spacing-2); flex-direction: row; }
+
   .add-toggle { margin-top: var(--spacing-2); }
   .add-toggle summary { font-family: var(--font-display); font-size: 10px; color: var(--theme-text-accent); cursor: pointer; }
   .add-form { margin-top: var(--spacing-3); }
@@ -1094,5 +1147,5 @@
   .delete-form { display: flex; align-items: center; gap: var(--spacing-4); padding: var(--spacing-3); border: 2px dashed var(--color-text-error); }
   .delete-btn { font-family: var(--font-display); font-size: 10px; color: var(--color-text-error); background: none; border: 2px solid var(--color-text-error); padding: var(--spacing-2) var(--spacing-4); cursor: pointer; }
   .delete-hint { font-family: var(--font-mono); font-size: 10px; color: var(--theme-text-muted); }
-  .empty-state { font-family: var(--font-mono); font-size: 11px; color: var(--theme-text-muted); }
+
 </style>

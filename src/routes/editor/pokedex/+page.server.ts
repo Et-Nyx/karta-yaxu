@@ -27,7 +27,7 @@ export const load: PageServerLoad = async () => {
     isMainSeries: pokedexes.isMainSeries,
     source:       pokedexes.source,
     pokeapiId:    pokedexes.pokeapiId,
-  }).from(pokedexes).orderBy(asc(pokedexes.slug));
+  }).from(pokedexes).orderBy(asc(pokedexes.id));
 
   const regionList = await db.select({
     id:   regions.id,

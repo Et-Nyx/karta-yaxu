@@ -10,9 +10,15 @@
 
   let { data } = $props();
 
-  const m = data.move;
+  let m = $derived(data.move);
 
   let selectedVersionGroupId = $state<number | null>(null);
+
+  $effect(() => {
+    // Reactively reset selectedVersionGroupId on page transition
+    data;
+    selectedVersionGroupId = null;
+  });
 
   $effect(() => {
     if (selectedVersionGroupId === null && data.flavorTexts.length > 0) {

@@ -84,6 +84,7 @@ export const actions: Actions = {
         isMythical:   data.isMythical,
         source:       'custom',
         pokeapiId:    null,
+        defaultPokemonId: null,
       }).returning({ id: pokemonSpecies.id }).all();
 
       const [newPokemon] = tx.insert(pokemon).values({
@@ -101,11 +102,14 @@ export const actions: Actions = {
         spriteDefault: null,
         spriteShiny:   null,
         spriteArtwork: null,
-        isDefault:     true,
-        order:         null,
         source:        'custom',
         pokeapiId:     null,
       }).returning({ id: pokemon.id }).all();
+
+      tx.update(pokemonSpecies)
+        .set({ defaultPokemonId: newPokemon.id })
+        .where(eq(pokemonSpecies.id, newSpecies.id))
+        .run();
 
       const [newForm] = tx.insert(pokemonForms).values({
         pokemonId:     newPokemon.id,

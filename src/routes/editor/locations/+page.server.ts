@@ -31,7 +31,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     })
     .from(locations)
     .leftJoin(regions, eq(locations.regionId, regions.id))
-    .orderBy(asc(locations.name));
+    .orderBy(asc(regions.name), asc(locations.name));
 
   const [{ total }] = await db.select({ total: count() }).from(locations);
 

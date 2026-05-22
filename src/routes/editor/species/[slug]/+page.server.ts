@@ -54,6 +54,7 @@ const UpdateSchema = z.object({
   generationId:  intOrNull,
   order:         intOrNull,
   dexOrder:      intOrNull,
+  defaultPokemonId: intOrNull,
 });
 
 export const load: PageServerLoad = async ({ params }) => {
@@ -66,13 +67,15 @@ export const load: PageServerLoad = async ({ params }) => {
     slug: generations.slug,
   }).from(generations).orderBy(asc(generations.id));
 
-  const pokemonRows = await db.select({
+  const pokemonRows = (await db.select({
     id:        pokemon.id,
     slug:      pokemon.slug,
     name:      pokemon.name,
-    isDefault: pokemon.isDefault,
     source:    pokemon.source,
-  }).from(pokemon).where(eq(pokemon.speciesId, row.id)).orderBy(asc(pokemon.id));
+  }).from(pokemon).where(eq(pokemon.speciesId, row.id)).orderBy(asc(pokemon.id))).map(p => ({
+    ...p,
+    isDefault: p.id === row.defaultPokemonId,
+  }));
 
   const allEggGroups = await db.select({
     id:   eggGroups.id,
@@ -136,6 +139,7 @@ export const actions: Actions = {
       generationId:  data.generationId,
       order:         data.order,
       dexOrder:      data.dexOrder,
+      defaultPokemonId: data.defaultPokemonId,
       source:        bumpSource(current.source),
     };
 

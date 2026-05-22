@@ -37,6 +37,7 @@ export const pokemonSpecies = sqliteTable('pokemon_species', {
   generationId: integer('generation_id').references(() => generations.id),
   order: integer('order'),
   dexOrder: integer('dex_order'),
+  defaultPokemonId: integer('default_pokemon_id'),
 });
 
 export const pokemonFlavorTexts = sqliteTable('pokemon_flavor_texts', {
@@ -83,8 +84,6 @@ export const pokemon = sqliteTable('pokemon', {
   spriteDefault: text('sprite_default'),
   spriteShiny: text('sprite_shiny'),
   spriteArtwork: text('sprite_artwork'),
-  isDefault: integer('is_default', { mode: 'boolean' }).notNull().default(true),
-  order: integer('order'),
   evolvesFromPokemonId: integer('evolves_from_pokemon_id'), // self-FK to pokemon.id (no Drizzle constraint to avoid circular refs)
   formOfPokemonId: integer('form_of_pokemon_id'),           // self-FK: set on alt forms (mega, gmax, regional) pointing to the base entry
   formType: text('form_type'),                              // 'mega' | 'gmax' | 'regional' | 'battle' | 'other'

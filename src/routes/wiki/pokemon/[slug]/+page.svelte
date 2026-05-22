@@ -44,13 +44,19 @@
   });
 
   // Version Mechanics
-  const versionIdsWithData = new Set([
+  let versionIdsWithData = $derived(new Set([
     ...data.flavorTexts.map(f => f.versionGroupId),
     ...data.learnset.map(l => l.versionGroupId)
-  ]);
+  ]));
 
   let validVersions = $derived(data.availableVersions.filter(v => versionIdsWithData.has(v.id)));
   let selectedVersionId = $state<number | null>(null);
+
+  $effect(() => {
+    // Reactively reset selectedVersionId on page transition
+    data;
+    selectedVersionId = null;
+  });
 
   $effect(() => {
     if (selectedVersionId === null && validVersions.length > 0) {
@@ -287,9 +293,10 @@
     return tabs;
   });
 
-  let activeChainTab = $state<string>(
-    data.formSuffix ? data.formSuffix.toUpperCase() : 'EVOLUTION'
-  );
+  let activeChainTab = $state<string>('EVOLUTION');
+  $effect(() => {
+    activeChainTab = data.formSuffix ? data.formSuffix.toUpperCase() : 'EVOLUTION';
+  });
 
   let activeTab = $derived(chainTabs().find(t => t.label === activeChainTab) ?? chainTabs()[0]);
 
@@ -827,16 +834,7 @@
       overflow: hidden;
     }
 
-    /* Tighter box padding throughout */
-    .info-box {
-      padding: var(--spacing-3);
-    }
 
-    .info-box h3 {
-      font-size: 10px;
-      margin-bottom: var(--spacing-2);
-      padding-bottom: var(--spacing-1);
-    }
 
     .data-list {
       gap: var(--spacing-2);
@@ -873,21 +871,7 @@
 
   /* ── Shared Box ──────────────────────────────────────────────────────────── */
 
-  .info-box {
-    background-color: var(--theme-bg-secondary);
-    border: 4px solid var(--theme-border-primary);
-    box-shadow: var(--shadow-card);
-    padding: var(--spacing-4);
-  }
 
-  .info-box h3 {
-    font-family: var(--font-display);
-    font-size: 12px;
-    color: var(--theme-text-primary);
-    margin: 0 0 var(--spacing-4) 0;
-    border-bottom: 2px solid var(--theme-border-primary);
-    padding-bottom: var(--spacing-2);
-  }
 
   /* ── Image ───────────────────────────────────────────────────────────────── */
 

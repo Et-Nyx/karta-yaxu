@@ -32,10 +32,7 @@ export const load: PageServerLoad = async ({ params }) => {
   })
   .from(schema.pokedexEntries)
   .innerJoin(schema.pokemonSpecies, eq(schema.pokedexEntries.speciesId, schema.pokemonSpecies.id))
-  .innerJoin(schema.pokemon, and(
-    eq(schema.pokemon.speciesId, schema.pokemonSpecies.id),
-    eq(schema.pokemon.isDefault, true),
-  ))
+  .innerJoin(schema.pokemon, eq(schema.pokemon.id, schema.pokemonSpecies.defaultPokemonId))
   .where(eq(schema.pokedexEntries.pokedexId, pokedex.id))
   .orderBy(asc(schema.pokedexEntries.entryNumber));
 

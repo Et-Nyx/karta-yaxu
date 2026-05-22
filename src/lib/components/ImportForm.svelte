@@ -20,6 +20,7 @@
     action,
     fields = [] as Field[],
     submitLabel = 'IMPORT',
+    showOverwriteOption = false,
   } = $props();
 
   let btnState: 'idle' | 'loading' | 'success' | 'error' = $state('idle');
@@ -69,6 +70,19 @@
           {/if}
         </div>
       {/each}
+
+      {#if showOverwriteOption}
+        <div class="field checkbox-field">
+          <input
+            id="overwriteEdited"
+            type="checkbox"
+            name="overwriteEdited"
+            value="true"
+            class="checkbox-input"
+          />
+          <label for="overwriteEdited" class="checkbox-label">OVERWRITE MANUAL EDITS</label>
+        </div>
+      {/if}
 
       <button
         type="submit"
@@ -134,6 +148,24 @@
   }
 
   input[type="text"] { width: 120px; }
+
+  .checkbox-field {
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .checkbox-input {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: var(--theme-text-primary);
+  }
+
+  .checkbox-label {
+    font-size: 9px;
+    color: var(--theme-text-secondary);
+    cursor: pointer;
+  }
 
   .select-input {
     background-color: var(--theme-bg-primary);

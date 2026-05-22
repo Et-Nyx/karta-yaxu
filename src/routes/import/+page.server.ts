@@ -24,7 +24,6 @@ import {
   importPokemonById,
   importPokemonByRange,
   importAllRegionalForms,
-  computeDexOrder,
   ensureType,
   ensureAbility,
   ensureMove,
@@ -342,9 +341,10 @@ export const actions: Actions = {
   importPokemonByRegion: async ({ request }) => {
     const fd = await request.formData();
     const id = parseId(fd.get('regionPokeapiId'));
+    const overwriteEdited = fd.get('overwriteEdited') === 'true';
     if (!id) return { success: false, error: 'Invalid region' };
     try {
-      const res = await importPokemonByRegion(id);
+      const res = await importPokemonByRegion(id, { forceRefresh: true, overwriteEdited });
       return { success: true, message: `Imported ${res.inserted}/${res.total} Pokémon for region` };
     } catch (e: any) {
       return { success: false, error: e.message };
@@ -353,9 +353,10 @@ export const actions: Actions = {
   importSinglePokemon: async ({ request }) => {
     const fd = await request.formData();
     const id = parseId(fd.get('pokeapiId'));
+    const overwriteEdited = fd.get('overwriteEdited') === 'true';
     if (!id) return { success: false, error: 'Invalid ID' };
     try {
-      await importPokemonById(id);
+      await importPokemonById(id, { forceRefresh: true, overwriteEdited });
       return { success: true, message: `Pokémon #${id} imported` };
     } catch (e: any) {
       return { success: false, error: e.message };
@@ -365,26 +366,21 @@ export const actions: Actions = {
     const fd = await request.formData();
     const from = parseId(fd.get('fromId'));
     const to = parseId(fd.get('toId'));
+    const overwriteEdited = fd.get('overwriteEdited') === 'true';
     if (!from || !to || from > to) return { success: false, error: 'Invalid range' };
     try {
-      const res = await importPokemonByRange(from, to);
+      const res = await importPokemonByRange(from, to, { forceRefresh: true, overwriteEdited });
       return { success: true, message: `Imported ${res.inserted} Pokémon (${res.errors.length} errors)` };
     } catch (e: any) {
       return { success: false, error: e.message };
     }
   },
-  importRegionalForms: async () => {
+  importRegionalForms: async ({ request }) => {
+    const fd = await request.formData();
+    const overwriteEdited = fd.get('overwriteEdited') === 'true';
     try {
-      const res = await importAllRegionalForms();
+      const res = await importAllRegionalForms({ forceRefresh: true, overwriteEdited });
       return { success: true, message: `Imported ${res.inserted}/${res.total} regional forms` };
-    } catch (e: any) {
-      return { success: false, error: e.message };
-    }
-  },
-  computeDexOrder: async () => {
-    try {
-      await computeDexOrder();
-      return { success: true, message: 'Dex order computed' };
     } catch (e: any) {
       return { success: false, error: e.message };
     }

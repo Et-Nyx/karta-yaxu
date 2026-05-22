@@ -1,9 +1,9 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import { z } from 'zod';
 import { db } from '$lib/db';
-import { pokemon, pokemonAbilities, pokemonEvolutionDetails, pokemonForms, pokemonMoves, pokemonSpecies, pokemonTypes } from '$lib/db/schema/pokemon';
+import { pokemon, pokemonAbilities, pokemonEvolutionDetails, pokemonForms, pokemonGenera, pokemonMoves, pokemonSpecies, pokemonTypes, eggGroups, speciesEggGroups } from '$lib/db/schema/pokemon';
 import { abilities, moveLearnMethods, moves, types } from '$lib/db/schema/core-data';
-import { versionGroups } from '$lib/db/schema/game-metadata';
+import { languages, versionGroups } from '$lib/db/schema/game-metadata';
 import { items } from '$lib/db/schema/items';
 import { and, asc, count, desc, eq, inArray, sql } from 'drizzle-orm';
 import { bumpSource } from '$lib/editor/source';
@@ -35,8 +35,6 @@ const UpdateSchema = z.object({
   spriteDefault: z.preprocess((v) => v === '' ? null : v, z.string().nullable()),
   spriteShiny:   z.preprocess((v) => v === '' ? null : v, z.string().nullable()),
   spriteArtwork: z.preprocess((v) => v === '' ? null : v, z.string().nullable()),
-  isDefault:      z.preprocess((v) => v === 'true' || v === 'on' || v === true, z.boolean()),
-  order:          intOrNull,
   slot1TypeId:    z.coerce.number().int().positive(),
   slot2TypeId:    z.preprocess((v) => (v === '' || v == null ? null : Number(v)), z.number().int().positive().nullable()),
   slot1AbilityId: z.coerce.number().int().positive(),
@@ -144,17 +142,18 @@ export const load: PageServerLoad = async ({ params, url }) => {
     pokeapiId:    pokemon.pokeapiId,
     name:         pokemon.name,
     slug:         pokemon.slug,
-    isDefault:    pokemon.isDefault,
+    isDefault:    sql<boolean>`(${pokemon.id} = ${pokemonSpecies.defaultPokemonId})`,
     spriteDefault: pokemon.spriteDefault,
     spriteArtwork: pokemon.spriteArtwork,
     typeName:     types.name,
     typeHexColor: types.hexColor,
   })
     .from(pokemon)
+    .innerJoin(pokemonSpecies, eq(pokemon.speciesId, pokemonSpecies.id))
     .innerJoin(pokemonTypes, eq(pokemonTypes.pokemonId, pokemon.id))
     .innerJoin(types, eq(pokemonTypes.typeId, types.id))
     .where(eq(pokemon.speciesId, row.speciesId))
-    .orderBy(desc(pokemon.isDefault), asc(pokemon.name), asc(pokemonTypes.slot));
+    .orderBy(desc(sql<boolean>`(${pokemon.id} = ${pokemonSpecies.defaultPokemonId})`), asc(pokemon.name), asc(pokemonTypes.slot));
 
   const formMap = new Map<string, {
     pokeapiId: number | null; name: string; slug: string;
@@ -347,8 +346,37 @@ export const load: PageServerLoad = async ({ params, url }) => {
       .orderBy(asc(pokemonMoves.learnMethodId), asc(pokemonMoves.level), asc(moves.name));
   }
 
+  // Genus (English)
+  const genusRow = await db.select({ genus: pokemonGenera.genus })
+    .from(pokemonGenera)
+    .innerJoin(languages, eq(pokemonGenera.languageId, languages.id))
+    .where(and(
+      eq(pokemonGenera.speciesId, row.speciesId),
+      eq(languages.name, 'en')
+    ))
+    .limit(1);
+
+  const genus = genusRow[0]?.genus ?? null;
+
+  const [speciesRow] = await db.select()
+    .from(pokemonSpecies)
+    .where(eq(pokemonSpecies.id, row.speciesId))
+    .limit(1);
+
+  const currentEggGroups = await db.select({ id: eggGroups.id, name: eggGroups.name })
+    .from(speciesEggGroups)
+    .innerJoin(eggGroups, eq(speciesEggGroups.eggGroupId, eggGroups.id))
+    .where(eq(speciesEggGroups.speciesId, row.speciesId));
+
+  const allEggGroups = await db.select({ id: eggGroups.id, name: eggGroups.name })
+    .from(eggGroups)
+    .orderBy(asc(eggGroups.name));
+
   return {
-    pokemon:    row,
+    pokemon:    {
+      ...row,
+      isDefault: row.id === speciesRow?.defaultPokemonId,
+    },
     types:      typeRows,
     abilities:  abilityRows,
     speciesForms,
@@ -366,6 +394,10 @@ export const load: PageServerLoad = async ({ params, url }) => {
     allLearnMethods,
     selectedVgId,
     learnset,
+    genus,
+    currentSpeciesDetail: speciesRow ?? null,
+    currentEggGroups,
+    allEggGroups,
   };
 };
 
@@ -402,8 +434,6 @@ export const actions: Actions = {
       spriteDefault: data.spriteDefault,
       spriteShiny:   data.spriteShiny,
       spriteArtwork: data.spriteArtwork,
-      isDefault:     data.isDefault,
-      order:         data.order,
       source:        bumpSource(current.source),
     };
 
@@ -412,16 +442,6 @@ export const actions: Actions = {
     await db.update(pokemonForms)
       .set({ spriteDefault: newRow.spriteDefault, spriteShiny: newRow.spriteShiny, spriteArtwork: newRow.spriteArtwork })
       .where(and(eq(pokemonForms.pokemonId, current.id), eq(pokemonForms.isDefault, true)));
-
-    // If there's only one form and it somehow lost its isDefault flag, restore it
-    if (data.isDefault) {
-      const forms = await db.select({ id: pokemonForms.id, isDefault: pokemonForms.isDefault })
-        .from(pokemonForms).where(eq(pokemonForms.pokemonId, current.id));
-      const hasDefault = forms.some(f => f.isDefault);
-      if (!hasDefault && forms.length === 1) {
-        await db.update(pokemonForms).set({ isDefault: true }).where(eq(pokemonForms.id, forms[0].id));
-      }
-    }
 
     // Update types
     await db.delete(pokemonTypes).where(eq(pokemonTypes.pokemonId, current.id));

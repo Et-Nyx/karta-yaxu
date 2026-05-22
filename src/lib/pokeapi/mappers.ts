@@ -454,9 +454,8 @@ export function mapPokemon(
       spriteDefault: data.sprites.front_default,
       spriteShiny: data.sprites.front_shiny,
       spriteArtwork: artwork,
-      isDefault: data.is_default,
-      order: data.order,
     },
+    isDefault: data.is_default,
     types: data.types.map(t => ({
       typePokeapiId: extractIdFromUrl(t.type.url),
       slot: t.slot,
