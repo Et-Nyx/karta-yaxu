@@ -233,16 +233,17 @@
   }
 
   .retro-select-trigger:hover {
-    background-color: var(--theme-text-accent);
-    color: var(--theme-bg-primary);
+    color: var(--theme-text-accent);
     border-color: var(--theme-text-accent);
     transform: translate(-1px, -1px);
-    box-shadow: 3px 3px 0 var(--theme-border-primary);
+    box-shadow: 3px 3px 0 var(--theme-text-accent);
   }
 
   .retro-select-trigger:active {
+    color: var(--theme-text-accent);
+    border-color: var(--theme-text-accent);
     transform: translate(1px, 1px);
-    box-shadow: 1px 1px 0 var(--theme-border-primary);
+    box-shadow: 1px 1px 0 var(--theme-text-accent);
   }
 
   .retro-select-trigger:focus, .retro-select-input:focus {
@@ -257,6 +258,11 @@
     font-size: 8px;
     color: var(--theme-text-primary);
     line-height: 1;
+    transition: color 0.1s ease;
+  }
+
+  .retro-select-wrapper:hover .retro-caret {
+    color: var(--theme-text-accent);
   }
 
   /* Dropdown Menu styling */
