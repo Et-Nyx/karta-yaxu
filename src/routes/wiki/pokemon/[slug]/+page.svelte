@@ -631,21 +631,22 @@
         {@const currentSp = data.chainSpecies.find(s => s.speciesId === data.pokemon.speciesId)}
         {@const baseForm = currentSp?.forms.find(f => f.isDefault) ?? currentSp?.forms[0]}
         <div class="evo-tree alternate-forms-tree">
-          {#each activeTab.forms as form}
-            <div class="evo-node-wrap">
-              {#if baseForm}
-                <div class="evo-card-cell" class:is-current={baseForm.slug === data.pokemon.slug}>
-                  <PokemonCard pokemon={{
-                    pokeapiId: baseForm.pokeapiId ?? 0,
-                    name: baseForm.name,
-                    slug: baseForm.slug,
-                    spriteUrl: baseForm.spriteUrl,
-                    types: baseForm.types,
-                    dexNumber: baseForm.dexNumber,
-                  }} />
-                </div>
-              {/if}
+          <div class="evo-node-wrap">
+            {#if baseForm}
+              <div class="evo-card-cell" class:is-current={baseForm.slug === data.pokemon.slug}>
+                <PokemonCard pokemon={{
+                  pokeapiId: baseForm.pokeapiId ?? 0,
+                  name: baseForm.name,
+                  slug: baseForm.slug,
+                  spriteUrl: baseForm.spriteUrl,
+                  types: baseForm.types,
+                  dexNumber: baseForm.dexNumber,
+                }} />
+              </div>
+            {/if}
 
+            {#if activeTab.forms.length === 1}
+              {@const form = activeTab.forms[0]}
               <div class="evo-conn-cell">
                 <span class="evo-method-tag">
                   {form.slug.includes('-mega') ? 'MEGA EVOLUTION' : 'GIGANTAMAX'}
@@ -663,8 +664,38 @@
                   dexNumber: form.dexNumber,
                 }} />
               </div>
-            </div>
-          {/each}
+            {:else if activeTab.forms.length > 1}
+              <div class="evo-chunks-wrap" use:drawBranchLine>
+                <div class="evo-stem"></div>
+                <div class="evo-branch-row">
+                  {#each activeTab.forms as form, i}
+                    <div class="evo-branch-child"
+                      class:first-branch={i === 0}
+                      class:last-branch={i === activeTab.forms.length - 1}
+                      class:mid-branch={i > 0 && i < activeTab.forms.length - 1}
+                    >
+                      <div class="evo-conn-cell">
+                        <span class="evo-method-tag">
+                          {form.slug.includes('-mega') ? 'MEGA EVOLUTION' : 'GIGANTAMAX'}
+                        </span>
+                        <span class="evo-down-arrow">↓</span>
+                      </div>
+                      <div class="evo-card-cell" class:is-current={form.slug === data.pokemon.slug}>
+                        <PokemonCard pokemon={{
+                          pokeapiId: form.pokeapiId ?? 0,
+                          name: form.name,
+                          slug: form.slug,
+                          spriteUrl: form.spriteUrl,
+                          types: form.types,
+                          dexNumber: form.dexNumber,
+                        }} />
+                      </div>
+                    </div>
+                  {/each}
+                </div>
+              </div>
+            {/if}
+          </div>
         </div>
       {:else}
         <div class="evo-tree">
