@@ -10,6 +10,7 @@
   import FlavorTextBox from '$lib/components/FlavorTextBox.svelte';
   import Tabs from '$lib/components/Tabs.svelte';
   import PokemonSpriteViewer from '$lib/components/PokemonSpriteViewer.svelte';
+  import PokemonDataList from '$lib/components/PokemonDataList.svelte';
   import { goto, afterNavigate } from '$app/navigation';
 
   let { data } = $props();
@@ -525,52 +526,16 @@
     <!-- Bottom-right: Data -->
     <div class="data-cell">
       <InfoBox title="DATA">
-        <ul class="data-list">
-          <li>
-            <span class="label">HEIGHT</span>
-            <span class="value">{p.height / 10} m</span>
-          </li>
-          <li>
-            <span class="label">WEIGHT</span>
-            <span class="value">{p.weight / 10} kg</span>
-          </li>
-          {#if s.captureRate !== null}
-            <li>
-              <span class="label">CAPTURE</span>
-              <span class="value">{s.captureRate}</span>
-            </li>
-          {/if}
-          {#if s.genderRate !== null}
-            <li>
-              <span class="label">GENDER</span>
-              <span class="value">{genderText()}</span>
-            </li>
-          {/if}
-          {#if data.eggGroups.length > 0}
-            <li>
-              <span class="label">EGG GROUP</span>
-              <span class="value">{data.eggGroups.map(e => e.name.toUpperCase()).join(', ')}</span>
-            </li>
-          {/if}
-          {#if s.habitat}
-            <li>
-              <span class="label">HABITAT</span>
-              <span class="value">{s.habitat.toUpperCase()}</span>
-            </li>
-          {/if}
-          {#if s.growthRate}
-            <li>
-              <span class="label">GROWTH</span>
-              <span class="value">{s.growthRate.toUpperCase()}</span>
-            </li>
-          {/if}
-          {#if s.baseHappiness !== null}
-            <li>
-              <span class="label">HAPPINESS</span>
-              <span class="value">{s.baseHappiness}</span>
-            </li>
-          {/if}
-        </ul>
+        <PokemonDataList
+          height={p.height}
+          weight={p.weight}
+          captureRate={s.captureRate}
+          genderText={genderText()}
+          eggGroups={data.eggGroups.map(e => e.name.toUpperCase()).join(', ')}
+          habitat={s.habitat}
+          growthRate={s.growthRate}
+          happiness={s.baseHappiness}
+        />
       </InfoBox>
     </div>
   </div>
@@ -829,11 +794,7 @@
 
 
 
-    .data-list {
-      gap: var(--spacing-2);
-    }
 
-    .data-list li { font-size: 11px; }
 
     .ability-list { gap: var(--spacing-2); }
 
@@ -884,26 +845,7 @@
 
 
 
-  /* ── Data List ───────────────────────────────────────────────────────────── */
 
-  .data-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-3);
-  }
-
-  .data-list li {
-    display: flex;
-    justify-content: space-between;
-    font-family: var(--font-mono);
-    font-size: 14px;
-  }
-
-  .data-list .label { color: var(--theme-text-secondary); }
-  .data-list .value { color: var(--theme-text-primary); font-weight: bold; }
 
   /* ── Abilities ───────────────────────────────────────────────────────────── */
 

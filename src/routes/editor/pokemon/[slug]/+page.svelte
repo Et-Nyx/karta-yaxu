@@ -12,6 +12,7 @@
   import PokemonSpriteViewer from '$lib/components/PokemonSpriteViewer.svelte';
   import VersionSelector from '$lib/components/VersionSelector.svelte';
   import FlavorTextBox from '$lib/components/FlavorTextBox.svelte';
+  import PokemonDataList from '$lib/components/PokemonDataList.svelte';
   import { pageSource } from '$lib/stores/pageSource';
 
   let { data, form } = $props();
@@ -694,56 +695,24 @@
     <!-- Bottom-right: Data -->
     <div class="data-cell">
       <InfoBox title="DATA">
-        <ul class="data-edit-list">
-          <li class="data-edit-row">
-            <span class="data-label">HEIGHT</span>
-            <div class="data-input-wrap">
-              <input class="data-input" type="number" min="0" bind:value={heightVal} />
-              <span class="data-unit">m</span>
-            </div>
-          </li>
-          <li class="data-edit-row">
-            <span class="data-label">WEIGHT</span>
-            <div class="data-input-wrap">
-              <input class="data-input" type="number" min="0" bind:value={weightVal} />
-              <span class="data-unit">kg</span>
-            </div>
-          </li>
-          <li class="data-edit-row">
-            <span class="data-label">CAPTURE</span>
-            <span class="data-value">{data.currentSpeciesDetail?.captureRate ?? '—'}</span>
-          </li>
-          <li class="data-edit-row">
-            <span class="data-label">GENDER</span>
-            <span class="data-value">{genderText()}</span>
-          </li>
-          <li class="data-edit-row">
-            <span class="data-label">EGG GROUPS</span>
-            <span class="data-value">
-              {data.currentEggGroups.map(e => e.name.toUpperCase()).join(', ') || '—'}
-            </span>
-          </li>
-          <li class="data-edit-row">
-            <span class="data-label">HABITAT</span>
-            <span class="data-value">{data.currentSpeciesDetail?.habitat?.toUpperCase() || '—'}</span>
-          </li>
-          <li class="data-edit-row">
-            <span class="data-label">GROWTH</span>
-            <span class="data-value">{data.currentSpeciesDetail?.growthRate?.toUpperCase() || '—'}</span>
-          </li>
-          <li class="data-edit-row">
-            <span class="data-label">HAPPINESS</span>
-            <span class="data-value">{data.currentSpeciesDetail?.baseHappiness ?? '—'}</span>
-          </li>
-          <li class="data-edit-row">
-            <span class="data-label">ID</span>
-            <span class="data-value">{data.pokemon.id}</span>
-          </li>
-          <li class="data-edit-row">
-            <span class="data-label">IS DEFAULT</span>
-            <span class="data-value">{isDefaultVal ? 'YES' : 'NO'}</span>
-          </li>
-        </ul>
+        <!-- Hidden inputs to submit height & weight from parent state -->
+        <input type="hidden" name="height" value={heightVal} />
+        <input type="hidden" name="weight" value={weightVal} />
+
+        <PokemonDataList
+          bind:height={heightVal}
+          bind:weight={weightVal}
+          captureRate={data.currentSpeciesDetail?.captureRate ?? null}
+          genderText={genderText()}
+          eggGroups={data.currentEggGroups.map(e => e.name.toUpperCase()).join(', ') || '—'}
+          habitat={data.currentSpeciesDetail?.habitat ?? null}
+          growthRate={data.currentSpeciesDetail?.growthRate ?? null}
+          happiness={data.currentSpeciesDetail?.baseHappiness ?? null}
+          pokemonId={data.pokemon.id}
+          isDefault={isDefaultVal}
+          speciesSlug={data.currentSpeciesDetail?.slug ?? null}
+          editable={true}
+        />
         {#if data.currentSpeciesDetail}
           <a href="/editor/species/{data.currentSpeciesDetail.slug}" class="edit-species-btn">
             ✎ EDIT SPECIES DETAILS
@@ -1144,64 +1113,7 @@
   }
   .save-btn-sm:hover { background-color: var(--theme-text-accent); color: var(--theme-bg-primary); }
 
-  /* Data cell */
-  .data-edit-list { list-style: none; padding: 0; margin: 0; }
-  .data-edit-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: var(--spacing-2) 0;
-    border-bottom: 1px solid var(--theme-border-primary);
-  }
-  .data-edit-list li:last-child { border-bottom: none; }
-  .data-label { font-family: var(--font-display); font-size: 9px; color: var(--theme-text-muted); }
-  .data-value { font-family: var(--font-mono); font-size: 12px; color: var(--theme-text-primary); }
-  .data-input-wrap { display: flex; align-items: center; gap: var(--spacing-2); }
-  .data-input {
-    width: 50px;
-    height: 24px;
-    background-color: var(--theme-bg-secondary);
-    border: 2px solid var(--theme-border-primary);
-    box-shadow: 2px 2px 0 var(--theme-border-primary);
-    color: var(--theme-text-primary);
-    font-family: var(--font-mono);
-    font-size: 12px;
-    font-weight: bold;
-    text-align: center;
-    outline: none;
-    box-sizing: border-box;
-    padding: 0;
-    -moz-appearance: textfield;
-  }
-  .data-input::-webkit-outer-spin-button,
-  .data-input::-webkit-inner-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-  }
-  .data-input:focus {
-    border-color: var(--theme-text-accent);
-  }
-  .data-unit { font-family: var(--font-mono); font-size: 10px; color: var(--theme-text-muted); }
-  .edit-species-btn {
-    display: block;
-    text-align: center;
-    font-family: var(--font-display);
-    font-size: 10px;
-    color: var(--theme-text-accent);
-    border: 2px solid var(--theme-border-primary);
-    background-color: var(--theme-bg-secondary);
-    padding: var(--spacing-2) var(--spacing-3);
-    margin-top: var(--spacing-3);
-    text-decoration: none;
-    box-shadow: 2px 2px 0 var(--theme-border-primary);
-    transition: all var(--transition-bounce);
-  }
-  .edit-species-btn:hover {
-    background-color: var(--theme-text-accent);
-    color: var(--theme-bg-primary);
-    transform: translate(-1px, -1px);
-    box-shadow: 3px 3px 0 var(--theme-border-primary);
-  }
+
 
   /* Sub-forms inside InfoBox (types, abilities) */
   .sub-form-inline { display: flex; flex-direction: column; gap: var(--spacing-3); }
