@@ -212,6 +212,46 @@
   let slot2AbilityVal = $state<number | null>(data.abilities.find(a => a.slot === 2 && !a.isHidden)?.abilityId ?? null);
   let hiddenAbilityVal = $state<number | null>(data.abilities.find(a => a.isHidden)?.abilityId ?? null);
 
+  $effect(() => {
+    // Reactively reset state variables on page transition or after save reload
+    const p = data.pokemon;
+    nameVal = p.name;
+    speciesIdVal = p.speciesId;
+    heightVal = p.height;
+    weightVal = p.weight;
+    
+    spriteDefaultVal = p.spriteDefault ?? '';
+    spriteShinyVal = p.spriteShiny ?? '';
+    spriteArtworkVal = p.spriteArtwork ?? '';
+    spriteArtworkShinyVal = p.spriteArtworkShiny ?? '';
+    spriteBackDefaultVal = p.spriteBackDefault ?? '';
+    spriteBackShinyVal = p.spriteBackShiny ?? '';
+    isShiny = false;
+    activeImageTab = 'artwork';
+    saved = false;
+    
+    defaultFileSelected = false;
+    shinyFileSelected = false;
+    artworkFileSelected = false;
+    artworkShinyFileSelected = false;
+    backDefaultFileSelected = false;
+    backShinyFileSelected = false;
+    
+    hpVal = p.hp;
+    atkVal = p.atk;
+    defVal = p.def;
+    spaVal = p.spa;
+    spdVal = p.spd;
+    speVal = p.spe;
+    
+    slot1TypeId = data.types.find(t => t.slot === 1)?.typeId ?? null;
+    slot2TypeId = data.types.find(t => t.slot === 2)?.typeId ?? null;
+    
+    slot1AbilityVal = data.abilities.find(a => a.slot === 1 && !a.isHidden)?.abilityId ?? null;
+    slot2AbilityVal = data.abilities.find(a => a.slot === 2 && !a.isHidden)?.abilityId ?? null;
+    hiddenAbilityVal = data.abilities.find(a => a.isHidden)?.abilityId ?? null;
+  });
+
   // --- Species lookup for header display ---
   let currentSpecies = $derived(data.species.find(s => s.id === speciesIdVal));
 
