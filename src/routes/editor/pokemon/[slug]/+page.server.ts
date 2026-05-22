@@ -4,7 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { db } from '$lib/db';
 import { pokemon, pokemonAbilities, pokemonEvolutionDetails, pokemonForms, pokemonGenera, pokemonMoves, pokemonSpecies, pokemonTypes, eggGroups, speciesEggGroups, pokedexEntries, pokemonFlavorTexts } from '$lib/db/schema/pokemon';
-import { abilities, moveLearnMethods, moves, types } from '$lib/db/schema/core-data';
+import { abilities, moveLearnMethods, moves, types, typeEffectiveness } from '$lib/db/schema/core-data';
 import { languages, versionGroups, pokedexes } from '$lib/db/schema/game-metadata';
 import { items } from '$lib/db/schema/items';
 import { and, asc, count, desc, eq, inArray, sql, lt, gt } from 'drizzle-orm';
@@ -471,6 +471,12 @@ export const load: PageServerLoad = async ({ params, url }) => {
     )
   );
 
+  const typeEffectivenessList = await db.select({
+    attackerId: typeEffectiveness.attackerId,
+    defenderId: typeEffectiveness.defenderId,
+    multiplier: typeEffectiveness.multiplier,
+  }).from(typeEffectiveness);
+
   return {
     nav,
     availableVersions,
@@ -500,6 +506,7 @@ export const load: PageServerLoad = async ({ params, url }) => {
     currentSpeciesDetail: speciesRow ?? null,
     currentEggGroups,
     allEggGroups,
+    typeEffectivenessList,
   };
 };
 

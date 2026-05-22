@@ -13,6 +13,7 @@
   import VersionSelector from '$lib/components/VersionSelector.svelte';
   import FlavorTextBox from '$lib/components/FlavorTextBox.svelte';
   import PokemonDataList from '$lib/components/PokemonDataList.svelte';
+  import TypeMatchupDisplay from '$lib/components/TypeMatchupDisplay.svelte';
   import { pageSource } from '$lib/stores/pageSource';
 
   let { data, form } = $props();
@@ -142,6 +143,69 @@
   let slot2TypeId = $state<number | null>(data.types.find(t => t.slot === 2)?.typeId ?? null);
   let slot1Type = $derived(data.allTypes.find(t => t.id === slot1TypeId));
   let slot2Type = $derived(data.allTypes.find(t => t.id === slot2TypeId));
+
+  let activeTypeIds = $derived([slot1TypeId, slot2TypeId].filter((id): id is number => id !== null));
+
+  let reactiveDefensiveMatchup = $derived.by(() => {
+    if (activeTypeIds.length === 0) return [];
+    const multipliers: Record<string, number> = {};
+    const hexColorMap: Record<string, string | null> = {};
+    
+    for (const t of data.allTypes) {
+      hexColorMap[t.name] = t.hexColor;
+    }
+    
+    for (const attacker of data.allTypes) {
+      let product = 1;
+      for (const defId of activeTypeIds) {
+        const row = data.typeEffectivenessList.find(
+          r => r.attackerId === attacker.id && r.defenderId === defId
+        );
+        product *= row ? row.multiplier : 1;
+      }
+      multipliers[attacker.name] = product;
+    }
+    
+    return Object.entries(multipliers)
+      .filter(([, m]) => m !== 1)
+      .map(([name, multiplier]) => ({ name, multiplier, hexColor: hexColorMap[name] ?? null }))
+      .sort((a, b) => b.multiplier - a.multiplier);
+  });
+
+  let reactiveOffensiveMatchup = $derived.by(() => {
+    if (activeTypeIds.length === 0) return [];
+    const maxMultipliers: Record<string, number> = {};
+    const hexColorMap: Record<string, string | null> = {};
+    
+    for (const t of data.allTypes) {
+      hexColorMap[t.name] = t.hexColor;
+    }
+    
+    for (const defender of data.allTypes) {
+      let maxMult = 0;
+      let hasValue = false;
+      for (const atkId of activeTypeIds) {
+        const row = data.typeEffectivenessList.find(
+          r => r.attackerId === atkId && r.defenderId === defender.id
+        );
+        const mult = row ? row.multiplier : 1;
+        if (!hasValue) {
+          maxMult = mult;
+          hasValue = true;
+        } else {
+          maxMult = Math.max(maxMult, mult);
+        }
+      }
+      if (hasValue) {
+        maxMultipliers[defender.name] = maxMult;
+      }
+    }
+    
+    return Object.entries(maxMultipliers)
+      .filter(([, m]) => m !== 1)
+      .map(([name, multiplier]) => ({ name, multiplier, hexColor: hexColorMap[name] ?? null }))
+      .sort((a, b) => b.multiplier - a.multiplier);
+  });
 
   // --- Abilities ---
   let slot1AbilityVal = $state<number | null>(data.abilities.find(a => a.slot === 1 && !a.isHidden)?.abilityId ?? null);
@@ -667,29 +731,6 @@
         </div>
       </InfoBox>
 
-      <InfoBox title="TYPES">
-        <div class="sub-form-inline">
-          <div class="sub-field">
-            <label class="sub-label">SLOT 1</label>
-            <RetroSelect
-              bind:value={slot1TypeId}
-              options={data.allTypes.map(t => ({ value: t.id, label: t.name.toUpperCase() }))}
-              variant="editor"
-            />
-          </div>
-          <div class="sub-field">
-            <label class="sub-label">SLOT 2</label>
-            <RetroSelect
-              bind:value={slot2TypeId}
-              options={[
-                { value: null, label: '— NONE —' },
-                ...data.allTypes.map(t => ({ value: t.id, label: t.name.toUpperCase() }))
-              ]}
-              variant="editor"
-            />
-          </div>
-        </div>
-      </InfoBox>
     </div>
 
     <!-- Bottom-right: Data -->
@@ -718,6 +759,37 @@
     </div>
 
   </div><!-- end .content-grid -->
+
+  <!-- Full-width Types and Matchups Container at the bottom -->
+  <div class="types-section-wrapper">
+    <InfoBox title="TYPES">
+      <div class="types-select-row">
+        <div class="sub-field">
+          <label class="sub-label">SLOT 1</label>
+          <RetroSelect
+            bind:value={slot1TypeId}
+            options={data.allTypes.map(t => ({ value: t.id, label: t.name.toUpperCase() }))}
+            variant="editor"
+          />
+        </div>
+        <div class="sub-field">
+          <label class="sub-label">SLOT 2</label>
+          <RetroSelect
+            bind:value={slot2TypeId}
+            options={[
+              { value: null, label: '— NONE —' },
+              ...data.allTypes.map(t => ({ value: t.id, label: t.name.toUpperCase() }))
+            ]}
+            variant="editor"
+          />
+        </div>
+      </div>
+
+      <div class="matchups-wrapper">
+        <TypeMatchupDisplay offensive={reactiveOffensiveMatchup} defensive={reactiveDefensiveMatchup} />
+      </div>
+    </InfoBox>
+  </div>
 
 
   {:else if activePageTab === 'forms'}
@@ -1078,6 +1150,24 @@
   }
   .info-cell { display: flex; flex-direction: column; gap: var(--spacing-4); }
   .data-cell { display: flex; flex-direction: column; }
+
+  .types-section-wrapper {
+    margin-top: var(--spacing-6);
+  }
+  .types-select-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-4);
+    margin-bottom: var(--spacing-6);
+  }
+  @media (max-width: 768px) {
+    .types-select-row {
+      grid-template-columns: 1fr;
+    }
+  }
+  .matchups-wrapper {
+    margin-top: var(--spacing-4);
+  }
 
   /* Image box — column layout: image area on top, sprite inputs on bottom */
   .image-box {
