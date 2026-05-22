@@ -98,6 +98,9 @@
       white-space: nowrap;
       flex-shrink: 0;
     }
+    .tab-body {
+      padding: var(--spacing-3) !important;
+    }
   }
 
   .tab-body {

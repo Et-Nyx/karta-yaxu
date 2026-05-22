@@ -631,10 +631,21 @@
     /* Content fills full width */
     .layout {
       flex-direction: column;
+      width: 100%;
+      max-width: 100%;
     }
 
     .content-wrapper {
       padding: var(--spacing-4);
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+
+    .content {
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
     }
   }
 </style>

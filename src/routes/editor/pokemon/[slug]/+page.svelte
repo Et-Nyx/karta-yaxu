@@ -416,17 +416,19 @@
       <div class="dex-num">#{(currentSpecies?.dexNumber ?? 0).toString().padStart(3, '0')}</div>
       <div class="header-main">
         <input class="h1-input" name="name" type="text" maxlength="80" required bind:value={nameVal} />
-        {#if data.genus}
-          <div class="genus">{data.genus}</div>
-        {/if}
-      </div>
-      <div class="types">
-        {#if slot1Type}
-          <TypeBadge name={slot1Type.name} hexColor={slot1Type.hexColor ?? null} size="lg" />
-        {/if}
-        {#if slot2Type}
-          <TypeBadge name={slot2Type.name} hexColor={slot2Type.hexColor ?? null} size="lg" />
-        {/if}
+        <div class="header-sub-row">
+          {#if data.genus}
+            <div class="genus">{data.genus.toUpperCase()}</div>
+          {/if}
+          <div class="types">
+            {#if slot1Type}
+              <TypeBadge name={slot1Type.name} hexColor={slot1Type.hexColor ?? null} size="lg" />
+            {/if}
+            {#if slot2Type}
+              <TypeBadge name={slot2Type.name} hexColor={slot2Type.hexColor ?? null} size="lg" />
+            {/if}
+          </div>
+        </div>
       </div>
     </header>
 
@@ -1062,7 +1064,7 @@
     flex-wrap: wrap;
   }
   .dex-num { font-family: var(--font-display); font-size: 16px; color: var(--theme-text-secondary); flex-shrink: 0; }
-  .header-main { flex: 1; display: flex; flex-direction: column; gap: var(--spacing-1); }
+  .header-main { flex: 1; display: flex; flex-direction: column; gap: var(--spacing-1); min-width: 0; }
   .h1-input {
     font-family: var(--font-display); font-size: 24px;
     color: var(--theme-text-primary); background: none;
@@ -1071,8 +1073,9 @@
     text-transform: uppercase;
   }
   .h1-input:focus { border-bottom-color: var(--theme-text-accent); }
-  .genus { font-family: var(--font-mono); font-size: 12px; color: var(--theme-text-secondary); }
+  .genus { font-family: var(--font-mono); font-size: 12px; color: var(--theme-text-secondary); white-space: nowrap; }
   .types { display: flex; gap: var(--spacing-2); }
+  .header-sub-row { display: flex; align-items: center; gap: var(--spacing-3); flex-wrap: wrap; }
 
   /* Meta-strip (editor-only) */
   .meta-strip {
@@ -1242,12 +1245,13 @@
     border-top: 2px dashed var(--theme-border-primary);
     background-color: var(--theme-bg-primary);
   }
-  .sprite-field { display: flex; align-items: center; gap: var(--spacing-2); }
+  .sprite-field { display: flex; align-items: center; gap: var(--spacing-2); min-width: 0; width: 100%; }
   .sprite-label { font-family: var(--font-display); font-size: 8px; color: var(--theme-text-inverse); opacity: 0.8; width: 60px; flex-shrink: 0; }
+  .sprite-input-row { flex: 1; display: flex; gap: var(--spacing-2); align-items: center; min-width: 0; }
   .sprite-url-input {
     flex: 1; background-color: var(--theme-bg-secondary); border: 2px solid var(--theme-border-primary);
     color: var(--theme-text-secondary); font-family: var(--font-mono); font-size: 10px;
-    padding: 2px var(--spacing-2);
+    padding: 2px var(--spacing-2); min-width: 0;
   }
 
   .stats-container { display: flex; flex-direction: column; gap: var(--spacing-2); }
@@ -1406,12 +1410,12 @@
 
 
   .field { display: flex; flex-direction: column; gap: var(--spacing-1); }
-  .field { display: flex; flex-direction: column; gap: var(--spacing-1); }
   .field label { font-family: var(--font-display); font-size: 9px; color: var(--theme-text-muted); }
   .field input[type=text], .field input[type=number], .field select {
     background-color: var(--theme-bg-secondary); border: 2px solid var(--theme-border-primary);
     color: var(--theme-text-primary); font-family: var(--font-mono); font-size: 11px;
     padding: var(--spacing-1) var(--spacing-2);
+    width: 100%; min-width: 0; box-sizing: border-box;
   }
   .field.full { grid-column: 1 / -1; }
 
