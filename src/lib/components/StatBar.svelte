@@ -12,6 +12,37 @@
   } = $props();
 
   let percentage = $derived(Math.min(100, (value / max) * 100));
+
+  let isDragging = $state(false);
+  let containerEl = $state<HTMLDivElement | null>(null);
+
+  function handlePointerDown(e: PointerEvent) {
+    if (!editable || !containerEl) return;
+    isDragging = true;
+    containerEl.setPointerCapture(e.pointerId);
+    updateValFromEvent(e);
+  }
+
+  function handlePointerMove(e: PointerEvent) {
+    if (!isDragging) return;
+    updateValFromEvent(e);
+  }
+
+  function handlePointerUp(e: PointerEvent) {
+    if (!isDragging) return;
+    isDragging = false;
+    if (containerEl) {
+      containerEl.releasePointerCapture(e.pointerId);
+    }
+  }
+
+  function updateValFromEvent(e: PointerEvent) {
+    if (!containerEl) return;
+    const rect = containerEl.getBoundingClientRect();
+    const relativeX = e.clientX - rect.left;
+    const pct = Math.max(0, Math.min(1, relativeX / rect.width));
+    value = Math.max(0, Math.min(max, Math.round(pct * max)));
+  }
 </script>
 
 <div class="stat-row">
@@ -31,7 +62,15 @@
   {:else}
     <div class="stat-value">{value.toString().padStart(3, '0')}</div>
   {/if}
-  <div class="stat-bar-container">
+  <div
+    bind:this={containerEl}
+    class="stat-bar-container"
+    class:editable
+    class:dragging={isDragging}
+    onpointerdown={handlePointerDown}
+    onpointermove={handlePointerMove}
+    onpointerup={handlePointerUp}
+  >
     <div class="stat-bar-fill" style="width: {percentage}%;"></div>
   </div>
 </div>
@@ -93,6 +132,19 @@
     background-color: var(--theme-bg-secondary);
     border: 2px solid var(--theme-border-primary);
     box-shadow: var(--shadow-card-subtle);
+    transition: border-color 0.1s ease, box-shadow 0.1s ease;
+  }
+
+  .stat-bar-container.editable {
+    cursor: ew-resize;
+    user-select: none;
+    touch-action: none;
+  }
+
+  .stat-bar-container.editable:hover,
+  .stat-bar-container.editable.dragging {
+    border-color: var(--theme-text-accent);
+    box-shadow: 2px 2px 0 var(--theme-text-accent);
   }
 
   .stat-bar-fill {
