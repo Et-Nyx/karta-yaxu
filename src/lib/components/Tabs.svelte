@@ -84,6 +84,22 @@
     margin-bottom: -3px;
   }
 
+  @media (max-width: 600px) {
+    .tab-nav {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .tab-nav::-webkit-scrollbar {
+      display: none;
+    }
+    .tab-btn {
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+  }
+
   .tab-body {
     padding: var(--spacing-5);
     display: flex;
