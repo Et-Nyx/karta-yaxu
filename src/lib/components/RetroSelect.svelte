@@ -376,4 +376,16 @@
     border-color: var(--theme-border-primary);
     box-shadow: 2px 2px 0 var(--theme-border-primary);
   }
+
+  .retro-select-wrapper.editor .retro-select-trigger:hover {
+    color: var(--theme-text-accent);
+    border-color: var(--theme-text-accent);
+    box-shadow: 3px 3px 0 var(--theme-text-accent);
+  }
+
+  .retro-select-wrapper.editor .retro-select-trigger:active {
+    color: var(--theme-text-accent);
+    border-color: var(--theme-text-accent);
+    box-shadow: 1px 1px 0 var(--theme-text-accent);
+  }
 </style>
