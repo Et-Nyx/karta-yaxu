@@ -225,10 +225,22 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    transition: all 0.1s ease;
   }
 
   .retro-select-input {
     cursor: text;
+  }
+
+  .retro-select-trigger:hover {
+    background-color: var(--theme-bg-hover);
+    transform: translate(-1px, -1px);
+    box-shadow: 3px 3px 0 var(--theme-border-primary);
+  }
+
+  .retro-select-trigger:active {
+    transform: translate(1px, 1px);
+    box-shadow: 1px 1px 0 var(--theme-border-primary);
   }
 
   .retro-select-trigger:focus, .retro-select-input:focus {
@@ -323,6 +335,19 @@
     background-color: var(--theme-bg-tertiary);
     color: var(--theme-text-inverse);
     border-color: var(--theme-text-inverse);
+    box-shadow: none;
+  }
+
+  .retro-select-wrapper.header .retro-select-trigger:hover {
+    background-color: var(--theme-text-accent);
+    color: var(--theme-bg-primary);
+    border-color: var(--theme-text-accent);
+    transform: none;
+    box-shadow: none;
+  }
+
+  .retro-select-wrapper.header .retro-select-trigger:active {
+    transform: none;
     box-shadow: none;
   }
 
