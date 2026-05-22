@@ -141,7 +141,6 @@
     padding: var(--spacing-6);
     flex: 1;
     min-height: var(--image-area-height, 240px);
-    max-height: var(--image-area-height, 240px);
     transition: background-color 0.15s ease;
   }
 
@@ -189,5 +188,6 @@
     padding: var(--spacing-3);
     border-top: 2px dashed var(--theme-border-primary);
     background-color: var(--theme-bg-primary);
+    margin-top: auto;
   }
 </style>
