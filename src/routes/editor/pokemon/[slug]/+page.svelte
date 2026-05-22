@@ -632,30 +632,6 @@
         </div>
       {/if}
 
-      <InfoBox title="TYPES">
-        <div class="sub-form-inline">
-          <div class="sub-field">
-            <label class="sub-label">SLOT 1</label>
-            <RetroSelect
-              bind:value={slot1TypeId}
-              options={data.allTypes.map(t => ({ value: t.id, label: t.name.toUpperCase() }))}
-              variant="editor"
-            />
-          </div>
-          <div class="sub-field">
-            <label class="sub-label">SLOT 2</label>
-            <RetroSelect
-              bind:value={slot2TypeId}
-              options={[
-                { value: null, label: '— NONE —' },
-                ...data.allTypes.map(t => ({ value: t.id, label: t.name.toUpperCase() }))
-              ]}
-              variant="editor"
-            />
-          </div>
-        </div>
-      </InfoBox>
-
       <InfoBox title="ABILITIES">
         <div class="sub-form-inline">
           <div class="sub-field">
@@ -684,6 +660,30 @@
               options={[
                 { value: null, label: '— NONE —' },
                 ...data.allAbilities.map(a => ({ value: a.id, label: a.name.toUpperCase() }))
+              ]}
+              variant="editor"
+            />
+          </div>
+        </div>
+      </InfoBox>
+
+      <InfoBox title="TYPES">
+        <div class="sub-form-inline">
+          <div class="sub-field">
+            <label class="sub-label">SLOT 1</label>
+            <RetroSelect
+              bind:value={slot1TypeId}
+              options={data.allTypes.map(t => ({ value: t.id, label: t.name.toUpperCase() }))}
+              variant="editor"
+            />
+          </div>
+          <div class="sub-field">
+            <label class="sub-label">SLOT 2</label>
+            <RetroSelect
+              bind:value={slot2TypeId}
+              options={[
+                { value: null, label: '— NONE —' },
+                ...data.allTypes.map(t => ({ value: t.id, label: t.name.toUpperCase() }))
               ]}
               variant="editor"
             />
