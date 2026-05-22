@@ -713,11 +713,7 @@
           speciesSlug={data.currentSpeciesDetail?.slug ?? null}
           editable={true}
         />
-        {#if data.currentSpeciesDetail}
-          <a href="/editor/species/{data.currentSpeciesDetail.slug}" class="edit-species-btn">
-            ✎ EDIT SPECIES DETAILS
-          </a>
-        {/if}
+
       </InfoBox>
     </div>
 
