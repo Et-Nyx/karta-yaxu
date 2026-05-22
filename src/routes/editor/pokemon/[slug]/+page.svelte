@@ -1005,12 +1005,12 @@
     border-bottom: 4px solid var(--theme-border-primary);
     border-top: 2px dashed var(--theme-border-primary);
     padding: var(--spacing-3) var(--spacing-6);
-    background-color: var(--theme-bg-secondary);
+    background-color: var(--theme-bg-tertiary);
     box-shadow: var(--shadow-card);
     margin-top: -4px;
   }
   .meta-field { display: flex; align-items: center; gap: var(--spacing-2); }
-  .meta-label { font-family: var(--font-display); font-size: 9px; color: var(--theme-text-muted); white-space: nowrap; }
+  .meta-label { font-family: var(--font-display); font-size: 9px; color: var(--theme-text-inverse); opacity: 0.85; white-space: nowrap; }
   .meta-input, .meta-select {
     background-color: var(--theme-bg-primary); border: 2px solid var(--theme-border-primary);
     color: var(--theme-text-primary); font-family: var(--font-mono); font-size: 11px;
@@ -1037,8 +1037,8 @@
     padding: 2px var(--spacing-3); cursor: pointer; transition: all 0.1s ease;
   }
   .save-btn-sm:hover { background-color: var(--theme-bg-hover); }
-  .cancel-link { font-family: var(--font-display); font-size: 9px; color: var(--theme-text-secondary); text-decoration: none; }
-  .cancel-link:hover { color: var(--theme-text-primary); }
+  .cancel-link { font-family: var(--font-display); font-size: 9px; color: var(--theme-text-inverse); opacity: 0.85; text-decoration: none; }
+  .cancel-link:hover { color: var(--theme-text-accent); opacity: 1; }
   .save-ok { font-family: var(--font-mono); font-size: 10px; color: var(--theme-text-accent); }
   .form-error { font-family: var(--font-mono); font-size: 10px; color: var(--color-text-error); }
   .delete-btn-sm {
@@ -1113,7 +1113,7 @@
     background-color: var(--theme-bg-primary);
   }
   .sprite-field { display: flex; align-items: center; gap: var(--spacing-2); }
-  .sprite-label { font-family: var(--font-display); font-size: 8px; color: var(--theme-text-muted); width: 60px; flex-shrink: 0; }
+  .sprite-label { font-family: var(--font-display); font-size: 8px; color: var(--theme-text-inverse); opacity: 0.8; width: 60px; flex-shrink: 0; }
   .sprite-url-input {
     flex: 1; background-color: var(--theme-bg-secondary); border: 2px solid var(--theme-border-primary);
     color: var(--theme-text-secondary); font-family: var(--font-mono); font-size: 10px;
@@ -1124,12 +1124,16 @@
   .stat-total {
     display: flex;
     justify-content: space-between;
-    margin-top: var(--spacing-4);
-    padding-top: var(--spacing-4);
+    margin-top: auto;
+    padding: var(--spacing-3) var(--spacing-4);
+    margin-left: calc(-1 * var(--spacing-4));
+    margin-right: calc(-1 * var(--spacing-4));
+    margin-bottom: calc(-1 * var(--spacing-4));
     border-top: 2px dashed var(--theme-border-primary);
+    background-color: var(--theme-bg-tertiary);
     font-family: var(--font-display);
     font-size: 12px;
-    color: var(--theme-text-primary);
+    color: var(--theme-text-inverse);
   }
 
   .save-btn-sm {

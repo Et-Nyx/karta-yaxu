@@ -962,12 +962,16 @@
   .stat-total {
     display: flex;
     justify-content: space-between;
-    margin-top: var(--spacing-4);
-    padding-top: var(--spacing-4);
+    margin-top: auto;
+    padding: var(--spacing-3) var(--spacing-4);
+    margin-left: calc(-1 * var(--spacing-4));
+    margin-right: calc(-1 * var(--spacing-4));
+    margin-bottom: calc(-1 * var(--spacing-4));
     border-top: 2px dashed var(--theme-border-primary);
+    background-color: var(--theme-bg-tertiary);
     font-family: var(--font-display);
     font-size: 12px;
-    color: var(--theme-text-primary);
+    color: var(--theme-text-inverse);
   }
 
   /* ── Evolution Chain ─────────────────────────────────────────────────────── */

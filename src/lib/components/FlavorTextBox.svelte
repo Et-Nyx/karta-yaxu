@@ -31,13 +31,13 @@
 
 <style>
   .flavor-text-box {
-    background-color: var(--theme-bg-primary);
+    background-color: var(--theme-bg-tertiary);
     border: 3px solid var(--theme-border-primary);
     padding: var(--spacing-4);
     font-family: var(--font-mono);
     font-size: 14px;
     line-height: 1.5;
-    color: var(--theme-text-primary);
+    color: var(--theme-text-inverse);
     box-shadow: 2px 2px 0px var(--theme-border-primary);
   }
 
@@ -49,7 +49,7 @@
     background: transparent;
     border: none;
     outline: none;
-    color: var(--theme-text-primary);
+    color: var(--theme-text-inverse);
     font-family: var(--font-mono);
     font-size: 14px;
     line-height: 1.5;

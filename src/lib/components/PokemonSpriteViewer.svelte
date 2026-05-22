@@ -187,7 +187,7 @@
     gap: var(--spacing-2);
     padding: var(--spacing-3);
     border-top: 2px dashed var(--theme-border-primary);
-    background-color: var(--theme-bg-primary);
+    background-color: var(--theme-bg-tertiary);
     margin-top: auto;
   }
 </style>
