@@ -258,8 +258,9 @@
       }
     }
 
-    for (const sp of data.chainSpecies) {
-      for (const form of sp.forms) {
+    const currentSp = data.chainSpecies.find(s => s.speciesId === data.pokemon.speciesId);
+    if (currentSp) {
+      for (const form of currentSp.forms) {
         if (form.isDefault) continue;
         const suffix = REGIONAL_SUFFIXES_CHAIN.find(r => form.slug.includes('-' + r));
         if (suffix) {
@@ -549,17 +550,23 @@
   {#snippet evoNode(speciesId: number, tabSuffix: string | null, edgeLocation: string | null)}
     {@const effectiveSuffix = edgeLocation ?? tabSuffix}
     {@const allChildren = evoTree().childrenOf.get(speciesId) ?? []}
-    {@const children = allChildren.filter(child =>
-      child.requiredSuffix === effectiveSuffix ||
-      (child.requiredSuffix === null && !allChildren.some(
-        o => o.speciesId !== child.speciesId && o.requiredSuffix === effectiveSuffix
-      ))
-    )}
+    {@const children = allChildren.filter(child => {
+      if (tabSuffix && child.location !== tabSuffix) {
+        const hasRegionalVariant = allChildren.some(
+          o => o.speciesId === child.speciesId && o.location === tabSuffix
+        );
+        if (hasRegionalVariant) return false;
+      }
+      return child.requiredSuffix === effectiveSuffix ||
+        (child.requiredSuffix === null && !allChildren.some(
+          o => o.speciesId !== child.speciesId && o.requiredSuffix === effectiveSuffix
+        ));
+    })}
     {@const sp = evoTree().speciesMap.get(speciesId)}
     {#if sp}
       {@const pf = primaryFormFor(sp, effectiveSuffix)}
       <div class="evo-node-wrap">
-        <div class="evo-card-cell" class:is-current={sp.speciesId === data.pokemon.speciesId}>
+        <div class="evo-card-cell" class:is-current={pf.slug === data.pokemon.slug}>
           <PokemonCard pokemon={{
             pokeapiId: pf.pokeapiId ?? 0,
             name: pf.name,
