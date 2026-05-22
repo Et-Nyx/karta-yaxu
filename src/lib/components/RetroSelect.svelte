@@ -233,7 +233,9 @@
   }
 
   .retro-select-trigger:hover {
-    background-color: var(--theme-bg-hover);
+    background-color: var(--theme-text-accent);
+    color: var(--theme-bg-primary);
+    border-color: var(--theme-text-accent);
     transform: translate(-1px, -1px);
     box-shadow: 3px 3px 0 var(--theme-border-primary);
   }
