@@ -218,9 +218,17 @@
   }
 
   .edit-species-btn:hover {
-    background-color: var(--theme-bg-hover);
+    color: var(--theme-text-accent);
+    border-color: var(--theme-text-accent);
     transform: translate(-1px, -1px);
-    box-shadow: var(--shadow-card-hover);
+    box-shadow: 3px 3px 0 var(--theme-text-accent);
+  }
+
+  .edit-species-btn:active {
+    color: var(--theme-text-accent);
+    border-color: var(--theme-text-accent);
+    transform: translate(1px, 1px);
+    box-shadow: 1px 1px 0 var(--theme-text-accent);
   }
 
   @media (max-width: 768px) {

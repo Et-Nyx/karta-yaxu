@@ -67,11 +67,14 @@
     color: var(--theme-text-inverse);
     cursor: pointer;
     opacity: 0.6;
-    transition: opacity 0.1s ease;
+    transition: all 0.1s ease;
   }
 
   .tab-btn:last-child { border-right: none; }
-  .tab-btn:hover { opacity: 0.85; }
+  .tab-btn:hover {
+    opacity: 1;
+    color: var(--theme-text-accent);
+  }
 
   .tab-btn.active {
     opacity: 1;

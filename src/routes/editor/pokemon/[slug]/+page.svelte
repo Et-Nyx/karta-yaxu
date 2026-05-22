@@ -995,15 +995,50 @@
     padding: var(--spacing-2) var(--spacing-4); cursor: pointer;
     box-shadow: var(--shadow-card-subtle); transition: all 0.1s ease;
   }
-  .save-btn:hover { background-color: var(--theme-bg-hover); transform: translate(-1px, -1px); box-shadow: var(--shadow-card-hover); }
+  .save-btn:hover {
+    color: var(--theme-text-accent);
+    border-color: var(--theme-text-accent);
+    transform: translate(-1px, -1px);
+    box-shadow: 3px 3px 0 var(--theme-text-accent);
+  }
+  .save-btn:active {
+    color: var(--theme-text-accent);
+    border-color: var(--theme-text-accent);
+    transform: translate(1px, 1px);
+    box-shadow: 1px 1px 0 var(--theme-text-accent);
+  }
+
   .save-btn-sm {
     font-family: var(--font-display); font-size: 9px; color: var(--theme-text-primary);
     background-color: var(--theme-bg-primary); border: 2px solid var(--theme-border-primary);
     padding: 2px var(--spacing-3); cursor: pointer; transition: all 0.1s ease;
+    box-shadow: var(--shadow-card-subtle);
   }
-  .save-btn-sm:hover { background-color: var(--theme-bg-hover); }
-  .cancel-link { font-family: var(--font-display); font-size: 9px; color: var(--theme-text-inverse); opacity: 0.85; text-decoration: none; }
-  .cancel-link:hover { color: var(--theme-text-accent); opacity: 1; }
+  .save-btn-sm:hover {
+    color: var(--theme-text-accent);
+    border-color: var(--theme-text-accent);
+    transform: translate(-1px, -1px);
+    box-shadow: 2px 2px 0 var(--theme-text-accent);
+  }
+  .save-btn-sm:active {
+    color: var(--theme-text-accent);
+    border-color: var(--theme-text-accent);
+    transform: translate(1px, 1px);
+    box-shadow: 1px 1px 0 var(--theme-text-accent);
+  }
+
+  .cancel-link {
+    font-family: var(--font-display); font-size: 9px; color: var(--theme-text-inverse);
+    opacity: 0.85; text-decoration: none; transition: all 0.1s ease;
+  }
+  .cancel-link:hover {
+    color: var(--theme-text-accent);
+    opacity: 1;
+    transform: translate(-1px, -1px);
+  }
+  .cancel-link:active {
+    transform: translate(1px, 1px);
+  }
   .save-ok { font-family: var(--font-mono); font-size: 10px; color: var(--theme-text-accent); }
   .form-error { font-family: var(--font-mono); font-size: 10px; color: var(--color-text-error); }
   .delete-btn-sm {
@@ -1106,8 +1141,19 @@
     padding: 2px var(--spacing-3);
     background: none; border: 2px solid var(--theme-text-accent); color: var(--theme-text-accent);
     cursor: pointer;
+    transition: all 0.1s ease;
   }
-  .save-btn-sm:hover { background-color: var(--theme-text-accent); color: var(--theme-bg-primary); }
+  .save-btn-sm:hover {
+    background-color: var(--theme-text-accent);
+    color: var(--theme-bg-primary);
+    border-color: var(--theme-text-accent);
+    transform: translate(-1px, -1px);
+    box-shadow: 2px 2px 0 var(--theme-text-accent);
+  }
+  .save-btn-sm:active {
+    transform: translate(1px, 1px);
+    box-shadow: 1px 1px 0 var(--theme-text-accent);
+  }
 
 
 

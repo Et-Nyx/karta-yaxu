@@ -38,6 +38,7 @@
     align-items: center;
     line-height: 1;
     flex-shrink: 0;
+    transition: all 0.1s ease;
   }
 
   .nav-tab:hover {
@@ -54,6 +55,20 @@
     background-color: var(--theme-bg-primary);
     color: var(--theme-text-primary);
     box-shadow: 2px 2px 0px var(--theme-border-primary);
+  }
+
+  .nav-tab.login:hover {
+    color: var(--theme-text-accent);
+    border-color: var(--theme-text-accent);
+    transform: translate(-1px, -1px);
+    box-shadow: 3px 3px 0 var(--theme-text-accent);
+  }
+
+  .nav-tab.login:active {
+    color: var(--theme-text-accent);
+    border-color: var(--theme-text-accent);
+    transform: translate(1px, 1px);
+    box-shadow: 1px 1px 0 var(--theme-text-accent);
   }
 
 
