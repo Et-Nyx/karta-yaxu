@@ -3,11 +3,11 @@ import { z } from 'zod';
 import fs from 'fs';
 import path from 'path';
 import { db } from '$lib/db';
-import { pokemon, pokemonAbilities, pokemonEvolutionDetails, pokemonForms, pokemonGenera, pokemonMoves, pokemonSpecies, pokemonTypes, eggGroups, speciesEggGroups } from '$lib/db/schema/pokemon';
+import { pokemon, pokemonAbilities, pokemonEvolutionDetails, pokemonForms, pokemonGenera, pokemonMoves, pokemonSpecies, pokemonTypes, eggGroups, speciesEggGroups, pokedexEntries, pokemonFlavorTexts } from '$lib/db/schema/pokemon';
 import { abilities, moveLearnMethods, moves, types } from '$lib/db/schema/core-data';
-import { languages, versionGroups } from '$lib/db/schema/game-metadata';
+import { languages, versionGroups, pokedexes } from '$lib/db/schema/game-metadata';
 import { items } from '$lib/db/schema/items';
-import { and, asc, count, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray, sql, lt, gt } from 'drizzle-orm';
 import { bumpSource } from '$lib/editor/source';
 import { recordEdit } from '$lib/editor/audit';
 import { reimportEntity } from '$lib/editor/resource';
@@ -377,7 +377,104 @@ export const load: PageServerLoad = async ({ params, url }) => {
     .from(eggGroups)
     .orderBy(asc(eggGroups.name));
 
+  // Dex navigation
+  const dexList = await db.select({ id: pokedexes.id, name: pokedexes.name, slug: pokedexes.slug })
+    .from(pokedexes)
+    .innerJoin(pokedexEntries, eq(pokedexEntries.pokedexId, pokedexes.id))
+    .where(eq(pokedexEntries.speciesId, row.speciesId))
+    .orderBy(asc(pokedexes.id));
+
+  let nav: {
+    dexList: typeof dexList;
+    selectedDex: (typeof dexList)[0];
+    currentEntry: number;
+    prev: { entryNumber: number; speciesName: string; pokemonSlug: string } | null;
+    next: { entryNumber: number; speciesName: string; pokemonSlug: string } | null;
+  } | null = null;
+
+  if (dexList.length > 0) {
+    const dexParam = url.searchParams.get('dex');
+    const selectedDex = dexList.find(d => d.slug === dexParam) ?? dexList[0];
+
+    const [currentEntryRow] = await db.select({ entryNumber: pokedexEntries.entryNumber })
+      .from(pokedexEntries)
+      .where(and(
+        eq(pokedexEntries.pokedexId, selectedDex.id),
+        eq(pokedexEntries.speciesId, row.speciesId)
+      ))
+      .limit(1);
+
+    if (currentEntryRow) {
+      const currentEntry = currentEntryRow.entryNumber;
+
+      const prevRows = await db.select({
+        entryNumber: pokedexEntries.entryNumber,
+        speciesName: pokemonSpecies.name,
+        pokemonSlug: pokemon.slug,
+      })
+      .from(pokedexEntries)
+      .innerJoin(pokemonSpecies, eq(pokedexEntries.speciesId, pokemonSpecies.id))
+      .innerJoin(pokemon, eq(pokemon.id, pokemonSpecies.defaultPokemonId))
+      .where(and(
+        eq(pokedexEntries.pokedexId, selectedDex.id),
+        lt(pokedexEntries.entryNumber, currentEntry)
+      ))
+      .orderBy(desc(pokedexEntries.entryNumber))
+      .limit(1);
+
+      const nextRows = await db.select({
+        entryNumber: pokedexEntries.entryNumber,
+        speciesName: pokemonSpecies.name,
+        pokemonSlug: pokemon.slug,
+      })
+      .from(pokedexEntries)
+      .innerJoin(pokemonSpecies, eq(pokedexEntries.speciesId, pokemonSpecies.id))
+      .innerJoin(pokemon, eq(pokemon.id, pokemonSpecies.defaultPokemonId))
+      .where(and(
+        eq(pokedexEntries.pokedexId, selectedDex.id),
+        gt(pokedexEntries.entryNumber, currentEntry)
+      ))
+      .orderBy(asc(pokedexEntries.entryNumber))
+      .limit(1);
+
+      nav = {
+        dexList,
+        selectedDex,
+        currentEntry,
+        prev: prevRows[0] ?? null,
+        next: nextRows[0] ?? null,
+      };
+    }
+  }
+
+  // Version Mechanics (Flavor Texts)
+  const availableVersions = await db.select({
+    id: versionGroups.id,
+    name: versionGroups.name,
+    order: versionGroups.order,
+    source: versionGroups.source
+  })
+  .from(versionGroups)
+  .orderBy(asc(versionGroups.order));
+
+  const flavorTexts = await db.select({
+    flavorText: pokemonFlavorTexts.flavorText,
+    versionGroupId: pokemonFlavorTexts.versionGroupId,
+    languageId: pokemonFlavorTexts.languageId
+  })
+  .from(pokemonFlavorTexts)
+  .innerJoin(languages, eq(pokemonFlavorTexts.languageId, languages.id))
+  .where(
+    and(
+      eq(pokemonFlavorTexts.speciesId, row.speciesId),
+      eq(languages.name, 'en')
+    )
+  );
+
   return {
+    nav,
+    availableVersions,
+    flavorTexts,
     pokemon:    {
       ...row,
       isDefault: row.id === speciesRow?.defaultPokemonId,
@@ -548,6 +645,53 @@ export const actions: Actions = {
     }
     if (data.hiddenAbilityId && data.hiddenAbilityId !== data.slot1AbilityId && data.hiddenAbilityId !== data.slot2AbilityId) {
       await db.insert(pokemonAbilities).values({ pokemonId: current.id, abilityId: data.hiddenAbilityId, slot: 3, isHidden: true });
+    }
+
+    // Update version-specific flavor text
+    const selectedVgId = formData.get('selectedVgId') ? Number(formData.get('selectedVgId')) : null;
+    const flavorText = formData.get('flavorText') != null ? String(formData.get('flavorText')).trim() : null;
+
+    if (selectedVgId && flavorText !== null) {
+      // Validate that this is a custom version group
+      const [vg] = await db.select({ source: versionGroups.source })
+        .from(versionGroups)
+        .where(eq(versionGroups.id, selectedVgId))
+        .limit(1);
+
+      if (vg && vg.source === 'custom') {
+        const [langRow] = await db.select({ id: languages.id })
+          .from(languages)
+          .where(eq(languages.name, 'en'))
+          .limit(1);
+        const languageId = langRow?.id ?? 9;
+
+        const [existing] = await db.select()
+          .from(pokemonFlavorTexts)
+          .where(and(
+            eq(pokemonFlavorTexts.speciesId, current.speciesId),
+            eq(pokemonFlavorTexts.versionGroupId, selectedVgId),
+            eq(pokemonFlavorTexts.languageId, languageId)
+          ))
+          .limit(1);
+
+        if (existing) {
+          await db.update(pokemonFlavorTexts)
+            .set({ flavorText })
+            .where(and(
+              eq(pokemonFlavorTexts.speciesId, current.speciesId),
+              eq(pokemonFlavorTexts.versionGroupId, selectedVgId),
+              eq(pokemonFlavorTexts.languageId, languageId)
+            ));
+        } else {
+          await db.insert(pokemonFlavorTexts)
+            .values({
+              speciesId: current.speciesId,
+              versionGroupId: selectedVgId,
+              languageId,
+              flavorText,
+            });
+        }
+      }
     }
 
     if (locals.user) {

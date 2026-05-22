@@ -10,9 +10,64 @@
   import RetroSelect from '$lib/components/RetroSelect.svelte';
   import MoveCategoryIcon from '$lib/components/MoveCategoryIcon.svelte';
   import PokemonSpriteViewer from '$lib/components/PokemonSpriteViewer.svelte';
+  import VersionSelector from '$lib/components/VersionSelector.svelte';
+  import FlavorTextBox from '$lib/components/FlavorTextBox.svelte';
   import { pageSource } from '$lib/stores/pageSource';
 
   let { data, form } = $props();
+
+  // Version Mechanics (Flavor Texts)
+  let versionIdsWithData = $derived(new Set([
+    ...data.flavorTexts.map(f => f.versionGroupId),
+    ...data.vgCounts.filter(v => v.count > 0).map(v => v.id)
+  ]));
+
+  let validVersions = $derived(data.availableVersions.filter(v => versionIdsWithData.has(v.id)));
+  let selectedVersionId = $state<number | null>(null);
+
+  $effect(() => {
+    // Reactively reset selectedVersionId on page transition
+    data;
+    selectedVersionId = null;
+  });
+
+  $effect(() => {
+    if (selectedVersionId === null && validVersions.length > 0) {
+      const frlg = validVersions.find(v => v.name === 'firered-leafgreen');
+      const withFlavor = new Set(data.flavorTexts.map(f => f.versionGroupId));
+      const latestWithFlavor = [...validVersions].reverse().find(v => withFlavor.has(v.id));
+      selectedVersionId = (frlg ?? latestWithFlavor ?? validVersions[validVersions.length - 1]).id;
+    }
+  });
+
+  let isCustomVg = $derived(() => {
+    if (!selectedVersionId) return false;
+    const vg = data.availableVersions.find(v => v.id === selectedVersionId);
+    return vg ? vg.source === 'custom' : false;
+  });
+
+  // Local state for the editable flavor text
+  let flavorTextVal = $state('');
+
+  $effect(() => {
+    if (selectedVersionId) {
+      const entry = data.flavorTexts.find(f => f.versionGroupId === selectedVersionId);
+      flavorTextVal = entry ? entry.flavorText.replace(/\f/g, ' ') : '';
+    } else {
+      flavorTextVal = '';
+    }
+  });
+
+  function handleKeydown(e: KeyboardEvent) {
+    const tag = (e.target as HTMLElement).tagName;
+    if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+    if (!data.nav) return;
+    if (e.key === 'ArrowLeft' && data.nav.prev) {
+      goto(`/editor/pokemon/${data.nav.prev.pokemonSlug}?dex=${data.nav.selectedDex.slug}`);
+    } else if (e.key === 'ArrowRight' && data.nav.next) {
+      goto(`/editor/pokemon/${data.nav.next.pokemonSlug}?dex=${data.nav.selectedDex.slug}`);
+    }
+  }
 
   $effect(() => { pageSource.set(data.pokemon.source); });
 
@@ -220,6 +275,8 @@
   }
 </script>
 
+<svelte:window onkeydown={handleKeydown} />
+
 <svelte:head>
   <title>Edit {data.pokemon.name} | Karta Yaxu</title>
 </svelte:head>
@@ -288,6 +345,47 @@
       </div>
     </div>
   </form>
+
+  <div class="meta-row">
+    {#if validVersions.length > 0}
+      <VersionSelector
+        bind:value={selectedVersionId}
+        options={validVersions.map(v => ({ value: v.id, label: v.name.toUpperCase().replace(/-/g, ' ') }))}
+      />
+    {/if}
+
+    {#if data.nav}
+      <nav class="dex-nav">
+        {#if data.nav.prev}
+          <a
+            href="/editor/pokemon/{data.nav.prev.pokemonSlug}?dex={data.nav.selectedDex.slug}"
+            class="nav-link nav-prev"
+          >← <span class="nav-text">{data.nav.prev.speciesName.toUpperCase()}</span></a>
+        {:else}
+          <span class="nav-disabled">←</span>
+        {/if}
+
+        <div class="nav-center">
+          <span class="nav-entry">#{data.nav.currentEntry}</span>
+          <RetroSelect
+            value={data.nav.selectedDex.slug}
+            options={data.nav.dexList.map(dex => ({ value: dex.slug, label: dex.name.toUpperCase().replace(/-/g, ' ') }))}
+            onchange={(val) => goto(`?dex=${val}`)}
+            class="dex-select"
+          />
+        </div>
+
+        {#if data.nav.next}
+          <a
+            href="/editor/pokemon/{data.nav.next.pokemonSlug}?dex={data.nav.selectedDex.slug}"
+            class="nav-link nav-next"
+          ><span class="nav-text">{data.nav.next.speciesName.toUpperCase()}</span> →</a>
+        {:else}
+          <span class="nav-disabled">→</span>
+        {/if}
+      </nav>
+    {/if}
+  </div>
 
   {#snippet evoNode(nodeId: number)}
     {@const node = evoTreeData().nodeMap.get(nodeId)}
@@ -515,6 +613,24 @@
 
     <!-- Bottom-left: Types + Abilities -->
     <div class="info-cell">
+      {#if selectedVersionId}
+        <div class="flavor-text-editor-section">
+          <input
+            form="main-form"
+            type="hidden"
+            name="selectedVgId"
+            value={selectedVersionId}
+          />
+          <FlavorTextBox
+            text={flavorTextVal}
+            editable={isCustomVg()}
+            onchange={(val) => flavorTextVal = val}
+            form="main-form"
+            name="flavorText"
+          />
+        </div>
+      {/if}
+
       <InfoBox title="TYPES">
         <div class="sub-form-inline">
           <div class="sub-field">
@@ -1293,4 +1409,99 @@
     display: none !important;
   }
 
+  /* Dex nav + version selector side by side */
+  .meta-row {
+    display: flex;
+    gap: var(--spacing-4);
+    align-items: stretch;
+    margin-bottom: var(--spacing-4);
+  }
+
+  .meta-row > :global(.version-selector-container) {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* Dex navigation strip */
+  .dex-nav {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-4);
+    flex-wrap: wrap;
+    flex: 1;
+    min-width: 0;
+    background-color: var(--theme-bg-secondary);
+    border: 3px solid var(--theme-border-primary);
+    box-shadow: 2px 2px 0px var(--theme-border-primary);
+    padding: var(--spacing-3) var(--spacing-4);
+  }
+
+  :global(.dex-select) {
+    min-width: 160px;
+  }
+
+  .nav-center {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    flex: 1;
+    justify-content: center;
+  }
+
+  .nav-link {
+    font-family: var(--font-display);
+    font-size: 10px;
+    color: var(--theme-text-secondary);
+    text-decoration: none;
+    padding: 4px 8px;
+    background-color: var(--theme-bg-primary);
+    border: 2px solid var(--theme-border-primary);
+    box-shadow: 2px 2px 0px var(--theme-border-primary);
+    transition: all 0.05s ease;
+  }
+
+  .nav-link:hover {
+    color: var(--theme-text-accent);
+    border-color: var(--theme-text-accent);
+    box-shadow: 2px 2px 0px var(--theme-text-accent);
+    transform: translate(-1px, -1px);
+  }
+
+  .nav-entry {
+    font-family: var(--font-display);
+    font-size: 10px;
+    color: var(--theme-text-secondary);
+  }
+
+  .nav-disabled {
+    font-family: var(--font-display);
+    font-size: 10px;
+    color: var(--theme-text-secondary);
+    opacity: 0.3;
+    padding: 4px 8px;
+  }
+
+  .nav-text {
+    display: inline;
+  }
+
+  @media (max-width: 600px) {
+    .nav-text {
+      display: none;
+    }
+    .dex-nav {
+      flex-wrap: nowrap;
+      justify-content: space-between;
+      gap: var(--spacing-2);
+      padding: var(--spacing-2) var(--spacing-3);
+    }
+    .nav-center {
+      gap: var(--spacing-1);
+    }
+  }
+
+  /* Flavor text editor */
+  .flavor-text-editor-section {
+    margin-bottom: var(--spacing-6);
+  }
 </style>
