@@ -33,7 +33,7 @@
 
 <div class="matchup-grid">
   <div class="matchup-box">
-    <h3>OFFENSIVE (ATTACKING)</h3>
+    <h3>OFFENSIVE</h3>
     {#each offGroups as group}
       <div class="matchup-row">
         <span class="label {group.cls}">{group.label}</span>
@@ -46,7 +46,7 @@
   </div>
 
   <div class="matchup-box">
-    <h3>DEFENSIVE (DEFENDING)</h3>
+    <h3>DEFENSIVE</h3>
     {#each defGroups() as group}
       <div class="matchup-row">
         <span class="label {group.cls}">{group.label}</span>
@@ -82,10 +82,14 @@
   .matchup-box h3 {
     font-family: var(--font-display);
     font-size: 14px;
-    color: var(--theme-text-primary);
-    margin: 0 0 var(--spacing-2) 0;
+    color: var(--theme-text-inverse);
+    margin-top: calc(-1 * var(--spacing-4));
+    margin-left: calc(-1 * var(--spacing-4));
+    margin-right: calc(-1 * var(--spacing-4));
+    margin-bottom: var(--spacing-4);
+    padding: var(--spacing-3) var(--spacing-4);
+    background-color: var(--theme-bg-tertiary);
     border-bottom: 2px dashed var(--theme-border-primary);
-    padding-bottom: var(--spacing-2);
   }
 
   .matchup-row {

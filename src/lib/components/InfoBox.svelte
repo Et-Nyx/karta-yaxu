@@ -19,9 +19,13 @@
   .info-box h3 {
     font-family: var(--font-display);
     font-size: 12px;
-    color: var(--theme-text-primary);
-    margin: 0 0 var(--spacing-4) 0;
+    color: var(--theme-text-inverse);
+    margin-top: calc(-1 * var(--spacing-4));
+    margin-left: calc(-1 * var(--spacing-4));
+    margin-right: calc(-1 * var(--spacing-4));
+    margin-bottom: var(--spacing-4);
+    padding: var(--spacing-3) var(--spacing-4);
+    background-color: var(--theme-bg-tertiary);
     border-bottom: 2px solid var(--theme-border-primary);
-    padding-bottom: var(--spacing-2);
   }
 </style>
