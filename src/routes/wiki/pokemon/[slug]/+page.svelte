@@ -20,9 +20,11 @@
 
   let spriteUrl = $derived(
     isShiny
-      ? (p.pokeapiId
-          ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/shiny/${p.pokeapiId}.png`
-          : p.spriteShiny)
+      ? (p.spriteArtworkShiny ||
+          p.spriteShiny ||
+          (p.pokeapiId
+            ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/shiny/${p.pokeapiId}.png`
+            : null))
       : (p.spriteArtwork ||
           p.spriteDefault ||
           (p.pokeapiId

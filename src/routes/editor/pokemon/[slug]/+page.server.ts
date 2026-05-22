@@ -37,6 +37,9 @@ const UpdateSchema = z.object({
   spriteDefault: z.preprocess((v) => v === '' ? null : v, z.string().nullable()),
   spriteShiny:   z.preprocess((v) => v === '' ? null : v, z.string().nullable()),
   spriteArtwork: z.preprocess((v) => v === '' ? null : v, z.string().nullable()),
+  spriteArtworkShiny: z.preprocess((v) => v === '' ? null : v, z.string().nullable()),
+  spriteBackDefault:  z.preprocess((v) => v === '' ? null : v, z.string().nullable()),
+  spriteBackShiny:    z.preprocess((v) => v === '' ? null : v, z.string().nullable()),
   slot1TypeId:    z.coerce.number().int().positive(),
   slot2TypeId:    z.preprocess((v) => (v === '' || v == null ? null : Number(v)), z.number().int().positive().nullable()),
   slot1AbilityId: z.coerce.number().int().positive(),
@@ -467,10 +470,16 @@ export const actions: Actions = {
     const defaultFile = formData.get('spriteDefaultFile');
     const shinyFile = formData.get('spriteShinyFile');
     const artworkFile = formData.get('spriteArtworkFile');
+    const artworkShinyFile = formData.get('spriteArtworkShinyFile');
+    const backDefaultFile = formData.get('spriteBackDefaultFile');
+    const backShinyFile = formData.get('spriteBackShinyFile');
 
     let spriteDefault = data.spriteDefault;
     let spriteShiny = data.spriteShiny;
     let spriteArtwork = data.spriteArtwork;
+    let spriteArtworkShiny = data.spriteArtworkShiny;
+    let spriteBackDefault = data.spriteBackDefault;
+    let spriteBackShiny = data.spriteBackShiny;
 
     const savedDefault = await saveUploadedFile(defaultFile, data.slug, 'default');
     if (savedDefault) spriteDefault = savedDefault;
@@ -480,6 +489,15 @@ export const actions: Actions = {
 
     const savedArtwork = await saveUploadedFile(artworkFile, data.slug, 'artwork');
     if (savedArtwork) spriteArtwork = savedArtwork;
+
+    const savedArtworkShiny = await saveUploadedFile(artworkShinyFile, data.slug, 'artwork-shiny');
+    if (savedArtworkShiny) spriteArtworkShiny = savedArtworkShiny;
+
+    const savedBackDefault = await saveUploadedFile(backDefaultFile, data.slug, 'back-default');
+    if (savedBackDefault) spriteBackDefault = savedBackDefault;
+
+    const savedBackShiny = await saveUploadedFile(backShinyFile, data.slug, 'back-shiny');
+    if (savedBackShiny) spriteBackShiny = savedBackShiny;
 
     const newRow = {
       name:          data.name,
@@ -496,13 +514,23 @@ export const actions: Actions = {
       spriteDefault,
       spriteShiny,
       spriteArtwork,
+      spriteArtworkShiny,
+      spriteBackDefault,
+      spriteBackShiny,
       source:        bumpSource(current.source),
     };
 
     await db.update(pokemon).set(newRow).where(eq(pokemon.id, current.id));
 
     await db.update(pokemonForms)
-      .set({ spriteDefault: newRow.spriteDefault, spriteShiny: newRow.spriteShiny, spriteArtwork: newRow.spriteArtwork })
+      .set({
+        spriteDefault: newRow.spriteDefault,
+        spriteShiny: newRow.spriteShiny,
+        spriteArtwork: newRow.spriteArtwork,
+        spriteArtworkShiny: newRow.spriteArtworkShiny,
+        spriteBackDefault: newRow.spriteBackDefault,
+        spriteBackShiny: newRow.spriteBackShiny
+      })
       .where(and(eq(pokemonForms.pokemonId, current.id), eq(pokemonForms.isDefault, true)));
 
     // Update types

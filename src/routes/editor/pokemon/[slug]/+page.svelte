@@ -37,31 +37,43 @@
   let spriteDefaultVal = $state(data.pokemon.spriteDefault ?? '');
   let spriteShinyVal = $state(data.pokemon.spriteShiny ?? '');
   let spriteArtworkVal = $state(data.pokemon.spriteArtwork ?? '');
+  let spriteArtworkShinyVal = $state(data.pokemon.spriteArtworkShiny ?? '');
+  let spriteBackDefaultVal = $state(data.pokemon.spriteBackDefault ?? '');
+  let spriteBackShinyVal = $state(data.pokemon.spriteBackShiny ?? '');
   let isShiny = $state(false);
   let copySourceVgId = $state('');
 
   let defaultFileSelected = $state(false);
   let shinyFileSelected = $state(false);
   let artworkFileSelected = $state(false);
+  let artworkShinyFileSelected = $state(false);
+  let backDefaultFileSelected = $state(false);
+  let backShinyFileSelected = $state(false);
 
-  function handleFileSelected(e: Event, type: 'default' | 'shiny' | 'artwork') {
+  function handleFileSelected(e: Event, type: 'default' | 'shiny' | 'artwork' | 'artwork-shiny' | 'back-default' | 'back-shiny') {
     const input = e.target as HTMLInputElement;
     const file = input.files?.[0];
     if (file) {
       if (type === 'default') defaultFileSelected = true;
       if (type === 'shiny') shinyFileSelected = true;
       if (type === 'artwork') artworkFileSelected = true;
+      if (type === 'artwork-shiny') artworkShinyFileSelected = true;
+      if (type === 'back-default') backDefaultFileSelected = true;
+      if (type === 'back-shiny') backShinyFileSelected = true;
 
       const objectUrl = URL.createObjectURL(file);
       if (type === 'default') spriteDefaultVal = objectUrl;
       if (type === 'shiny') spriteShinyVal = objectUrl;
       if (type === 'artwork') spriteArtworkVal = objectUrl;
+      if (type === 'artwork-shiny') spriteArtworkShinyVal = objectUrl;
+      if (type === 'back-default') spriteBackDefaultVal = objectUrl;
+      if (type === 'back-shiny') spriteBackShinyVal = objectUrl;
     }
   }
 
   let currentSpriteUrl = $derived(
     isShiny
-      ? (spriteShinyVal || (data.pokemon.pokeapiId ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/shiny/${data.pokemon.pokeapiId}.png` : null))
+      ? (spriteArtworkShinyVal || spriteShinyVal || (data.pokemon.pokeapiId ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/shiny/${data.pokemon.pokeapiId}.png` : null))
       : (spriteArtworkVal || spriteDefaultVal || (data.pokemon.pokeapiId ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${data.pokemon.pokeapiId}.png` : null))
   );
 
@@ -232,6 +244,9 @@
     <input type="hidden" name="spriteDefault" value={spriteDefaultVal} />
     <input type="hidden" name="spriteShiny"   value={spriteShinyVal} />
     <input type="hidden" name="spriteArtwork" value={spriteArtworkVal} />
+    <input type="hidden" name="spriteArtworkShiny" value={spriteArtworkShinyVal} />
+    <input type="hidden" name="spriteBackDefault"  value={spriteBackDefaultVal} />
+    <input type="hidden" name="spriteBackShiny"    value={spriteBackShinyVal} />
     <input type="hidden" name="slot1TypeId"    value={slot1TypeId    ?? ''} />
     <input type="hidden" name="slot2TypeId"    value={slot2TypeId    ?? ''} />
     <input type="hidden" name="slot1AbilityId" value={slot1AbilityVal ?? ''} />
@@ -441,6 +456,39 @@
               <label class="retro-upload-btn" class:selected={artworkFileSelected}>
                 {artworkFileSelected ? 'READY' : 'UPLOAD'}
                 <input type="file" accept="image/*" form="main-form" name="spriteArtworkFile" class="hidden-file-input" onchange={(e) => handleFileSelected(e, 'artwork')} />
+              </label>
+            </div>
+          </div>
+          <div class="sprite-field">
+            <label class="sprite-label">SHINY ART</label>
+            <div class="sprite-input-row">
+              <input class="sprite-url-input" type="text" placeholder="URL…" bind:value={spriteArtworkShinyVal} />
+              <label class="retro-upload-btn" class:selected={artworkShinyFileSelected}>
+                {artworkShinyFileSelected ? 'READY' : 'UPLOAD'}
+                <input type="file" accept="image/*" form="main-form" name="spriteArtworkShinyFile" class="hidden-file-input" onchange={(e) => handleFileSelected(e, 'artwork-shiny')} />
+              </label>
+            </div>
+          </div>
+
+          <div class="sprite-section-divider">BACK SPRITES</div>
+
+          <div class="sprite-field">
+            <label class="sprite-label">BACK DEF</label>
+            <div class="sprite-input-row">
+              <input class="sprite-url-input" type="text" placeholder="URL…" bind:value={spriteBackDefaultVal} />
+              <label class="retro-upload-btn" class:selected={backDefaultFileSelected}>
+                {backDefaultFileSelected ? 'READY' : 'UPLOAD'}
+                <input type="file" accept="image/*" form="main-form" name="spriteBackDefaultFile" class="hidden-file-input" onchange={(e) => handleFileSelected(e, 'back-default')} />
+              </label>
+            </div>
+          </div>
+          <div class="sprite-field">
+            <label class="sprite-label">BACK SHINY</label>
+            <div class="sprite-input-row">
+              <input class="sprite-url-input" type="text" placeholder="URL…" bind:value={spriteBackShinyVal} />
+              <label class="retro-upload-btn" class:selected={backShinyFileSelected}>
+                {backShinyFileSelected ? 'READY' : 'UPLOAD'}
+                <input type="file" accept="image/*" form="main-form" name="spriteBackShinyFile" class="hidden-file-input" onchange={(e) => handleFileSelected(e, 'back-shiny')} />
               </label>
             </div>
           </div>
@@ -1207,6 +1255,17 @@
   .retro-upload-btn.selected {
     border-color: var(--theme-text-accent);
     color: var(--theme-text-accent);
+  }
+  .sprite-section-divider {
+    font-family: var(--font-display);
+    font-size: 8px;
+    color: var(--theme-text-muted);
+    border-top: 2px dashed var(--theme-border-primary);
+    margin: var(--spacing-2) 0;
+    padding-top: var(--spacing-3);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    text-align: center;
   }
   .hidden-file-input {
     display: none !important;

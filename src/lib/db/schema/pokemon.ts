@@ -84,6 +84,9 @@ export const pokemon = sqliteTable('pokemon', {
   spriteDefault: text('sprite_default'),
   spriteShiny: text('sprite_shiny'),
   spriteArtwork: text('sprite_artwork'),
+  spriteArtworkShiny: text('sprite_artwork_shiny'),
+  spriteBackDefault: text('sprite_back_default'),
+  spriteBackShiny: text('sprite_back_shiny'),
   evolvesFromPokemonId: integer('evolves_from_pokemon_id'), // self-FK to pokemon.id (no Drizzle constraint to avoid circular refs)
   formOfPokemonId: integer('form_of_pokemon_id'),           // self-FK: set on alt forms (mega, gmax, regional) pointing to the base entry
   formType: text('form_type'),                              // 'mega' | 'gmax' | 'regional' | 'battle' | 'other'
@@ -158,6 +161,9 @@ export const pokemonForms = sqliteTable('pokemon_forms', {
   spriteDefault: text('sprite_default'),
   spriteShiny: text('sprite_shiny'),
   spriteArtwork: text('sprite_artwork'),
+  spriteArtworkShiny: text('sprite_artwork_shiny'),
+  spriteBackDefault: text('sprite_back_default'),
+  spriteBackShiny: text('sprite_back_shiny'),
 });
 
 
