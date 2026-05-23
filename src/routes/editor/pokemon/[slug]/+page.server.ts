@@ -196,8 +196,7 @@ export const load: PageServerLoad = async ({ params, url }) => {
     slug:     pokemon.slug,
     name:     pokemon.name,
     trigger:  pokemonEvolutionDetails.trigger,
-    minLevel: pokemonEvolutionDetails.minLevel,
-    itemId:   pokemonEvolutionDetails.itemId,
+    conditions: pokemonEvolutionDetails.conditions,
   })
     .from(pokemon)
     .leftJoin(pokemonEvolutionDetails, eq(pokemonEvolutionDetails.pokemonId, pokemon.id))
@@ -304,16 +303,12 @@ export const load: PageServerLoad = async ({ params, url }) => {
       const details = await db.select({
         pokemonId:    pokemonEvolutionDetails.pokemonId,
         trigger:      pokemonEvolutionDetails.trigger,
-        minLevel:     pokemonEvolutionDetails.minLevel,
-        minHappiness: pokemonEvolutionDetails.minHappiness,
-        itemId:       pokemonEvolutionDetails.itemId,
-        timeOfDay:    pokemonEvolutionDetails.timeOfDay,
-        location:     pokemonEvolutionDetails.location,
+        conditions:   pokemonEvolutionDetails.conditions,
       })
         .from(pokemonEvolutionDetails)
         .where(inArray(pokemonEvolutionDetails.pokemonId, childIds));
 
-      const itemIds = details.map(d => d.itemId).filter((v): v is number => v != null);
+      const itemIds = details.map(d => d.conditions?.itemId).filter((v): v is number => v != null);
       const itemRows = itemIds.length > 0
         ? await db.select({ id: items.id, name: items.name, slug: items.slug })
             .from(items).where(inArray(items.id, itemIds))
@@ -338,7 +333,8 @@ export const load: PageServerLoad = async ({ params, url }) => {
         const p = parentById.get(e.fromPokemonId);
         const d = detailByChild.get(e.toPokemonId);
         if (!c || !p) continue;
-        const item = d?.itemId != null ? itemById.get(d.itemId) : null;
+        const cond = d?.conditions ?? {};
+        const item = cond.itemId != null ? itemById.get(cond.itemId) : null;
         const restricted = FORM_RESTRICTED_EVOLUTIONS.find(
           r => p.speciesSlug === r.fromSlug && c.speciesSlug === r.toSlug
         );
@@ -354,13 +350,13 @@ export const load: PageServerLoad = async ({ params, url }) => {
           toSlug:        c.slug,
           toSprite:      c.sprite ?? null,
           trigger:       d?.trigger ?? 'unknown',
-          minLevel:      d?.minLevel ?? null,
-          minHappiness:  d?.minHappiness ?? null,
+          minLevel:      cond.minLevel ?? null,
+          minHappiness:  cond.minHappiness ?? null,
           itemName:      item?.name ?? null,
           itemSlug:      item?.slug ?? null,
-          timeOfDay:     d?.timeOfDay ?? null,
-          location:      d?.location ?? null,
-          requiredSuffix: restricted?.requiredSuffix ?? d?.location ?? null,
+          timeOfDay:     cond.timeOfDay ?? null,
+          location:      cond.location ?? null,
+          requiredSuffix: restricted?.requiredSuffix ?? cond.location ?? null,
         });
       }
     }
@@ -923,32 +919,26 @@ export const actions: Actions = {
 
     const conditionRow = {
       pokemonId:       current.id,
-      trigger:         data.trigger,
-      minLevel:        data.minLevel,
-      itemId:          data.itemId,
-      heldItemId:      data.heldItemId,
-      knownMoveId:     data.knownMoveId,
-      knownMoveTypeId: data.knownMoveTypeId,
-      minHappiness:    data.minHappiness,
-      timeOfDay:       data.timeOfDay,
-      gender:          data.gender,
-      location:        data.location,
-      source:          'edited' as const,
-    };
-
-    await db.insert(pokemonEvolutionDetails).values(conditionRow).onConflictDoUpdate({
-      target: pokemonEvolutionDetails.pokemonId,
-      set: {
-        trigger:         data.trigger,
+      trigger:         data.trigger as any,
+      conditions: {
         minLevel:        data.minLevel,
         itemId:          data.itemId,
         heldItemId:      data.heldItemId,
         knownMoveId:     data.knownMoveId,
         knownMoveTypeId: data.knownMoveTypeId,
         minHappiness:    data.minHappiness,
-        timeOfDay:       data.timeOfDay,
+        timeOfDay:       data.timeOfDay as any,
         gender:          data.gender,
         location:        data.location,
+      },
+      source:          'edited' as const,
+    };
+
+    await db.insert(pokemonEvolutionDetails).values(conditionRow).onConflictDoUpdate({
+      target: pokemonEvolutionDetails.pokemonId,
+      set: {
+        trigger:         conditionRow.trigger,
+        conditions:      conditionRow.conditions,
         source:          'edited',
       },
     });
@@ -999,32 +989,28 @@ export const actions: Actions = {
       .set({ source: bumpSource(current.source) })
       .where(eq(pokemon.id, current.id));
 
-    await db.insert(pokemonEvolutionDetails).values({
-      pokemonId:       current.id,
-      trigger:         data.trigger,
+    const conditions = {
       minLevel:        data.minLevel,
       itemId:          data.itemId,
       heldItemId:      data.heldItemId,
       knownMoveId:     data.knownMoveId,
       knownMoveTypeId: data.knownMoveTypeId,
       minHappiness:    data.minHappiness,
-      timeOfDay:       data.timeOfDay,
+      timeOfDay:       data.timeOfDay as any,
       gender:          data.gender,
       location:        data.location,
+    };
+
+    await db.insert(pokemonEvolutionDetails).values({
+      pokemonId:       current.id,
+      trigger:         data.trigger as any,
+      conditions:      conditions,
       source:          'edited',
     }).onConflictDoUpdate({
       target: pokemonEvolutionDetails.pokemonId,
       set: {
-        trigger:         data.trigger,
-        minLevel:        data.minLevel,
-        itemId:          data.itemId,
-        heldItemId:      data.heldItemId,
-        knownMoveId:     data.knownMoveId,
-        knownMoveTypeId: data.knownMoveTypeId,
-        minHappiness:    data.minHappiness,
-        timeOfDay:       data.timeOfDay,
-        gender:          data.gender,
-        location:        data.location,
+        trigger:         data.trigger as any,
+        conditions:      conditions,
         source:          'edited',
       },
     });

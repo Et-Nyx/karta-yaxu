@@ -354,16 +354,12 @@ export const load: PageServerLoad = async ({ params, url }) => {
       const details = await db.select({
         pokemonId:    schema.pokemonEvolutionDetails.pokemonId,
         trigger:      schema.pokemonEvolutionDetails.trigger,
-        minLevel:     schema.pokemonEvolutionDetails.minLevel,
-        minHappiness: schema.pokemonEvolutionDetails.minHappiness,
-        itemId:       schema.pokemonEvolutionDetails.itemId,
-        timeOfDay:    schema.pokemonEvolutionDetails.timeOfDay,
-        location:     schema.pokemonEvolutionDetails.location,
+        conditions:   schema.pokemonEvolutionDetails.conditions,
       })
         .from(schema.pokemonEvolutionDetails)
         .where(inArray(schema.pokemonEvolutionDetails.pokemonId, childIds));
 
-      const itemIds = details.map(d => d.itemId).filter((v): v is number => v != null);
+      const itemIds = details.map(d => d.conditions?.itemId).filter((v): v is number => v != null);
       const itemRows = itemIds.length > 0
         ? await db.select({ id: schema.items.id, name: schema.items.name, slug: schema.items.slug })
             .from(schema.items).where(inArray(schema.items.id, itemIds))
@@ -379,7 +375,8 @@ export const load: PageServerLoad = async ({ params, url }) => {
         const p = parentById.get(e.fromPokemonId);
         const d = detailByChild.get(e.toPokemonId);
         if (!c || !p) continue;
-        const item = d?.itemId != null ? itemById.get(d.itemId) : null;
+        const cond = d?.conditions ?? {};
+        const item = cond.itemId != null ? itemById.get(cond.itemId) : null;
         evolutionChain.push({
           fromPokemonId: p.id,
           fromSpeciesId: p.speciesId,
@@ -392,12 +389,12 @@ export const load: PageServerLoad = async ({ params, url }) => {
           toSlug:        c.slug,
           toSprite:      c.sprite ?? null,
           trigger:       d?.trigger ?? 'unknown',
-          minLevel:      d?.minLevel ?? null,
-          minHappiness:  d?.minHappiness ?? null,
+          minLevel:      cond.minLevel ?? null,
+          minHappiness:  cond.minHappiness ?? null,
           itemName:      item?.name ?? null,
           itemSlug:      item?.slug ?? null,
-          timeOfDay:     d?.timeOfDay ?? null,
-          location:      d?.location ?? null,
+          timeOfDay:     cond.timeOfDay ?? null,
+          location:      cond.location ?? null,
         });
       }
     }

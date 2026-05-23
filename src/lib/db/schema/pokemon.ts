@@ -94,18 +94,22 @@ export const pokemon = sqliteTable('pokemon', {
 
 // Linked-list evolution: one row per pokemon-with-predecessor. The pokemon's evolves_from_pokemon_id
 // gives the parent; the conditions for the (parent -> child) edge live here, keyed on the child id.
+export type EvolutionConditions = {
+  minLevel?: number | null;
+  itemId?: number | null;
+  heldItemId?: number | null;
+  knownMoveId?: number | null;
+  knownMoveTypeId?: number | null;
+  minHappiness?: number | null;
+  timeOfDay?: 'day' | 'night' | 'dusk' | null;
+  gender?: number | null;
+  location?: string | null;
+};
+
 export const pokemonEvolutionDetails = sqliteTable('pokemon_evolution_details', {
   pokemonId:        integer('pokemon_id').primaryKey().references(() => pokemon.id),
-  trigger:          text('trigger').notNull(), // 'level-up' / 'use-item' / 'use-move' / 'trade' / 'three-critical-hits'
-  minLevel:         integer('min_level'),
-  itemId:           integer('item_id').references(() => items.id),
-  heldItemId:       integer('held_item_id').references(() => items.id),
-  knownMoveId:      integer('known_move_id').references(() => moves.id),
-  knownMoveTypeId:  integer('known_move_type_id').references(() => types.id),
-  minHappiness:     integer('min_happiness'),
-  timeOfDay:        text('time_of_day'),   // 'day' / 'night' / 'dusk'
-  gender:           integer('gender'),      // 1 = female, 2 = male
-  location:         text('location'),
+  trigger:          text('trigger', { enum: ['level-up', 'trade', 'use-item', 'shed', 'other'] }).notNull(),
+  conditions:       text('conditions', { mode: 'json' }).$type<EvolutionConditions>().notNull().default({}),
   source:           text('source', { enum: ['pokeapi', 'edited', 'custom'] }).notNull().default('pokeapi'),
 });
 

@@ -327,34 +327,29 @@ export async function populateChainLinkedList(chainPokeapiId: number): Promise<v
           .where(eq(schema.pokemonEvolutionDetails.pokemonId, pair.to.id)).limit(1);
 
         if (!existingCond || existingCond.source === 'pokeapi') {
-          const payload = {
-            pokemonId:       pair.to.id,
-            trigger:         edge.trigger,
+          const conditions: schema.EvolutionConditions = {
             minLevel:        edge.minLevel ?? null,
             itemId:          itemDbId,
             heldItemId:      heldItemDbId,
             knownMoveId:     knownMoveDbId,
             knownMoveTypeId: knownMoveTypeDbId,
             minHappiness:    edge.minHappiness ?? null,
-            timeOfDay:       edge.timeOfDay ?? null,
+            timeOfDay:       (edge.timeOfDay as any) ?? null,
             gender:          edge.gender ?? null,
             location:        edge.location ?? null,
-            source:          'pokeapi' as const,
+          };
+          const payload = {
+            pokemonId:  pair.to.id,
+            trigger:    edge.trigger as any,
+            conditions: conditions,
+            source:     'pokeapi' as const,
           };
           await db.insert(schema.pokemonEvolutionDetails).values(payload).onConflictDoUpdate({
             target: schema.pokemonEvolutionDetails.pokemonId,
             set: {
-              trigger:         payload.trigger,
-              minLevel:        payload.minLevel,
-              itemId:          payload.itemId,
-              heldItemId:      payload.heldItemId,
-              knownMoveId:     payload.knownMoveId,
-              knownMoveTypeId: payload.knownMoveTypeId,
-              minHappiness:    payload.minHappiness,
-              timeOfDay:       payload.timeOfDay,
-              gender:          payload.gender,
-              location:        payload.location,
-              source:          'pokeapi',
+              trigger:    payload.trigger,
+              conditions: payload.conditions,
+              source:     'pokeapi',
             },
           });
           processedTargets.add(pair.to.id);

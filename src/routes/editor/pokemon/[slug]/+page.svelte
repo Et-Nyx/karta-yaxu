@@ -330,8 +330,14 @@
     ) ?? null
   );
   let activeFormTab = $state<string>('EVOLUTION');
+  let selectedTrigger = $state<string>('level-up');
+
   $effect(() => {
     activeFormTab = formSuffix ? formSuffix.toUpperCase() : 'EVOLUTION';
+  });
+
+  $effect(() => {
+    selectedTrigger = data.predecessorConditions?.trigger ?? 'level-up';
   });
 
   let activeFormTabObj = $derived(formTabs().find(t => t.label === activeFormTab) ?? formTabs()[0]);
@@ -708,13 +714,282 @@
   <!-- FORMS tab: inner sub-tabs (EVOLUTION + regional/mega/gmax form tiles) -->
 
   <Tabs tabs={formTabItems()} bind:active={activeFormTab}>
-    <EvolutionChain
-      chainSpecies={data.chainSpecies}
-      evolutionChain={data.evolutionChain}
-      activePokemon={data.pokemon}
-      activeTab={activeFormTabObj}
-      variant="editor"
-    />
+    {#if activeFormTabObj.kind === 'evolution'}
+      <div class="evolution-tab-container">
+        <EvolutionChain
+          chainSpecies={data.chainSpecies}
+          evolutionChain={data.evolutionChain}
+          activePokemon={data.pokemon}
+          activeTab={activeFormTabObj}
+          variant="editor"
+        />
+
+        <!-- NEW EVOLUTION EDITOR FORM PANEL -->
+        <div class="evolution-editor-panel retro-container">
+          <h3 class="retro-title">EVOLUTION SETTINGS</h3>
+          <p class="description-text mb-6">
+            Configure how <strong>{data.pokemon.name}</strong> evolves. Evolutions are form-aware, linking this specific form to its predecessor form and defining the exact activation trigger and conditions.
+          </p>
+
+          <div class="evolution-editor-forms grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- LEFT COLUMN: Predecessor Form Selection -->
+            <div class="editor-section-card">
+              <h4 class="section-subtitle mb-4">1. PREDECESSOR (EVOLVES FROM)</h4>
+              <form action="?/setPredecessor" method="post" use:enhance class="retro-form space-y-4">
+                <div class="field">
+                  <label for="parentPokemonId">Select Predecessor</label>
+                  <div class="flex gap-2 items-center">
+                    <div class="flex-grow">
+                      <RetroSelect
+                        id="parentPokemonId"
+                        name="parentPokemonId"
+                        value={data.predecessor?.id ? String(data.predecessor.id) : ""}
+                        options={[
+                          { value: "", label: "--- NONE (BASIC POKÉMON) ---" },
+                          ...data.allPokemon
+                            .filter(p => p.id !== data.pokemon.id)
+                            .map(p => ({ value: String(p.id), label: p.name }))
+                        ]}
+                        variant="editor"
+                      />
+                    </div>
+                    {#if data.predecessor}
+                      <button type="submit" formAction="?/clearPredecessor" class="btn-clear-relation flex-shrink-0">
+                        CLEAR
+                      </button>
+                    {/if}
+                  </div>
+                </div>
+
+                <div class="field select-field">
+                  <label for="trigger">Initial Trigger</label>
+                  <RetroSelect
+                    id="trigger"
+                    name="trigger"
+                    bind:value={selectedTrigger}
+                    options={[
+                      { value: "level-up", label: "LEVEL UP" },
+                      { value: "use-item", label: "USE ITEM" },
+                      { value: "trade", label: "TRADE" },
+                      { value: "shed", label: "SHED" },
+                      { value: "other", label: "OTHER / CUSTOM" }
+                    ]}
+                    variant="editor"
+                  />
+                </div>
+
+                <div class="flex justify-end pt-2">
+                  <button type="submit" class="btn btn-primary w-full">
+                    LINK PREDECESSOR
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            <!-- RIGHT COLUMN: Trigger-Conditional Options -->
+            <div class="editor-section-card">
+              <h4 class="section-subtitle mb-4">2. EVOLUTION CONDITIONS</h4>
+              {#if !data.predecessor}
+                <div class="no-relation-placeholder">
+                  <div class="icon">⚠️</div>
+                  <p>This Pokémon is currently a <strong>Basic Pokémon</strong> (has no predecessor).</p>
+                  <p class="subtext">Select a predecessor on the left to unlock evolution condition settings.</p>
+                </div>
+              {:else}
+                <form action="?/updateConditions" method="post" use:enhance class="retro-form space-y-4">
+                  <!-- Hidden input to carry trigger -->
+                  <input type="hidden" name="trigger" value={selectedTrigger} />
+
+                  <div class="trigger-badge">
+                    Active Trigger: <strong>{selectedTrigger.toUpperCase()}</strong>
+                  </div>
+
+                  <!-- TRIGGER-SPECIFIC CONDITIONS -->
+                  {#if selectedTrigger === 'level-up'}
+                    <!-- Level Up Inputs -->
+                    <div class="grid grid-cols-2 gap-4">
+                      <div class="field">
+                        <label for="minLevel">MIN LEVEL</label>
+                        <input
+                          type="number"
+                          id="minLevel"
+                          name="minLevel"
+                          class="retro-input"
+                          placeholder="e.g. 16"
+                          value={data.predecessorConditions?.conditions?.minLevel ?? ""}
+                          min="1"
+                          max="100"
+                        />
+                      </div>
+                      <div class="field">
+                        <label for="minHappiness">MIN HAPPINESS</label>
+                        <input
+                          type="number"
+                          id="minHappiness"
+                          name="minHappiness"
+                          class="retro-input"
+                          placeholder="e.g. 220"
+                          value={data.predecessorConditions?.conditions?.minHappiness ?? ""}
+                          min="0"
+                          max="255"
+                        />
+                      </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                      <div class="field">
+                        <label for="timeOfDay">TIME OF DAY</label>
+                        <RetroSelect
+                          id="timeOfDay"
+                          name="timeOfDay"
+                          value={data.predecessorConditions?.conditions?.timeOfDay ?? ""}
+                          options={[
+                            { value: "", label: "ANY" },
+                            { value: "day", label: "DAY" },
+                            { value: "night", label: "NIGHT" },
+                            { value: "dusk", label: "DUSK" }
+                          ]}
+                          variant="editor"
+                        />
+                      </div>
+                      <div class="field">
+                        <label for="gender">GENDER REQUIREMENT</label>
+                        <RetroSelect
+                          id="gender"
+                          name="gender"
+                          value={data.predecessorConditions?.conditions?.gender ? String(data.predecessorConditions.conditions.gender) : ""}
+                          options={[
+                            { value: "", label: "ANY" },
+                            { value: "1", label: "FEMALE ONLY" },
+                            { value: "2", label: "MALE ONLY" }
+                          ]}
+                          variant="editor"
+                        />
+                      </div>
+                    </div>
+
+                    <div class="field">
+                      <label for="location">REQUIRED LOCATION</label>
+                      <input
+                        type="text"
+                        id="location"
+                        name="location"
+                        class="retro-input"
+                        placeholder="e.g. Mount Coronet"
+                        value={data.predecessorConditions?.conditions?.location ?? ""}
+                      />
+                    </div>
+
+                  {:else if selectedTrigger === 'use-item'}
+                    <!-- Use Item Inputs -->
+                    <div class="field">
+                      <label for="itemId">EVOLUTION ITEM</label>
+                      <RetroSelect
+                        id="itemId"
+                        name="itemId"
+                        value={data.predecessorConditions?.conditions?.itemId ? String(data.predecessorConditions.conditions.itemId) : ""}
+                        options={[
+                          { value: "", label: "--- SELECT ITEM ---" },
+                          ...data.allItems.map(i => ({ value: String(i.id), label: i.name }))
+                        ]}
+                        variant="editor"
+                      />
+                    </div>
+
+                  {:else if selectedTrigger === 'trade'}
+                    <!-- Trade Inputs -->
+                    <div class="field">
+                      <label for="heldItemId">HELD ITEM ON TRADE</label>
+                      <RetroSelect
+                        id="heldItemId"
+                        name="heldItemId"
+                        value={data.predecessorConditions?.conditions?.heldItemId ? String(data.predecessorConditions.conditions.heldItemId) : ""}
+                        options={[
+                          { value: "", label: "--- NONE (FREE TRADE) ---" },
+                          ...data.allItems.map(i => ({ value: String(i.id), label: i.name }))
+                        ]}
+                        variant="editor"
+                      />
+                    </div>
+
+                  {:else if selectedTrigger === 'shed'}
+                    <!-- Shed Trigger Options -->
+                    <div class="info-alert">
+                      Shedding requires an empty party slot and a standard Pokéball in inventory when evolving from predecessor (standard Ninjask -> Shedinja rules).
+                    </div>
+
+                  {:else}
+                    <!-- Custom/Other -->
+                    <div class="field">
+                      <label for="location">CUSTOM EVOLUTION DESCRIPTION / NOTE</label>
+                      <input
+                        type="text"
+                        id="location"
+                        name="location"
+                        class="retro-input"
+                        placeholder="e.g. Spin around in circles"
+                        value={data.predecessorConditions?.conditions?.location ?? ""}
+                      />
+                    </div>
+                  {/if}
+
+                  <!-- Common conditional inputs that can apply optionally to other items -->
+                  <div class="advanced-conditions-toggle pt-2 border-t border-dashed border-gray-700">
+                    <details class="retro-details">
+                      <summary class="summary-title text-xs cursor-pointer select-none">ADVANCED CONDITIONS (OPTIONAL)</summary>
+                      <div class="space-y-4 pt-3">
+                        <div class="grid grid-cols-2 gap-4">
+                          <div class="field">
+                            <label for="knownMoveId">REQUIRED KNOWN MOVE</label>
+                            <RetroSelect
+                              id="knownMoveId"
+                              name="knownMoveId"
+                              value={data.predecessorConditions?.conditions?.knownMoveId ? String(data.predecessorConditions.conditions.knownMoveId) : ""}
+                              options={[
+                                { value: "", label: "--- NONE ---" },
+                                ...data.allMoves.map(m => ({ value: String(m.id), label: m.name }))
+                              ]}
+                              variant="editor"
+                            />
+                          </div>
+                          <div class="field">
+                            <label for="knownMoveTypeId">REQUIRED MOVE TYPE</label>
+                            <RetroSelect
+                              id="knownMoveTypeId"
+                              name="knownMoveTypeId"
+                              value={data.predecessorConditions?.conditions?.knownMoveTypeId ? String(data.predecessorConditions.conditions.knownMoveTypeId) : ""}
+                              options={[
+                                { value: "", label: "--- NONE ---" },
+                                ...data.allTypes.map(t => ({ value: String(t.id), label: t.name }))
+                              ]}
+                              variant="editor"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </details>
+                  </div>
+
+                  <div class="flex justify-end pt-2">
+                    <button type="submit" class="btn btn-primary w-full">
+                      SAVE EVOLUTION CONDITIONS
+                    </button>
+                  </div>
+                </form>
+              {/if}
+            </div>
+          </div>
+        </div>
+      </div>
+    {:else}
+      <EvolutionChain
+        chainSpecies={data.chainSpecies}
+        evolutionChain={data.evolutionChain}
+        activePokemon={data.pokemon}
+        activeTab={activeFormTabObj}
+        variant="editor"
+      />
+    {/if}
   </Tabs>
 
 
@@ -1435,5 +1710,144 @@
   /* Flavor text editor */
   .flavor-text-editor-section {
     margin-bottom: var(--spacing-6);
+  }
+
+  /* Premium Retro Evolution Editor Panel styling */
+  .evolution-tab-container {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .evolution-editor-panel {
+    background-color: var(--theme-bg-secondary);
+    border: 3px double var(--theme-border-primary);
+    padding: var(--spacing-5);
+    margin-top: var(--spacing-6);
+    box-shadow: 4px 4px 0 var(--theme-border-primary);
+  }
+
+  .retro-title {
+    font-family: var(--font-display);
+    font-size: 14px;
+    color: var(--theme-text-accent);
+    margin-bottom: var(--spacing-2);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-bottom: 2px dashed var(--theme-border-primary);
+    padding-bottom: var(--spacing-2);
+  }
+
+  .description-text {
+    font-size: 11px;
+    color: var(--theme-text-secondary);
+    line-height: 1.5;
+  }
+
+  .editor-section-card {
+    background-color: var(--theme-bg-tertiary);
+    border: 2px solid var(--theme-border-primary);
+    padding: var(--spacing-4);
+    box-shadow: 2px 2px 0 var(--theme-border-primary);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 100%;
+    min-height: 250px;
+  }
+
+  .section-subtitle {
+    font-family: var(--font-display);
+    font-size: 11px;
+    color: var(--theme-text-primary);
+    border-bottom: 1px solid var(--theme-border-primary);
+    padding-bottom: var(--spacing-2);
+  }
+
+  .btn-clear-relation {
+    appearance: none;
+    background-color: #ff4d4d;
+    border: 2px solid var(--theme-border-primary);
+    color: white;
+    font-family: var(--font-display);
+    font-size: 10px;
+    padding: 6px 12px;
+    cursor: pointer;
+    box-shadow: 2px 2px 0 var(--theme-border-primary);
+    transition: all 0.1s ease;
+  }
+
+  .btn-clear-relation:hover {
+    background-color: #ff3333;
+    transform: translate(-1px, -1px);
+    box-shadow: 3px 3px 0 var(--theme-border-primary);
+  }
+
+  .btn-clear-relation:active {
+    transform: translate(1px, 1px);
+    box-shadow: 1px 1px 0 var(--theme-border-primary);
+  }
+
+  .trigger-badge {
+    background-color: var(--theme-bg-secondary);
+    border: 1px dashed var(--theme-text-accent);
+    color: var(--theme-text-primary);
+    font-family: var(--font-display);
+    font-size: 9px;
+    padding: var(--spacing-2) var(--spacing-3);
+    text-align: center;
+    border-radius: 0;
+  }
+
+  .no-relation-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: var(--spacing-6) var(--spacing-4);
+    height: 100%;
+    color: var(--theme-text-muted);
+  }
+
+  .no-relation-placeholder .icon {
+    font-size: 24px;
+    margin-bottom: var(--spacing-3);
+  }
+
+  .no-relation-placeholder p {
+    font-size: 11px;
+    margin-bottom: var(--spacing-1);
+    color: var(--theme-text-secondary);
+  }
+
+  .no-relation-placeholder .subtext {
+    font-size: 10px;
+    color: var(--theme-text-muted);
+  }
+
+  .info-alert {
+    background-color: var(--theme-bg-secondary);
+    border-left: 4px solid var(--theme-text-accent);
+    padding: var(--spacing-3);
+    font-size: 10px;
+    line-height: 1.5;
+    color: var(--theme-text-secondary);
+  }
+
+  .retro-details {
+    border: 1px solid var(--theme-border-primary);
+    background-color: var(--theme-bg-secondary);
+    padding: var(--spacing-2);
+  }
+
+  .retro-details summary {
+    font-family: var(--font-display);
+    color: var(--theme-text-secondary);
+    outline: none;
+  }
+
+  .retro-details summary:hover {
+    color: var(--theme-text-accent);
   }
 </style>
