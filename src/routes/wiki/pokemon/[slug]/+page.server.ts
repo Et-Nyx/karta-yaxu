@@ -453,7 +453,7 @@ export const load: PageServerLoad = async ({ params, url }) => {
           pokeapiId: row.pokeapiId,
           name: row.name,
           slug: row.slug,
-          spriteUrl: row.spriteArtwork ?? row.spriteDefault,
+          spriteUrl: row.spriteDefault ?? row.spriteArtwork,
           isDefault: row.isDefault,
           dexNumber: row.dexNumber,
           types: [],

@@ -8,6 +8,7 @@ import { abilities, moveLearnMethods, moves, types, typeEffectiveness } from '$l
 import { languages, versionGroups, pokedexes } from '$lib/db/schema/game-metadata';
 import { items } from '$lib/db/schema/items';
 import { and, asc, count, desc, eq, inArray, sql, lt, gt } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/sqlite-core';
 import { bumpSource } from '$lib/editor/source';
 import { recordEdit } from '$lib/editor/audit';
 import { reimportEntity } from '$lib/editor/resource';
@@ -170,7 +171,7 @@ export const load: PageServerLoad = async ({ params, url }) => {
     if (!formMap.has(r.slug)) {
       formMap.set(r.slug, {
         pokeapiId: r.pokeapiId, name: r.name, slug: r.slug,
-        isDefault: r.isDefault, spriteUrl: r.spriteArtwork ?? r.spriteDefault,
+        isDefault: r.isDefault, spriteUrl: r.spriteDefault ?? r.spriteArtwork,
         types: [],
       });
     }
@@ -203,88 +204,224 @@ export const load: PageServerLoad = async ({ params, url }) => {
     .where(eq(pokemon.evolvesFromPokemonId, row.id))
     .orderBy(asc(pokemon.id));
 
-  // Full evolution chain: walk up to root, BFS down, batch-load node data
-  const [evoSpeciesRow] = await db.select({ defaultPokemonId: pokemonSpecies.defaultPokemonId })
-    .from(pokemonSpecies).where(eq(pokemonSpecies.id, row.speciesId)).limit(1);
-  let evoRootId = evoSpeciesRow?.defaultPokemonId ?? row.id;
+  // Full evolution chain: walk up to root, BFS down, batch-load species node data
+  let evolutionChain: {
+    fromSpeciesId: number;
+    fromName: string;
+    fromSlug: string;
+    fromSprite: string | null;
+    toSpeciesId: number;
+    toName: string;
+    toSlug: string;
+    toSprite: string | null;
+    trigger: string;
+    minLevel: number | null;
+    minHappiness: number | null;
+    itemName: string | null;
+    itemSlug: string | null;
+    timeOfDay: string | null;
+    location: string | null;
+    requiredSuffix: string | null;
+  }[] = [];
+
   {
-    const [startPk] = await db.select({ e: pokemon.evolvesFromPokemonId })
-      .from(pokemon).where(eq(pokemon.id, evoRootId)).limit(1);
-    const seen = new Set<number>([evoRootId]);
-    let cursor: number | null = startPk?.e ?? null;
-    while (cursor != null && !seen.has(cursor)) {
-      seen.add(cursor);
-      evoRootId = cursor;
-      const [p] = await db.select({ e: pokemon.evolvesFromPokemonId })
-        .from(pokemon).where(eq(pokemon.id, cursor)).limit(1);
-      cursor = p?.e ?? null;
+    const [evoSpeciesRow] = await db.select({ defaultPokemonId: pokemonSpecies.defaultPokemonId })
+      .from(pokemonSpecies).where(eq(pokemonSpecies.id, row.speciesId)).limit(1);
+    let rootId = evoSpeciesRow?.defaultPokemonId ?? row.id;
+    {
+      const [startPk] = await db.select({ e: pokemon.evolvesFromPokemonId })
+        .from(pokemon).where(eq(pokemon.id, rootId)).limit(1);
+      const seen = new Set<number>([rootId]);
+      let cursor: number | null = startPk?.e ?? null;
+      while (cursor != null && !seen.has(cursor)) {
+        seen.add(cursor);
+        rootId = cursor;
+        const [parent] = await db.select({ p: pokemon.evolvesFromPokemonId })
+          .from(pokemon).where(eq(pokemon.id, cursor)).limit(1);
+        cursor = parent?.p ?? null;
+      }
     }
-  }
-  const chainIds = new Set<number>([evoRootId]);
-  {
-    let frontier = [evoRootId];
+
+    const descendantIds: number[] = [rootId];
+    const edges: { fromPokemonId: number; toPokemonId: number }[] = [];
+    let frontier = [rootId];
+    const seenDown = new Set<number>([rootId]);
     while (frontier.length > 0) {
-      const children = await db.select({ id: pokemon.id })
-        .from(pokemon).where(inArray(pokemon.evolvesFromPokemonId, frontier));
-      frontier = children.filter(c => !chainIds.has(c.id)).map(c => c.id);
-      frontier.forEach(id => chainIds.add(id));
+      const children = await db.select({ id: pokemon.id, parent: pokemon.evolvesFromPokemonId })
+        .from(pokemon)
+        .where(inArray(pokemon.evolvesFromPokemonId, frontier));
+      const nextFrontier: number[] = [];
+      for (const c of children) {
+        if (seenDown.has(c.id)) continue;
+        seenDown.add(c.id);
+        descendantIds.push(c.id);
+        edges.push({ fromPokemonId: c.parent!, toPokemonId: c.id });
+        nextFrontier.push(c.id);
+      }
+      frontier = nextFrontier;
+    }
+
+    if (edges.length > 0) {
+      const childIds = edges.map(e => e.toPokemonId);
+      const childPokemon = await db.select({
+        id:        pokemon.id,
+        speciesId: pokemon.speciesId,
+        slug:      pokemon.slug,
+        sprite:    pokemon.spriteDefault,
+        speciesName: pokemonSpecies.name,
+        speciesSlug: pokemonSpecies.slug,
+      })
+        .from(pokemon)
+        .innerJoin(pokemonSpecies, eq(pokemon.speciesId, pokemonSpecies.id))
+        .where(inArray(pokemon.id, childIds));
+
+      const parentIds = [...new Set(edges.map(e => e.fromPokemonId))];
+      const parentPokemon = await db.select({
+        id:        pokemon.id,
+        slug:      pokemon.slug,
+        sprite:    pokemon.spriteDefault,
+        speciesId: pokemon.speciesId,
+        speciesName: pokemonSpecies.name,
+        speciesSlug: pokemonSpecies.slug,
+      })
+        .from(pokemon)
+        .innerJoin(pokemonSpecies, eq(pokemon.speciesId, pokemonSpecies.id))
+        .where(inArray(pokemon.id, parentIds));
+
+      const details = await db.select({
+        pokemonId:    pokemonEvolutionDetails.pokemonId,
+        trigger:      pokemonEvolutionDetails.trigger,
+        minLevel:     pokemonEvolutionDetails.minLevel,
+        minHappiness: pokemonEvolutionDetails.minHappiness,
+        itemId:       pokemonEvolutionDetails.itemId,
+        timeOfDay:    pokemonEvolutionDetails.timeOfDay,
+        location:     pokemonEvolutionDetails.location,
+      })
+        .from(pokemonEvolutionDetails)
+        .where(inArray(pokemonEvolutionDetails.pokemonId, childIds));
+
+      const itemIds = details.map(d => d.itemId).filter((v): v is number => v != null);
+      const itemRows = itemIds.length > 0
+        ? await db.select({ id: items.id, name: items.name, slug: items.slug })
+            .from(items).where(inArray(items.id, itemIds))
+        : [];
+
+      const childById  = new Map(childPokemon.map(c => [c.id, c]));
+      const parentById = new Map(parentPokemon.map(p => [p.id, p]));
+      const detailByChild = new Map(details.map(d => [d.pokemonId, d]));
+      const itemById = new Map(itemRows.map(i => [i.id, i]));
+
+      const FORM_RESTRICTED_EVOLUTIONS = [
+        { fromSlug: 'mr-mime',   toSlug: 'mr-rime',    requiredSuffix: 'galar' },
+        { fromSlug: 'meowth',    toSlug: 'perrserker', requiredSuffix: 'galar' },
+        { fromSlug: 'farfetchd', toSlug: 'sirfetchd',  requiredSuffix: 'galar' },
+        { fromSlug: 'corsola',   toSlug: 'cursola',    requiredSuffix: 'galar' },
+        { fromSlug: 'yamask',    toSlug: 'runerigus',  requiredSuffix: 'galar' },
+        { fromSlug: 'linoone',   toSlug: 'obstagoon',  requiredSuffix: 'galar' },
+      ];
+
+      for (const e of edges) {
+        const c = childById.get(e.toPokemonId);
+        const p = parentById.get(e.fromPokemonId);
+        const d = detailByChild.get(e.toPokemonId);
+        if (!c || !p) continue;
+        const item = d?.itemId != null ? itemById.get(d.itemId) : null;
+        const restricted = FORM_RESTRICTED_EVOLUTIONS.find(
+          r => p.speciesSlug === r.fromSlug && c.speciesSlug === r.toSlug
+        );
+        evolutionChain.push({
+          fromSpeciesId: p.speciesId,
+          fromName:      p.speciesName,
+          fromSlug:      p.speciesSlug,
+          fromSprite:    p.sprite ?? null,
+          toSpeciesId:   c.speciesId,
+          toName:        c.speciesName,
+          toSlug:        c.speciesSlug,
+          toSprite:      c.sprite ?? null,
+          trigger:       d?.trigger ?? 'unknown',
+          minLevel:      d?.minLevel ?? null,
+          minHappiness:  d?.minHappiness ?? null,
+          itemName:      item?.name ?? null,
+          itemSlug:      item?.slug ?? null,
+          timeOfDay:     d?.timeOfDay ?? null,
+          location:      d?.location ?? null,
+          requiredSuffix: restricted?.requiredSuffix ?? d?.location ?? null,
+        });
+      }
     }
   }
-  const allChainIds = [...chainIds];
-  const evoChainRows = await db.select({
-    id:            pokemon.id,
-    pokeapiId:     pokemon.pokeapiId,
-    slug:          pokemon.slug,
-    name:          pokemon.name,
-    spriteArtwork: pokemon.spriteArtwork,
-    spriteDefault: pokemon.spriteDefault,
-    evolvesFromId: pokemon.evolvesFromPokemonId,
-    dexNumber:     pokemonSpecies.dexNumber,
-    typeName:      types.name,
-    typeHexColor:  types.hexColor,
-  })
-    .from(pokemon)
-    .innerJoin(pokemonSpecies, eq(pokemon.speciesId, pokemonSpecies.id))
-    .innerJoin(pokemonTypes, eq(pokemonTypes.pokemonId, pokemon.id))
-    .innerJoin(types, eq(pokemonTypes.typeId, types.id))
-    .where(inArray(pokemon.id, allChainIds))
-    .orderBy(asc(pokemonSpecies.dexNumber), asc(pokemonTypes.slot));
 
-  const chainCondRows = await db.select().from(pokemonEvolutionDetails)
-    .where(inArray(pokemonEvolutionDetails.pokemonId, allChainIds));
-  const chainItemIds = [...new Set(chainCondRows.map(c => c.itemId).filter((v): v is number => v != null))];
-  const chainItems = chainItemIds.length > 0
-    ? await db.select({ id: items.id, name: items.name, slug: items.slug })
-        .from(items).where(inArray(items.id, chainItemIds))
-    : [];
-  const chainItemById = new Map(chainItems.map(i => [i.id, i]));
-  const chainCondById = new Map(chainCondRows.map(c => [c.pokemonId, c]));
+  // Chain species data: all forms per species (form-aware chain display)
+  const CHAIN_SKIP_PATTERNS = ['-totem', '-cap', '-cosplay', '-rock-star', '-belle', '-pop-star', '-phd', '-libre', '-starter'];
 
-  const evoNodeMap = new Map<number, {
-    id: number; pokeapiId: number; slug: string; name: string; spriteUrl: string | null;
-    evolvesFromId: number | null; dexNumber: number;
-    types: { name: string; hexColor: string | null }[];
-    conditions: { trigger: string; minLevel: number | null; minHappiness: number | null;
-                  itemName: string | null; itemSlug: string | null; timeOfDay: string | null; } | null;
-  }>();
-  for (const r of evoChainRows) {
-    if (!evoNodeMap.has(r.id)) {
-      const cond = chainCondById.get(r.id) ?? null;
-      const item = cond?.itemId != null ? (chainItemById.get(cond.itemId) ?? null) : null;
-      evoNodeMap.set(r.id, {
-        id: r.id, pokeapiId: r.pokeapiId ?? 0, slug: r.slug, name: r.name,
-        spriteUrl: r.spriteArtwork ?? r.spriteDefault,
-        evolvesFromId: r.evolvesFromId ?? null,
-        dexNumber: r.dexNumber, types: [],
-        conditions: cond ? {
-          trigger: cond.trigger, minLevel: cond.minLevel, minHappiness: cond.minHappiness,
-          itemName: item?.name ?? null, itemSlug: item?.slug ?? null, timeOfDay: cond.timeOfDay,
-        } : null,
-      });
+  type ChainForm = {
+    pokeapiId: number | null;
+    name: string;
+    slug: string;
+    spriteUrl: string | null;
+    isDefault: boolean;
+    types: Array<{ name: string; hexColor: string | null }>;
+    dexNumber: number;
+  };
+
+  type ChainSpecies = {
+    speciesId: number;
+    forms: ChainForm[];
+  };
+
+  let chainSpecies: ChainSpecies[] = [];
+
+  {
+    const chainSpeciesIds = [...new Set([
+      row.speciesId,
+      ...evolutionChain.map(l => l.fromSpeciesId),
+      ...evolutionChain.map(l => l.toSpeciesId),
+    ])];
+
+    const chainPokemonAlias = alias(pokemon, 'chain_pokemon');
+    const chainForms = await db.select({
+      id:            chainPokemonAlias.id,
+      pokeapiId:     chainPokemonAlias.pokeapiId,
+      slug:          chainPokemonAlias.slug,
+      name:          chainPokemonAlias.name,
+      spriteArtwork: chainPokemonAlias.spriteArtwork,
+      spriteDefault: chainPokemonAlias.spriteDefault,
+      speciesId:     chainPokemonAlias.speciesId,
+      typeName:      types.name,
+      typeHexColor:  types.hexColor,
+      isDefault:     sql<boolean>`${chainPokemonAlias.id} = ${pokemonSpecies.defaultPokemonId}`,
+      dexNumber:     pokemonSpecies.dexNumber,
+    })
+      .from(chainPokemonAlias)
+      .innerJoin(pokemonSpecies, eq(chainPokemonAlias.speciesId, pokemonSpecies.id))
+      .innerJoin(pokemonTypes, eq(pokemonTypes.pokemonId, chainPokemonAlias.id))
+      .innerJoin(types, eq(pokemonTypes.typeId, types.id))
+      .where(inArray(chainPokemonAlias.speciesId, chainSpeciesIds))
+      .orderBy(asc(pokemonSpecies.dexNumber), asc(pokemonTypes.slot));
+
+    const spMap = new Map<number, ChainForm[]>();
+    for (const f of chainForms) {
+      if (CHAIN_SKIP_PATTERNS.some(pat => f.slug.endsWith(pat))) continue;
+      if (!spMap.has(f.speciesId)) spMap.set(f.speciesId, []);
+      const forms = spMap.get(f.speciesId)!;
+      let existing = forms.find(x => x.slug === f.slug);
+      if (!existing) {
+        existing = {
+          pokeapiId: f.pokeapiId,
+          name:      f.name,
+          slug:      f.slug,
+          spriteUrl: f.spriteDefault ?? f.spriteArtwork,
+          isDefault: f.isDefault,
+          types:     [],
+          dexNumber: f.dexNumber,
+        };
+        forms.push(existing);
+      }
+      existing.types.push({ name: f.typeName, hexColor: f.typeHexColor });
     }
-    evoNodeMap.get(r.id)!.types.push({ name: r.typeName, hexColor: r.typeHexColor });
+
+    chainSpecies = [...spMap.entries()].map(([speciesId, forms]) => ({ speciesId, forms }));
   }
-  const evoChain = [...evoNodeMap.values()];
 
   // FK dropdowns
   const allPokemon = await db.select({ id: pokemon.id, slug: pokemon.slug, name: pokemon.name })
@@ -492,7 +629,8 @@ export const load: PageServerLoad = async ({ params, url }) => {
     types:      typeRows,
     abilities:  abilityRows,
     speciesForms,
-    evoChain,
+    evolutionChain,
+    chainSpecies,
     species:    speciesList,
     allTypes:   typeList,
     allAbilities: abilityList,

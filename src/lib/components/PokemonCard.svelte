@@ -1,6 +1,5 @@
 <script lang="ts">
   import TypeBadge from './TypeBadge.svelte';
-  import { spriteFallbacks } from '$lib/sprite-fallbacks';
 
   export type PokemonCardData = {
     pokeapiId: number;
@@ -23,7 +22,6 @@
   let displayTypes = $derived(pokemon.types ?? []);
   let imageUrl = $derived(
     pokemon.spriteUrl ||
-    spriteFallbacks[pokemon.slug] ||
     `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pokemon.pokeapiId || 0}.png`
   );
   let dexNum = $derived((pokemon.dexNumber ?? pokemon.pokeapiId)?.toString().padStart(3, '0') ?? '???');

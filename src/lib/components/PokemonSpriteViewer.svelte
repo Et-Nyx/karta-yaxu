@@ -35,17 +35,11 @@
 
   let currentSpriteUrl = $derived.by(() => {
     if (activeTab === 'artwork') {
-      return isShiny
-        ? (spriteArtworkShiny || (pokeapiId ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/shiny/${pokeapiId}.png` : null))
-        : (spriteArtwork || (pokeapiId ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${pokeapiId}.png` : null));
+      return isShiny ? spriteArtworkShiny : spriteArtwork;
     } else if (activeTab === 'front') {
-      return isShiny
-        ? (spriteShiny || (pokeapiId ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/${pokeapiId}.png` : null))
-        : (spriteDefault || (pokeapiId ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pokeapiId}.png` : null));
+      return isShiny ? spriteShiny : spriteDefault;
     } else { // 'back'
-      return isShiny
-        ? (spriteBackShiny || (pokeapiId ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/shiny/${pokeapiId}.png` : null))
-        : (spriteBackDefault || (pokeapiId ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/${pokeapiId}.png` : null));
+      return isShiny ? spriteBackShiny : spriteBackDefault;
     }
   });
 </script>
