@@ -255,10 +255,12 @@ export const load: PageServerLoad = async ({ params, url }) => {
 
   // 10. Evolution Chain (linked-list: walk up to root via pokemon.evolves_from_pokemon_id, then BFS down)
   let evolutionChain: {
+    fromPokemonId: number;
     fromSpeciesId: number;
     fromName: string;
     fromSlug: string;
     fromSprite: string | null;
+    toPokemonId: number;
     toSpeciesId: number;
     toName: string;
     toSlug: string;
@@ -273,15 +275,17 @@ export const load: PageServerLoad = async ({ params, url }) => {
   }[] = [];
 
   {
-    // Walk up to find the root pokemon id (iterative; trees are ≤ 4 levels deep in canon)
-    // Always start from the default/base Pokemon of the species to let alternate/regional/battle forms
-    // inherit the complete evolutionary lineage of the species family!
-    let rootId = species.defaultPokemonId ?? pokemon.id;
-    {
-      const [startPk] = await db.select({ e: schema.pokemon.evolvesFromPokemonId })
-        .from(schema.pokemon).where(eq(schema.pokemon.id, rootId)).limit(1);
+    // Find all pokemon variants for this species
+    const speciesPokemon = await db.select({ id: schema.pokemon.id, evolvesFromPokemonId: schema.pokemon.evolvesFromPokemonId })
+      .from(schema.pokemon)
+      .where(eq(schema.pokemon.speciesId, species.id));
+
+    // For each variant, walk up to its root
+    const roots = new Set<number>();
+    for (const pk of speciesPokemon) {
+      let rootId = pk.id;
       const seen = new Set<number>([rootId]);
-      let cursor: number | null = startPk?.e ?? null;
+      let cursor = pk.evolvesFromPokemonId;
       while (cursor != null && !seen.has(cursor)) {
         seen.add(cursor);
         rootId = cursor;
@@ -289,26 +293,31 @@ export const load: PageServerLoad = async ({ params, url }) => {
           .from(schema.pokemon).where(eq(schema.pokemon.id, cursor)).limit(1);
         cursor = parent?.p ?? null;
       }
+      roots.add(rootId);
     }
 
-    // BFS down from root to collect all descendants and build edges
-    const descendantIds: number[] = [rootId];
+    // BFS down from all roots to collect descendants and build edges
     const edges: { fromPokemonId: number; toPokemonId: number }[] = [];
-    let frontier = [rootId];
-    const seenDown = new Set<number>([rootId]);
-    while (frontier.length > 0) {
-      const children = await db.select({ id: schema.pokemon.id, parent: schema.pokemon.evolvesFromPokemonId })
-        .from(schema.pokemon)
-        .where(inArray(schema.pokemon.evolvesFromPokemonId, frontier));
-      const nextFrontier: number[] = [];
-      for (const c of children) {
-        if (seenDown.has(c.id)) continue;
-        seenDown.add(c.id);
-        descendantIds.push(c.id);
-        edges.push({ fromPokemonId: c.parent!, toPokemonId: c.id });
-        nextFrontier.push(c.id);
+    const descendantIds = new Set<number>();
+    
+    for (const rootId of roots) {
+      let frontier = [rootId];
+      const seenDown = new Set<number>([rootId]);
+      descendantIds.add(rootId);
+      while (frontier.length > 0) {
+        const children = await db.select({ id: schema.pokemon.id, parent: schema.pokemon.evolvesFromPokemonId })
+          .from(schema.pokemon)
+          .where(inArray(schema.pokemon.evolvesFromPokemonId, frontier));
+        const nextFrontier: number[] = [];
+        for (const c of children) {
+          if (seenDown.has(c.id)) continue;
+          seenDown.add(c.id);
+          descendantIds.add(c.id);
+          edges.push({ fromPokemonId: c.parent!, toPokemonId: c.id });
+          nextFrontier.push(c.id);
+        }
+        frontier = nextFrontier;
       }
-      frontier = nextFrontier;
     }
 
     if (edges.length > 0) {
@@ -319,6 +328,7 @@ export const load: PageServerLoad = async ({ params, url }) => {
         id:        schema.pokemon.id,
         speciesId: schema.pokemon.speciesId,
         slug:      schema.pokemon.slug,
+        name:      schema.pokemon.name,
         sprite:    schema.pokemon.spriteDefault,
         speciesName: schema.pokemonSpecies.name,
         speciesSlug: schema.pokemonSpecies.slug,
@@ -331,6 +341,7 @@ export const load: PageServerLoad = async ({ params, url }) => {
       const parentPokemon = await db.select({
         id:        schema.pokemon.id,
         slug:      schema.pokemon.slug,
+        name:      schema.pokemon.name,
         sprite:    schema.pokemon.spriteDefault,
         speciesId: schema.pokemon.speciesId,
         speciesName: schema.pokemonSpecies.name,
@@ -370,13 +381,15 @@ export const load: PageServerLoad = async ({ params, url }) => {
         if (!c || !p) continue;
         const item = d?.itemId != null ? itemById.get(d.itemId) : null;
         evolutionChain.push({
+          fromPokemonId: p.id,
           fromSpeciesId: p.speciesId,
-          fromName:      p.speciesName,
-          fromSlug:      p.speciesSlug,
+          fromName:      p.name,
+          fromSlug:      p.slug,
           fromSprite:    p.sprite ?? null,
+          toPokemonId:   c.id,
           toSpeciesId:   c.speciesId,
-          toName:        c.speciesName,
-          toSlug:        c.speciesSlug,
+          toName:        c.name,
+          toSlug:        c.slug,
           toSprite:      c.sprite ?? null,
           trigger:       d?.trigger ?? 'unknown',
           minLevel:      d?.minLevel ?? null,

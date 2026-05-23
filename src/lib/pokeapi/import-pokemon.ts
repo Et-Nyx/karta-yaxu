@@ -205,27 +205,31 @@ export async function populateChainLinkedList(chainPokeapiId: number): Promise<v
   const chain = await client.fetchEvolutionChain(chainPokeapiId);
   const edges = mappers.flattenEvolutionChain(chain.chain);
   const processedTargets = new Set<number>();
+  const REGIONAL_SUFFIXES = ['alola', 'galar', 'hisui', 'paldea'];
 
   for (const edge of edges) {
     try {
-      const fromPokemon = await defaultPokemonForSpeciesPokeapiId(edge.fromSpeciesPokeapiId);
-      const toPokemon   = await defaultPokemonForSpeciesPokeapiId(edge.toSpeciesPokeapiId);
-      if (!fromPokemon || !toPokemon) continue;
+      // Find predecessor & successor species
+      const [fromSp] = await db.select({ id: schema.pokemonSpecies.id, defaultPokemonId: schema.pokemonSpecies.defaultPokemonId })
+        .from(schema.pokemonSpecies)
+        .where(eq(schema.pokemonSpecies.pokeapiId, edge.fromSpeciesPokeapiId)).limit(1);
 
-      // If we have already written standard evolution conditions for this target in this import run, skip subsequent ones
-      if (processedTargets.has(toPokemon.id)) continue;
+      const [toSp] = await db.select({ id: schema.pokemonSpecies.id, defaultPokemonId: schema.pokemonSpecies.defaultPokemonId })
+        .from(schema.pokemonSpecies)
+        .where(eq(schema.pokemonSpecies.pokeapiId, edge.toSpeciesPokeapiId)).limit(1);
 
-      // Set the parent pointer only if it's currently null (don't overwrite editor edits)
-      const [child] = await db.select({
-        parent: schema.pokemon.evolvesFromPokemonId,
-      }).from(schema.pokemon).where(eq(schema.pokemon.id, toPokemon.id)).limit(1);
-      if (child?.parent == null) {
-        await db.update(schema.pokemon)
-          .set({ evolvesFromPokemonId: fromPokemon.id })
-          .where(eq(schema.pokemon.id, toPokemon.id));
-      }
+      if (!fromSp || !toSp) continue;
 
-      // Resolve item/move/type FKs
+      // Find all pokemon variants for these species
+      const fromPkRows = await db.select().from(schema.pokemon).where(eq(schema.pokemon.speciesId, fromSp.id));
+      const toPkRows = await db.select().from(schema.pokemon).where(eq(schema.pokemon.speciesId, toSp.id));
+
+      const defaultFromPk = fromPkRows.find(p => p.id === fromSp.defaultPokemonId) ?? fromPkRows[0];
+      const defaultToPk = toPkRows.find(p => p.id === toSp.defaultPokemonId) ?? toPkRows[0];
+
+      if (!defaultFromPk || !defaultToPk) continue;
+
+      // Resolve item/move/type FKs for this edge
       let itemDbId:          number | null = null;
       if (edge.itemPokeapiId)          itemDbId          = await ensureItem(edge.itemPokeapiId);
       let heldItemDbId:      number | null = null;
@@ -235,48 +239,131 @@ export async function populateChainLinkedList(chainPokeapiId: number): Promise<v
       let knownMoveTypeDbId: number | null = null;
       if (edge.knownMoveTypePokeapiId) knownMoveTypeDbId = await ensureType(edge.knownMoveTypePokeapiId);
 
-      // Source-protected upsert of conditions row
-      const [existingCond] = await db.select({ source: schema.pokemonEvolutionDetails.source })
-        .from(schema.pokemonEvolutionDetails)
-        .where(eq(schema.pokemonEvolutionDetails.pokemonId, toPokemon.id)).limit(1);
-
-      if (!existingCond || existingCond.source === 'pokeapi') {
-        const payload = {
-          pokemonId:       toPokemon.id,
-          trigger:         edge.trigger,
-          minLevel:        edge.minLevel ?? null,
-          itemId:          itemDbId,
-          heldItemId:      heldItemDbId,
-          knownMoveId:     knownMoveDbId,
-          knownMoveTypeId: knownMoveTypeDbId,
-          minHappiness:    edge.minHappiness ?? null,
-          timeOfDay:       edge.timeOfDay ?? null,
-          gender:          edge.gender ?? null,
-          location:        edge.location ?? null,
-          source:          'pokeapi' as const,
-        };
-        await db.insert(schema.pokemonEvolutionDetails).values(payload).onConflictDoUpdate({
-          target: schema.pokemonEvolutionDetails.pokemonId,
-          set: {
-            trigger:         payload.trigger,
-            minLevel:        payload.minLevel,
-            itemId:          payload.itemId,
-            heldItemId:      payload.heldItemId,
-            knownMoveId:     payload.knownMoveId,
-            knownMoveTypeId: payload.knownMoveTypeId,
-            minHappiness:    payload.minHappiness,
-            timeOfDay:       payload.timeOfDay,
-            gender:          payload.gender,
-            location:        payload.location,
-            source:          'pokeapi',
-          },
-        });
-        processedTargets.add(toPokemon.id);
-      } else {
-        // Even if existing source is 'edited' or 'custom', we mark it as processed so we don't add alternate PokeAPI edges
-        processedTargets.add(toPokemon.id);
+      // Determine edge suffix
+      let edgeSuffix: string | null = null;
+      let itemSlug = '';
+      if (itemDbId) {
+        const [it] = await db.select({ slug: schema.items.slug }).from(schema.items).where(eq(schema.items.id, itemDbId)).limit(1);
+        itemSlug = it?.slug ?? '';
       }
-    } catch {
+      let heldItemSlug = '';
+      if (heldItemDbId) {
+        const [it] = await db.select({ slug: schema.items.slug }).from(schema.items).where(eq(schema.items.id, heldItemDbId)).limit(1);
+        heldItemSlug = it?.slug ?? '';
+      }
+
+      for (const suffix of REGIONAL_SUFFIXES) {
+        if (itemSlug.includes(suffix) || heldItemSlug.includes(suffix) || (edge.location && edge.location.includes(suffix))) {
+          edgeSuffix = suffix;
+          break;
+        }
+      }
+
+      // Special cases for generic items triggering regional forms
+      if (!edgeSuffix && itemSlug === 'ice-stone') {
+        const hasAlola = toPkRows.some(p => p.slug.endsWith('-alola'));
+        const hasGalar = toPkRows.some(p => p.slug.endsWith('-galar'));
+        if (hasAlola) edgeSuffix = 'alola';
+        else if (hasGalar) edgeSuffix = 'galar';
+      }
+      if (!edgeSuffix && itemSlug === 'leaf-stone') {
+        const hasAlola = toPkRows.some(p => p.slug.endsWith('-alola'));
+        const hasHisui = toPkRows.some(p => p.slug.endsWith('-hisui'));
+        if (hasAlola) edgeSuffix = 'alola';
+        else if (hasHisui) edgeSuffix = 'hisui';
+      }
+      if (!edgeSuffix && itemSlug === 'fire-stone') {
+        if (toPkRows.some(p => p.slug.endsWith('-hisui'))) edgeSuffix = 'hisui';
+      }
+      if (!edgeSuffix && itemSlug === 'sun-stone') {
+        if (toPkRows.some(p => p.slug.endsWith('-hisui'))) edgeSuffix = 'hisui';
+      }
+
+      // Group all sibling edges to distinguish standard vs specific regional ones
+      const siblingEdges = edges.filter(e => e.fromSpeciesPokeapiId === edge.fromSpeciesPokeapiId && e.toSpeciesPokeapiId === edge.toSpeciesPokeapiId);
+
+      // Construct matched pairs of predecessor -> successor
+      const matchedPairs: Array<{ from: typeof defaultFromPk; to: typeof defaultToPk }> = [];
+
+      if (siblingEdges.length > 1) {
+        if (edgeSuffix) {
+          const suffixToPk = toPkRows.find(p => p.slug.endsWith('-' + edgeSuffix) || p.slug.includes('-' + edgeSuffix + '-'));
+          if (suffixToPk) {
+            const suffixFromPk = fromPkRows.find(p => p.slug.endsWith('-' + edgeSuffix) || p.slug.includes('-' + edgeSuffix + '-')) ?? defaultFromPk;
+            matchedPairs.push({ from: suffixFromPk, to: suffixToPk });
+          }
+        } else {
+          matchedPairs.push({ from: defaultFromPk, to: defaultToPk });
+        }
+      } else {
+        // Parallel matching: standard + matching regional variants
+        matchedPairs.push({ from: defaultFromPk, to: defaultToPk });
+        for (const suffix of REGIONAL_SUFFIXES) {
+          const suffixToPk = toPkRows.find(p => p.slug.endsWith('-' + suffix) || p.slug.includes('-' + suffix + '-'));
+          if (suffixToPk) {
+            const suffixFromPk = fromPkRows.find(p => p.slug.endsWith('-' + suffix) || p.slug.includes('-' + suffix + '-')) ?? defaultFromPk;
+            matchedPairs.push({ from: suffixFromPk, to: suffixToPk });
+          }
+        }
+      }
+
+      // Upsert matched pairs to database
+      for (const pair of matchedPairs) {
+        if (processedTargets.has(pair.to.id)) continue;
+
+        // Set the parent pointer only if it's currently null (don't overwrite editor edits)
+        const [child] = await db.select({
+          parent: schema.pokemon.evolvesFromPokemonId,
+        }).from(schema.pokemon).where(eq(schema.pokemon.id, pair.to.id)).limit(1);
+        if (child?.parent == null) {
+          await db.update(schema.pokemon)
+            .set({ evolvesFromPokemonId: pair.from.id })
+            .where(eq(schema.pokemon.id, pair.to.id));
+        }
+
+        // Source-protected upsert of conditions row
+        const [existingCond] = await db.select({ source: schema.pokemonEvolutionDetails.source })
+          .from(schema.pokemonEvolutionDetails)
+          .where(eq(schema.pokemonEvolutionDetails.pokemonId, pair.to.id)).limit(1);
+
+        if (!existingCond || existingCond.source === 'pokeapi') {
+          const payload = {
+            pokemonId:       pair.to.id,
+            trigger:         edge.trigger,
+            minLevel:        edge.minLevel ?? null,
+            itemId:          itemDbId,
+            heldItemId:      heldItemDbId,
+            knownMoveId:     knownMoveDbId,
+            knownMoveTypeId: knownMoveTypeDbId,
+            minHappiness:    edge.minHappiness ?? null,
+            timeOfDay:       edge.timeOfDay ?? null,
+            gender:          edge.gender ?? null,
+            location:        edge.location ?? null,
+            source:          'pokeapi' as const,
+          };
+          await db.insert(schema.pokemonEvolutionDetails).values(payload).onConflictDoUpdate({
+            target: schema.pokemonEvolutionDetails.pokemonId,
+            set: {
+              trigger:         payload.trigger,
+              minLevel:        payload.minLevel,
+              itemId:          payload.itemId,
+              heldItemId:      payload.heldItemId,
+              knownMoveId:     payload.knownMoveId,
+              knownMoveTypeId: payload.knownMoveTypeId,
+              minHappiness:    payload.minHappiness,
+              timeOfDay:       payload.timeOfDay,
+              gender:          payload.gender,
+              location:        payload.location,
+              source:          'pokeapi',
+            },
+          });
+          processedTargets.add(pair.to.id);
+        } else {
+          processedTargets.add(pair.to.id);
+        }
+      }
+    } catch (err) {
+      console.error(err);
       // skip edges with unresolvable dependencies (rare items/moves/types)
     }
   }

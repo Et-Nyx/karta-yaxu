@@ -206,10 +206,12 @@ export const load: PageServerLoad = async ({ params, url }) => {
 
   // Full evolution chain: walk up to root, BFS down, batch-load species node data
   let evolutionChain: {
+    fromPokemonId: number;
     fromSpeciesId: number;
     fromName: string;
     fromSlug: string;
     fromSprite: string | null;
+    toPokemonId: number;
     toSpeciesId: number;
     toName: string;
     toSlug: string;
@@ -225,14 +227,17 @@ export const load: PageServerLoad = async ({ params, url }) => {
   }[] = [];
 
   {
-    const [evoSpeciesRow] = await db.select({ defaultPokemonId: pokemonSpecies.defaultPokemonId })
-      .from(pokemonSpecies).where(eq(pokemonSpecies.id, row.speciesId)).limit(1);
-    let rootId = evoSpeciesRow?.defaultPokemonId ?? row.id;
-    {
-      const [startPk] = await db.select({ e: pokemon.evolvesFromPokemonId })
-        .from(pokemon).where(eq(pokemon.id, rootId)).limit(1);
+    // Find all pokemon variants for this species
+    const speciesPokemon = await db.select({ id: pokemon.id, evolvesFromPokemonId: pokemon.evolvesFromPokemonId })
+      .from(pokemon)
+      .where(eq(pokemon.speciesId, row.speciesId));
+
+    // For each variant, walk up to its root
+    const roots = new Set<number>();
+    for (const pk of speciesPokemon) {
+      let rootId = pk.id;
       const seen = new Set<number>([rootId]);
-      let cursor: number | null = startPk?.e ?? null;
+      let cursor = pk.evolvesFromPokemonId;
       while (cursor != null && !seen.has(cursor)) {
         seen.add(cursor);
         rootId = cursor;
@@ -240,25 +245,31 @@ export const load: PageServerLoad = async ({ params, url }) => {
           .from(pokemon).where(eq(pokemon.id, cursor)).limit(1);
         cursor = parent?.p ?? null;
       }
+      roots.add(rootId);
     }
 
-    const descendantIds: number[] = [rootId];
+    // BFS down from all roots to collect descendants and build edges
     const edges: { fromPokemonId: number; toPokemonId: number }[] = [];
-    let frontier = [rootId];
-    const seenDown = new Set<number>([rootId]);
-    while (frontier.length > 0) {
-      const children = await db.select({ id: pokemon.id, parent: pokemon.evolvesFromPokemonId })
-        .from(pokemon)
-        .where(inArray(pokemon.evolvesFromPokemonId, frontier));
-      const nextFrontier: number[] = [];
-      for (const c of children) {
-        if (seenDown.has(c.id)) continue;
-        seenDown.add(c.id);
-        descendantIds.push(c.id);
-        edges.push({ fromPokemonId: c.parent!, toPokemonId: c.id });
-        nextFrontier.push(c.id);
+    const descendantIds = new Set<number>();
+    
+    for (const rootId of roots) {
+      let frontier = [rootId];
+      const seenDown = new Set<number>([rootId]);
+      descendantIds.add(rootId);
+      while (frontier.length > 0) {
+        const children = await db.select({ id: pokemon.id, parent: pokemon.evolvesFromPokemonId })
+          .from(pokemon)
+          .where(inArray(pokemon.evolvesFromPokemonId, frontier));
+        const nextFrontier: number[] = [];
+        for (const c of children) {
+          if (seenDown.has(c.id)) continue;
+          seenDown.add(c.id);
+          descendantIds.add(c.id);
+          edges.push({ fromPokemonId: c.parent!, toPokemonId: c.id });
+          nextFrontier.push(c.id);
+        }
+        frontier = nextFrontier;
       }
-      frontier = nextFrontier;
     }
 
     if (edges.length > 0) {
@@ -267,6 +278,7 @@ export const load: PageServerLoad = async ({ params, url }) => {
         id:        pokemon.id,
         speciesId: pokemon.speciesId,
         slug:      pokemon.slug,
+        name:      pokemon.name,
         sprite:    pokemon.spriteDefault,
         speciesName: pokemonSpecies.name,
         speciesSlug: pokemonSpecies.slug,
@@ -279,6 +291,7 @@ export const load: PageServerLoad = async ({ params, url }) => {
       const parentPokemon = await db.select({
         id:        pokemon.id,
         slug:      pokemon.slug,
+        name:      pokemon.name,
         sprite:    pokemon.spriteDefault,
         speciesId: pokemon.speciesId,
         speciesName: pokemonSpecies.name,
@@ -330,13 +343,15 @@ export const load: PageServerLoad = async ({ params, url }) => {
           r => p.speciesSlug === r.fromSlug && c.speciesSlug === r.toSlug
         );
         evolutionChain.push({
+          fromPokemonId: p.id,
           fromSpeciesId: p.speciesId,
-          fromName:      p.speciesName,
-          fromSlug:      p.speciesSlug,
+          fromName:      p.name,
+          fromSlug:      p.slug,
           fromSprite:    p.sprite ?? null,
+          toPokemonId:   c.id,
           toSpeciesId:   c.speciesId,
-          toName:        c.speciesName,
-          toSlug:        c.speciesSlug,
+          toName:        c.name,
+          toSlug:        c.slug,
           toSprite:      c.sprite ?? null,
           trigger:       d?.trigger ?? 'unknown',
           minLevel:      d?.minLevel ?? null,

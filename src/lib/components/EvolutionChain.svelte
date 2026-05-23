@@ -118,82 +118,78 @@
 
   // --- Derived Evo Tree ---
   let evoTree = $derived(() => {
-    const links = evolutionChain;
-    const speciesMap = new Map(chainSpecies.map(s => [s.speciesId, s]));
-    type Child = { speciesId: number; method: EvoMethod; location: string | null; requiredSuffix: string | null };
+    // 1. Get the current suffix for filtering
+    const tabSuffix = activeTab?.kind === 'regional' ? activeTab.suffix : null;
 
-    // Synthesize virtual edges for mid-chain species with regional form
-    const syntheticLinks = [...links];
-    for (const edge of links) {
-      if (edge.location !== null) continue;
-      const toSp = speciesMap.get(edge.toSpeciesId);
-      if (!toSp) continue;
-      for (const suffix of REGIONAL_SUFFIXES_CHAIN) {
-        const hasRegionalForm = toSp.forms.some(f => f.slug.includes('-' + suffix));
-        if (!hasRegionalForm) continue;
-        const fromSp = speciesMap.get(edge.fromSpeciesId);
-        if (fromSp?.forms.some(f => f.slug.includes('-' + suffix))) continue;
-        const alreadyExists = links.some(
-          e => e.fromSpeciesId === edge.fromSpeciesId
-            && e.toSpeciesId === edge.toSpeciesId
-            && e.location === suffix
-        );
-        if (!alreadyExists) syntheticLinks.push({ ...edge, location: suffix });
+    // 2. Filter evolution edges based on suffix
+    const filteredEdges = evolutionChain.filter(edge => {
+      if (tabSuffix) {
+        // Under a regional tab (e.g. galar), show edges where the successor matches that suffix
+        return edge.toSlug.endsWith('-' + tabSuffix) || edge.toSlug.includes('-' + tabSuffix + '-');
+      } else {
+        // Under the standard evolution tab, filter out edges that belong to other regional forms
+        const hasRegionalSuffix = REGIONAL_SUFFIXES_CHAIN.some(suffix => {
+          return edge.toSlug.endsWith('-' + suffix) || edge.toSlug.includes('-' + suffix + '-');
+        });
+        return !hasRegionalSuffix;
       }
-    }
-
-    const seen = new Set<string>();
-    const locationDeduped = syntheticLinks.filter(l => {
-      const key = `${l.fromSpeciesId}:${l.toSpeciesId}:${l.location ?? ''}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
     });
 
-    const childrenOf = new Map<number, Child[]>();
-    for (const l of locationDeduped) {
-      if (!childrenOf.has(l.fromSpeciesId)) childrenOf.set(l.fromSpeciesId, []);
-      childrenOf.get(l.fromSpeciesId)!.push({
-        speciesId: l.toSpeciesId,
+    // 3. Map species details by speciesId for displaying card info
+    const speciesMap = new Map(chainSpecies.map(s => [s.speciesId, s]));
+
+    // 4. Group children edges by predecessor slug
+    type Child = {
+      toSlug: string;
+      toSpeciesId: number;
+      method: EvoMethod;
+    };
+    const childrenOf = new Map<string, Child[]>();
+    const childSlugs = new Set<string>();
+
+    for (const edge of filteredEdges) {
+      if (!childrenOf.has(edge.fromSlug)) {
+        childrenOf.set(edge.fromSlug, []);
+      }
+      childrenOf.get(edge.fromSlug)!.push({
+        toSlug: edge.toSlug,
+        toSpeciesId: edge.toSpeciesId,
         method: {
-          text: l.trigger === 'unknown' ? null : (l.itemName ?? l.trigger.toUpperCase().replace(/-/g, ' ')),
-          itemSlug: l.itemSlug,
-          minLevel: l.minLevel,
-          minHappiness: l.minHappiness,
-          timeOfDay: l.timeOfDay,
-        },
-        location: l.location,
-        requiredSuffix: l.requiredSuffix,
+          text: edge.trigger === 'unknown' ? null : (edge.itemName ?? edge.trigger.toUpperCase().replace(/-/g, ' ')),
+          itemSlug: edge.itemSlug,
+          minLevel: edge.minLevel,
+          minHappiness: edge.minHappiness,
+          timeOfDay: edge.timeOfDay,
+        }
       });
+      childSlugs.add(edge.toSlug);
     }
 
-    const childIds = new Set(locationDeduped.map(l => l.toSpeciesId));
-    const roots = [...speciesMap.keys()].filter(id => !childIds.has(id));
+    // 5. Roots are predecessor slugs that do not appear as a child slug in the filtered list
+    const parentSlugs = new Set(filteredEdges.map(e => e.fromSlug));
+    const roots = [...parentSlugs].filter(slug => !childSlugs.has(slug));
+
+    // Fallback: if there are no edges but a default form exists, make it a root
+    if (roots.length === 0 && chainSpecies.length > 0) {
+      const currentSp = chainSpecies.find(s => s.speciesId === activePokemon.speciesId);
+      if (currentSp) {
+        const pf = primaryFormFor(currentSp, tabSuffix);
+        roots.push(pf.slug);
+      }
+    }
 
     return { speciesMap, childrenOf, roots };
   });
 
-
 </script>
 
-{#snippet evoNode(speciesId: number, tabSuffix: string | null, edgeLocation: string | null)}
-  {@const effectiveSuffix = edgeLocation ?? tabSuffix}
-  {@const allChildren = evoTree().childrenOf.get(speciesId) ?? []}
-  {@const children = allChildren.filter(child => {
-    if (tabSuffix && child.location !== tabSuffix) {
-      const hasRegionalVariant = allChildren.some(
-        o => o.speciesId === child.speciesId && o.location === tabSuffix
-      );
-      if (hasRegionalVariant) return false;
-    }
-    return child.requiredSuffix === effectiveSuffix ||
-      (child.requiredSuffix === null && !allChildren.some(
-        o => o.speciesId !== child.speciesId && o.requiredSuffix === effectiveSuffix
-      ));
-  })}
-  {@const sp = evoTree().speciesMap.get(speciesId)}
-  {#if sp}
-    {@const pf = primaryFormFor(sp, effectiveSuffix)}
+{#snippet evoNode(pokemonSlug: string)}
+  {@const children = evoTree().childrenOf.get(pokemonSlug) ?? []}
+  {@const pf = chainSpecies
+    .flatMap(s => s.forms)
+    .find(f => f.slug === pokemonSlug)}
+
+  {#if pf}
     {@const isCurrent = pf.slug === activePokemon.slug}
 
     <div class="evo-node-wrap">
@@ -240,7 +236,7 @@
           {/if}
           <span class="evo-down-arrow">↓</span>
         </div>
-        {@render evoNode(child.speciesId, tabSuffix, child.location)}
+        {@render evoNode(child.toSlug)}
       {:else if children.length > 1}
         {@const chunks = chunkArray(children, 4)}
         <div class="evo-chunks-wrap" use:drawBranchLine>
@@ -248,10 +244,6 @@
             <div class="evo-stem"></div>
             <div class="evo-branch-row">
               {#each chunk as child, i}
-                {@const childSp = evoTree().speciesMap.get(child.speciesId)}
-                {@const childPf = childSp ? primaryFormFor(childSp, effectiveSuffix) : null}
-                {@const childIsCurrent = childPf && childPf.slug === activePokemon.slug}
-
                 <div class="evo-branch-child"
                   class:first-branch={i === 0}
                   class:last-branch={i === chunk.length - 1}
@@ -269,7 +261,7 @@
                     {/if}
                     <span class="evo-down-arrow">↓</span>
                   </div>
-                  {@render evoNode(child.speciesId, tabSuffix, child.location)}
+                  {@render evoNode(child.toSlug)}
                 </div>
               {/each}
             </div>
@@ -403,9 +395,8 @@
   </div>
 {:else}
   <div class="evo-tree">
-    {#each evoTree().roots as rootId}
-      {@const activeSuffix = activeTab?.kind === 'regional' ? activeTab.suffix : null}
-      {@render evoNode(rootId, activeSuffix, null)}
+    {#each evoTree().roots as rootSlug}
+      {@render evoNode(rootSlug)}
     {/each}
   </div>
 {/if}
