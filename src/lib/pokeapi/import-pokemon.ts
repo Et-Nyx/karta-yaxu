@@ -204,12 +204,16 @@ export async function ensureEvolutionChain(
 export async function populateChainLinkedList(chainPokeapiId: number): Promise<void> {
   const chain = await client.fetchEvolutionChain(chainPokeapiId);
   const edges = mappers.flattenEvolutionChain(chain.chain);
+  const processedTargets = new Set<number>();
 
   for (const edge of edges) {
     try {
       const fromPokemon = await defaultPokemonForSpeciesPokeapiId(edge.fromSpeciesPokeapiId);
       const toPokemon   = await defaultPokemonForSpeciesPokeapiId(edge.toSpeciesPokeapiId);
       if (!fromPokemon || !toPokemon) continue;
+
+      // If we have already written standard evolution conditions for this target in this import run, skip subsequent ones
+      if (processedTargets.has(toPokemon.id)) continue;
 
       // Set the parent pointer only if it's currently null (don't overwrite editor edits)
       const [child] = await db.select({
@@ -267,6 +271,10 @@ export async function populateChainLinkedList(chainPokeapiId: number): Promise<v
             source:          'pokeapi',
           },
         });
+        processedTargets.add(toPokemon.id);
+      } else {
+        // Even if existing source is 'edited' or 'custom', we mark it as processed so we don't add alternate PokeAPI edges
+        processedTargets.add(toPokemon.id);
       }
     } catch {
       // skip edges with unresolvable dependencies (rare items/moves/types)

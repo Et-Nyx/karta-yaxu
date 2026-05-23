@@ -14,6 +14,7 @@
   import FlavorTextBox from '$lib/components/FlavorTextBox.svelte';
   import PokemonDataList from '$lib/components/PokemonDataList.svelte';
   import TypeMatchupDisplay from '$lib/components/TypeMatchupDisplay.svelte';
+  import EvolutionChain from '$lib/components/EvolutionChain.svelte';
   import { pageSource } from '$lib/stores/pageSource';
 
   let { data, form } = $props();
@@ -323,36 +324,18 @@
     return tabs;
   });
 
-  const _currentSuffix = REGIONAL_SUFFIXES.find(r => data.pokemon.slug.endsWith('-' + r));
-  let activeFormTab = $state<string>(_currentSuffix ? _currentSuffix.toUpperCase() : 'EVOLUTION');
-  let activeFormTabObj = $derived(formTabs().find(t => t.label === activeFormTab) ?? formTabs()[0]);
-
-  // --- Evo tree helpers ---
-  function evoCondText(cond: typeof data.evoChain[number]['conditions']): string {
-    if (!cond) return '';
-    if (cond.trigger === 'level-up') {
-      if (cond.minLevel)     return `Lv. ${cond.minLevel}`;
-      if (cond.minHappiness) return `Happiness ${cond.minHappiness}`;
-      if (cond.timeOfDay)    return `Level up (${cond.timeOfDay})`;
-      return 'Level up';
-    }
-    if (cond.trigger === 'use-item') return cond.itemName ?? 'Use item';
-    if (cond.trigger === 'trade')    return 'Trade';
-    return cond.trigger;
-  }
-
-  let evoTreeData = $derived(() => {
-    const nodeMap = new Map(data.evoChain.map(n => [n.id, n]));
-    const childrenOf = new Map<number, typeof data.evoChain>();
-    for (const n of data.evoChain) {
-      if (n.evolvesFromId == null) continue;
-      if (!childrenOf.has(n.evolvesFromId)) childrenOf.set(n.evolvesFromId, []);
-      childrenOf.get(n.evolvesFromId)!.push(n);
-    }
-    const chainIdSet = new Set(data.evoChain.map(n => n.id));
-    const roots = data.evoChain.filter(n => n.evolvesFromId == null || !chainIdSet.has(n.evolvesFromId));
-    return { nodeMap, childrenOf, roots };
+  let formSuffix = $derived(
+    REGIONAL_SUFFIXES.find(r =>
+      data.pokemon.slug.endsWith('-' + r) || data.pokemon.slug.includes('-' + r + '-')
+    ) ?? null
+  );
+  let activeFormTab = $state<string>('EVOLUTION');
+  $effect(() => {
+    activeFormTab = formSuffix ? formSuffix.toUpperCase() : 'EVOLUTION';
   });
+
+  let activeFormTabObj = $derived(formTabs().find(t => t.label === activeFormTab) ?? formTabs()[0]);
+  let formTabItems = $derived(() => formTabs().map(t => ({ key: t.label, label: t.label })));
 
   const TRIGGERS = ['level-up','use-item','use-move','trade','three-critical-hits','shed','spin'] as const;
 
@@ -494,120 +477,7 @@
     {/if}
   </div>
 
-  {#snippet evoNode(nodeId: number)}
-    {@const node = evoTreeData().nodeMap.get(nodeId)}
-    {@const children = evoTreeData().childrenOf.get(nodeId) ?? []}
-    {#if node}
-      <div class="evo-node-wrap">
-        <PokemonCard
-          pokemon={{
-            pokeapiId: node.pokeapiId,
-            name: node.name,
-            slug: node.slug,
-            spriteUrl: node.spriteUrl,
-            dexNumber: node.dexNumber,
-            types: node.types,
-          }}
-          href="/editor/pokemon/{node.slug}"
-          highlighted={node.id === data.pokemon.id}
-        />
-        {#if children.length === 1}
-          {@const child = children[0]}
-          {@const ct = evoCondText(child.conditions)}
-          {@const childIsCurrent = child.id === data.pokemon.id}
-          <div class="evo-conn-single">
-            {#if ct}<span class="evo-method-tag">{ct}</span>{/if}
-            <span class="evo-down-arrow">↓</span>
-            {#if childIsCurrent}
-              <div class="evo-conn-actions">
-                <details class="evo-conn-edit">
-                  <summary class="evo-edit-btn">✎</summary>
-                  <form action="?/updateConditions" method="post" use:enhance class="evo-inline-form">
-                    <div class="field"><label>TRIGGER</label>
-                      <select name="trigger" required>
-                        {#each TRIGGERS as t}<option value={t} selected={data.predecessorConditions?.trigger === t}>{t}</option>{/each}
-                      </select>
-                    </div>
-                    <div class="field"><label>MIN LEVEL</label><input name="minLevel" type="number" min="0" max="100" value={data.predecessorConditions?.minLevel ?? ''}></div>
-                    <div class="field"><label>ITEM</label>
-                      <select name="itemId"><option value="">— none —</option>{#each data.allItems as i}<option value={i.id} selected={(data.predecessorConditions?.itemId ?? null) === i.id}>{i.name}</option>{/each}</select>
-                    </div>
-                    <div class="field"><label>HELD ITEM</label>
-                      <select name="heldItemId"><option value="">— none —</option>{#each data.allItems as i}<option value={i.id} selected={(data.predecessorConditions?.heldItemId ?? null) === i.id}>{i.name}</option>{/each}</select>
-                    </div>
-                    <div class="field"><label>KNOWN MOVE</label>
-                      <select name="knownMoveId"><option value="">— none —</option>{#each data.allMoves as m}<option value={m.id} selected={(data.predecessorConditions?.knownMoveId ?? null) === m.id}>{m.name}</option>{/each}</select>
-                    </div>
-                    <div class="field"><label>MIN HAPPINESS</label><input name="minHappiness" type="number" min="0" max="255" value={data.predecessorConditions?.minHappiness ?? ''}></div>
-                    <div class="field"><label>TIME OF DAY</label>
-                      <select name="timeOfDay"><option value="">— any —</option>{#each ['day','night','dusk'] as t}<option value={t} selected={data.predecessorConditions?.timeOfDay === t}>{t}</option>{/each}</select>
-                    </div>
-                    <div class="field"><label>GENDER</label>
-                      <select name="gender"><option value="">— any —</option><option value="1" selected={data.predecessorConditions?.gender === 1}>female</option><option value="2" selected={data.predecessorConditions?.gender === 2}>male</option></select>
-                    </div>
-                    <div class="field"><label>LOCATION</label><input name="location" type="text" value={data.predecessorConditions?.location ?? ''}></div>
-                    <button type="submit" class="save-btn-sm">SAVE</button>
-                  </form>
-                </details>
-                <form action="?/clearPredecessor" method="post" use:enhance class="inline-form">
-                  <button type="submit" class="evo-unlink-btn"
-                    onclick={(e) => { if (!confirm('Remove predecessor?')) e.preventDefault(); }}>×</button>
-                </form>
-              </div>
-            {/if}
-          </div>
-          {@render evoNode(child.id)}
-        {:else if children.length > 1}
-          <div class="evo-chunks-wrap">
-            <div class="evo-stem"></div>
-            <div class="evo-branch-row">
-              {#each children as child, i}
-                {@const ct = evoCondText(child.conditions)}
-                {@const childIsCurrent = child.id === data.pokemon.id}
-                <div class="evo-branch-child"
-                  class:first-branch={i === 0}
-                  class:last-branch={i === children.length - 1}
-                  class:mid-branch={i > 0 && i < children.length - 1}>
-                  <div class="evo-conn-cell">
-                    {#if ct}<span class="evo-method-tag">{ct}</span>{/if}
-                    <span class="evo-down-arrow">↓</span>
-                    {#if childIsCurrent}
-                      <div class="evo-conn-actions">
-                        <details class="evo-conn-edit">
-                          <summary class="evo-edit-btn">✎</summary>
-                          <form action="?/updateConditions" method="post" use:enhance class="evo-inline-form">
-                            <div class="field"><label>TRIGGER</label>
-                              <select name="trigger" required>
-                                {#each TRIGGERS as t}<option value={t} selected={data.predecessorConditions?.trigger === t}>{t}</option>{/each}
-                              </select>
-                            </div>
-                            <div class="field"><label>MIN LEVEL</label><input name="minLevel" type="number" min="0" max="100" value={data.predecessorConditions?.minLevel ?? ''}></div>
-                            <div class="field"><label>ITEM</label>
-                              <select name="itemId"><option value="">— none —</option>{#each data.allItems as i}<option value={i.id} selected={(data.predecessorConditions?.itemId ?? null) === i.id}>{i.name}</option>{/each}</select>
-                            </div>
-                            <div class="field"><label>MIN HAPPINESS</label><input name="minHappiness" type="number" min="0" max="255" value={data.predecessorConditions?.minHappiness ?? ''}></div>
-                            <div class="field"><label>TIME OF DAY</label>
-                              <select name="timeOfDay"><option value="">— any —</option>{#each ['day','night','dusk'] as t}<option value={t} selected={data.predecessorConditions?.timeOfDay === t}>{t}</option>{/each}</select>
-                            </div>
-                            <button type="submit" class="save-btn-sm">SAVE</button>
-                          </form>
-                        </details>
-                        <form action="?/clearPredecessor" method="post" use:enhance class="inline-form">
-                          <button type="submit" class="evo-unlink-btn"
-                            onclick={(e) => { if (!confirm('Remove predecessor?')) e.preventDefault(); }}>×</button>
-                        </form>
-                      </div>
-                    {/if}
-                  </div>
-                  {@render evoNode(child.id)}
-                </div>
-              {/each}
-            </div>
-          </div>
-        {/if}
-      </div>
-    {/if}
-  {/snippet}
+
 
   {#snippet spriteInputs(activeTab: 'artwork' | 'front' | 'back')}
     {#if activeTab === 'artwork'}
@@ -837,94 +707,15 @@
   {:else if activePageTab === 'forms'}
   <!-- FORMS tab: inner sub-tabs (EVOLUTION + regional/mega/gmax form tiles) -->
 
-  <nav class="form-tabs-bar">
-    {#each formTabs() as tab}
-      <button
-        class="form-tab-btn"
-        class:active={activeFormTab === tab.label}
-        onclick={() => activeFormTab = tab.label}
-      >{tab.label}</button>
-    {/each}
-  </nav>
-
-  {#if activeFormTabObj?.kind === 'evolution'}
-  <section class="tab-section">
-
-    {#if !data.predecessor}
-    <details class="evo-add-pred">
-      <summary>+ SET PREDECESSOR</summary>
-      <form action="?/setPredecessor" method="post" use:enhance class="evo-inline-form">
-        <div class="field full"><label>PARENT POKÉMON</label>
-          <select name="parentPokemonId" required>
-            <option value="">— pick —</option>
-            {#each data.allPokemon as pk}<option value={pk.id}>{pk.name} ({pk.slug})</option>{/each}
-          </select>
-        </div>
-        <div class="field"><label>TRIGGER</label>
-          <select name="trigger" required>{#each TRIGGERS as t}<option value={t}>{t}</option>{/each}</select>
-        </div>
-        <div class="field"><label>MIN LEVEL</label><input name="minLevel" type="number" min="0" max="100"></div>
-        <div class="field"><label>ITEM</label>
-          <select name="itemId"><option value="">— none —</option>{#each data.allItems as i}<option value={i.id}>{i.name}</option>{/each}</select>
-        </div>
-        <div class="field"><label>MIN HAPPINESS</label><input name="minHappiness" type="number" min="0" max="255"></div>
-        <div class="field"><label>TIME OF DAY</label>
-          <select name="timeOfDay"><option value="">— any —</option>{#each ['day','night','dusk'] as t}<option value={t}>{t}</option>{/each}</select>
-        </div>
-        <button type="submit" class="save-btn-sm">SET PREDECESSOR</button>
-      </form>
-    </details>
-    {/if}
-
-    <div class="evo-tree">
-      {#each evoTreeData().roots as root (root.id)}
-        {@render evoNode(root.id)}
-      {/each}
-    </div>
-
-    <details class="evo-add-succ">
-      <summary>+ ADD SUCCESSOR</summary>
-      <form action="?/addSuccessor" method="post" use:enhance class="evo-inline-form">
-        <div class="field full"><label>CHILD POKÉMON</label>
-          <select name="childPokemonId" required>
-            <option value="">— pick —</option>
-            {#each data.allPokemon as pk}<option value={pk.id}>{pk.name} ({pk.slug})</option>{/each}
-          </select>
-        </div>
-        <button type="submit" class="save-btn-sm">ADD</button>
-      </form>
-    </details>
-
-    {#if form?.evoError}<p class="form-error">{form.evoError}</p>{/if}
-
-  </section>
-
-  {:else}
-  <!-- Form tiles for ALOLA / MEGA / GMAX / FORMS sub-tabs -->
-  {@const tabForms = activeFormTabObj?.kind === 'regional'
-    ? data.speciesForms.filter(f => f.slug.includes('-' + (activeFormTabObj as { suffix: string }).suffix))
-    : ((activeFormTabObj as { forms?: SpeciesForm[] }).forms ?? [])}
-  <section class="tab-section">
-    <div class="form-tiles">
-      {#each tabForms as f (f.slug)}
-        <a href="/editor/pokemon/{f.slug}" class="form-tile" class:current={f.slug === data.pokemon.slug}>
-          <span class="form-tile-num">{f.pokeapiId ? `#${String(f.pokeapiId).padStart(3, '0')}` : ''}</span>
-          <span class="form-tile-name">{f.name.toUpperCase()}</span>
-          {#if f.spriteUrl}
-            <img src={f.spriteUrl} alt={f.name} class="form-tile-sprite" />
-          {:else}
-            <div class="form-tile-no-sprite"></div>
-          {/if}
-          <div class="form-tile-types">
-            {#each f.types as t}
-              <TypeBadge name={t.name} hexColor={t.hexColor} size="sm" />
-            {/each}
-          </div>
-        </a>
-      {/each}
-    </div>
-  </section>
-  {/if}
+  <Tabs tabs={formTabItems()} bind:active={activeFormTab}>
+    <EvolutionChain
+      chainSpecies={data.chainSpecies}
+      evolutionChain={data.evolutionChain}
+      activePokemon={data.pokemon}
+      activeTab={activeFormTabObj}
+      variant="editor"
+    />
+  </Tabs>
 
 
   {:else if activePageTab === 'learnset'}
