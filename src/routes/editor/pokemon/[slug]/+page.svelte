@@ -332,6 +332,27 @@
   let activeFormTab = $state<string>('EVOLUTION');
   let selectedTrigger = $state<string>('level-up');
 
+  let predecessorCardEl = $state<HTMLElement | null>(null);
+  let conditionsCardEl = $state<HTMLElement | null>(null);
+  let predecessorFlash = $state(false);
+  let conditionsFlash = $state(false);
+
+  function handleEditPredecessor() {
+    if (predecessorCardEl) {
+      predecessorCardEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      predecessorFlash = true;
+      setTimeout(() => { predecessorFlash = false; }, 1200);
+    }
+  }
+
+  function handleEditConditions() {
+    if (conditionsCardEl) {
+      conditionsCardEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      conditionsFlash = true;
+      setTimeout(() => { conditionsFlash = false; }, 1200);
+    }
+  }
+
   $effect(() => {
     activeFormTab = formSuffix ? formSuffix.toUpperCase() : 'EVOLUTION';
   });
@@ -722,6 +743,9 @@
           activePokemon={data.pokemon}
           activeTab={activeFormTabObj}
           variant="editor"
+          predecessorSlug={data.predecessor?.slug ?? null}
+          onEditPredecessor={handleEditPredecessor}
+          onEditConditions={handleEditConditions}
         />
 
         <!-- NEW EVOLUTION EDITOR FORM PANEL -->
@@ -733,7 +757,11 @@
 
           <div class="evolution-editor-forms grid grid-cols-1 md:grid-cols-2 gap-6">
             <!-- LEFT COLUMN: Predecessor Form Selection -->
-            <div class="editor-section-card">
+            <div 
+              bind:this={predecessorCardEl} 
+              class="editor-section-card"
+              class:flash-pulse={predecessorFlash}
+            >
               <h4 class="section-subtitle mb-4">1. PREDECESSOR (EVOLVES FROM)</h4>
               <form action="?/setPredecessor" method="post" use:enhance class="retro-form space-y-4">
                 <div class="field">
@@ -787,7 +815,11 @@
             </div>
 
             <!-- RIGHT COLUMN: Trigger-Conditional Options -->
-            <div class="editor-section-card">
+            <div 
+              bind:this={conditionsCardEl} 
+              class="editor-section-card"
+              class:flash-pulse={conditionsFlash}
+            >
               <h4 class="section-subtitle mb-4">2. EVOLUTION CONDITIONS</h4>
               {#if !data.predecessor}
                 <div class="no-relation-placeholder">
@@ -1849,5 +1881,36 @@
 
   .retro-details summary:hover {
     color: var(--theme-text-accent);
+  }
+
+  /* Visual highlight flash animations for dynamic editing links */
+  .editor-section-card.flash-pulse {
+    animation: flash-border-retro 1.2s ease-in-out;
+  }
+
+  @keyframes flash-border-retro {
+    0% {
+      border-color: var(--theme-border-primary);
+      box-shadow: 0 0 0 rgba(74, 222, 128, 0);
+    }
+    25% {
+      border-color: #ffcc00;
+      box-shadow: 0 0 15px rgba(255, 204, 0, 0.7);
+      background-color: rgba(255, 204, 0, 0.05);
+    }
+    50% {
+      border-color: var(--theme-text-accent);
+      box-shadow: 0 0 20px rgba(74, 222, 128, 0.8);
+      background-color: rgba(74, 222, 128, 0.1);
+    }
+    75% {
+      border-color: #ffcc00;
+      box-shadow: 0 0 15px rgba(255, 204, 0, 0.5);
+      background-color: rgba(255, 204, 0, 0.05);
+    }
+    100% {
+      border-color: var(--theme-border-primary);
+      box-shadow: 0 0 0 rgba(74, 222, 128, 0);
+    }
   }
 </style>

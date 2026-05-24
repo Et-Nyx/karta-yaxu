@@ -52,7 +52,19 @@
     activePokemon, // { slug: string; speciesId: number; id: number; }
     activeTab,     // Tab object: { kind: string; suffix?: string; forms?: ChainForm[] }
     variant = 'wiki' as 'wiki' | 'editor',
-  } = $props();
+    predecessorSlug = null as string | null,
+    onEditPredecessor,
+    onEditConditions,
+  } = $props<{
+    chainSpecies?: ChainSpecies[];
+    evolutionChain?: EvolutionEdge[];
+    activePokemon: { slug: string; speciesId: number; id: number; };
+    activeTab?: any;
+    variant?: 'wiki' | 'editor';
+    predecessorSlug?: string | null;
+    onEditPredecessor?: () => void;
+    onEditConditions?: () => void;
+  }>();
 
   const REGIONAL_SUFFIXES_CHAIN = ['alola', 'galar', 'hisui', 'paldea'];
 
@@ -191,22 +203,38 @@
 
   {#if pf}
     {@const isCurrent = pf.slug === activePokemon.slug}
+    {@const isPredecessor = pf.slug === predecessorSlug}
 
     <div class="evo-node-wrap">
-      <div class="evo-card-cell" class:is-current={isCurrent}>
+      <div class="evo-card-cell" class:is-current={isCurrent} class:is-predecessor={variant === 'editor' && isPredecessor}>
         {#if variant === 'editor'}
-          <PokemonCard
-            pokemon={{
-              pokeapiId: pf.pokeapiId ?? 0,
-              name: pf.name,
-              slug: pf.slug,
-              spriteUrl: pf.spriteUrl,
-              types: pf.types,
-              dexNumber: pf.dexNumber,
-            }}
-            href="/editor/pokemon/{pf.slug}"
-            highlighted={isCurrent}
-          />
+          <div class="card-relative-container">
+            <PokemonCard
+              pokemon={{
+                pokeapiId: pf.pokeapiId ?? 0,
+                name: pf.name,
+                slug: pf.slug,
+                spriteUrl: pf.spriteUrl,
+                types: pf.types,
+                dexNumber: pf.dexNumber,
+              }}
+              href="/editor/pokemon/{pf.slug}"
+              highlighted={isCurrent}
+            />
+            {#if isPredecessor}
+              <button 
+                type="button" 
+                class="btn-edit-relation-overlay"
+                onclick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onEditPredecessor?.();
+                }}
+              >
+                EDIT LINK
+              </button>
+            {/if}
+          </div>
         {:else}
           <PokemonCard
             pokemon={{
@@ -226,13 +254,24 @@
 
         <div class="evo-conn-single">
           {#if child.method.text}
-            <span class="evo-method-tag">
-              {#if variant === 'wiki' && child.method.itemSlug}
-                <a href="/wiki/items/{child.method.itemSlug}" class="evo-item-link">{child.method.text}</a>
-              {:else}
-                {child.method.text}
-              {/if}
-            </span>
+            {#if variant === 'editor' && child.toSlug === activePokemon.slug}
+              <button 
+                type="button" 
+                class="evo-method-tag interactive-tag" 
+                class:is-active-relation={true}
+                onclick={() => onEditConditions?.()}
+              >
+                {child.method.text} ✏️
+              </button>
+            {:else}
+              <span class="evo-method-tag">
+                {#if variant === 'wiki' && child.method.itemSlug}
+                  <a href="/wiki/items/{child.method.itemSlug}" class="evo-item-link">{child.method.text}</a>
+                {:else}
+                  {child.method.text}
+                {/if}
+              </span>
+            {/if}
           {/if}
           <span class="evo-down-arrow">↓</span>
         </div>
@@ -251,13 +290,24 @@
                 >
                   <div class="evo-conn-cell">
                     {#if child.method.text}
-                      <span class="evo-method-tag">
-                        {#if variant === 'wiki' && child.method.itemSlug}
-                          <a href="/wiki/items/{child.method.itemSlug}" class="evo-item-link">{child.method.text}</a>
-                        {:else}
-                          {child.method.text}
-                        {/if}
-                      </span>
+                      {#if variant === 'editor' && child.toSlug === activePokemon.slug}
+                        <button 
+                          type="button" 
+                          class="evo-method-tag interactive-tag" 
+                          class:is-active-relation={true}
+                          onclick={() => onEditConditions?.()}
+                        >
+                          {child.method.text} ✏️
+                        </button>
+                      {:else}
+                        <span class="evo-method-tag">
+                          {#if variant === 'wiki' && child.method.itemSlug}
+                            <a href="/wiki/items/{child.method.itemSlug}" class="evo-item-link">{child.method.text}</a>
+                          {:else}
+                            {child.method.text}
+                          {/if}
+                        </span>
+                      {/if}
                     {/if}
                     <span class="evo-down-arrow">↓</span>
                   </div>
@@ -498,4 +548,67 @@
     display: none;
   }
 
+  /* Interactive styling for Editor Mode */
+  .card-relative-container {
+    position: relative;
+    display: inline-block;
+  }
+
+  .evo-card-cell.is-predecessor {
+    border-color: #ffcc00;
+    box-shadow: 0 0 8px rgba(255, 204, 0, 0.4);
+  }
+
+  .btn-edit-relation-overlay {
+    position: absolute;
+    bottom: 6px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #ffcc00;
+    border: 1px solid var(--theme-border-primary);
+    color: black;
+    font-family: var(--font-display);
+    font-size: 8px;
+    padding: 3px 6px;
+    cursor: pointer;
+    box-shadow: 1px 1px 0 var(--theme-border-primary);
+    z-index: 10;
+    white-space: nowrap;
+    opacity: 0.85;
+    transition: all 0.1s ease;
+  }
+
+  .btn-edit-relation-overlay:hover {
+    opacity: 1;
+    background-color: #ffe680;
+    transform: translateX(-50%) translate(-1px, -1px);
+    box-shadow: 2px 2px 0 var(--theme-border-primary);
+  }
+
+  .btn-edit-relation-overlay:active {
+    transform: translateX(-50%) translate(1px, 1px);
+    box-shadow: 0px 0px 0 var(--theme-border-primary);
+  }
+
+  button.evo-method-tag.interactive-tag {
+    appearance: none;
+    cursor: pointer;
+    background-color: var(--theme-bg-secondary);
+    border: 1px solid var(--theme-border-primary);
+    color: var(--theme-text-primary);
+    box-shadow: 1.5px 1.5px 0 var(--theme-border-primary);
+    transition: all 0.1s ease;
+  }
+
+  button.evo-method-tag.interactive-tag:hover {
+    background-color: var(--theme-text-accent);
+    color: var(--theme-bg-primary);
+    transform: translate(-1px, -1px);
+    box-shadow: 2.5px 2.5px 0 var(--theme-border-primary);
+  }
+
+  button.evo-method-tag.interactive-tag:active {
+    transform: translate(1px, 1px);
+    box-shadow: 0.5px 0.5px 0 var(--theme-border-primary);
+  }
 </style>
