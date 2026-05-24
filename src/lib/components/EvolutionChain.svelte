@@ -811,6 +811,11 @@
     display: flex; justify-content: center; align-items: flex-start; gap: 40px;
     padding: var(--spacing-4) 0; overflow-x: auto;
   }
+  .evo-tree.has-dashed-predecessor {
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+  }
   .evo-node-wrap {
     display: flex; flex-direction: column; align-items: center; position: relative;
   }
@@ -915,7 +920,7 @@
 
   .btn-edit-relation-overlay {
     position: absolute;
-    bottom: 6px;
+    bottom: -16px;
     left: 50%;
     transform: translateX(-50%);
     background-color: var(--theme-bg-secondary);
@@ -1025,7 +1030,8 @@
   }
 
   .predecessor-popover {
-    bottom: calc(100% + 8px);
+    bottom: auto;
+    top: calc(100% + 8px);
   }
 
   .popover-header {
