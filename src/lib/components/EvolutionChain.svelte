@@ -490,6 +490,7 @@
                   dexNumber: pf.dexNumber,
                 }}
                 highlighted={true}
+                static={true}
               />
             {:else if isPredecessor}
               <PokemonCard
@@ -611,6 +612,7 @@
                   dexNumber: baseForm.dexNumber,
                 }}
                 highlighted={true}
+                static={true}
               />
             {:else}
               <PokemonCard
@@ -662,6 +664,7 @@
                   dexNumber: form.dexNumber,
                 }}
                 highlighted={true}
+                static={true}
               />
             {:else}
               <PokemonCard
@@ -718,6 +721,7 @@
                           dexNumber: form.dexNumber,
                         }}
                         highlighted={true}
+                        static={true}
                       />
                     {:else}
                       <PokemonCard

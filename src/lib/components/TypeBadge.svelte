@@ -3,17 +3,33 @@
     name = 'normal',
     size = 'md',
     hexColor = null as string | null,
-    class: className = ''
-  } = $props();
+    class: className = '',
+    href = `/wiki/types/${name.toLowerCase()}`
+  } = $props<{
+    name?: string;
+    size?: 'xs' | 'sm' | 'md' | 'lg';
+    hexColor?: string | null;
+    class?: string;
+    href?: string | null;
+  }>();
 </script>
 
-<a
-  href="/wiki/types/{name.toLowerCase()}"
-  class="type-badge size-{size} {className}"
-  style={hexColor ? `background-color: ${hexColor}` : undefined}
->
-  {name.toUpperCase()}
-</a>
+{#if href}
+  <a
+    {href}
+    class="type-badge size-{size} {className}"
+    style={hexColor ? `background-color: ${hexColor}` : undefined}
+  >
+    {name.toUpperCase()}
+  </a>
+{:else}
+  <span
+    class="type-badge size-{size} {className} type-badge-static"
+    style={hexColor ? `background-color: ${hexColor}` : undefined}
+  >
+    {name.toUpperCase()}
+  </span>
+{/if}
 
 <style>
   .type-badge {
@@ -34,6 +50,11 @@
   .type-badge:hover {
     transform: translate(-1px, -1px);
     box-shadow: 2px 2px 0px var(--theme-border-primary);
+  }
+
+  .size-xs {
+    font-size: 7px;
+    padding: 1px 6px;
   }
 
   .size-sm {

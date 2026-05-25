@@ -11,12 +11,20 @@
     isDefault?: boolean;
   };
 
-  let { pokemon, href = null, onclick = null, highlighted = false, dashed = false } = $props<{
+  let {
+    pokemon,
+    href = undefined,
+    onclick = null,
+    highlighted = false,
+    dashed = false,
+    static: isStatic = false
+  } = $props<{
     pokemon: PokemonCardData;
     href?: string | null;
     onclick?: ((e: MouseEvent) => void) | null;
     highlighted?: boolean;
     dashed?: boolean;
+    static?: boolean;
   }>();
 
   let displayName = $derived(pokemon.name ?? '???');
@@ -27,6 +35,16 @@
     `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pokemon.pokeapiId || 0}.png`
   );
   let dexNum = $derived((pokemon.dexNumber ?? pokemon.pokeapiId)?.toString().padStart(3, '0') ?? '???');
+
+  let finalHref = $derived(
+    isStatic
+      ? null
+      : href !== undefined
+        ? href
+        : onclick
+          ? null
+          : `/wiki/pokemon/${displaySlug}`
+  );
 </script>
 
 {#snippet cardContent()}
@@ -41,13 +59,13 @@
 
   <div class="types-container">
     {#each displayTypes as t}
-      <TypeBadge name={t.name} hexColor={t.hexColor} size="sm" class="type-badge-flex" />
+      <TypeBadge name={t.name} hexColor={t.hexColor} size="sm" class="type-badge-flex" href={null} />
     {/each}
   </div>
 {/snippet}
 
-{#if href}
-  <a {href} class="pokemon-card card-interactive" class:highlighted class:dashed-border={dashed}>
+{#if finalHref}
+  <a href={finalHref} class="pokemon-card card-interactive" class:highlighted class:dashed-border={dashed}>
     {@render cardContent()}
   </a>
 {:else if onclick}
