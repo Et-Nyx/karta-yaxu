@@ -17,6 +17,7 @@
   import PokemonDataList from '$lib/components/PokemonDataList.svelte';
   import TypeMatchupDisplay from '$lib/components/TypeMatchupDisplay.svelte';
   import EvolutionChain from '$lib/components/EvolutionChain.svelte';
+  import RetroButton from '$lib/components/RetroButton.svelte';
   import { pageSource } from '$lib/stores/pageSource';
 
   let { data, form } = $props<{ data: PageData, form: any }>();
@@ -578,10 +579,10 @@
         />
       </div>
       <div class="meta-actions">
-        <button type="submit" class="save-btn">SAVE</button>
-        <button
+        <RetroButton type="submit" variant="primary">SAVE</RetroButton>
+        <RetroButton
           type="button"
-          class="cancel-link bg-transparent border-none cursor-pointer"
+          variant="text"
           onclick={() => {
             if (!isDirty || confirm('You have unsaved changes. Cancel and discard all edits?')) {
               window.location.reload();
@@ -589,7 +590,7 @@
           }}
         >
           CANCEL
-        </button>
+        </RetroButton>
         {#if saved}<span class="save-ok">✓ SAVED</span>{/if}
         {#if form?.updateError}<span class="form-error">{form.updateError}</span>{/if}
       </div>
@@ -1069,57 +1070,7 @@
 
 
 
-  /* Shared button styles */
-  .save-btn {
-    font-family: var(--font-display); font-size: 10px; color: var(--theme-text-primary);
-    background-color: var(--theme-bg-secondary); border: 2px solid var(--theme-border-primary);
-    padding: var(--spacing-2) var(--spacing-4); cursor: pointer;
-    box-shadow: var(--shadow-card-subtle); transition: all 0.1s ease;
-  }
-  .save-btn:hover {
-    color: var(--theme-text-accent);
-    border-color: var(--theme-text-accent);
-    transform: translate(-1px, -1px);
-    box-shadow: 3px 3px 0 var(--theme-text-accent);
-  }
-  .save-btn:active {
-    color: var(--theme-text-accent);
-    border-color: var(--theme-text-accent);
-    transform: translate(1px, 1px);
-    box-shadow: 1px 1px 0 var(--theme-text-accent);
-  }
 
-  .save-btn-sm {
-    font-family: var(--font-display); font-size: 9px; color: var(--theme-text-primary);
-    background-color: var(--theme-bg-primary); border: 2px solid var(--theme-border-primary);
-    padding: 2px var(--spacing-3); cursor: pointer; transition: all 0.1s ease;
-    box-shadow: var(--shadow-card-subtle);
-  }
-  .save-btn-sm:hover {
-    color: var(--theme-text-accent);
-    border-color: var(--theme-text-accent);
-    transform: translate(-1px, -1px);
-    box-shadow: 2px 2px 0 var(--theme-text-accent);
-  }
-  .save-btn-sm:active {
-    color: var(--theme-text-accent);
-    border-color: var(--theme-text-accent);
-    transform: translate(1px, 1px);
-    box-shadow: 1px 1px 0 var(--theme-text-accent);
-  }
-
-  .cancel-link {
-    font-family: var(--font-display); font-size: 9px; color: var(--theme-text-inverse);
-    opacity: 0.85; text-decoration: none; transition: all 0.1s ease;
-  }
-  .cancel-link:hover {
-    color: var(--theme-text-accent);
-    opacity: 1;
-    transform: translate(-1px, -1px);
-  }
-  .cancel-link:active {
-    transform: translate(1px, 1px);
-  }
   .save-ok { font-family: var(--font-mono); font-size: 10px; color: var(--theme-text-accent); }
   .form-error { font-family: var(--font-mono); font-size: 10px; color: var(--color-text-error); }
   .delete-btn-sm {

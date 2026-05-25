@@ -3,6 +3,7 @@
   import PokemonCard from './PokemonCard.svelte';
 
   import RetroSelect from '$lib/components/RetroSelect.svelte';
+  import RetroButton from './RetroButton.svelte';
 
   // --- Types ---
   interface ChainForm {
@@ -256,9 +257,9 @@
             />
           </div>
           {#if predecessorSlug}
-            <button type="button" onclick={() => predecessorId = ""} class="btn-clear-relation flex-shrink-0">
+            <RetroButton type="button" onclick={() => predecessorId = ""} variant="secondary" class="flex-shrink-0">
               CLEAR
-            </button>
+            </RetroButton>
           {/if}
         </div>
       </div>
@@ -1099,20 +1100,7 @@
     border-color: var(--theme-text-accent);
   }
 
-  .btn-clear-relation {
-    appearance: none;
-    background-color: var(--theme-bg-tertiary);
-    border: 2px solid var(--theme-border-primary);
-    color: var(--theme-text-primary);
-    font-family: var(--font-display);
-    font-size: 8px;
-    padding: 4px 8px;
-    cursor: pointer;
-  }
 
-  .btn-clear-relation:hover {
-    background-color: var(--theme-bg-hover);
-  }
 
   .info-alert {
     background-color: var(--theme-bg-tertiary);
