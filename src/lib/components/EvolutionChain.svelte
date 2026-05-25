@@ -170,17 +170,25 @@
     // 1. Get the current suffix for filtering
     const tabSuffix = activeTab?.kind === 'regional' ? activeTab.suffix : null;
 
-    // 2. Filter evolution edges based on suffix
     const filteredEdges = evolutionChain.filter((edge: EvolutionEdge) => {
       if (tabSuffix) {
-        // Under a regional tab (e.g. galar), show edges where the successor matches that suffix
-        return edge.toSlug.endsWith('-' + tabSuffix) || edge.toSlug.includes('-' + tabSuffix + '-');
+        // Under a regional tab (e.g. galar), show edges where:
+        // - either the predecessor or successor belongs to that regional form (ends with -suffix)
+        // - or requiredSuffix explicitly matches the tab suffix
+        const matchesFrom = edge.fromSlug.endsWith('-' + tabSuffix) || edge.fromSlug.includes('-' + tabSuffix + '-');
+        const matchesTo = edge.toSlug.endsWith('-' + tabSuffix) || edge.toSlug.includes('-' + tabSuffix + '-');
+        const matchesRequired = edge.requiredSuffix === tabSuffix;
+        return matchesFrom || matchesTo || matchesRequired;
       } else {
-        // Under the standard evolution tab, filter out edges that belong to other regional forms
-        const hasRegionalSuffix = REGIONAL_SUFFIXES_CHAIN.some(suffix => {
+        // Under the standard evolution tab, exclude any edges belonging to regional forms
+        const hasRegionalFrom = REGIONAL_SUFFIXES_CHAIN.some(suffix => {
+          return edge.fromSlug.endsWith('-' + suffix) || edge.fromSlug.includes('-' + suffix + '-');
+        });
+        const hasRegionalTo = REGIONAL_SUFFIXES_CHAIN.some(suffix => {
           return edge.toSlug.endsWith('-' + suffix) || edge.toSlug.includes('-' + suffix + '-');
         });
-        return !hasRegionalSuffix;
+        const hasRegionalRequired = edge.requiredSuffix !== null;
+        return !hasRegionalFrom && !hasRegionalTo && !hasRegionalRequired;
       }
     });
 

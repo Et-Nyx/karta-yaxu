@@ -319,15 +319,6 @@ export const load: PageServerLoad = async ({ params, url }) => {
       const detailByChild = new Map(details.map(d => [d.pokemonId, d]));
       const itemById = new Map(itemRows.map(i => [i.id, i]));
 
-      const FORM_RESTRICTED_EVOLUTIONS = [
-        { fromSlug: 'mr-mime',   toSlug: 'mr-rime',    requiredSuffix: 'galar' },
-        { fromSlug: 'meowth',    toSlug: 'perrserker', requiredSuffix: 'galar' },
-        { fromSlug: 'farfetchd', toSlug: 'sirfetchd',  requiredSuffix: 'galar' },
-        { fromSlug: 'corsola',   toSlug: 'cursola',    requiredSuffix: 'galar' },
-        { fromSlug: 'yamask',    toSlug: 'runerigus',  requiredSuffix: 'galar' },
-        { fromSlug: 'linoone',   toSlug: 'obstagoon',  requiredSuffix: 'galar' },
-      ];
-
       for (const e of edges) {
         const c = childById.get(e.toPokemonId);
         const p = parentById.get(e.fromPokemonId);
@@ -335,9 +326,11 @@ export const load: PageServerLoad = async ({ params, url }) => {
         if (!c || !p) continue;
         const cond = d?.conditions ?? {};
         const item = cond.itemId != null ? itemById.get(cond.itemId) : null;
-        const restricted = FORM_RESTRICTED_EVOLUTIONS.find(
-          r => p.speciesSlug === r.fromSlug && c.speciesSlug === r.toSlug
-        );
+
+        const REGIONAL_SUFFIXES = ['alola', 'galar', 'hisui', 'paldea'];
+        const fromSuffix = REGIONAL_SUFFIXES.find(r => p.slug.endsWith('-' + r) || p.slug.includes('-' + r + '-'));
+        const toSuffix = REGIONAL_SUFFIXES.find(r => c.slug.endsWith('-' + r) || c.slug.includes('-' + r + '-'));
+
         evolutionChain.push({
           fromPokemonId: p.id,
           fromSpeciesId: p.speciesId,
@@ -356,7 +349,7 @@ export const load: PageServerLoad = async ({ params, url }) => {
           itemSlug:      item?.slug ?? null,
           timeOfDay:     cond.timeOfDay ?? null,
           location:      cond.location ?? null,
-          requiredSuffix: restricted?.requiredSuffix ?? cond.location ?? null,
+          requiredSuffix: fromSuffix ?? toSuffix ?? cond.location ?? null,
         });
       }
     }

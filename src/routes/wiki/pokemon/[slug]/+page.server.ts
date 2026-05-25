@@ -483,23 +483,14 @@ export const load: PageServerLoad = async ({ params, url }) => {
     pokemon.slug.endsWith('-' + r) || pokemon.slug.includes('-' + r + '-')
   ) ?? null;
 
-  // PokeAPI does not encode which regional form is required for cross-gen Galarian evolutions.
-  // These are known cases where only a specific regional form can produce the evolution.
-  const FORM_RESTRICTED_EVOLUTIONS = [
-    { fromSlug: 'mr-mime',   toSlug: 'mr-rime',    requiredSuffix: 'galar' },
-    { fromSlug: 'meowth',    toSlug: 'perrserker', requiredSuffix: 'galar' },
-    { fromSlug: 'farfetchd', toSlug: 'sirfetchd',  requiredSuffix: 'galar' },
-    { fromSlug: 'corsola',   toSlug: 'cursola',    requiredSuffix: 'galar' },
-    { fromSlug: 'yamask',    toSlug: 'runerigus',  requiredSuffix: 'galar' },
-    { fromSlug: 'linoone',   toSlug: 'obstagoon',  requiredSuffix: 'galar' },
-  ];
-
-  const evolutionChainFinal = evolutionChain.map(edge => ({
-    ...edge,
-    requiredSuffix: FORM_RESTRICTED_EVOLUTIONS.find(
-      r => edge.fromSlug === r.fromSlug && edge.toSlug === r.toSlug
-    )?.requiredSuffix ?? null,
-  }));
+  const evolutionChainFinal = evolutionChain.map(edge => {
+    const fromSuffix = REGIONAL_SUFFIXES.find(r => edge.fromSlug.endsWith('-' + r) || edge.fromSlug.includes('-' + r + '-'));
+    const toSuffix = REGIONAL_SUFFIXES.find(r => edge.toSlug.endsWith('-' + r) || edge.toSlug.includes('-' + r + '-'));
+    return {
+      ...edge,
+      requiredSuffix: fromSuffix ?? toSuffix ?? null,
+    };
+  });
 
   // 12. Location encounters (wild encounter data)
   const locationEncounters = await db.selectDistinct({
