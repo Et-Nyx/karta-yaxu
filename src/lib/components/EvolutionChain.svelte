@@ -204,7 +204,11 @@
         toSlug: edge.toSlug,
         toSpeciesId: edge.toSpeciesId,
         method: {
-          text: edge.trigger === 'unknown' ? null : (edge.itemName ?? edge.trigger.toUpperCase().replace(/-/g, ' ')),
+          text: edge.trigger === 'unknown'
+            ? null
+            : edge.trigger === 'level-up' && edge.minLevel
+              ? `LEVEL UP - ${edge.minLevel}`
+              : (edge.itemName ?? edge.trigger.toUpperCase().replace(/-/g, ' ')),
           itemSlug: edge.itemSlug,
           minLevel: edge.minLevel,
           minHappiness: edge.minHappiness,
