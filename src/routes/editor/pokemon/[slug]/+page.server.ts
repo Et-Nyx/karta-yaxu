@@ -435,7 +435,7 @@ export const load: PageServerLoad = async ({ params, url }) => {
   }
 
   // FK dropdowns
-  const allPokemon = await db.select({ id: pokemon.id, slug: pokemon.slug, name: pokemon.name })
+  const allPokemon = await db.select({ id: pokemon.id, slug: pokemon.slug, name: pokemon.name, speciesId: pokemon.speciesId })
     .from(pokemon).orderBy(asc(pokemon.name));
   const allItems = await db.select({ id: items.id, name: items.name, slug: items.slug })
     .from(items).orderBy(asc(items.name));
@@ -853,6 +853,57 @@ export const actions: Actions = {
         }
       }
     }
+    // Update evolution predecessor and conditions
+    const predecessorIdVal = formData.get('predecessorId') ? String(formData.get('predecessorId')) : '';
+    const evoTriggerVal = formData.get('evoTrigger') ? String(formData.get('evoTrigger')) : 'level-up';
+    const minLevelVal = intOrNull.parse(formData.get('minLevel'));
+    const minHappinessVal = intOrNull.parse(formData.get('minHappiness'));
+    const timeOfDayVal = textOrNull.parse(formData.get('timeOfDay'));
+    const genderVal = intOrNull.parse(formData.get('gender'));
+    const locationVal = textOrNull.parse(formData.get('location'));
+    const itemIdVal = intOrNull.parse(formData.get('itemId'));
+    const heldItemIdVal = intOrNull.parse(formData.get('heldItemId'));
+    const knownMoveIdVal = intOrNull.parse(formData.get('knownMoveId'));
+    const knownMoveTypeIdVal = intOrNull.parse(formData.get('knownMoveTypeId'));
+
+    if (!predecessorIdVal) {
+      await db.update(pokemon)
+        .set({ evolvesFromPokemonId: null })
+        .where(eq(pokemon.id, current.id));
+      await db.delete(pokemonEvolutionDetails)
+        .where(eq(pokemonEvolutionDetails.pokemonId, current.id));
+    } else {
+      const parentId = Number(predecessorIdVal);
+      await db.update(pokemon)
+        .set({ evolvesFromPokemonId: parentId })
+        .where(eq(pokemon.id, current.id));
+
+      const conditionRow = {
+        pokemonId:       current.id,
+        trigger:         evoTriggerVal as any,
+        conditions: {
+          minLevel:        minLevelVal,
+          itemId:          itemIdVal,
+          heldItemId:      heldItemIdVal,
+          knownMoveId:     knownMoveIdVal,
+          knownMoveTypeId: knownMoveTypeIdVal,
+          minHappiness:    minHappinessVal,
+          timeOfDay:       timeOfDayVal as any,
+          gender:          genderVal,
+          location:        locationVal,
+        },
+        source:          'edited' as const,
+      };
+
+      await db.insert(pokemonEvolutionDetails).values(conditionRow).onConflictDoUpdate({
+        target: pokemonEvolutionDetails.pokemonId,
+        set: {
+          trigger:         conditionRow.trigger,
+          conditions:      conditionRow.conditions,
+          source:          'edited',
+        },
+      });
+    }
 
     if (locals.user) {
       await recordEdit(locals.user.id, 'pokemon', current.id, current, { ...current, ...newRow });
@@ -892,135 +943,7 @@ export const actions: Actions = {
     return { evoSaved: true };
   },
 
-  setPredecessor: async ({ request, params, locals }) => {
-    const form = Object.fromEntries(await request.formData());
-    const parsed = SetPredecessorSchema.safeParse(form);
-    if (!parsed.success) {
-      return fail(400, { evoError: parsed.error.issues[0]?.message ?? 'Inválido' });
-    }
-    const data = parsed.data;
 
-    const [current] = await db.select().from(pokemon).where(eq(pokemon.slug, params.slug)).limit(1);
-    if (!current) throw error(404, 'Pokémon not found');
-    if (data.parentPokemonId === current.id) {
-      return fail(400, { evoError: 'Um Pokémon não pode evoluir de si mesmo' });
-    }
-
-    const [parent] = await db.select({ id: pokemon.id }).from(pokemon)
-      .where(eq(pokemon.id, data.parentPokemonId)).limit(1);
-    if (!parent) return fail(400, { evoError: 'Pokémon predecessor inválido' });
-
-    const previousCond = await db.select().from(pokemonEvolutionDetails)
-      .where(eq(pokemonEvolutionDetails.pokemonId, current.id)).limit(1);
-
-    await db.update(pokemon)
-      .set({ evolvesFromPokemonId: parent.id, source: bumpSource(current.source) })
-      .where(eq(pokemon.id, current.id));
-
-    const conditionRow = {
-      pokemonId:       current.id,
-      trigger:         data.trigger as any,
-      conditions: {
-        minLevel:        data.minLevel,
-        itemId:          data.itemId,
-        heldItemId:      data.heldItemId,
-        knownMoveId:     data.knownMoveId,
-        knownMoveTypeId: data.knownMoveTypeId,
-        minHappiness:    data.minHappiness,
-        timeOfDay:       data.timeOfDay as any,
-        gender:          data.gender,
-        location:        data.location,
-      },
-      source:          'edited' as const,
-    };
-
-    await db.insert(pokemonEvolutionDetails).values(conditionRow).onConflictDoUpdate({
-      target: pokemonEvolutionDetails.pokemonId,
-      set: {
-        trigger:         conditionRow.trigger,
-        conditions:      conditionRow.conditions,
-        source:          'edited',
-      },
-    });
-
-    if (locals.user) {
-      await recordEdit(locals.user.id, 'pokemon_evolution_details', current.id, previousCond[0] ?? null, conditionRow);
-    }
-
-    return { evoSaved: true };
-  },
-
-  clearPredecessor: async ({ params, locals }) => {
-    const [current] = await db.select().from(pokemon).where(eq(pokemon.slug, params.slug)).limit(1);
-    if (!current) throw error(404, 'Pokémon not found');
-
-    const previousCond = await db.select().from(pokemonEvolutionDetails)
-      .where(eq(pokemonEvolutionDetails.pokemonId, current.id)).limit(1);
-
-    await db.update(pokemon)
-      .set({ evolvesFromPokemonId: null, source: bumpSource(current.source) })
-      .where(eq(pokemon.id, current.id));
-    await db.delete(pokemonEvolutionDetails).where(eq(pokemonEvolutionDetails.pokemonId, current.id));
-
-    if (locals.user) {
-      await recordEdit(locals.user.id, 'pokemon_evolution_details', current.id, previousCond[0] ?? null, null);
-    }
-
-    return { evoSaved: true };
-  },
-
-  updateConditions: async ({ request, params, locals }) => {
-    const form = Object.fromEntries(await request.formData());
-    const parsed = UpdateConditionsSchema.safeParse(form);
-    if (!parsed.success) {
-      return fail(400, { evoError: parsed.error.issues[0]?.message ?? 'Inválido' });
-    }
-    const data = parsed.data;
-
-    const [current] = await db.select({ id: pokemon.id, evo: pokemon.evolvesFromPokemonId, source: pokemon.source })
-      .from(pokemon).where(eq(pokemon.slug, params.slug)).limit(1);
-    if (!current) throw error(404, 'Pokémon not found');
-    if (current.evo == null) return fail(400, { evoError: 'Defina um predecessor antes de editar condições' });
-
-    const previousCond = await db.select().from(pokemonEvolutionDetails)
-      .where(eq(pokemonEvolutionDetails.pokemonId, current.id)).limit(1);
-
-    await db.update(pokemon)
-      .set({ source: bumpSource(current.source) })
-      .where(eq(pokemon.id, current.id));
-
-    const conditions = {
-      minLevel:        data.minLevel,
-      itemId:          data.itemId,
-      heldItemId:      data.heldItemId,
-      knownMoveId:     data.knownMoveId,
-      knownMoveTypeId: data.knownMoveTypeId,
-      minHappiness:    data.minHappiness,
-      timeOfDay:       data.timeOfDay as any,
-      gender:          data.gender,
-      location:        data.location,
-    };
-
-    await db.insert(pokemonEvolutionDetails).values({
-      pokemonId:       current.id,
-      trigger:         data.trigger as any,
-      conditions:      conditions,
-      source:          'edited',
-    }).onConflictDoUpdate({
-      target: pokemonEvolutionDetails.pokemonId,
-      set: {
-        trigger:         data.trigger as any,
-        conditions:      conditions,
-        source:          'edited',
-      },
-    });
-
-    if (locals.user) {
-      await recordEdit(locals.user.id, 'pokemon_evolution_details', current.id, previousCond[0] ?? null, data);
-    }
-
-    return { evoSaved: true };
-  },
 
   addSuccessor: async ({ request, params, locals }) => {
     const formData = await request.formData();

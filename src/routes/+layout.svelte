@@ -438,6 +438,7 @@
   .src-pokeapi { color: var(--theme-text-muted); }
   .src-edited  { color: var(--theme-text-accent); border-color: var(--theme-text-accent); }
   .src-custom  { color: var(--color-text-warning); border-color: var(--color-text-warning); }
+  .src-unsaved { color: var(--color-text-error); border-color: var(--color-text-error); text-transform: uppercase; }
 
   .nav-link-disabled {
     display: block;

@@ -1,7 +1,9 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
-  import { goto } from '$app/navigation';
+  import { goto, beforeNavigate } from '$app/navigation';
   import { page } from '$app/stores';
+  import { onMount } from 'svelte';
+  import type { PageData } from './$types';
   import TypeBadge from '$lib/components/TypeBadge.svelte';
   import StatBar from '$lib/components/StatBar.svelte';
   import InfoBox from '$lib/components/InfoBox.svelte';
@@ -17,15 +19,15 @@
   import EvolutionChain from '$lib/components/EvolutionChain.svelte';
   import { pageSource } from '$lib/stores/pageSource';
 
-  let { data, form } = $props();
+  let { data, form } = $props<{ data: PageData, form: any }>();
 
   // Version Mechanics (Flavor Texts)
   let versionIdsWithData = $derived(new Set([
-    ...data.flavorTexts.map(f => f.versionGroupId),
-    ...data.vgCounts.filter(v => v.count > 0).map(v => v.id)
+    ...data.flavorTexts.map((f: any) => f.versionGroupId),
+    ...data.vgCounts.filter((v: any) => v.count > 0).map((v: any) => v.id)
   ]));
 
-  let validVersions = $derived(data.availableVersions.filter(v => versionIdsWithData.has(v.id)));
+  let validVersions = $derived(data.availableVersions.filter((v: any) => versionIdsWithData.has(v.id)));
   let selectedVersionId = $state<number | null>(null);
 
   $effect(() => {
@@ -36,16 +38,16 @@
 
   $effect(() => {
     if (selectedVersionId === null && validVersions.length > 0) {
-      const frlg = validVersions.find(v => v.name === 'firered-leafgreen');
-      const withFlavor = new Set(data.flavorTexts.map(f => f.versionGroupId));
-      const latestWithFlavor = [...validVersions].reverse().find(v => withFlavor.has(v.id));
+      const frlg = validVersions.find((v: any) => v.name === 'firered-leafgreen');
+      const withFlavor = new Set(data.flavorTexts.map((f: any) => f.versionGroupId));
+      const latestWithFlavor = [...validVersions].reverse().find((v: any) => withFlavor.has(v.id));
       selectedVersionId = (frlg ?? latestWithFlavor ?? validVersions[validVersions.length - 1]).id;
     }
   });
 
   let isCustomVg = $derived(() => {
     if (!selectedVersionId) return false;
-    const vg = data.availableVersions.find(v => v.id === selectedVersionId);
+    const vg = data.availableVersions.find((v: any) => v.id === selectedVersionId);
     return vg ? vg.source === 'custom' : false;
   });
 
@@ -54,7 +56,7 @@
 
   $effect(() => {
     if (selectedVersionId) {
-      const entry = data.flavorTexts.find(f => f.versionGroupId === selectedVersionId);
+      const entry = data.flavorTexts.find((f: any) => f.versionGroupId === selectedVersionId);
       flavorTextVal = entry ? entry.flavorText.replace(/\f/g, ' ') : '';
     } else {
       flavorTextVal = '';
@@ -72,7 +74,13 @@
     }
   }
 
-  $effect(() => { pageSource.set(data.pokemon.source); });
+  $effect(() => {
+    if (isDirty) {
+      pageSource.set('unsaved');
+    } else {
+      pageSource.set(data.pokemon.source);
+    }
+  });
 
   // Save states
   let saved = $state(false);
@@ -140,10 +148,10 @@
   let totalStats = $derived(hpVal + atkVal + defVal + spaVal + spdVal + speVal);
 
   // --- Reactive types for header TypeBadges ---
-  let slot1TypeId = $state<number | null>(data.types.find(t => t.slot === 1)?.typeId ?? null);
-  let slot2TypeId = $state<number | null>(data.types.find(t => t.slot === 2)?.typeId ?? null);
-  let slot1Type = $derived(data.allTypes.find(t => t.id === slot1TypeId));
-  let slot2Type = $derived(data.allTypes.find(t => t.id === slot2TypeId));
+  let slot1TypeId = $state<number | null>(data.types.find((t: any) => t.slot === 1)?.typeId ?? null);
+  let slot2TypeId = $state<number | null>(data.types.find((t: any) => t.slot === 2)?.typeId ?? null);
+  let slot1Type = $derived(data.allTypes.find((t: any) => t.id === slot1TypeId));
+  let slot2Type = $derived(data.allTypes.find((t: any) => t.id === slot2TypeId));
 
   let activeTypeIds = $derived([slot1TypeId, slot2TypeId].filter((id): id is number => id !== null));
 
@@ -160,7 +168,7 @@
       let product = 1;
       for (const defId of activeTypeIds) {
         const row = data.typeEffectivenessList.find(
-          r => r.attackerId === attacker.id && r.defenderId === defId
+          (r: any) => r.attackerId === attacker.id && r.defenderId === defId
         );
         product *= row ? row.multiplier : 1;
       }
@@ -187,7 +195,7 @@
       let hasValue = false;
       for (const atkId of activeTypeIds) {
         const row = data.typeEffectivenessList.find(
-          r => r.attackerId === atkId && r.defenderId === defender.id
+          (r: any) => r.attackerId === atkId && r.defenderId === defender.id
         );
         const mult = row ? row.multiplier : 1;
         if (!hasValue) {
@@ -209,9 +217,22 @@
   });
 
   // --- Abilities ---
-  let slot1AbilityVal = $state<number | null>(data.abilities.find(a => a.slot === 1 && !a.isHidden)?.abilityId ?? null);
-  let slot2AbilityVal = $state<number | null>(data.abilities.find(a => a.slot === 2 && !a.isHidden)?.abilityId ?? null);
-  let hiddenAbilityVal = $state<number | null>(data.abilities.find(a => a.isHidden)?.abilityId ?? null);
+  let slot1AbilityVal = $state<number | null>(data.abilities.find((a: any) => a.slot === 1 && !a.isHidden)?.abilityId ?? null);
+  let slot2AbilityVal = $state<number | null>(data.abilities.find((a: any) => a.slot === 2 && !a.isHidden)?.abilityId ?? null);
+  let hiddenAbilityVal = $state<number | null>(data.abilities.find((a: any) => a.isHidden)?.abilityId ?? null);
+
+  // --- Evolution Draft States ---
+  let predecessorId = $state<string>('');
+  let evoTrigger = $state<string>('level-up');
+  let minLevel = $state<string>('');
+  let minHappiness = $state<string>('');
+  let timeOfDay = $state<string>('');
+  let gender = $state<string>('');
+  let location = $state<string>('');
+  let itemId = $state<string>('');
+  let heldItemId = $state<string>('');
+  let knownMoveId = $state<string>('');
+  let knownMoveTypeId = $state<string>('');
 
   $effect(() => {
     // Reactively reset state variables on page transition or after save reload
@@ -245,16 +266,107 @@
     spdVal = p.spd;
     speVal = p.spe;
     
-    slot1TypeId = data.types.find(t => t.slot === 1)?.typeId ?? null;
-    slot2TypeId = data.types.find(t => t.slot === 2)?.typeId ?? null;
+    slot1TypeId = data.types.find((t: any) => t.slot === 1)?.typeId ?? null;
+    slot2TypeId = data.types.find((t: any) => t.slot === 2)?.typeId ?? null;
     
-    slot1AbilityVal = data.abilities.find(a => a.slot === 1 && !a.isHidden)?.abilityId ?? null;
-    slot2AbilityVal = data.abilities.find(a => a.slot === 2 && !a.isHidden)?.abilityId ?? null;
-    hiddenAbilityVal = data.abilities.find(a => a.isHidden)?.abilityId ?? null;
+    slot1AbilityVal = data.abilities.find((a: any) => a.slot === 1 && !a.isHidden)?.abilityId ?? null;
+    slot2AbilityVal = data.abilities.find((a: any) => a.slot === 2 && !a.isHidden)?.abilityId ?? null;
+    hiddenAbilityVal = data.abilities.find((a: any) => a.isHidden)?.abilityId ?? null;
+
+    predecessorId = data.predecessor ? String(data.predecessor.id) : '';
+    const cond = data.predecessorConditions?.conditions ?? {};
+    evoTrigger = data.predecessorConditions?.trigger ?? 'level-up';
+    minLevel = cond.minLevel != null ? String(cond.minLevel) : '';
+    minHappiness = cond.minHappiness != null ? String(cond.minHappiness) : '';
+    timeOfDay = cond.timeOfDay ?? '';
+    gender = cond.gender != null ? String(cond.gender) : '';
+    location = cond.location ?? '';
+    itemId = cond.itemId != null ? String(cond.itemId) : '';
+    heldItemId = cond.heldItemId != null ? String(cond.heldItemId) : '';
+    knownMoveId = cond.knownMoveId != null ? String(cond.knownMoveId) : '';
+    knownMoveTypeId = cond.knownMoveTypeId != null ? String(cond.knownMoveTypeId) : '';
+  });
+
+  // --- Derived activeEvolutionChain ---
+  let activeEvolutionChain = $derived.by(() => {
+    const baseEdges = data.evolutionChain.filter((edge: any) => edge.toPokemonId !== data.pokemon.id);
+
+    if (predecessorId) {
+      const parentId = Number(predecessorId);
+      const parentObj = data.allPokemon.find((p: any) => p.id === parentId);
+      const parentForm = data.chainSpecies
+        .flatMap((s: any) => s.forms)
+        .find((f: any) => f.slug === parentObj?.slug);
+
+      const selectedItem = itemId ? data.allItems.find((i: any) => i.id === Number(itemId)) : null;
+
+      const newEdge = {
+        fromPokemonId: parentId,
+        fromSpeciesId: parentObj?.speciesId ?? 0,
+        fromName:      parentObj?.name ?? '',
+        fromSlug:      parentObj?.slug ?? '',
+        fromSprite:    parentForm?.spriteUrl ?? null,
+        toPokemonId:   data.pokemon.id,
+        toSpeciesId:   data.pokemon.speciesId,
+        toName:        data.pokemon.name,
+        toSlug:        data.pokemon.slug,
+        toSprite:      data.pokemon.spriteDefault ?? null,
+        trigger:       evoTrigger,
+        minLevel:      minLevel ? Number(minLevel) : null,
+        minHappiness:  minHappiness ? Number(minHappiness) : null,
+        itemName:      selectedItem?.name ?? null,
+        itemSlug:      selectedItem?.slug ?? null,
+        timeOfDay:     timeOfDay || null,
+        location:      location || null,
+        requiredSuffix: location || null,
+      };
+
+      return [...baseEdges, newEdge];
+    }
+
+    return baseEdges;
+  });
+
+  // --- Derived isDirty state ---
+  let isDirty = $derived.by(() => {
+    const cond = data.predecessorConditions?.conditions ?? {};
+    const originalFlavor = selectedVersionId
+      ? (data.flavorTexts.find((f: any) => f.versionGroupId === selectedVersionId)?.flavorText ?? '')
+      : '';
+
+    return (
+      nameVal !== data.pokemon.name ||
+      speciesIdVal !== data.pokemon.speciesId ||
+      heightVal !== data.pokemon.height ||
+      weightVal !== data.pokemon.weight ||
+      hpVal !== data.pokemon.hp ||
+      atkVal !== data.pokemon.atk ||
+      defVal !== data.pokemon.def ||
+      spaVal !== data.pokemon.spa ||
+      spdVal !== data.pokemon.spd ||
+      speVal !== data.pokemon.spe ||
+      slot1TypeId !== (data.types.find((t: any) => t.slot === 1)?.typeId ?? null) ||
+      slot2TypeId !== (data.types.find((t: any) => t.slot === 2)?.typeId ?? null) ||
+      slot1AbilityVal !== (data.abilities.find((a: any) => a.slot === 1 && !a.isHidden)?.abilityId ?? null) ||
+      slot2AbilityVal !== (data.abilities.find((a: any) => a.slot === 2 && !a.isHidden)?.abilityId ?? null) ||
+      hiddenAbilityVal !== (data.abilities.find((a: any) => a.isHidden)?.abilityId ?? null) ||
+      flavorTextVal !== originalFlavor ||
+      predecessorId !== (data.predecessor ? String(data.predecessor.id) : '') ||
+      evoTrigger !== (data.predecessorConditions?.trigger ?? 'level-up') ||
+      minLevel !== (cond.minLevel != null ? String(cond.minLevel) : '') ||
+      minHappiness !== (cond.minHappiness != null ? String(cond.minHappiness) : '') ||
+      timeOfDay !== (cond.timeOfDay ?? '') ||
+      gender !== (cond.gender != null ? String(cond.gender) : '') ||
+      location !== (cond.location ?? '') ||
+      itemId !== (cond.itemId != null ? String(cond.itemId) : '') ||
+      heldItemId !== (cond.heldItemId != null ? String(cond.heldItemId) : '') ||
+      knownMoveId !== (cond.knownMoveId != null ? String(cond.knownMoveId) : '') ||
+      knownMoveTypeId !== (cond.knownMoveTypeId != null ? String(cond.knownMoveTypeId) : '')
+    );
   });
 
   // --- Species lookup for header display ---
-  let currentSpecies = $derived(data.species.find(s => s.id === speciesIdVal));
+  let currentSpecies = $derived(data.species.find((s: any) => s.id === speciesIdVal));
 
   // --- Species detailed derived helpers ---
   let genderText = $derived(() => {
@@ -270,7 +382,7 @@
   // --- Learnset ---
   let moveQuery = $state('');
   let selectedMoveId = $derived(
-    data.allMoves.find(m => m.name.toLowerCase() === moveQuery.toLowerCase())?.id ?? null
+    data.allMoves.find((m: any) => m.name.toLowerCase() === moveQuery.toLowerCase())?.id ?? null
   );
 
   function onVgChange(val: string | Event) {
@@ -349,10 +461,14 @@
   ] as const;
   let activePageTab = $state('info');
 
+  let isSaving = false;
+
   // --- Save handlers ---
   function handleSave() {
+    isSaving = true;
     saved = false;
     return async ({ result, update }: any) => {
+      isSaving = false;
       if (result.type === 'success') {
         saved = true;
         setTimeout(() => saved = false, 2500);
@@ -362,6 +478,24 @@
       }
     };
   }
+
+  beforeNavigate(({ cancel }) => {
+    if (isSaving) return;
+    if (isDirty && !confirm('You have unsaved changes. Leave without saving?')) {
+      cancel();
+    }
+  });
+
+  onMount(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  });
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
@@ -395,11 +529,26 @@
     <input type="hidden" name="slot2AbilityId" value={slot2AbilityVal ?? ''} />
     <input type="hidden" name="hiddenAbilityId" value={hiddenAbilityVal ?? ''} />
 
+    <!-- Hidden inputs for EVOLUTION predecessor and conditions -->
+    <input type="hidden" name="predecessorId" value={predecessorId} />
+    <input type="hidden" name="evoTrigger"    value={evoTrigger} />
+    <input type="hidden" name="minLevel"       value={minLevel} />
+    <input type="hidden" name="minHappiness"   value={minHappiness} />
+    <input type="hidden" name="timeOfDay"      value={timeOfDay} />
+    <input type="hidden" name="gender"         value={gender} />
+    <input type="hidden" name="location"       value={location} />
+    <input type="hidden" name="itemId"         value={itemId} />
+    <input type="hidden" name="heldItemId"     value={heldItemId} />
+    <input type="hidden" name="knownMoveId"    value={knownMoveId} />
+    <input type="hidden" name="knownMoveTypeId" value={knownMoveTypeId} />
+
     <!-- Wiki-style header card -->
     <header class="detail-header">
       <div class="dex-num">#{(currentSpecies?.dexNumber ?? 0).toString().padStart(3, '0')}</div>
       <div class="header-main">
-        <input class="h1-input" name="name" type="text" maxlength="80" required bind:value={nameVal} />
+        <div class="flex items-center gap-2">
+          <input class="h1-input" name="name" type="text" maxlength="80" required bind:value={nameVal} />
+        </div>
         <div class="header-sub-row">
           {#if data.genus}
             <div class="genus">{data.genus.toUpperCase()}</div>
@@ -424,13 +573,23 @@
         <RetroSelect
           name="speciesId"
           bind:value={speciesIdVal}
-          options={data.species.map(s => ({ value: s.id, label: `#${s.dexNumber} ${s.name}` }))}
+          options={data.species.map((s: any) => ({ value: s.id, label: `#${s.dexNumber} ${s.name}` }))}
           variant="editor"
         />
       </div>
       <div class="meta-actions">
         <button type="submit" class="save-btn">SAVE</button>
-        <a href="." class="cancel-link">CANCEL</a>
+        <button
+          type="button"
+          class="cancel-link bg-transparent border-none cursor-pointer"
+          onclick={() => {
+            if (!isDirty || confirm('You have unsaved changes. Cancel and discard all edits?')) {
+              window.location.reload();
+            }
+          }}
+        >
+          CANCEL
+        </button>
         {#if saved}<span class="save-ok">✓ SAVED</span>{/if}
         {#if form?.updateError}<span class="form-error">{form.updateError}</span>{/if}
       </div>
@@ -441,7 +600,7 @@
     {#if validVersions.length > 0}
       <VersionSelector
         bind:value={selectedVersionId}
-        options={validVersions.map(v => ({ value: v.id, label: v.name.toUpperCase().replace(/-/g, ' ') }))}
+        options={validVersions.map((v: any) => ({ value: v.id, label: v.name.toUpperCase().replace(/-/g, ' ') }))}
       />
     {/if}
 
@@ -460,7 +619,7 @@
           <span class="nav-entry">#{data.nav.currentEntry}</span>
           <RetroSelect
             value={data.nav.selectedDex.slug}
-            options={data.nav.dexList.map(dex => ({ value: dex.slug, label: dex.name.toUpperCase().replace(/-/g, ' ') }))}
+            options={data.nav.dexList.map((dex: any) => ({ value: dex.slug, label: dex.name.toUpperCase().replace(/-/g, ' ') }))}
             onchange={(val) => goto(`?dex=${val}`)}
             class="dex-select"
           />
@@ -615,7 +774,7 @@
             <label class="sub-label">SLOT 1</label>
             <RetroSelect
               bind:value={slot1AbilityVal}
-              options={data.allAbilities.map(a => ({ value: a.id, label: a.name.toUpperCase() }))}
+              options={data.allAbilities.map((a: any) => ({ value: a.id, label: a.name.toUpperCase() }))}
               variant="editor"
             />
           </div>
@@ -625,7 +784,7 @@
               bind:value={slot2AbilityVal}
               options={[
                 { value: null, label: '— NONE —' },
-                ...data.allAbilities.map(a => ({ value: a.id, label: a.name.toUpperCase() }))
+                ...data.allAbilities.map((a: any) => ({ value: a.id, label: a.name.toUpperCase() }))
               ]}
               variant="editor"
             />
@@ -636,7 +795,7 @@
               bind:value={hiddenAbilityVal}
               options={[
                 { value: null, label: '— NONE —' },
-                ...data.allAbilities.map(a => ({ value: a.id, label: a.name.toUpperCase() }))
+                ...data.allAbilities.map((a: any) => ({ value: a.id, label: a.name.toUpperCase() }))
               ]}
               variant="editor"
             />
@@ -658,7 +817,7 @@
           bind:weight={weightVal}
           captureRate={data.currentSpeciesDetail?.captureRate ?? null}
           genderText={genderText()}
-          eggGroups={data.currentEggGroups.map(e => e.name.toUpperCase()).join(', ') || '—'}
+          eggGroups={data.currentEggGroups.map((e: any) => e.name.toUpperCase()).join(', ') || '—'}
           habitat={data.currentSpeciesDetail?.habitat ?? null}
           growthRate={data.currentSpeciesDetail?.growthRate ?? null}
           happiness={data.currentSpeciesDetail?.baseHappiness ?? null}
@@ -681,7 +840,7 @@
           <label class="sub-label">SLOT 1</label>
           <RetroSelect
             bind:value={slot1TypeId}
-            options={data.allTypes.map(t => ({ value: t.id, label: t.name.toUpperCase() }))}
+            options={data.allTypes.map((t: any) => ({ value: t.id, label: t.name.toUpperCase() }))}
             variant="editor"
           />
         </div>
@@ -691,7 +850,7 @@
             bind:value={slot2TypeId}
             options={[
               { value: null, label: '— NONE —' },
-              ...data.allTypes.map(t => ({ value: t.id, label: t.name.toUpperCase() }))
+              ...data.allTypes.map((t: any) => ({ value: t.id, label: t.name.toUpperCase() }))
             ]}
             variant="editor"
           />
@@ -711,16 +870,25 @@
   <Tabs tabs={formTabItems()} bind:active={activeFormTab}>
     <EvolutionChain
       chainSpecies={data.chainSpecies}
-      evolutionChain={data.evolutionChain}
+      evolutionChain={activeEvolutionChain}
       activePokemon={data.pokemon}
       activeTab={activeFormTabObj}
       variant="editor"
-      predecessorSlug={data.predecessor?.slug ?? null}
-      predecessorConditions={data.predecessorConditions ?? null}
       allPokemon={data.allPokemon}
       allItems={data.allItems}
       allMoves={data.allMoves}
       allTypes={data.allTypes}
+      bind:predecessorId={predecessorId}
+      bind:evoTrigger={evoTrigger}
+      bind:minLevel={minLevel}
+      bind:minHappiness={minHappiness}
+      bind:timeOfDay={timeOfDay}
+      bind:gender={gender}
+      bind:location={location}
+      bind:itemId={itemId}
+      bind:heldItemId={heldItemId}
+      bind:knownMoveId={knownMoveId}
+      bind:knownMoveTypeId={knownMoveTypeId}
     />
   </Tabs>
 
@@ -732,8 +900,8 @@
       <div class="field">
         <label>VERSION GROUP</label>
         <RetroSelect
-          value={data.vgCounts.find(v => v.id === data.selectedVgId)?.slug}
-          options={data.vgCounts.map(v => ({ value: v.slug, label: `${v.slug.toUpperCase()} (${v.count})` }))}
+          value={data.vgCounts.find((v: any) => v.id === data.selectedVgId)?.slug}
+          options={data.vgCounts.map((v: any) => ({ value: v.slug, label: `${v.slug.toUpperCase()} (${v.count})` }))}
           onchange={onVgChange}
           variant="editor"
         />
@@ -753,7 +921,7 @@
             bind:value={copySourceVgId}
             options={[
               { value: '', label: '— PICK SOURCE VG —' },
-              ...data.vgCounts.filter(v => v.id !== data.selectedVgId && v.count > 0).map(v => ({ value: v.id, label: `${v.slug.toUpperCase()} (${v.count})` }))
+              ...data.vgCounts.filter((v: any) => v.id !== data.selectedVgId && v.count > 0).map((v: any) => ({ value: v.id, label: `${v.slug.toUpperCase()} (${v.count})` }))
             ]}
             variant="editor"
           />
@@ -806,8 +974,8 @@
           <label>METHOD</label>
           <RetroSelect
             name="learnMethodId"
-            value={data.allLearnMethods.find(m => m.slug === 'level-up')?.id}
-            options={data.allLearnMethods.map(m => ({ value: m.id, label: m.name.toUpperCase() }))}
+            value={data.allLearnMethods.find((m: any) => m.slug === 'level-up')?.id}
+            options={data.allLearnMethods.map((m: any) => ({ value: m.id, label: m.name.toUpperCase() }))}
             variant="editor"
           />
         </div>

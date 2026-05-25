@@ -11,10 +11,12 @@
     isDefault?: boolean;
   };
 
-  let { pokemon, href, highlighted = false } = $props<{
+  let { pokemon, href = null, onclick = null, highlighted = false, dashed = false } = $props<{
     pokemon: PokemonCardData;
-    href?: string;
+    href?: string | null;
+    onclick?: ((e: MouseEvent) => void) | null;
     highlighted?: boolean;
+    dashed?: boolean;
   }>();
 
   let displayName = $derived(pokemon.name ?? '???');
@@ -27,7 +29,7 @@
   let dexNum = $derived((pokemon.dexNumber ?? pokemon.pokeapiId)?.toString().padStart(3, '0') ?? '???');
 </script>
 
-<a href={href ?? `/wiki/pokemon/${displaySlug}`} class="pokemon-card card-interactive" class:highlighted>
+{#snippet cardContent()}
   <div class="card-header">
     <div class="dex-number">#{dexNum}</div>
     <div class="name">{displayName.toUpperCase()}</div>
@@ -42,15 +44,80 @@
       <TypeBadge name={t.name} hexColor={t.hexColor} size="sm" class="type-badge-flex" />
     {/each}
   </div>
-</a>
+{/snippet}
+
+{#if href}
+  <a {href} class="pokemon-card card-interactive" class:highlighted class:dashed-border={dashed}>
+    {@render cardContent()}
+  </a>
+{:else if onclick}
+  <button type="button" {onclick} class="pokemon-card card-interactive card-button" class:highlighted class:dashed-border={dashed}>
+    {@render cardContent()}
+  </button>
+{:else}
+  <div class="pokemon-card card-static" class:highlighted class:dashed-border={dashed}>
+    {@render cardContent()}
+  </div>
+{/if}
 
 <style>
+  .dashed-border {
+    border-style: dashed !important;
+    position: relative;
+  }
+
+  .dashed-border::after {
+    content: "EDIT RELATION";
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-color: rgba(15, 56, 15, 0.9); /* Retro deep forest green overlay */
+    color: var(--theme-text-accent);
+    font-family: var(--font-display);
+    font-size: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    line-height: 1.5;
+    padding: var(--spacing-3);
+    opacity: 0;
+    transition: opacity 0.1s steps(2); /* Crisp retro step-fade transition */
+    z-index: 20;
+    pointer-events: none;
+    border: 3px dashed var(--theme-text-accent);
+    margin: -3px; /* Align perfectly with outer border */
+    text-shadow: 1px 1px 0px #0f380f;
+  }
+
+  .dashed-border:hover::after {
+    opacity: 1;
+  }
+
   .pokemon-card {
     display: flex;
     flex-direction: column;
     padding: var(--spacing-3);
     min-width: 140px;
     min-height: 200px;
+    position: relative;
+  }
+
+  .card-button {
+    appearance: none;
+    border: 3px solid var(--theme-border-primary);
+    background-color: var(--theme-bg-secondary);
+    box-shadow: var(--shadow-card);
+    text-align: left;
+    cursor: pointer;
+    font: inherit;
+    width: 100%;
+    margin: 0;
+  }
+
+  .card-static {
+    background-color: var(--theme-bg-secondary);
+    border: 3px solid var(--theme-border-primary);
+    box-shadow: var(--shadow-card);
   }
 
   .card-header {

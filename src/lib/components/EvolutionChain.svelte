@@ -54,8 +54,17 @@
     activePokemon, // { slug: string; speciesId: number; id: number; }
     activeTab,     // Tab object: { kind: string; suffix?: string; forms?: ChainForm[] }
     variant = 'wiki' as 'wiki' | 'editor',
-    predecessorSlug = null as string | null,
-    predecessorConditions = null as any,
+    predecessorId = $bindable(''),
+    evoTrigger = $bindable('level-up'),
+    minLevel = $bindable(''),
+    minHappiness = $bindable(''),
+    timeOfDay = $bindable(''),
+    gender = $bindable(''),
+    location = $bindable(''),
+    itemId = $bindable(''),
+    heldItemId = $bindable(''),
+    knownMoveId = $bindable(''),
+    knownMoveTypeId = $bindable(''),
     allPokemon = [] as any[],
     allItems = [] as any[],
     allMoves = [] as any[],
@@ -66,8 +75,17 @@
     activePokemon: { slug: string; speciesId: number; id: number; };
     activeTab?: any;
     variant?: 'wiki' | 'editor';
-    predecessorSlug?: string | null;
-    predecessorConditions?: any;
+    predecessorId?: string;
+    evoTrigger?: string;
+    minLevel?: string;
+    minHappiness?: string;
+    timeOfDay?: string;
+    gender?: string;
+    location?: string;
+    itemId?: string;
+    heldItemId?: string;
+    knownMoveId?: string;
+    knownMoveTypeId?: string;
     allPokemon?: any[];
     allItems?: any[];
     allMoves?: any[];
@@ -78,26 +96,10 @@
   let showPredecessorPopover = $state(false);
   let showConditionsPopover = $state(false);
 
-  // Form states for Predecessor Form
-  let selectedParentId = $state<string>('');
-  let initialTrigger = $state<string>('level-up');
-
-  // Form states for Conditions Form
-  let activeTrigger = $state<string>('level-up');
-
-  $effect(() => {
-    if (predecessorSlug) {
-      const parentObj = allPokemon.find((p: any) => p.slug === predecessorSlug);
-      selectedParentId = parentObj ? String(parentObj.id) : '';
-    } else {
-      selectedParentId = '';
-    }
-  });
-
-  $effect(() => {
-    const t = predecessorConditions?.trigger ?? 'level-up';
-    initialTrigger = t;
-    activeTrigger = t;
+  let predecessorSlug = $derived.by(() => {
+    if (!predecessorId) return null;
+    const parentObj = allPokemon.find((p: any) => p.id === Number(predecessorId));
+    return parentObj ? parentObj.slug : null;
   });
 
   const REGIONAL_SUFFIXES_CHAIN = ['alola', 'galar', 'hisui', 'paldea'];
@@ -229,195 +231,238 @@
 
 </script>
 
-{#snippet conditionsPopover()}
-  {#if showConditionsPopover}
-    <div class="inline-popover conditions-popover">
-      <div class="popover-header">
-        <h3>EVOLUTION CONDITIONS</h3>
-        <button type="button" class="btn-close" onclick={() => showConditionsPopover = false}>×</button>
+{#snippet predecessorPopover()}
+  <div class="sidebar-editor-card">
+    <div class="popover-header">
+      <h3>{#if predecessorSlug}EDIT RELATION{:else}LINK PREDECESSOR{/if}</h3>
+      <button type="button" class="btn-close" onclick={() => showPredecessorPopover = false}>×</button>
+    </div>
+    <div class="retro-form space-y-4">
+      <div class="field">
+        <label for="parentPokemonId">Select Predecessor</label>
+        <div class="flex gap-2 items-center">
+          <div class="flex-grow">
+            <RetroSelect
+              id="parentPokemonId"
+              name="parentPokemonId"
+              bind:value={predecessorId}
+              options={[
+                { value: "", label: predecessorSlug ? "--- NONE (BASIC POKÉMON) ---" : "--- SELECT POKÉMON ---" },
+                ...allPokemon
+                  .filter((p: any) => p.id !== activePokemon.id)
+                  .map((p: any) => ({ value: String(p.id), label: p.name }))
+              ]}
+              variant="editor"
+            />
+          </div>
+          {#if predecessorSlug}
+            <button type="button" onclick={() => predecessorId = ""} class="btn-clear-relation flex-shrink-0">
+              CLEAR
+            </button>
+          {/if}
+        </div>
       </div>
-      <form action="?/updateConditions" method="post" use:enhance class="retro-form space-y-3">
-        <!-- Hidden input to carry trigger -->
-        <input type="hidden" name="trigger" value={activeTrigger} />
 
-        <div class="field select-field">
-          <label for="popoverTrigger">Trigger</label>
+      <div class="field">
+        <label for="trigger">Initial Trigger</label>
+        <RetroSelect
+          id="trigger"
+          name="trigger"
+          bind:value={evoTrigger}
+          options={[
+            { value: "level-up", label: "LEVEL UP" },
+            { value: "use-item", label: "USE ITEM" },
+            { value: "trade", label: "TRADE" },
+            { value: "shed", label: "SHED" },
+            { value: "other", label: "OTHER / CUSTOM" }
+          ]}
+          variant="editor"
+        />
+      </div>
+    </div>
+  </div>
+{/snippet}
+
+{#snippet conditionsPopover()}
+  <div class="sidebar-editor-card">
+    <div class="popover-header">
+      <h3>EVOLUTION CONDITIONS</h3>
+      <button type="button" class="btn-close" onclick={() => showConditionsPopover = false}>×</button>
+    </div>
+    <div class="retro-form space-y-3">
+      <div class="field select-field">
+        <label for="popoverTrigger">Trigger</label>
+        <RetroSelect
+          id="popoverTrigger"
+          name="popoverTrigger"
+          bind:value={evoTrigger}
+          options={[
+            { value: "level-up", label: "LEVEL UP" },
+            { value: "use-item", label: "USE ITEM" },
+            { value: "trade", label: "TRADE" },
+            { value: "shed", label: "SHED" },
+            { value: "other", label: "OTHER / CUSTOM" }
+          ]}
+          variant="editor"
+        />
+      </div>
+
+      {#if evoTrigger === 'level-up'}
+        <div class="grid grid-cols-2 gap-2">
+          <div class="field">
+            <label for="popoverMinLevel">MIN LEVEL</label>
+            <input
+              type="number"
+              id="popoverMinLevel"
+              name="minLevel"
+              class="retro-input"
+              placeholder="e.g. 16"
+              bind:value={minLevel}
+              min="1"
+              max="100"
+            />
+          </div>
+          <div class="field">
+            <label for="popoverMinHappiness">MIN HAPPINESS</label>
+            <input
+              type="number"
+              id="popoverMinHappiness"
+              name="minHappiness"
+              class="retro-input"
+              placeholder="e.g. 220"
+              bind:value={minHappiness}
+              min="0"
+              max="255"
+            />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div class="field">
+            <label for="popoverTimeOfDay">TIME OF DAY</label>
+            <RetroSelect
+              id="popoverTimeOfDay"
+              name="timeOfDay"
+              bind:value={timeOfDay}
+              options={[
+                { value: "", label: "ANY" },
+                { value: "day", label: "DAY" },
+                { value: "night", label: "NIGHT" },
+                { value: "dusk", label: "DUSK" }
+              ]}
+              variant="editor"
+            />
+          </div>
+          <div class="field">
+            <label for="popoverGender">GENDER</label>
+            <RetroSelect
+              id="popoverGender"
+              name="gender"
+              bind:value={gender}
+              options={[
+                { value: "", label: "ANY" },
+                { value: "1", label: "FEMALE ONLY" },
+                { value: "2", label: "MALE ONLY" }
+              ]}
+              variant="editor"
+            />
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="popoverLocation">LOCATION</label>
+          <input
+            type="text"
+            id="popoverLocation"
+            name="location"
+            class="retro-input"
+            placeholder="e.g. Mount Coronet"
+            bind:value={location}
+          />
+        </div>
+
+      {:else if evoTrigger === 'use-item'}
+        <div class="field">
+          <label for="popoverItemId">EVOLUTION ITEM</label>
           <RetroSelect
-            id="popoverTrigger"
-            name="popoverTrigger"
-            bind:value={activeTrigger}
+            id="popoverItemId"
+            name="itemId"
+            bind:value={itemId}
             options={[
-              { value: "level-up", label: "LEVEL UP" },
-              { value: "use-item", label: "USE ITEM" },
-              { value: "trade", label: "TRADE" },
-              { value: "shed", label: "SHED" },
-              { value: "other", label: "OTHER / CUSTOM" }
+              { value: "", label: "--- SELECT ITEM ---" },
+              ...allItems.map((i: any) => ({ value: String(i.id), label: i.name }))
             ]}
             variant="editor"
           />
         </div>
 
-        {#if activeTrigger === 'level-up'}
-          <div class="grid grid-cols-2 gap-2">
-            <div class="field">
-              <label for="popoverMinLevel">MIN LEVEL</label>
-              <input
-                type="number"
-                id="popoverMinLevel"
-                name="minLevel"
-                class="retro-input"
-                placeholder="e.g. 16"
-                value={predecessorConditions?.conditions?.minLevel ?? ""}
-                min="1"
-                max="100"
-              />
-            </div>
-            <div class="field">
-              <label for="popoverMinHappiness">MIN HAPPINESS</label>
-              <input
-                type="number"
-                id="popoverMinHappiness"
-                name="minHappiness"
-                class="retro-input"
-                placeholder="e.g. 220"
-                value={predecessorConditions?.conditions?.minHappiness ?? ""}
-                min="0"
-                max="255"
-              />
-            </div>
-          </div>
+      {:else if evoTrigger === 'trade'}
+        <div class="field">
+          <label for="popoverHeldItemId">HELD ITEM ON TRADE</label>
+          <RetroSelect
+            id="popoverHeldItemId"
+            name="heldItemId"
+            bind:value={heldItemId}
+            options={[
+              { value: "", label: "--- NONE (FREE TRADE) ---" },
+              ...allItems.map((i: any) => ({ value: String(i.id), label: i.name }))
+            ]}
+            variant="editor"
+          />
+        </div>
 
-          <div class="grid grid-cols-2 gap-2">
-            <div class="field">
-              <label for="popoverTimeOfDay">TIME OF DAY</label>
-              <RetroSelect
-                id="popoverTimeOfDay"
-                name="timeOfDay"
-                value={predecessorConditions?.conditions?.timeOfDay ?? ""}
-                options={[
-                  { value: "", label: "ANY" },
-                  { value: "day", label: "DAY" },
-                  { value: "night", label: "NIGHT" },
-                  { value: "dusk", label: "DUSK" }
-                ]}
-                variant="editor"
-              />
-            </div>
-            <div class="field">
-              <label for="popoverGender">GENDER</label>
-              <RetroSelect
-                id="popoverGender"
-                name="gender"
-                value={predecessorConditions?.conditions?.gender ? String(predecessorConditions.conditions.gender) : ""}
-                options={[
-                  { value: "", label: "ANY" },
-                  { value: "1", label: "FEMALE ONLY" },
-                  { value: "2", label: "MALE ONLY" }
-                ]}
-                variant="editor"
-              />
-            </div>
-          </div>
+      {:else if evoTrigger === 'shed'}
+        <div class="info-alert">
+          Requires empty slot and standard Pokéball.
+        </div>
 
+      {:else}
+        <div class="field">
+          <label for="popoverLocationNote">CUSTOM NOTE</label>
+          <input
+            type="text"
+            id="popoverLocationNote"
+            name="location"
+            class="retro-input"
+            placeholder="e.g. Spin in circles"
+            bind:value={location}
+          />
+        </div>
+      {/if}
+
+      <details class="retro-details mt-1">
+        <summary class="text-[9px] cursor-pointer select-none">ADVANCED CONDITIONS</summary>
+        <div class="space-y-2 pt-2">
           <div class="field">
-            <label for="popoverLocation">LOCATION</label>
-            <input
-              type="text"
-              id="popoverLocation"
-              name="location"
-              class="retro-input"
-              placeholder="e.g. Mount Coronet"
-              value={predecessorConditions?.conditions?.location ?? ""}
-            />
-          </div>
-
-        {:else if activeTrigger === 'use-item'}
-          <div class="field">
-            <label for="popoverItemId">EVOLUTION ITEM</label>
+            <label for="popoverKnownMoveId">KNOWN MOVE</label>
             <RetroSelect
-              id="popoverItemId"
-              name="itemId"
-              value={predecessorConditions?.conditions?.itemId ? String(predecessorConditions.conditions.itemId) : ""}
+              id="popoverKnownMoveId"
+              name="knownMoveId"
+              bind:value={knownMoveId}
               options={[
-                { value: "", label: "--- SELECT ITEM ---" },
-                ...allItems.map((i: any) => ({ value: String(i.id), label: i.name }))
+                { value: "", label: "--- NONE ---" },
+                ...allMoves.map((m: any) => ({ value: String(m.id), label: m.name }))
               ]}
               variant="editor"
             />
           </div>
-
-        {:else if activeTrigger === 'trade'}
           <div class="field">
-            <label for="popoverHeldItemId">HELD ITEM ON TRADE</label>
+            <label for="popoverKnownMoveTypeId">MOVE TYPE</label>
             <RetroSelect
-              id="popoverHeldItemId"
-              name="heldItemId"
-              value={predecessorConditions?.conditions?.heldItemId ? String(predecessorConditions.conditions.heldItemId) : ""}
+              id="popoverKnownMoveTypeId"
+              name="knownMoveTypeId"
+              bind:value={knownMoveTypeId}
               options={[
-                { value: "", label: "--- NONE (FREE TRADE) ---" },
-                ...allItems.map((i: any) => ({ value: String(i.id), label: i.name }))
+                { value: "", label: "--- NONE ---" },
+                ...allTypes.map((t: any) => ({ value: String(t.id), label: t.name }))
               ]}
               variant="editor"
             />
           </div>
-
-        {:else if activeTrigger === 'shed'}
-          <div class="info-alert">
-            Requires empty slot and standard Pokéball.
-          </div>
-
-        {:else}
-          <div class="field">
-            <label for="popoverLocationNote">CUSTOM NOTE</label>
-            <input
-              type="text"
-              id="popoverLocationNote"
-              name="location"
-              class="retro-input"
-              placeholder="e.g. Spin in circles"
-              value={predecessorConditions?.conditions?.location ?? ""}
-            />
-          </div>
-        {/if}
-
-        <details class="retro-details mt-1">
-          <summary class="text-[9px] cursor-pointer select-none">ADVANCED CONDITIONS</summary>
-          <div class="space-y-2 pt-2">
-            <div class="field">
-              <label for="popoverKnownMoveId">KNOWN MOVE</label>
-              <RetroSelect
-                id="popoverKnownMoveId"
-                name="knownMoveId"
-                value={predecessorConditions?.conditions?.knownMoveId ? String(predecessorConditions.conditions.knownMoveId) : ""}
-                options={[
-                  { value: "", label: "--- NONE ---" },
-                  ...allMoves.map((m: any) => ({ value: String(m.id), label: m.name }))
-                ]}
-                variant="editor"
-              />
-            </div>
-            <div class="field">
-              <label for="popoverKnownMoveTypeId">MOVE TYPE</label>
-              <RetroSelect
-                id="popoverKnownMoveTypeId"
-                name="knownMoveTypeId"
-                value={predecessorConditions?.conditions?.knownMoveTypeId ? String(predecessorConditions.conditions.knownMoveTypeId) : ""}
-                options={[
-                  { value: "", label: "--- NONE ---" },
-                  ...allTypes.map((t: any) => ({ value: String(t.id), label: t.name }))
-                ]}
-                variant="editor"
-              />
-            </div>
-          </div>
-        </details>
-
-        <button type="submit" class="btn btn-primary w-full mt-2">
-          SAVE CONDITIONS
-        </button>
-      </form>
+        </div>
+      </details>
     </div>
-  {/if}
+  </div>
 {/snippet}
 
 {#snippet evoNode(pokemonSlug: string)}
@@ -433,87 +478,48 @@
     <div class="evo-node-wrap">
       <div class="evo-card-cell" class:is-current={isCurrent} class:is-predecessor={variant === 'editor' && isPredecessor}>
         {#if variant === 'editor'}
-          <div class="card-relative-container">
-            <PokemonCard
-              pokemon={{
-                pokeapiId: pf.pokeapiId ?? 0,
-                name: pf.name,
-                slug: pf.slug,
-                spriteUrl: pf.spriteUrl,
-                types: pf.types,
-                dexNumber: pf.dexNumber,
-              }}
-              href="/editor/pokemon/{pf.slug}"
-              highlighted={isCurrent}
-            />
-            {#if isPredecessor}
-              <button 
-                type="button" 
-                class="btn-edit-relation-overlay"
-                onclick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  showPredecessorPopover = !showPredecessorPopover;
+            {#if isCurrent}
+              <PokemonCard
+                pokemon={{
+                  pokeapiId: pf.pokeapiId ?? 0,
+                  name: pf.name,
+                  slug: pf.slug,
+                  spriteUrl: pf.spriteUrl,
+                  types: pf.types,
+                  dexNumber: pf.dexNumber,
                 }}
-              >
-                EDIT LINK
-              </button>
-
-              {#if showPredecessorPopover}
-                <div class="inline-popover predecessor-popover">
-                  <div class="popover-header">
-                    <h3>EDIT RELATION</h3>
-                    <button type="button" class="btn-close" onclick={() => showPredecessorPopover = false}>×</button>
-                  </div>
-                  <form action="?/setPredecessor" method="post" use:enhance class="retro-form space-y-4">
-                    <div class="field">
-                      <label for="parentPokemonId">Select Predecessor</label>
-                      <div class="flex gap-2 items-center">
-                        <div class="flex-grow">
-                          <RetroSelect
-                            id="parentPokemonId"
-                            name="parentPokemonId"
-                            bind:value={selectedParentId}
-                            options={[
-                              { value: "", label: "--- NONE (BASIC POKÉMON) ---" },
-                              ...allPokemon
-                                .filter((p: any) => p.id !== activePokemon.id)
-                                .map((p: any) => ({ value: String(p.id), label: p.name }))
-                            ]}
-                            variant="editor"
-                          />
-                        </div>
-                        <button type="submit" formAction="?/clearPredecessor" class="btn-clear-relation flex-shrink-0">
-                          CLEAR
-                        </button>
-                      </div>
-                    </div>
-
-                    <div class="field">
-                      <label for="trigger">Initial Trigger</label>
-                      <RetroSelect
-                        id="trigger"
-                        name="trigger"
-                        bind:value={initialTrigger}
-                        options={[
-                          { value: "level-up", label: "LEVEL UP" },
-                          { value: "use-item", label: "USE ITEM" },
-                          { value: "trade", label: "TRADE" },
-                          { value: "shed", label: "SHED" },
-                          { value: "other", label: "OTHER / CUSTOM" }
-                        ]}
-                        variant="editor"
-                      />
-                    </div>
-
-                    <button type="submit" class="btn btn-primary w-full mt-2">
-                      UPDATE PREDECESSOR
-                    </button>
-                  </form>
-                </div>
-              {/if}
+                highlighted={true}
+              />
+            {:else if isPredecessor}
+              <PokemonCard
+                pokemon={{
+                  pokeapiId: pf.pokeapiId ?? 0,
+                  name: pf.name,
+                  slug: pf.slug,
+                  spriteUrl: pf.spriteUrl,
+                  types: pf.types,
+                  dexNumber: pf.dexNumber,
+                }}
+                onclick={() => {
+                  showPredecessorPopover = !showPredecessorPopover;
+                  showConditionsPopover = false;
+                }}
+                highlighted={showPredecessorPopover}
+                dashed={true}
+              />
+            {:else}
+              <PokemonCard
+                pokemon={{
+                  pokeapiId: pf.pokeapiId ?? 0,
+                  name: pf.name,
+                  slug: pf.slug,
+                  spriteUrl: pf.spriteUrl,
+                  types: pf.types,
+                  dexNumber: pf.dexNumber,
+                }}
+                href="/editor/pokemon/{pf.slug}"
+              />
             {/if}
-          </div>
         {:else}
           <PokemonCard
             pokemon={{
@@ -530,30 +536,15 @@
 
       {#if children.length === 1}
         {@const child = children[0]}
-
         <div class="evo-conn-single">
           {#if child.method.text}
-            {#if variant === 'editor' && child.toSlug === activePokemon.slug}
-              <div class="card-relative-container">
-                <button 
-                  type="button" 
-                  class="evo-method-tag interactive-tag" 
-                  class:is-active-relation={true}
-                  onclick={() => showConditionsPopover = !showConditionsPopover}
-                >
-                  {child.method.text} ✏️
-                </button>
-                {@render conditionsPopover()}
-              </div>
-            {:else}
-              <span class="evo-method-tag">
-                {#if variant === 'wiki' && child.method.itemSlug}
-                  <a href="/wiki/items/{child.method.itemSlug}" class="evo-item-link">{child.method.text}</a>
-                {:else}
-                  {child.method.text}
-                {/if}
-              </span>
-            {/if}
+            <span class="evo-method-tag">
+              {#if variant === 'wiki' && child.method.itemSlug}
+                <a href="/wiki/items/{child.method.itemSlug}" class="evo-item-link">{child.method.text}</a>
+              {:else}
+                {child.method.text}
+              {/if}
+            </span>
           {/if}
           <span class="evo-down-arrow">↓</span>
         </div>
@@ -572,27 +563,13 @@
                 >
                   <div class="evo-conn-cell">
                     {#if child.method.text}
-                      {#if variant === 'editor' && child.toSlug === activePokemon.slug}
-                        <div class="card-relative-container">
-                          <button 
-                            type="button" 
-                            class="evo-method-tag interactive-tag" 
-                            class:is-active-relation={true}
-                            onclick={() => showConditionsPopover = !showConditionsPopover}
-                          >
-                            {child.method.text} ✏️
-                          </button>
-                          {@render conditionsPopover()}
-                        </div>
-                      {:else}
-                        <span class="evo-method-tag">
-                          {#if variant === 'wiki' && child.method.itemSlug}
-                            <a href="/wiki/items/{child.method.itemSlug}" class="evo-item-link">{child.method.text}</a>
-                          {:else}
-                            {child.method.text}
-                          {/if}
-                        </span>
-                      {/if}
+                      <span class="evo-method-tag">
+                        {#if variant === 'wiki' && child.method.itemSlug}
+                          <a href="/wiki/items/{child.method.itemSlug}" class="evo-item-link">{child.method.text}</a>
+                        {:else}
+                          {child.method.text}
+                        {/if}
+                      </span>
                     {/if}
                     <span class="evo-down-arrow">↓</span>
                   </div>
@@ -606,8 +583,15 @@
     </div>
   {/if}
 {/snippet}
+<div class="evo-chain-layout" class:has-sidebar={variant === 'editor' && showPredecessorPopover}>
+  {#if variant === 'editor' && showPredecessorPopover}
+    <div class="evo-chain-sidebar-left">
+      {@render predecessorPopover()}
+    </div>
+  {/if}
 
-{#if activeTab && 'forms' in activeTab}
+  <div class="evo-chain-tree-column">
+    {#if activeTab && 'forms' in activeTab}
   {@const currentSp = chainSpecies.find((s: ChainSpecies) => s.speciesId === activePokemon.speciesId)}
   {@const baseForm = currentSp?.forms.find((f: ChainForm) => f.isDefault) ?? currentSp?.forms[0]}
   <div class="evo-tree alternate-forms-tree">
@@ -615,18 +599,31 @@
       {#if baseForm}
         <div class="evo-card-cell" class:is-current={baseForm.slug === activePokemon.slug}>
           {#if variant === 'editor'}
-            <PokemonCard
-              pokemon={{
-                pokeapiId: baseForm.pokeapiId ?? 0,
-                name: baseForm.name,
-                slug: baseForm.slug,
-                spriteUrl: baseForm.spriteUrl,
-                types: baseForm.types,
-                dexNumber: baseForm.dexNumber,
-              }}
-              href="/editor/pokemon/{baseForm.slug}"
-              highlighted={baseForm.slug === activePokemon.slug}
-            />
+            {#if baseForm.slug === activePokemon.slug}
+              <PokemonCard
+                pokemon={{
+                  pokeapiId: baseForm.pokeapiId ?? 0,
+                  name: baseForm.name,
+                  slug: baseForm.slug,
+                  spriteUrl: baseForm.spriteUrl,
+                  types: baseForm.types,
+                  dexNumber: baseForm.dexNumber,
+                }}
+                highlighted={true}
+              />
+            {:else}
+              <PokemonCard
+                pokemon={{
+                  pokeapiId: baseForm.pokeapiId ?? 0,
+                  name: baseForm.name,
+                  slug: baseForm.slug,
+                  spriteUrl: baseForm.spriteUrl,
+                  types: baseForm.types,
+                  dexNumber: baseForm.dexNumber,
+                }}
+                href="/editor/pokemon/{baseForm.slug}"
+              />
+            {/if}
           {:else}
             <PokemonCard
               pokemon={{
@@ -653,18 +650,31 @@
 
         <div class="evo-card-cell" class:is-current={form.slug === activePokemon.slug}>
           {#if variant === 'editor'}
-            <PokemonCard
-              pokemon={{
-                pokeapiId: form.pokeapiId ?? 0,
-                name: form.name,
-                slug: form.slug,
-                spriteUrl: form.spriteUrl,
-                types: form.types,
-                dexNumber: form.dexNumber,
-              }}
-              href="/editor/pokemon/{form.slug}"
-              highlighted={form.slug === activePokemon.slug}
-            />
+            {#if form.slug === activePokemon.slug}
+              <PokemonCard
+                pokemon={{
+                  pokeapiId: form.pokeapiId ?? 0,
+                  name: form.name,
+                  slug: form.slug,
+                  spriteUrl: form.spriteUrl,
+                  types: form.types,
+                  dexNumber: form.dexNumber,
+                }}
+                highlighted={true}
+              />
+            {:else}
+              <PokemonCard
+                pokemon={{
+                  pokeapiId: form.pokeapiId ?? 0,
+                  name: form.name,
+                  slug: form.slug,
+                  spriteUrl: form.spriteUrl,
+                  types: form.types,
+                  dexNumber: form.dexNumber,
+                }}
+                href="/editor/pokemon/{form.slug}"
+              />
+            {/if}
           {:else}
             <PokemonCard
               pokemon={{
@@ -696,18 +706,31 @@
                 </div>
                 <div class="evo-card-cell" class:is-current={form.slug === activePokemon.slug}>
                   {#if variant === 'editor'}
-                    <PokemonCard
-                      pokemon={{
-                        pokeapiId: form.pokeapiId ?? 0,
-                        name: form.name,
-                        slug: form.slug,
-                        spriteUrl: form.spriteUrl,
-                        types: form.types,
-                        dexNumber: form.dexNumber,
-                      }}
-                      href="/editor/pokemon/{form.slug}"
-                      highlighted={form.slug === activePokemon.slug}
-                    />
+                    {#if form.slug === activePokemon.slug}
+                      <PokemonCard
+                        pokemon={{
+                          pokeapiId: form.pokeapiId ?? 0,
+                          name: form.name,
+                          slug: form.slug,
+                          spriteUrl: form.spriteUrl,
+                          types: form.types,
+                          dexNumber: form.dexNumber,
+                        }}
+                        highlighted={true}
+                      />
+                    {:else}
+                      <PokemonCard
+                        pokemon={{
+                          pokeapiId: form.pokeapiId ?? 0,
+                          name: form.name,
+                          slug: form.slug,
+                          spriteUrl: form.spriteUrl,
+                          types: form.types,
+                          dexNumber: form.dexNumber,
+                        }}
+                        href="/editor/pokemon/{form.slug}"
+                      />
+                    {/if}
                   {:else}
                     <PokemonCard
                       pokemon={{
@@ -733,61 +756,18 @@
     {#if variant === 'editor' && !predecessorSlug}
       <div class="evo-node-wrap predecessor-creator-wrap">
         <div class="card-relative-container">
-          <button 
-            type="button" 
-            class="dashed-predecessor-slot" 
-            onclick={() => showPredecessorPopover = !showPredecessorPopover}
+          <button
+            type="button"
+            class="dashed-predecessor-slot"
+            class:is-active-relation={showPredecessorPopover}
+            onclick={() => {
+              showPredecessorPopover = !showPredecessorPopover;
+              showConditionsPopover = false;
+            }}
           >
             <span class="plus-icon">+</span>
             <span class="label">ADD PREDECESSOR</span>
           </button>
-
-          {#if showPredecessorPopover}
-            <div class="inline-popover predecessor-popover">
-              <div class="popover-header">
-                <h3>LINK PREDECESSOR</h3>
-                <button type="button" class="btn-close" onclick={() => showPredecessorPopover = false}>×</button>
-              </div>
-              <form action="?/setPredecessor" method="post" use:enhance class="retro-form space-y-4">
-                <div class="field">
-                  <label for="parentPokemonId">Select Predecessor</label>
-                  <RetroSelect
-                    id="parentPokemonId"
-                    name="parentPokemonId"
-                    bind:value={selectedParentId}
-                    options={[
-                      { value: "", label: "--- SELECT POKÉMON ---" },
-                      ...allPokemon
-                        .filter((p: any) => p.id !== activePokemon.id)
-                        .map((p: any) => ({ value: String(p.id), label: p.name }))
-                    ]}
-                    variant="editor"
-                  />
-                </div>
-
-                <div class="field">
-                  <label for="trigger">Initial Trigger</label>
-                  <RetroSelect
-                    id="trigger"
-                    name="trigger"
-                    bind:value={initialTrigger}
-                    options={[
-                      { value: "level-up", label: "LEVEL UP" },
-                      { value: "use-item", label: "USE ITEM" },
-                      { value: "trade", label: "TRADE" },
-                      { value: "shed", label: "SHED" },
-                      { value: "other", label: "OTHER / CUSTOM" }
-                    ]}
-                    variant="editor"
-                  />
-                </div>
-
-                <button type="submit" class="btn btn-primary w-full mt-2">
-                  LINK PREDECESSOR
-                </button>
-              </form>
-            </div>
-          {/if}
         </div>
 
         <div class="evo-conn-single">
@@ -804,17 +784,29 @@
     </div>
   </div>
 {/if}
+  </div>
+  {#if variant === 'editor' && showPredecessorPopover}
+    <div class="evo-chain-sidebar-right">
+      {@render conditionsPopover()}
+    </div>
+  {/if}
+</div>
 
 <style>
   /* Base structural nodes and connections */
   .evo-tree {
-    display: flex; justify-content: center; align-items: flex-start; gap: 40px;
-    padding: var(--spacing-4) 0; overflow-x: auto;
+    display: flex;
+    align-items: flex-start;
+    gap: 40px;
+    padding: var(--spacing-4) 0;
+    width: max-content;
+    margin: 0 auto;
   }
   .evo-tree.has-dashed-predecessor {
     flex-direction: column;
     align-items: center;
     gap: 0;
+    margin: 0 auto;
   }
   .evo-node-wrap {
     display: flex; flex-direction: column; align-items: center; position: relative;
@@ -913,92 +905,74 @@
     display: inline-block;
   }
 
-  .evo-card-cell.is-predecessor {
-    border-color: var(--theme-border-primary);
-    box-shadow: 0 0 10px rgba(139, 172, 15, 0.4);
-  }
 
-  .btn-edit-relation-overlay {
-    position: absolute;
-    bottom: -16px;
-    left: 50%;
-    transform: translateX(-50%);
-    background-color: var(--theme-bg-secondary);
-    border: 1px solid var(--theme-border-primary);
-    color: var(--theme-text-primary);
-    font-family: var(--font-display);
-    font-size: 8px;
-    padding: 3px 6px;
-    cursor: pointer;
-    box-shadow: 1.5px 1.5px 0 var(--theme-border-primary);
-    z-index: 10;
-    white-space: nowrap;
-    opacity: 0.9;
-    transition: all 0.1s ease;
-  }
 
-  .btn-edit-relation-overlay:hover {
-    background-color: var(--theme-bg-hover);
-    transform: translateX(-50%) translate(-0.5px, -0.5px);
-    box-shadow: 2px 2px 0 var(--theme-border-primary);
-  }
 
-  .btn-edit-relation-overlay:active {
-    transform: translateX(-50%) translate(0.5px, 0.5px);
-    box-shadow: 0.5px 0.5px 0 var(--theme-border-primary);
-  }
 
-  button.evo-method-tag.interactive-tag {
-    appearance: none;
-    cursor: pointer;
-    background-color: var(--theme-bg-secondary);
-    border: 1px solid var(--theme-border-primary);
-    color: var(--theme-text-primary);
-    box-shadow: 1.5px 1.5px 0 var(--theme-border-primary);
-    transition: all 0.1s ease;
-  }
-
-  button.evo-method-tag.interactive-tag:hover {
-    background-color: var(--theme-text-accent);
-    color: var(--theme-bg-primary);
-    transform: translate(-1px, -1px);
-    box-shadow: 2.5px 2.5px 0 var(--theme-border-primary);
-  }
-
-  button.evo-method-tag.interactive-tag:active {
-    transform: translate(1px, 1px);
-    box-shadow: 0.5px 0.5px 0 var(--theme-border-primary);
-  }
 
   /* Dashed Predecessor creator card styles */
   .dashed-predecessor-slot {
     appearance: none;
-    width: 120px;
-    height: 140px;
-    border: 2px dashed var(--theme-border-primary);
-    background-color: transparent;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    padding: var(--spacing-3);
+    min-width: 140px;
+    min-height: 200px;
+    background-color: var(--theme-bg-secondary);
+    border: 3px dashed var(--theme-border-primary);
+    box-shadow: var(--shadow-card);
     cursor: pointer;
-    padding: 8px;
-    color: var(--theme-text-secondary);
     font-family: var(--font-display);
-    font-size: 8px;
-    transition: all 0.15s ease;
+    position: relative;
+    transition: none;
   }
 
-  .dashed-predecessor-slot:hover {
-    background-color: rgba(139, 172, 15, 0.05);
-    color: var(--theme-text-primary);
-    border-style: solid;
+  .dashed-predecessor-slot.is-active-relation {
+    border-color: var(--theme-text-accent);
+    box-shadow: 3px 3px 0 var(--theme-text-accent);
+  }
+
+  .dashed-predecessor-slot::after {
+    content: "LINK PREDECESSOR";
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-color: rgba(15, 56, 15, 0.9); /* Retro deep forest green overlay */
+    color: var(--theme-text-accent);
+    font-family: var(--font-display);
+    font-size: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    line-height: 1.5;
+    padding: var(--spacing-3);
+    opacity: 0;
+    transition: opacity 0.1s steps(2); /* Crisp retro step-fade transition */
+    z-index: 20;
+    pointer-events: none;
+    border: 3px dashed var(--theme-text-accent);
+    margin: -3px; /* Align perfectly with outer border */
+    text-shadow: 1px 1px 0px #0f380f;
+  }
+
+  .dashed-predecessor-slot:hover::after {
+    opacity: 1;
   }
 
   .dashed-predecessor-slot .plus-icon {
     font-size: 24px;
-    margin-bottom: 8px;
+    font-weight: bold;
+    color: var(--theme-text-secondary);
+    margin-bottom: var(--spacing-2);
     line-height: 1;
+  }
+
+  .dashed-predecessor-slot .label {
+    font-size: 8px;
+    color: var(--theme-text-secondary);
+    text-align: center;
   }
 
   .predecessor-creator-wrap {
@@ -1008,45 +982,71 @@
     margin-bottom: 12px;
   }
 
-  /* Inline popover elements */
-  .inline-popover {
+  /* Sidebar Layout container */
+  .evo-chain-layout {
+    position: relative;
+    width: 100%;
+  }
+
+  .evo-chain-tree-column {
+    width: 100%;
+  }
+
+  .evo-chain-sidebar-left {
     position: absolute;
-    bottom: calc(100% + 8px);
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 100;
-    width: 250px;
+    left: 0;
+    top: var(--spacing-4);
+    width: 300px;
+    z-index: 20;
+  }
+
+  .evo-chain-sidebar-right {
+    position: absolute;
+    right: 0;
+    top: var(--spacing-4);
+    width: 300px;
+    z-index: 20;
+  }
+
+  .sidebar-editor-card {
     background-color: var(--theme-bg-secondary);
-    border: 4px double var(--theme-border-primary);
-    padding: var(--spacing-3);
-    box-shadow: 4px 4px 0 var(--theme-border-primary);
+    border: 4px solid var(--theme-border-primary);
+    box-shadow: var(--shadow-card);
+    padding: var(--spacing-4);
     text-align: left;
-    overflow: visible;
   }
 
-  .conditions-popover {
-    bottom: auto;
-    top: calc(100% + 8px);
-  }
-
-  .predecessor-popover {
-    bottom: auto;
-    top: calc(100% + 8px);
+  @media (max-width: 1100px) {
+    .evo-chain-layout {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: var(--spacing-6);
+    }
+    .evo-chain-sidebar-left,
+    .evo-chain-sidebar-right {
+      position: static;
+      width: 100%;
+    }
   }
 
   .popover-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 1px dashed var(--theme-border-primary);
-    padding-bottom: 4px;
-    margin-bottom: 8px;
+    background-color: var(--theme-bg-tertiary);
+    border-bottom: 2px solid var(--theme-border-primary);
+    margin-top: calc(-1 * var(--spacing-4));
+    margin-left: calc(-1 * var(--spacing-4));
+    margin-right: calc(-1 * var(--spacing-4));
+    margin-bottom: var(--spacing-4);
+    padding: var(--spacing-3) var(--spacing-4);
   }
 
   .popover-header h3 {
     font-family: var(--font-display);
-    font-size: 10px;
-    color: var(--theme-text-primary);
+    font-size: 12px;
+    color: var(--theme-text-inverse);
     margin: 0;
   }
 
@@ -1057,38 +1057,42 @@
     font-family: var(--font-display);
     font-size: 14px;
     font-weight: bold;
-    color: var(--theme-text-muted);
+    color: var(--theme-text-inverse);
     cursor: pointer;
     line-height: 1;
     padding: 0 4px;
+    opacity: 0.8;
   }
 
   .btn-close:hover {
-    color: var(--theme-text-primary);
+    opacity: 1;
+    color: var(--theme-text-accent);
   }
 
   .retro-form .field {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    margin-bottom: 8px;
+    gap: var(--spacing-1);
+    margin-bottom: var(--spacing-3);
   }
 
   .retro-form .field label {
     font-family: var(--font-display);
-    font-size: 8px;
-    color: var(--theme-text-secondary);
+    font-size: 9px;
+    color: var(--theme-text-muted);
   }
 
   .retro-form input.retro-input {
     background-color: var(--theme-bg-primary);
-    border: 1px solid var(--theme-border-primary);
+    border: 2px solid var(--theme-border-primary);
     color: var(--theme-text-primary);
-    font-family: var(--font-body);
+    font-family: var(--font-mono);
     font-size: 11px;
-    padding: 4px 6px;
+    padding: var(--spacing-1) var(--spacing-2);
     outline: none;
     border-radius: 0;
+    box-sizing: border-box;
+    width: 100%;
   }
 
   .retro-form input.retro-input:focus {
@@ -1098,7 +1102,7 @@
   .btn-clear-relation {
     appearance: none;
     background-color: var(--theme-bg-tertiary);
-    border: 1px solid var(--theme-border-primary);
+    border: 2px solid var(--theme-border-primary);
     color: var(--theme-text-primary);
     font-family: var(--font-display);
     font-size: 8px;
@@ -1120,16 +1124,17 @@
   }
 
   .retro-details {
-    border: 1px solid var(--theme-border-primary);
+    border: 2px solid var(--theme-border-primary);
     background-color: var(--theme-bg-tertiary);
-    padding: 4px;
+    padding: var(--spacing-2) var(--spacing-3);
   }
 
   .retro-details summary {
     font-family: var(--font-display);
-    font-size: 8px;
-    color: var(--theme-text-secondary);
+    font-size: 9px;
+    color: var(--theme-text-muted);
     outline: none;
+    cursor: pointer;
   }
 
   .retro-details summary:hover {
