@@ -38,6 +38,7 @@ import {
 } from '$lib/pokeapi/import-locations';
 import type { Actions, PageServerLoad } from './$types';
 import { requireEditor } from '$lib/auth/guards';
+import { triggerBackgroundStaging, getPokemonSpeciesIdsForRegion } from '$lib/pokeapi/import-staging';
 
 type CountRow = { source: string; n: number };
 
@@ -122,11 +123,14 @@ export const load: PageServerLoad = async ({ locals }) => {
   ]);
 
   const recentEdits = await db.select({
-    id:        schema.edits.id,
-    tableName: schema.edits.tableName,
-    recordId:  schema.edits.recordId,
-    editedAt:  schema.edits.editedAt,
-    username:  schema.trainers.username,
+    id:           schema.edits.id,
+    tableName:    schema.edits.tableName,
+    recordId:     schema.edits.recordId,
+    previousData: schema.edits.previousData,
+    newData:      schema.edits.newData,
+    comment:      schema.edits.comment,
+    editedAt:     schema.edits.editedAt,
+    username:     schema.trainers.username,
   })
     .from(schema.edits)
     .leftJoin(schema.trainers, eq(schema.edits.trainerId, schema.trainers.id))
@@ -415,39 +419,41 @@ export const actions: Actions = {
   },
 
   // ── Pokémon ────────────────────────────────────────────────────────────
-  importPokemonByRegion: async ({ request }) => {
+  importPokemonByRegion: async ({ request, locals }) => {
+    requireEditor(locals);
     const fd = await request.formData();
     const id = parseId(fd.get('regionPokeapiId'));
-    const overwriteEdited = fd.get('overwriteEdited') === 'true';
-    if (!id) return { success: false, error: 'Invalid region' };
+    if (!id) return { success: false, error: 'Invalid region ID' };
     try {
-      const res = await importPokemonByRegion(id, { forceRefresh: true, overwriteEdited });
-      return { success: true, message: `Imported ${res.inserted}/${res.total} Pokémon for region` };
+      const ids = await getPokemonSpeciesIdsForRegion(id);
+      await triggerBackgroundStaging(locals.user!.id, 'pokemon', ids);
+      return { success: true, message: `Staging initiated for ${ids.length} Pokémon in region` };
     } catch (e: any) {
       return { success: false, error: e.message };
     }
   },
-  importSinglePokemon: async ({ request }) => {
+  importSinglePokemon: async ({ request, locals }) => {
+    requireEditor(locals);
     const fd = await request.formData();
     const id = parseId(fd.get('pokeapiId'));
-    const overwriteEdited = fd.get('overwriteEdited') === 'true';
     if (!id) return { success: false, error: 'Invalid ID' };
     try {
-      await importPokemonById(id, { forceRefresh: true, overwriteEdited });
-      return { success: true, message: `Pokémon #${id} imported` };
+      await triggerBackgroundStaging(locals.user!.id, 'pokemon', [id]);
+      return { success: true, message: `Staging initiated for Pokémon #${id}` };
     } catch (e: any) {
       return { success: false, error: e.message };
     }
   },
-  importRangePokemon: async ({ request }) => {
+  importRangePokemon: async ({ request, locals }) => {
+    requireEditor(locals);
     const fd = await request.formData();
     const from = parseId(fd.get('fromId'));
     const to = parseId(fd.get('toId'));
-    const overwriteEdited = fd.get('overwriteEdited') === 'true';
     if (!from || !to || from > to) return { success: false, error: 'Invalid range' };
     try {
-      const res = await importPokemonByRange(from, to, { forceRefresh: true, overwriteEdited });
-      return { success: true, message: `Imported ${res.inserted} Pokémon (${res.errors.length} errors)` };
+      const ids = Array.from({ length: to - from + 1 }, (_, i) => from + i);
+      await triggerBackgroundStaging(locals.user!.id, 'pokemon', ids);
+      return { success: true, message: `Staging initiated for Pokémon range #${from} to #${to}` };
     } catch (e: any) {
       return { success: false, error: e.message };
     }

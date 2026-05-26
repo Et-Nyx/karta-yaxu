@@ -3,10 +3,12 @@
   import { onMount } from 'svelte';
   import '../app.css';
   import ImportActivity from '$lib/components/ImportActivity.svelte';
-  import { handleImportEvent } from '$lib/stores/importActivity';
+  import { handleImportEvent, stagingActivity } from '$lib/stores/importActivity';
   import { pageSource } from '$lib/stores/pageSource';
   import NavTab from '$lib/components/NavTab.svelte';
   import RetroSelect from '$lib/components/RetroSelect.svelte';
+  import RetroInput from '$lib/components/RetroInput.svelte';
+  import RetroButton from '$lib/components/RetroButton.svelte';
 
   let { children, data } = $props();
 
@@ -95,13 +97,58 @@
     applyTheme(selectedTheme);
   });
 
+  $effect(() => {
+    if (data.activeStaged) {
+      stagingActivity.set({
+        entityType: data.activeStaged.entityType,
+        fetched: data.activeStaged.fetched,
+        failed: data.activeStaged.failed,
+        total: data.activeStaged.total,
+        status: data.activeStaged.status as 'fetching' | 'fetched' | 'failed' | 'idle',
+      });
+    }
+  });
+
   onMount(() => {
     const saved = localStorage.getItem('theme');
     if (saved) selectedTheme = saved;
 
-    const es = new EventSource('/api/import/sse');
+    const lastId = localStorage.getItem('lastSeenImportId') || '0';
+    const es = new EventSource(`/api/import/sse?lastId=${lastId}`);
+
     es.onmessage = (e) => {
-      try { handleImportEvent(JSON.parse(e.data)); } catch {}
+      try {
+        const ev = JSON.parse(e.data);
+        if (ev.id) {
+          localStorage.setItem('lastSeenImportId', String(ev.id));
+        }
+
+        if (ev.entityType === 'staging') {
+          const commentObj = JSON.parse(ev.comment || '{}');
+          stagingActivity.set({
+            entityType: commentObj.entityType || 'pokemon',
+            fetched: commentObj.fetched || 0,
+            failed: commentObj.error ? 1 : 0,
+            total: commentObj.total || 1,
+            status: commentObj.total === commentObj.fetched ? 'fetched' : 'fetching',
+            activeName: null,
+            activeId: null,
+          });
+        } else if (ev.entityType === 'migrating') {
+          const commentObj = JSON.parse(ev.comment || '{}');
+          stagingActivity.set({
+            entityType: 'pokemon',
+            fetched: commentObj.index || 0,
+            failed: 0,
+            total: commentObj.total || 1,
+            status: 'migrating',
+            activeName: commentObj.name || null,
+            activeId: commentObj.id || null,
+          });
+        } else {
+          handleImportEvent(ev);
+        }
+      } catch {}
     };
     return () => es.close();
   });
@@ -122,9 +169,50 @@
     const crumbs = breadcrumbs();
     return crumbs.length >= 2 ? crumbs[crumbs.length - 2].href : '/';
   });
+
+  // Global interceptor for Edit modifications
+  let showEditPrompt = $state(false);
+  let editCommentText = $state('');
+  let pendingForm = $state<HTMLFormElement | null>(null);
+
+  function handleGlobalSubmit(e: SubmitEvent) {
+    if (typeof document === 'undefined') return;
+    const form = e.target as HTMLFormElement;
+    if (!form || form.method.toUpperCase() !== 'POST') return;
+    
+    // Skip if not an editor sub-route, or if it is the main dashboard, or if it has auditComment already
+    const path = $page.url.pathname;
+    if (!path.startsWith('/editor') || path === '/editor') return;
+    if (form.querySelector('input[name="auditComment"]')) return;
+
+    // Intercept!
+    e.preventDefault();
+    pendingForm = form;
+    editCommentText = '';
+    showEditPrompt = true;
+  }
+
+  function confirmPendingSubmit() {
+    if (!pendingForm) return;
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'auditComment';
+    input.value = editCommentText.trim();
+    pendingForm.appendChild(input);
+    
+    const formToSubmit = pendingForm;
+    pendingForm = null;
+    showEditPrompt = false;
+    formToSubmit.submit();
+  }
+
+  function cancelPendingSubmit() {
+    pendingForm = null;
+    showEditPrompt = false;
+  }
 </script>
 
-<div class="app-container" data-theme={isAdminRoute ? 'admin' : null}>
+<div class="app-container" data-theme={isAdminRoute ? 'admin' : null} onsubmit={handleGlobalSubmit}>
   <div class="gameboy-frame">
     <!-- Header -->
     <header class="header">
@@ -646,4 +734,114 @@
       box-sizing: border-box;
     }
   }
+
+  /* Retro Edit Confirmation Modal styling */
+  .retro-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+  }
+
+  .retro-modal {
+    background-color: var(--theme-bg-secondary);
+    border: 4px solid var(--theme-border-primary);
+    box-shadow: 8px 8px 0 var(--theme-border-primary);
+    width: 320px;
+    max-width: 90%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .retro-modal-header {
+    background-color: var(--theme-bg-tertiary);
+    border-bottom: 4px solid var(--theme-border-primary);
+    padding: var(--spacing-3) var(--spacing-4);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .retro-modal-header h3 {
+    font-family: var(--font-display);
+    font-size: 10px;
+    color: var(--theme-text-inverse);
+    margin: 0;
+  }
+
+  .retro-modal-header .btn-close {
+    background: none;
+    border: none;
+    color: var(--theme-text-inverse);
+    font-family: var(--font-mono);
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    padding: 0 var(--spacing-1);
+  }
+
+  .retro-modal-body {
+    padding: var(--spacing-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-4);
+  }
+
+  .prompt-text {
+    font-family: var(--font-display);
+    font-size: 8px;
+    color: var(--theme-text-primary);
+    margin: 0;
+    line-height: 1.4;
+  }
+
+  :global(.modal-retro-input) {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--spacing-3);
+  }
 </style>
+
+{#if showEditPrompt}
+  <div class="retro-modal-overlay">
+    <div class="retro-modal">
+      <div class="retro-modal-header">
+        <h3>CONFIRM CHANGES</h3>
+        <button type="button" class="btn-close" onclick={cancelPendingSubmit}>×</button>
+      </div>
+      <div class="retro-modal-body">
+        <p class="prompt-text">ENTER REASON FOR THIS MODIFICATION (COMMIT MESSAGE):</p>
+        <div class="comment-field">
+          <RetroInput
+            type="text"
+            placeholder="e.g. Corrected stat value to match Gen 9"
+            bind:value={editCommentText}
+            autofocus
+            class="modal-retro-input"
+            onkeydown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                confirmPendingSubmit();
+              }
+            }}
+          />
+        </div>
+        <div class="modal-actions">
+          <RetroButton onclick={confirmPendingSubmit} variant="primary">CONFIRM</RetroButton>
+          <RetroButton onclick={cancelPendingSubmit} variant="secondary">CANCEL</RetroButton>
+        </div>
+      </div>
+    </div>
+  </div>
+{/if}

@@ -9,6 +9,7 @@ import * as client from './client';
 import * as mappers from './mappers';
 import type { IdMap } from './mappers';
 import { importEvents } from './import-events';
+import { auditStore } from '$lib/server/context';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -44,17 +45,25 @@ export async function batchProcess<T>(
 
 export async function logImport(entityType: string, pokeapiId: number, action: 'inserted' | 'updated' | 'skipped', reason?: string) {
   const timestamp = new Date().toISOString();
+  const context = auditStore.getStore();
+  const comment = context?.comment ?? null;
   
-  // Fire event for SSE listeners
+  // Insert in DB first to get unique autoincremented ID
+  const inserted = await db.insert(schema.importLog)
+    .values({ entityType, pokeapiId, action, reason: reason ?? null, comment })
+    .returning({ id: schema.importLog.id });
+  const logId = inserted[0]?.id;
+
+  // Fire event for SSE listeners with actual DB ID
   importEvents.emit('log', {
+    id: logId,
     entityType,
     pokeapiId,
     action,
     reason,
+    comment,
     timestamp
   });
-
-  await db.insert(schema.importLog).values({ entityType, pokeapiId, action, reason: reason ?? null });
 }
 
 // ── Language Name Map Cache ────────────────────────────────────────────────

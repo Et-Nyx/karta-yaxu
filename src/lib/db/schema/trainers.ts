@@ -61,6 +61,7 @@ export const edits = sqliteTable('edits', {
   recordId: integer('record_id').notNull(),
   previousData: text('previous_data'),
   newData: text('new_data'),
+  comment: text('comment'),
   editedAt: integer('edited_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
 });
 
@@ -72,5 +73,19 @@ export const importLog = sqliteTable('import_log', {
   pokeapiId: integer('pokeapi_id').notNull(),
   action: text('action', { enum: ['inserted', 'updated', 'skipped'] }).notNull(),
   reason: text('reason'),
+  comment: text('comment'),
   timestamp: integer('timestamp', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+});
+
+// ── Staged Imports ─────────────────────────────────────────────────────────
+
+export const stagedImports = sqliteTable('staged_imports', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  trainerId: text('trainer_id').notNull().references(() => trainers.id),
+  entityType: text('entity_type').notNull(), // 'pokemon' | 'moves' | etc.
+  pokeapiId: integer('pokeapi_id').notNull(),
+  payload: text('payload'), // stringified JSON
+  status: text('status', { enum: ['pending', 'fetching', 'fetched', 'failed'] }).notNull().default('pending'),
+  errorMessage: text('error_message'),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
 });

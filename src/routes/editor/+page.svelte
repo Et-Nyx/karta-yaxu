@@ -3,6 +3,8 @@
   import ImportLog from '$lib/components/ImportLog.svelte';
   import Tabs from '$lib/components/Tabs.svelte';
   import DataTable from '$lib/components/DataTable.svelte';
+  import RetroInput from '$lib/components/RetroInput.svelte';
+  import RetroButton from '$lib/components/RetroButton.svelte';
 
   let { data } = $props();
 
@@ -53,6 +55,119 @@
     { key: 'edits', label: 'RECENT EDITS' }
   ];
   let activeRightTab = $state('logs');
+
+  // Details Modal state
+  interface AuditDetailItem {
+    type: 'import' | 'edit';
+    id: number;
+    title: string;
+    fields: { label: string; value: string }[];
+    diffs?: { field: string; prev: any; curr: any }[];
+    comment: string;
+  }
+  let selectedItem = $state<AuditDetailItem | null>(null);
+  let detailComment = $state('');
+  let isSavingComment = $state(false);
+
+  function computeFieldDiff(prevStr: string | null, newStr: string | null) {
+    if (!prevStr && !newStr) return [];
+    try {
+      const prev = prevStr ? JSON.parse(prevStr) : {};
+      const curr = newStr ? JSON.parse(newStr) : {};
+      const allKeys = Array.from(new Set([...Object.keys(prev), ...Object.keys(curr)]));
+      
+      const diffs: { field: string; prev: any; curr: any }[] = [];
+      for (const key of allKeys) {
+        if (['createdAt', 'updatedAt', 'editedAt', 'timestamp', 'trainerId', 'id'].includes(key)) continue;
+        
+        const pVal = prev[key];
+        const cVal = curr[key];
+        
+        if (JSON.stringify(pVal) !== JSON.stringify(cVal)) {
+          diffs.push({
+            field: key,
+            prev: pVal === undefined || pVal === null ? '—' : (typeof pVal === 'object' ? JSON.stringify(pVal) : pVal),
+            curr: cVal === undefined || cVal === null ? '—' : (typeof cVal === 'object' ? JSON.stringify(cVal) : cVal),
+          });
+        }
+      }
+      return diffs;
+    } catch {
+      return [];
+    }
+  }
+
+  function openImportDetail(log: any) {
+    selectedItem = {
+      type: 'import',
+      id: log.id,
+      title: `IMPORT LOG ENTRY #${log.id}`,
+      fields: [
+        { label: 'TIME', value: formatDate(log.timestamp) },
+        { label: 'ENTITY', value: log.entityType.toUpperCase() },
+        { label: 'API ID', value: `#${log.pokeapiId}` },
+        { label: 'ACTION', value: log.action.toUpperCase() },
+        { label: 'REASON', value: log.reason || '—' }
+      ],
+      comment: log.comment || ''
+    };
+    detailComment = log.comment || '';
+  }
+
+  function openEditDetail(edit: any) {
+    const diffs = computeFieldDiff(edit.previousData, edit.newData);
+    selectedItem = {
+      type: 'edit',
+      id: edit.id,
+      title: `MANUAL EDIT ENTRY #${edit.id}`,
+      fields: [
+        { label: 'TIME', value: formatDate(edit.editedAt) },
+        { label: 'WHO', value: edit.username || '—' },
+        { label: 'TABLE', value: edit.tableName.toUpperCase() },
+        { label: 'RECORD ID', value: `#${edit.recordId}` }
+      ],
+      diffs,
+      comment: edit.comment || ''
+    };
+    detailComment = edit.comment || '';
+  }
+
+  function closeDetailModal() {
+    selectedItem = null;
+  }
+
+  async function saveAuditComment() {
+    if (!selectedItem) return;
+    isSavingComment = true;
+    try {
+      const res = await fetch('/api/editor/audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: selectedItem.type,
+          id: selectedItem.id,
+          comment: detailComment
+        })
+      });
+      if (res.ok) {
+        if (selectedItem.type === 'import') {
+          const idx = data.logs.findIndex((l: any) => l.id === selectedItem!.id);
+          if (idx !== -1) data.logs[idx].comment = detailComment;
+        } else {
+          const idx = data.recentEdits.findIndex((e: any) => e.id === selectedItem!.id);
+          if (idx !== -1) data.recentEdits[idx].comment = detailComment;
+        }
+        closeDetailModal();
+      } else {
+        alert('Failed to save comment');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Error connecting to server');
+    } finally {
+      isSavingComment = false;
+    }
+  }
 </script>
 
 <svelte:head>
@@ -152,7 +267,7 @@
 
       <Tabs tabs={RIGHT_TABS} bind:active={activeRightTab}>
         {#if activeRightTab === 'logs'}
-          <ImportLog logs={data.logs} />
+          <ImportLog logs={data.logs} onRowClick={openImportDetail} />
         {:else if activeRightTab === 'edits'}
           <div class="edits-tab-content">
             {#if data.recentEdits.length === 0}
@@ -170,11 +285,16 @@
 
               {#snippet editsBody()}
                 {#each data.recentEdits as edit (edit.id)}
-                  <tr>
+                  <tr class="clickable-row" onclick={() => openEditDetail(edit)}>
                     <td class="cell-date">{formatDate(edit.editedAt)}</td>
                     <td class="cell-user">{edit.username ?? '—'}</td>
                     <td class="cell-table">{edit.tableName.toUpperCase()}</td>
-                    <td class="cell-record">#{edit.recordId}</td>
+                    <td class="cell-record">
+                      #{edit.recordId}
+                      {#if edit.comment}
+                        <span class="comment-icon" title={edit.comment}>💬</span>
+                      {/if}
+                    </td>
                   </tr>
                 {/each}
               {/snippet}
@@ -187,6 +307,70 @@
     </div>
   </div>
 </div>
+
+{#if selectedItem}
+  <div class="retro-modal-overlay">
+    <div class="retro-modal">
+      <div class="retro-modal-header">
+        <h3>{selectedItem.title}</h3>
+        <button type="button" class="btn-close" onclick={closeDetailModal}>×</button>
+      </div>
+      <div class="retro-modal-body">
+        <div class="details-grid">
+          {#each selectedItem.fields as f}
+            <div class="detail-row">
+              <span class="detail-label">{f.label}:</span>
+              <span class="detail-value">{f.value}</span>
+            </div>
+          {/each}
+        </div>
+
+        {#if selectedItem.diffs && selectedItem.diffs.length > 0}
+          <div class="diff-container">
+            <h4>MODIFIED FIELDS:</h4>
+            <table class="retro-diff-table">
+              <thead>
+                <tr>
+                  <th>FIELD</th>
+                  <th>BEFORE</th>
+                  <th>AFTER</th>
+                </tr>
+              </thead>
+              <tbody>
+                {#each selectedItem.diffs as diff}
+                  <tr>
+                    <td class="diff-field">{diff.field.toUpperCase()}</td>
+                    <td class="diff-prev">{diff.prev}</td>
+                    <td class="diff-curr">{diff.curr}</td>
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+          </div>
+        {:else if selectedItem.type === 'edit'}
+          <div class="no-diff-msg">No property changes recorded or identical values saved.</div>
+        {/if}
+
+        <div class="comment-section">
+          <h4>PERSISTENT COMMENT / NOTE:</h4>
+          <RetroInput
+            type="text"
+            placeholder="e.g. Verified and approved changes"
+            bind:value={detailComment}
+            class="modal-retro-input"
+          />
+        </div>
+
+        <div class="modal-actions">
+          <RetroButton onclick={saveAuditComment} disabled={isSavingComment}>
+            {#if isSavingComment}SAVING...{:else}SAVE NOTE{/if}
+          </RetroButton>
+          <RetroButton onclick={closeDetailModal} variant="secondary">CLOSE</RetroButton>
+        </div>
+      </div>
+    </div>
+  </div>
+{/if}
 
 <style>
   .dashboard {
@@ -379,5 +563,171 @@
 
   .empty-state .hint {
     font-size: 10px;
+  }
+
+  .clickable-row {
+    cursor: pointer;
+    transition: background-color 0.1s ease;
+  }
+
+  .clickable-row:hover {
+    background-color: rgba(0, 255, 0, 0.05) !important;
+  }
+
+  .comment-icon {
+    font-size: 10px;
+    margin-left: var(--spacing-2);
+    vertical-align: middle;
+  }
+
+  /* Retro Audit Detail Modal styling */
+  .retro-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+  }
+
+  .retro-modal {
+    background-color: var(--theme-bg-secondary);
+    border: 4px solid var(--theme-border-primary);
+    box-shadow: 8px 8px 0 var(--theme-border-primary);
+    width: 460px;
+    max-width: 90%;
+    display: flex;
+    flex-direction: column;
+    max-height: 85vh;
+    overflow: hidden;
+  }
+
+  .retro-modal-header {
+    background-color: var(--theme-bg-tertiary);
+    border-bottom: 4px solid var(--theme-border-primary);
+    padding: var(--spacing-3) var(--spacing-4);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  .retro-modal-header h3 {
+    font-family: var(--font-display);
+    font-size: 10px;
+    color: var(--theme-text-inverse);
+    margin: 0;
+  }
+
+  .retro-modal-header .btn-close {
+    background: none;
+    border: none;
+    color: var(--theme-text-inverse);
+    font-family: var(--font-mono);
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    padding: 0 var(--spacing-1);
+  }
+
+  .retro-modal-body {
+    padding: var(--spacing-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-4);
+    overflow-y: auto;
+  }
+
+  .details-grid {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-2);
+    border-bottom: 2px dashed var(--theme-border-primary);
+    padding-bottom: var(--spacing-3);
+  }
+
+  .detail-row {
+    display: flex;
+    font-family: var(--font-mono);
+    font-size: 11px;
+  }
+
+  .detail-label {
+    width: 100px;
+    font-weight: bold;
+    color: var(--theme-text-secondary);
+  }
+
+  .detail-value {
+    color: var(--theme-text-primary);
+  }
+
+  .diff-container h4, .comment-section h4 {
+    font-family: var(--font-display);
+    font-size: 9px;
+    color: var(--theme-text-primary);
+    margin: 0 0 var(--spacing-2) 0;
+  }
+
+  .retro-diff-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    margin-bottom: var(--spacing-2);
+  }
+
+  .retro-diff-table th {
+    background-color: var(--theme-bg-tertiary);
+    color: var(--theme-text-inverse);
+    font-family: var(--font-display);
+    font-size: 8px;
+    text-align: left;
+    padding: var(--spacing-1) var(--spacing-2);
+    border: 2px solid var(--theme-border-primary);
+  }
+
+  .retro-diff-table td {
+    padding: var(--spacing-1) var(--spacing-2);
+    border: 2px solid var(--theme-border-primary);
+  }
+
+  .diff-field {
+    font-weight: bold;
+  }
+
+  .diff-prev {
+    color: var(--theme-text-muted);
+  }
+
+  .diff-curr {
+    color: var(--theme-text-accent);
+    font-weight: bold;
+  }
+
+  .no-diff-msg {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--theme-text-muted);
+    border-bottom: 2px dashed var(--theme-border-primary);
+    padding-bottom: var(--spacing-3);
+  }
+
+  .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--spacing-3);
+    border-top: 2px dashed var(--theme-border-primary);
+    padding-top: var(--spacing-3);
+    margin-top: var(--spacing-2);
+  }
+
+  :global(.modal-retro-input) {
+    width: 100%;
+    box-sizing: border-box;
   }
 </style>

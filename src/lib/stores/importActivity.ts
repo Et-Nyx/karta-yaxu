@@ -60,3 +60,23 @@ export function handleImportEvent(event: {
     clearTimer = setTimeout(() => importActivity.set({ ...IDLE }), 10000);
   }, 10000);
 }
+
+export interface StagingState {
+  entityType: string | null;
+  fetched: number;
+  failed: number;
+  total: number;
+  status: 'idle' | 'fetching' | 'fetched' | 'failed' | 'migrating';
+  activeName?: string | null;
+  activeId?: number | null;
+}
+
+export const stagingActivity = writable<StagingState>({
+  entityType: null,
+  fetched: 0,
+  failed: 0,
+  total: 0,
+  status: 'idle',
+  activeName: null,
+  activeId: null,
+});

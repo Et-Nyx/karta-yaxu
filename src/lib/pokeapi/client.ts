@@ -27,6 +27,10 @@ export function clearCache(): void {
   cache.clear();
 }
 
+export function populateCache(path: string, data: unknown): void {
+  cache.set(path, data);
+}
+
 // ── Rate Limiter ───────────────────────────────────────────────────────────
 
 const RATE_LIMIT = 80; // requests per minute

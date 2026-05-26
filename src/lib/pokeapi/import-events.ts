@@ -12,9 +12,11 @@ if (!(globalThis as any)[EMITTER_KEY]) {
 export const importEvents = (globalThis as any)[EMITTER_KEY] as EventEmitter;
 
 export interface ImportLogEvent {
+  id?: number;
   entityType: string;
   pokeapiId: number;
   action: 'inserted' | 'updated' | 'skipped';
   reason?: string;
+  comment?: string | null;
   timestamp: string; // ISO string
 }

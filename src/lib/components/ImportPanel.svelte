@@ -186,11 +186,6 @@
         {/if}
       {/if}
 
-      <div class="extras">
-        <span class="extras-label">UTILITIES:</span>
-        <ImportForm action="?/importRegionalForms" fields={[]} submitLabel="Regional Forms" showOverwriteOption={true} />
-      </div>
-
     <!-- ── Pokédexes ─────────────────────────────────────────────────────── -->
     {:else if activeTab === 'pokedexes'}
       <div class="mode-bar">
