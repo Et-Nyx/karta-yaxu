@@ -22,10 +22,12 @@
   }
 
   interface EvolutionEdge {
+    fromPokemonId: number;
     fromSpeciesId: number;
     fromName: string;
     fromSlug: string;
     fromSprite: string | null;
+    toPokemonId: number;
     toSpeciesId: number;
     toName: string;
     toSlug: string;
@@ -35,9 +37,18 @@
     minHappiness: number | null;
     itemName: string | null;
     itemSlug: string | null;
+    heldItemName: string | null;
+    heldItemSlug: string | null;
     timeOfDay: string | null;
     location: string | null;
-    requiredSuffix: string | null;
+    knownMoveTypeName: string | null;
+    partySpeciesName: string | null;
+    partySpeciesSlug: string | null;
+    partyTypeName: string | null;
+    relativePhysicalStats: number | null;
+    needsOverworldRain: boolean | null;
+    turnUpsideDown: boolean | null;
+    requiredSuffix?: string | null;
   }
 
   interface EvoMethod {
@@ -204,6 +215,66 @@
     const childrenOf = new Map<string, Child[]>();
     const childSlugs = new Set<string>();
 
+    function formatMethod(edge: any): string | null {
+      if (edge.trigger === 'unknown') return null;
+
+      const trigger = edge.trigger;
+      const parts: string[] = [];
+
+      if (trigger === 'level-up') {
+        parts.push('LEVEL UP');
+        if (edge.minLevel) {
+          parts.push(`${edge.minLevel}`);
+        }
+        if (edge.minHappiness) {
+          parts.push(`HAPPINESS`);
+        }
+        if (edge.timeOfDay) {
+          parts.push(edge.timeOfDay.toUpperCase());
+        }
+        if (edge.location) {
+          parts.push(`AT ${edge.location.replace(/-/g, ' ').toUpperCase()}`);
+        }
+        if (edge.knownMoveTypeName) {
+          parts.push(`W/ ${edge.knownMoveTypeName.toUpperCase()} MOVE`);
+        }
+        if (edge.partySpeciesName) {
+          parts.push(`W/ ${edge.partySpeciesName.toUpperCase()}`);
+        }
+        if (edge.partyTypeName) {
+          parts.push(`W/ ${edge.partyTypeName.toUpperCase()} TYPE`);
+        }
+        if (edge.relativePhysicalStats === 1) {
+          parts.push('ATK > DEF');
+        } else if (edge.relativePhysicalStats === -1) {
+          parts.push('DEF > ATK');
+        } else if (edge.relativePhysicalStats === 0) {
+          parts.push('ATK = DEF');
+        }
+        if (edge.needsOverworldRain) {
+          parts.push('RAIN');
+        }
+        if (edge.turnUpsideDown) {
+          parts.push('UPSIDE DOWN');
+        }
+      } else if (trigger === 'trade') {
+        parts.push('TRADE');
+        if (edge.heldItemName) {
+          parts.push(`HOLDING ${edge.heldItemName.toUpperCase()}`);
+        }
+      } else if (trigger === 'use-item') {
+        if (edge.itemName) {
+          parts.push(edge.itemName.toUpperCase());
+        } else {
+          parts.push('USE ITEM');
+        }
+      } else {
+        parts.push(trigger.toUpperCase().replace(/-/g, ' '));
+      }
+
+      return parts.join(' - ');
+    }
+
     for (const edge of filteredEdges) {
       if (!childrenOf.has(edge.fromSlug)) {
         childrenOf.set(edge.fromSlug, []);
@@ -212,11 +283,7 @@
         toSlug: edge.toSlug,
         toSpeciesId: edge.toSpeciesId,
         method: {
-          text: edge.trigger === 'unknown'
-            ? null
-            : edge.trigger === 'level-up' && edge.minLevel
-              ? `LEVEL UP - ${edge.minLevel}`
-              : (edge.itemName ?? edge.trigger.toUpperCase().replace(/-/g, ' ')),
+          text: formatMethod(edge),
           itemSlug: edge.itemSlug,
           minLevel: edge.minLevel,
           minHappiness: edge.minHappiness,

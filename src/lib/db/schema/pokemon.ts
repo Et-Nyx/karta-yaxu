@@ -104,11 +104,22 @@ export type EvolutionConditions = {
   timeOfDay?: 'day' | 'night' | 'dusk' | null;
   gender?: number | null;
   location?: string | null;
+  partySpeciesId?: number | null;
+  partyTypeId?: number | null;
+  relativePhysicalStats?: number | null;
+  needsOverworldRain?: boolean | null;
+  turnUpsideDown?: boolean | null;
 };
 
 export const pokemonEvolutionDetails = sqliteTable('pokemon_evolution_details', {
   pokemonId:        integer('pokemon_id').primaryKey().references(() => pokemon.id),
-  trigger:          text('trigger', { enum: ['level-up', 'trade', 'use-item', 'shed', 'other'] }).notNull(),
+  trigger:          text('trigger', { enum: [
+    'level-up', 'trade', 'use-item', 'shed', 'spin',
+    'tower-of-darkness', 'tower-of-waters', 'three-critical-hits',
+    'take-damage', 'agile-style-move', 'strong-style-move',
+    'recoil-damage', 'use-move', 'three-defeated-bisharp',
+    'gimmighoul-coins', 'other'
+  ] }).notNull(),
   conditions:       text('conditions', { mode: 'json' }).$type<EvolutionConditions>().notNull().default({}),
   source:           text('source', { enum: ['pokeapi', 'edited', 'custom'] }).notNull().default('pokeapi'),
 });

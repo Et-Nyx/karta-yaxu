@@ -23,7 +23,6 @@ import {
   importAllMoves,
   importPokemonById,
   importPokemonByRange,
-  importAllRegionalForms,
   ensureType,
   ensureAbility,
   ensureMove,
@@ -371,16 +370,6 @@ export const actions: Actions = {
     try {
       const res = await importPokemonByRange(from, to, { forceRefresh: true, overwriteEdited });
       return { success: true, message: `Imported ${res.inserted} Pokémon (${res.errors.length} errors)` };
-    } catch (e: any) {
-      return { success: false, error: e.message };
-    }
-  },
-  importRegionalForms: async ({ request }) => {
-    const fd = await request.formData();
-    const overwriteEdited = fd.get('overwriteEdited') === 'true';
-    try {
-      const res = await importAllRegionalForms({ forceRefresh: true, overwriteEdited });
-      return { success: true, message: `Imported ${res.inserted}/${res.total} regional forms` };
     } catch (e: any) {
       return { success: false, error: e.message };
     }

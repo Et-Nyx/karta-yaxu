@@ -270,8 +270,17 @@ export const load: PageServerLoad = async ({ params, url }) => {
     minHappiness: number | null;
     itemName: string | null;
     itemSlug: string | null;
+    heldItemName: string | null;
+    heldItemSlug: string | null;
     timeOfDay: string | null;
     location: string | null;
+    knownMoveTypeName: string | null;
+    partySpeciesName: string | null;
+    partySpeciesSlug: string | null;
+    partyTypeName: string | null;
+    relativePhysicalStats: number | null;
+    needsOverworldRain: boolean | null;
+    turnUpsideDown: boolean | null;
   }[] = [];
 
   {
@@ -359,16 +368,31 @@ export const load: PageServerLoad = async ({ params, url }) => {
         .from(schema.pokemonEvolutionDetails)
         .where(inArray(schema.pokemonEvolutionDetails.pokemonId, childIds));
 
-      const itemIds = details.map(d => d.conditions?.itemId).filter((v): v is number => v != null);
+      const itemIds = details.flatMap(d => [d.conditions?.itemId, d.conditions?.heldItemId]).filter((v): v is number => v != null);
+      const typeIds = details.flatMap(d => [d.conditions?.knownMoveTypeId, d.conditions?.partyTypeId]).filter((v): v is number => v != null);
+      const partyPokemonIds = details.map(d => d.conditions?.partySpeciesId).filter((v): v is number => v != null);
+
       const itemRows = itemIds.length > 0
         ? await db.select({ id: schema.items.id, name: schema.items.name, slug: schema.items.slug })
             .from(schema.items).where(inArray(schema.items.id, itemIds))
+        : [];
+
+      const typeRows = typeIds.length > 0
+        ? await db.select({ id: schema.types.id, name: schema.types.name })
+            .from(schema.types).where(inArray(schema.types.id, typeIds))
+        : [];
+
+      const partyRows = partyPokemonIds.length > 0
+        ? await db.select({ id: schema.pokemon.id, name: schema.pokemon.name, slug: schema.pokemon.slug })
+            .from(schema.pokemon).where(inArray(schema.pokemon.id, partyPokemonIds))
         : [];
 
       const childById  = new Map(childPokemon.map(c => [c.id, c]));
       const parentById = new Map(parentPokemon.map(p => [p.id, p]));
       const detailByChild = new Map(details.map(d => [d.pokemonId, d]));
       const itemById = new Map(itemRows.map(i => [i.id, i]));
+      const typeById = new Map(typeRows.map(t => [t.id, t]));
+      const partyById = new Map(partyRows.map(p => [p.id, p]));
 
       for (const e of edges) {
         const c = childById.get(e.toPokemonId);
@@ -377,6 +401,11 @@ export const load: PageServerLoad = async ({ params, url }) => {
         if (!c || !p) continue;
         const cond = d?.conditions ?? {};
         const item = cond.itemId != null ? itemById.get(cond.itemId) : null;
+        const heldItem = cond.heldItemId != null ? itemById.get(cond.heldItemId) : null;
+        const knownMoveType = cond.knownMoveTypeId != null ? typeById.get(cond.knownMoveTypeId) : null;
+        const partyType = cond.partyTypeId != null ? typeById.get(cond.partyTypeId) : null;
+        const partySpecies = cond.partySpeciesId != null ? partyById.get(cond.partySpeciesId) : null;
+
         evolutionChain.push({
           fromPokemonId: p.id,
           fromSpeciesId: p.speciesId,
@@ -393,8 +422,17 @@ export const load: PageServerLoad = async ({ params, url }) => {
           minHappiness:  cond.minHappiness ?? null,
           itemName:      item?.name ?? null,
           itemSlug:      item?.slug ?? null,
+          heldItemName:  heldItem?.name ?? null,
+          heldItemSlug:  heldItem?.slug ?? null,
           timeOfDay:     cond.timeOfDay ?? null,
           location:      cond.location ?? null,
+          knownMoveTypeName: knownMoveType?.name ?? null,
+          partySpeciesName: partySpecies?.name ?? null,
+          partySpeciesSlug: partySpecies?.slug ?? null,
+          partyTypeName:    partyType?.name ?? null,
+          relativePhysicalStats: cond.relativePhysicalStats ?? null,
+          needsOverworldRain: cond.needsOverworldRain || null,
+          turnUpsideDown:   cond.turnUpsideDown || null,
         });
       }
     }

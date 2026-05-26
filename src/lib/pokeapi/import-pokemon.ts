@@ -207,7 +207,26 @@ export async function populateChainLinkedList(chainPokeapiId: number): Promise<v
   const processedTargets = new Set<number>();
   const REGIONAL_SUFFIXES = ['alola', 'galar', 'hisui', 'paldea'];
 
+  // Deduplicate: for edges with the same from→to species pair, pick the primary method
+  const edgeKey = (e: any) => `${e.fromSpeciesPokeapiId}➔${e.toSpeciesPokeapiId}`;
+  const bestEdgeByKey = new Map<string, any>();
   for (const edge of edges) {
+    const key = edgeKey(edge);
+    const existing = bestEdgeByKey.get(key);
+    if (!existing) {
+      bestEdgeByKey.set(key, edge);
+    } else {
+      // Prefer use-item > level-up with level > first
+      if (edge.trigger === 'use-item' && existing.trigger !== 'use-item') {
+        bestEdgeByKey.set(key, edge);
+      } else if (edge.minLevel != null && existing.minLevel == null && existing.trigger !== 'use-item') {
+        bestEdgeByKey.set(key, edge);
+      }
+    }
+  }
+  const deduplicatedEdges = [...bestEdgeByKey.values()];
+
+  for (const edge of deduplicatedEdges) {
     try {
       // Find predecessor & successor species
       const [fromSp] = await db.select({ id: schema.pokemonSpecies.id, defaultPokemonId: schema.pokemonSpecies.defaultPokemonId })
@@ -238,6 +257,17 @@ export async function populateChainLinkedList(chainPokeapiId: number): Promise<v
       if (edge.knownMovePokeapiId)     knownMoveDbId     = await ensureMove(edge.knownMovePokeapiId);
       let knownMoveTypeDbId: number | null = null;
       if (edge.knownMoveTypePokeapiId) knownMoveTypeDbId = await ensureType(edge.knownMoveTypePokeapiId);
+
+      // Resolve party requirements FKs
+      let partySpeciesDbId: number | null = null;
+      if (edge.partySpeciesPokeapiId) {
+        const pk = await defaultPokemonForSpeciesPokeapiId(edge.partySpeciesPokeapiId);
+        partySpeciesDbId = pk?.id ?? null;
+      }
+      let partyTypeDbId: number | null = null;
+      if (edge.partyTypePokeapiId) {
+        partyTypeDbId = await ensureType(edge.partyTypePokeapiId);
+      }
 
       // Determine edge suffix
       let edgeSuffix: string | null = null;
@@ -280,7 +310,7 @@ export async function populateChainLinkedList(chainPokeapiId: number): Promise<v
       }
 
       // Group all sibling edges to distinguish standard vs specific regional ones
-      const siblingEdges = edges.filter(e => e.fromSpeciesPokeapiId === edge.fromSpeciesPokeapiId && e.toSpeciesPokeapiId === edge.toSpeciesPokeapiId);
+      const siblingEdges = deduplicatedEdges.filter(e => e.fromSpeciesPokeapiId === edge.fromSpeciesPokeapiId && e.toSpeciesPokeapiId === edge.toSpeciesPokeapiId);
 
       // Construct matched pairs of predecessor -> successor
       const matchedPairs: Array<{ from: typeof defaultFromPk; to: typeof defaultToPk }> = [];
@@ -337,6 +367,11 @@ export async function populateChainLinkedList(chainPokeapiId: number): Promise<v
             timeOfDay:       (edge.timeOfDay as any) ?? null,
             gender:          edge.gender ?? null,
             location:        edge.location ?? null,
+            partySpeciesId:  partySpeciesDbId,
+            partyTypeId:     partyTypeDbId,
+            relativePhysicalStats: edge.relativePhysicalStats ?? null,
+            needsOverworldRain: edge.needsOverworldRain || null,
+            turnUpsideDown: edge.turnUpsideDown || null,
           };
           const payload = {
             pokemonId:  pair.to.id,
@@ -718,18 +753,15 @@ export async function importPokemonById(
     const chain = await client.fetchEvolutionChain(chainPokeapiId);
     const speciesPokeapiIds = mappers.extractSpeciesFromChain(chain.chain);
 
-    // Import each family member's default pokemon
+    // Import each family member's varieties
     for (const spPokeapiId of speciesPokeapiIds) {
-      if (spPokeapiId === speciesPokeapiId) continue; // self
       try {
         const spData = await client.fetchPokemonSpecies(spPokeapiId);
-        const defaultVariety = spData.varieties.find((v: any) => v.is_default);
-        if (defaultVariety) {
-          const defaultPokeapiId = client.extractIdFromUrl(defaultVariety.pokemon.url);
-          if (defaultPokeapiId !== pokeapiId) {
-            console.log(`  ↪ Also importing family member #${defaultPokeapiId}...`);
-            await ensurePokemon(defaultPokeapiId, opts);
-          }
+        for (const variety of spData.varieties) {
+          if (isUnwantedVariety(variety.pokemon.name)) continue;
+          const varietyPokeapiId = client.extractIdFromUrl(variety.pokemon.url);
+          console.log(`  ↪ Also importing family variety ${variety.pokemon.name} (#${varietyPokeapiId})...`);
+          await ensurePokemon(varietyPokeapiId, opts);
         }
       } catch (e) {
         console.warn(`  ↪ Family member species #${spPokeapiId} failed: ${(e as Error).message}`);
@@ -765,50 +797,6 @@ const SKIP_VARIETY_PATTERNS = [
 
 function isUnwantedVariety(name: string): boolean {
   return SKIP_VARIETY_PATTERNS.some(p => name.includes(p));
-}
-
-/**
- * For every species already in the DB, imports all non-default varieties (regional forms).
- * Skips cosmetic/event-only variants (totems, cap Pikachus, Let's Go starters).
- * Call this after a range import to pick up Alolan, Galarian, Hisuian, Gigantamax, etc.
- */
-export async function importAllRegionalForms(
-  opts: { forceRefresh?: boolean; overwriteEdited?: boolean } = {},
-): Promise<ImportResult> {
-  const result = emptyResult('regional_forms');
-
-  const allSpecies = await db.select({
-    id: schema.pokemonSpecies.id,
-    pokeapiId: schema.pokemonSpecies.pokeapiId,
-    name: schema.pokemonSpecies.name,
-  }).from(schema.pokemonSpecies);
-
-  for (const species of allSpecies) {
-    if (!species.pokeapiId) continue;
-    try {
-      const data = await client.fetchPokemonSpecies(species.pokeapiId);
-      const varieties = data.varieties.filter(
-        (v: any) => !v.is_default && !isUnwantedVariety(v.pokemon.name)
-      );
-      result.total += varieties.length;
-
-      for (const variety of varieties) {
-        const pokemonPokeapiId = client.extractIdFromUrl(variety.pokemon.url);
-        try {
-          console.log(`  🌍 Importing variant: ${variety.pokemon.name} (#${pokemonPokeapiId})`);
-          await ensurePokemon(pokemonPokeapiId, opts);
-          result.inserted++;
-        } catch (e) {
-          result.errors.push({ id: pokemonPokeapiId, error: (e as Error).message });
-        }
-      }
-    } catch (e) {
-      result.errors.push({ id: species.pokeapiId, error: (e as Error).message });
-    }
-  }
-
-  console.log(`✅ importAllRegionalForms: ${result.inserted}/${result.total} imported`);
-  return result;
 }
 
 // ── By-Region Batch Imports ────────────────────────────────────────────────
