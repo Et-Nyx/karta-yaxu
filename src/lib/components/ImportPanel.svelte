@@ -62,6 +62,36 @@
     label: 'REGION:',
     options: regionOptions,
   }]);
+
+  const SUB_TABS_ALL_ID_RANGE_REGION = [
+    { key: 'all', label: 'ALL' },
+    { key: 'id', label: 'ID' },
+    { key: 'range', label: 'RANGE' },
+    { key: 'region', label: 'BY REGION' },
+  ] as const;
+
+  const SUB_TABS_ALL_ID_RANGE = [
+    { key: 'all', label: 'ALL' },
+    { key: 'id', label: 'ID' },
+    { key: 'range', label: 'RANGE' },
+  ] as const;
+
+  const SUB_TABS_ID_RANGE_REGION = [
+    { key: 'id', label: 'ID' },
+    { key: 'range', label: 'RANGE' },
+    { key: 'region', label: 'BY REGION' },
+  ] as const;
+
+  const SUB_TABS_POKEDEXES = [
+    { key: 'all', label: 'ALL' },
+    { key: 'id', label: 'ID' },
+    { key: 'bygame', label: 'BY GAME' },
+  ] as const;
+
+  const SUB_TABS_LOCATIONS = [
+    { key: 'all', label: 'ALL' },
+    { key: 'region', label: 'BY REGION' },
+  ] as const;
 </script>
 
 <Tabs tabs={TABS} bind:active={activeTab}>
@@ -88,150 +118,127 @@
 
     <!-- ── Types ─────────────────────────────────────────────────────────── -->
     {:else if activeTab === 'types'}
-      <div class="mode-bar">
-        <button class="mode-btn" class:active={mode === 'all'}    onclick={() => mode = 'all'}>ALL</button>
-        <button class="mode-btn" class:active={mode === 'id'}     onclick={() => mode = 'id'}>ID</button>
-        <button class="mode-btn" class:active={mode === 'range'}  onclick={() => mode = 'range'}>RANGE</button>
-        <button class="mode-btn" class:active={mode === 'region'} onclick={() => mode = 'region'}>BY REGION</button>
-      </div>
-      {#if mode === 'all'}
-        <ImportButton action="?/importTypes" label="Import All Types" />
-      {:else if mode === 'id'}
-        <ImportForm action="?/importSingleType" fields={[{ name: 'pokeapiId', type: 'number', placeholder: '1', min: 1, label: 'ID:' }]} submitLabel="IMPORT" />
-      {:else if mode === 'range'}
-        <ImportForm action="?/importRangeTypes" fields={[{ name: 'fromId', type: 'number', placeholder: '1', min: 1, label: 'FROM:' }, { name: 'toId', type: 'number', placeholder: '18', min: 1, label: 'TO:' }]} submitLabel="IMPORT RANGE" />
-      {:else}
-        {#if regionOptions.length === 0}
-          <p class="hint">No regions in database. Import Game Data first.</p>
+      <Tabs tabs={SUB_TABS_ALL_ID_RANGE_REGION} bind:active={mode}>
+        {#if mode === 'all'}
+          <ImportButton action="?/importTypes" label="Import All Types" />
+        {:else if mode === 'id'}
+          <ImportForm action="?/importSingleType" fields={[{ name: 'pokeapiId', type: 'number', placeholder: '1', min: 1, label: 'ID:' }]} submitLabel="IMPORT" />
+        {:else if mode === 'range'}
+          <ImportForm action="?/importRangeTypes" fields={[{ name: 'fromId', type: 'number', placeholder: '1', min: 1, label: 'FROM:' }, { name: 'toId', type: 'number', placeholder: '18', min: 1, label: 'TO:' }]} submitLabel="IMPORT RANGE" />
         {:else}
-          <ImportForm action="?/importTypesByRegion" fields={regionField} submitLabel="IMPORT BY REGION" />
+          {#if regionOptions.length === 0}
+            <p class="hint">No regions in database. Import Game Data first.</p>
+          {:else}
+            <ImportForm action="?/importTypesByRegion" fields={regionField} submitLabel="IMPORT BY REGION" />
+          {/if}
         {/if}
-      {/if}
+      </Tabs>
 
     <!-- ── Abilities ──────────────────────────────────────────────────────── -->
     {:else if activeTab === 'abilities'}
-      <div class="mode-bar">
-        <button class="mode-btn" class:active={mode === 'all'}    onclick={() => mode = 'all'}>ALL</button>
-        <button class="mode-btn" class:active={mode === 'id'}     onclick={() => mode = 'id'}>ID</button>
-        <button class="mode-btn" class:active={mode === 'range'}  onclick={() => mode = 'range'}>RANGE</button>
-        <button class="mode-btn" class:active={mode === 'region'} onclick={() => mode = 'region'}>BY REGION</button>
-      </div>
-      {#if mode === 'all'}
-        <ImportButton action="?/importAbilities" label="Import All Abilities" />
-      {:else if mode === 'id'}
-        <ImportForm action="?/importSingleAbility" fields={[{ name: 'pokeapiId', type: 'number', placeholder: '1', min: 1, label: 'ID:' }]} submitLabel="IMPORT" />
-      {:else if mode === 'range'}
-        <ImportForm action="?/importRangeAbilities" fields={[{ name: 'fromId', type: 'number', placeholder: '1', min: 1, label: 'FROM:' }, { name: 'toId', type: 'number', placeholder: '307', min: 1, label: 'TO:' }]} submitLabel="IMPORT RANGE" />
-      {:else}
-        {#if regionOptions.length === 0}
-          <p class="hint">No regions in database. Import Game Data first.</p>
+      <Tabs tabs={SUB_TABS_ALL_ID_RANGE_REGION} bind:active={mode}>
+        {#if mode === 'all'}
+          <ImportButton action="?/importAbilities" label="Import All Abilities" />
+        {:else if mode === 'id'}
+          <ImportForm action="?/importSingleAbility" fields={[{ name: 'pokeapiId', type: 'number', placeholder: '1', min: 1, label: 'ID:' }]} submitLabel="IMPORT" />
+        {:else if mode === 'range'}
+          <ImportForm action="?/importRangeAbilities" fields={[{ name: 'fromId', type: 'number', placeholder: '1', min: 1, label: 'FROM:' }, { name: 'toId', type: 'number', placeholder: '307', min: 1, label: 'TO:' }]} submitLabel="IMPORT RANGE" />
         {:else}
-          <ImportForm action="?/importAbilitiesByRegion" fields={regionField} submitLabel="IMPORT BY REGION" />
+          {#if regionOptions.length === 0}
+            <p class="hint">No regions in database. Import Game Data first.</p>
+          {:else}
+            <ImportForm action="?/importAbilitiesByRegion" fields={regionField} submitLabel="IMPORT BY REGION" />
+          {/if}
         {/if}
-      {/if}
+      </Tabs>
 
     <!-- ── Moves ─────────────────────────────────────────────────────────── -->
     {:else if activeTab === 'moves'}
-      <div class="mode-bar">
-        <button class="mode-btn" class:active={mode === 'all'}    onclick={() => mode = 'all'}>ALL</button>
-        <button class="mode-btn" class:active={mode === 'id'}     onclick={() => mode = 'id'}>ID</button>
-        <button class="mode-btn" class:active={mode === 'range'}  onclick={() => mode = 'range'}>RANGE</button>
-        <button class="mode-btn" class:active={mode === 'region'} onclick={() => mode = 'region'}>BY REGION</button>
-      </div>
-      {#if mode === 'all'}
-        <ImportButton action="?/importMoves" label="Import All Moves" />
-      {:else if mode === 'id'}
-        <ImportForm action="?/importSingleMove" fields={[{ name: 'pokeapiId', type: 'number', placeholder: '1', min: 1, label: 'ID:' }]} submitLabel="IMPORT" />
-      {:else if mode === 'range'}
-        <ImportForm action="?/importRangeMoves" fields={[{ name: 'fromId', type: 'number', placeholder: '1', min: 1, label: 'FROM:' }, { name: 'toId', type: 'number', placeholder: '919', min: 1, label: 'TO:' }]} submitLabel="IMPORT RANGE" />
-      {:else}
-        {#if regionOptions.length === 0}
-          <p class="hint">No regions in database. Import Game Data first.</p>
+      <Tabs tabs={SUB_TABS_ALL_ID_RANGE_REGION} bind:active={mode}>
+        {#if mode === 'all'}
+          <ImportButton action="?/importMoves" label="Import All Moves" />
+        {:else if mode === 'id'}
+          <ImportForm action="?/importSingleMove" fields={[{ name: 'pokeapiId', type: 'number', placeholder: '1', min: 1, label: 'ID:' }]} submitLabel="IMPORT" />
+        {:else if mode === 'range'}
+          <ImportForm action="?/importRangeMoves" fields={[{ name: 'fromId', type: 'number', placeholder: '1', min: 1, label: 'FROM:' }, { name: 'toId', type: 'number', placeholder: '919', min: 1, label: 'TO:' }]} submitLabel="IMPORT RANGE" />
         {:else}
-          <ImportForm action="?/importMovesByRegion" fields={regionField} submitLabel="IMPORT BY REGION" />
+          {#if regionOptions.length === 0}
+            <p class="hint">No regions in database. Import Game Data first.</p>
+          {:else}
+            <ImportForm action="?/importMovesByRegion" fields={regionField} submitLabel="IMPORT BY REGION" />
+          {/if}
         {/if}
-      {/if}
+      </Tabs>
 
     <!-- ── Items ─────────────────────────────────────────────────────────── -->
     {:else if activeTab === 'items'}
-      <div class="mode-bar">
-        <button class="mode-btn" class:active={mode === 'all'}   onclick={() => mode = 'all'}>ALL</button>
-        <button class="mode-btn" class:active={mode === 'id'}    onclick={() => mode = 'id'}>ID</button>
-        <button class="mode-btn" class:active={mode === 'range'} onclick={() => mode = 'range'}>RANGE</button>
-      </div>
-      {#if mode === 'all'}
-        <ImportButton action="?/importItems" label="Import All Items" />
-      {:else if mode === 'id'}
-        <ImportForm action="?/importSingleItem" fields={[{ name: 'pokeapiId', type: 'number', placeholder: '1', min: 1, label: 'ID:' }]} submitLabel="IMPORT" />
-      {:else}
-        <ImportForm action="?/importRangeItems" fields={[{ name: 'fromId', type: 'number', placeholder: '1', min: 1, label: 'FROM:' }, { name: 'toId', type: 'number', placeholder: '2110', min: 1, label: 'TO:' }]} submitLabel="IMPORT RANGE" />
-      {/if}
+      <Tabs tabs={SUB_TABS_ALL_ID_RANGE} bind:active={mode}>
+        {#if mode === 'all'}
+          <ImportButton action="?/importItems" label="Import All Items" />
+        {:else if mode === 'id'}
+          <ImportForm action="?/importSingleItem" fields={[{ name: 'pokeapiId', type: 'number', placeholder: '1', min: 1, label: 'ID:' }]} submitLabel="IMPORT" />
+        {:else}
+          <ImportForm action="?/importRangeItems" fields={[{ name: 'fromId', type: 'number', placeholder: '1', min: 1, label: 'FROM:' }, { name: 'toId', type: 'number', placeholder: '2110', min: 1, label: 'TO:' }]} submitLabel="IMPORT RANGE" />
+        {/if}
+      </Tabs>
 
     <!-- ── Pokémon ────────────────────────────────────────────────────────── -->
     {:else if activeTab === 'pokemon'}
-      <div class="mode-bar">
-        <button class="mode-btn" class:active={mode === 'id'}     onclick={() => mode = 'id'}>ID</button>
-        <button class="mode-btn" class:active={mode === 'range'}  onclick={() => mode = 'range'}>RANGE</button>
-        <button class="mode-btn" class:active={mode === 'region'} onclick={() => mode = 'region'}>BY REGION</button>
-      </div>
-      {#if mode === 'id'}
-        <ImportForm action="?/importSinglePokemon" fields={[{ name: 'pokeapiId', type: 'number', placeholder: '25', min: 1, label: 'ID:' }]} submitLabel="IMPORT" showOverwriteOption={true} />
-      {:else if mode === 'range'}
-        <ImportForm action="?/importRangePokemon" fields={[{ name: 'fromId', type: 'number', placeholder: '1', min: 1, label: 'FROM:' }, { name: 'toId', type: 'number', placeholder: '151', min: 1, label: 'TO:' }]} submitLabel="IMPORT RANGE" showOverwriteOption={true} />
-      {:else}
-        {#if regionOptions.length === 0}
-          <p class="hint">No regions in database. Import Game Data first.</p>
+      <Tabs tabs={SUB_TABS_ID_RANGE_REGION} bind:active={mode}>
+        {#if mode === 'id'}
+          <ImportForm action="?/importSinglePokemon" fields={[{ name: 'pokeapiId', type: 'number', placeholder: '25', min: 1, label: 'ID:' }]} submitLabel="IMPORT" showOverwriteOption={true} />
+        {:else if mode === 'range'}
+          <ImportForm action="?/importRangePokemon" fields={[{ name: 'fromId', type: 'number', placeholder: '1', min: 1, label: 'FROM:' }, { name: 'toId', type: 'number', placeholder: '151', min: 1, label: 'TO:' }]} submitLabel="IMPORT RANGE" showOverwriteOption={true} />
         {:else}
-          <ImportForm action="?/importPokemonByRegion" fields={regionField} submitLabel="IMPORT BY REGION" showOverwriteOption={true} />
+          {#if regionOptions.length === 0}
+            <p class="hint">No regions in database. Import Game Data first.</p>
+          {:else}
+            <ImportForm action="?/importPokemonByRegion" fields={regionField} submitLabel="IMPORT BY REGION" showOverwriteOption={true} />
+          {/if}
         {/if}
-      {/if}
+      </Tabs>
 
     <!-- ── Pokédexes ─────────────────────────────────────────────────────── -->
     {:else if activeTab === 'pokedexes'}
-      <div class="mode-bar">
-        <button class="mode-btn" class:active={mode === 'all'}    onclick={() => mode = 'all'}>ALL</button>
-        <button class="mode-btn" class:active={mode === 'id'}     onclick={() => mode = 'id'}>ID</button>
-        <button class="mode-btn" class:active={mode === 'bygame'} onclick={() => mode = 'bygame'}>BY GAME</button>
-      </div>
-      {#if pokemonTotal === 0}
-        <p class="hint warn">⚠ No Pokémon imported yet — Pokédex entries will be empty. Import Pokémon first.</p>
-      {/if}
-      {#if mode === 'all'}
-        <ImportButton action="?/importPokedexes" label="Import All Pokédexes" />
-      {:else if mode === 'id'}
-        <ImportForm action="?/importSinglePokedex" fields={[{ name: 'pokeapiId', type: 'number', placeholder: '1', min: 1, label: 'ID:' }]} submitLabel="IMPORT" />
-      {:else}
-        {#if versionGroups.length === 0}
-          <p class="hint">No version groups in database — import Game Data first.</p>
-        {:else}
-          <ImportForm
-            action="?/importPokedexesByVersionGroup"
-            fields={[{
-              name: 'vgPokeapiId',
-              type: 'select',
-              label: 'GAME:',
-              options: versionGroups.map(vg => ({ value: vg.pokeapiId, label: vg.name.toUpperCase().replace(/-/g, ' ') })),
-            }]}
-            submitLabel="IMPORT BY GAME"
-          />
+      <Tabs tabs={SUB_TABS_POKEDEXES} bind:active={mode}>
+        {#if pokemonTotal === 0}
+          <p class="hint warn">⚠ No Pokémon imported yet — Pokédex entries will be empty. Import Pokémon first.</p>
         {/if}
-      {/if}
+        {#if mode === 'all'}
+          <ImportButton action="?/importPokedexes" label="Import All Pokédexes" />
+        {:else if mode === 'id'}
+          <ImportForm action="?/importSinglePokedex" fields={[{ name: 'pokeapiId', type: 'number', placeholder: '1', min: 1, label: 'ID:' }]} submitLabel="IMPORT" />
+        {:else}
+          {#if versionGroups.length === 0}
+            <p class="hint">No version groups in database — import Game Data first.</p>
+          {:else}
+            <ImportForm
+              action="?/importPokedexesByVersionGroup"
+              fields={[{
+                name: 'vgPokeapiId',
+                type: 'select',
+                label: 'GAME:',
+                options: versionGroups.map(vg => ({ value: vg.pokeapiId, label: vg.name.toUpperCase().replace(/-/g, ' ') })),
+              }]}
+              submitLabel="IMPORT BY GAME"
+            />
+          {/if}
+        {/if}
+      </Tabs>
 
     <!-- ── Locations ─────────────────────────────────────────────────────── -->
     {:else if activeTab === 'locations'}
-      <div class="mode-bar">
-        <button class="mode-btn" class:active={mode === 'all'}    onclick={() => mode = 'all'}>ALL</button>
-        <button class="mode-btn" class:active={mode === 'region'} onclick={() => mode = 'region'}>BY REGION</button>
-      </div>
-      {#if mode === 'all'}
-        <ImportButton action="?/importLocations" label="Import All Locations" />
-      {:else}
-        {#if regionOptions.length === 0}
-          <p class="hint">No regions in database. Import Game Data first.</p>
+      <Tabs tabs={SUB_TABS_LOCATIONS} bind:active={mode}>
+        {#if mode === 'all'}
+          <ImportButton action="?/importLocations" label="Import All Locations" />
         {:else}
-          <ImportForm action="?/importLocationsByRegion" fields={regionField} submitLabel="IMPORT BY REGION" />
+          {#if regionOptions.length === 0}
+            <p class="hint">No regions in database. Import Game Data first.</p>
+          {:else}
+            <ImportForm action="?/importLocationsByRegion" fields={regionField} submitLabel="IMPORT BY REGION" />
+          {/if}
         {/if}
-      {/if}
+      </Tabs>
     {/if}
 </Tabs>
 
@@ -265,31 +272,7 @@
     gap: var(--spacing-2);
   }
 
-  /* ── Mode bar ── */
 
-  .mode-bar {
-    display: flex;
-    gap: var(--spacing-2);
-    flex-wrap: wrap;
-  }
-
-  .mode-btn {
-    padding: var(--spacing-1) var(--spacing-3);
-    background-color: var(--theme-bg-primary);
-    border: 2px solid var(--theme-border-primary);
-    font-family: var(--font-display);
-    font-size: 9px;
-    color: var(--theme-text-secondary);
-    cursor: pointer;
-    transition: all 0.05s ease;
-  }
-
-  .mode-btn:hover { color: var(--theme-text-primary); }
-
-  .mode-btn.active {
-    background-color: var(--theme-border-primary);
-    color: var(--theme-bg-primary);
-  }
 
   /* ── Hint ── */
 
