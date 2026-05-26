@@ -258,7 +258,7 @@
     <!-- Left Column: Seeding Console -->
     <div class="seeding-console">
       <h3 class="section-title">SEEDING CONSOLE</h3>
-      <ImportPanel regions={data.regions} versionGroups={data.versionGroups} />
+      <ImportPanel regions={data.regions} versionGroups={data.versionGroups} pokemonTotal={data.entities.find(e => e.key === 'pokemon')?.counts.total ?? 0} />
     </div>
 
     <!-- Right Column: Live Logs & Edits History -->
