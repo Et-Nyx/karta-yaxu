@@ -181,25 +181,69 @@
     // 1. Get the current suffix for filtering
     const tabSuffix = activeTab?.kind === 'regional' ? activeTab.suffix : null;
 
+    // 2. Identify target varieties under the active tab
+    const targetSlugs = new Set<string>();
+    if (activeTab?.kind === 'regional' && activeTab.forms) {
+      for (const f of activeTab.forms) {
+        targetSlugs.add(f.slug);
+      }
+    } else {
+      targetSlugs.add(activePokemon.slug);
+    }
+
+    // 3. Traversal up to build set of ancestors
+    const queue = [...targetSlugs];
+    const ancestors = new Set<string>(queue);
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+      const parentEdges = evolutionChain.filter((e: EvolutionEdge) => e.toSlug === current);
+      for (const pe of parentEdges) {
+        if (!ancestors.has(pe.fromSlug)) {
+          ancestors.add(pe.fromSlug);
+          queue.push(pe.fromSlug);
+        }
+      }
+    }
+
+    // 4. Helper to check regional suffix
+    function getSlugSuffix(slug: string): string | null {
+      const REGIONAL_ONLY_SPECIES: Record<string, string> = {
+        'mr-rime': 'galar',
+        'obstagoon': 'galar',
+        'perrserker': 'galar',
+        'sirfetchd': 'galar',
+        'cursola': 'galar',
+        'runerigus': 'galar',
+        'sneasler': 'hisui',
+        'overqwil': 'hisui',
+        'basculegion': 'hisui',
+        'wyrdeer': 'hisui',
+        'kleavor': 'hisui',
+        'ursaluna': 'hisui'
+      };
+      for (const [k, v] of Object.entries(REGIONAL_ONLY_SPECIES)) {
+        if (slug === k || slug.startsWith(k + '-')) return v;
+      }
+      for (const suffix of ['alola', 'galar', 'hisui', 'paldea']) {
+        if (slug.endsWith('-' + suffix) || slug.includes('-' + suffix + '-')) {
+          return suffix;
+        }
+      }
+      return null;
+    }
+
+    // 5. Filter edges based on ancestors and suffixes
     const filteredEdges = evolutionChain.filter((edge: EvolutionEdge) => {
+      // Must branch off from one of our ancestors
+      if (!ancestors.has(edge.fromSlug)) return false;
+
+      const toSuffix = getSlugSuffix(edge.toSlug);
       if (tabSuffix) {
-        // Under a regional tab (e.g. galar), show edges where:
-        // - either the predecessor or successor belongs to that regional form (ends with -suffix)
-        // - or requiredSuffix explicitly matches the tab suffix
-        const matchesFrom = edge.fromSlug.endsWith('-' + tabSuffix) || edge.fromSlug.includes('-' + tabSuffix + '-');
-        const matchesTo = edge.toSlug.endsWith('-' + tabSuffix) || edge.toSlug.includes('-' + tabSuffix + '-');
-        const matchesRequired = edge.requiredSuffix === tabSuffix;
-        return matchesFrom || matchesTo || matchesRequired;
+        // Under a regional tab: show standard branches or branches matching the tab suffix
+        return toSuffix === null || toSuffix === tabSuffix;
       } else {
-        // Under the standard evolution tab, exclude any edges belonging to regional forms
-        const hasRegionalFrom = REGIONAL_SUFFIXES_CHAIN.some(suffix => {
-          return edge.fromSlug.endsWith('-' + suffix) || edge.fromSlug.includes('-' + suffix + '-');
-        });
-        const hasRegionalTo = REGIONAL_SUFFIXES_CHAIN.some(suffix => {
-          return edge.toSlug.endsWith('-' + suffix) || edge.toSlug.includes('-' + suffix + '-');
-        });
-        const hasRegionalRequired = edge.requiredSuffix !== null;
-        return !hasRegionalFrom && !hasRegionalTo && !hasRegionalRequired;
+        // Under standard tab: show only standard branches
+        return toSuffix === null;
       }
     });
 

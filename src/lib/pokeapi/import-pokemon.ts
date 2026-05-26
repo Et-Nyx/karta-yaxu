@@ -207,8 +207,9 @@ export async function populateChainLinkedList(chainPokeapiId: number): Promise<v
   const processedTargets = new Set<number>();
   const REGIONAL_SUFFIXES = ['alola', 'galar', 'hisui', 'paldea'];
 
-  // Deduplicate: for edges with the same from→to species pair, pick the primary method
-  const edgeKey = (e: any) => `${e.fromSpeciesPokeapiId}➔${e.toSpeciesPokeapiId}`;
+  // Deduplicate: for edges with the same from→to species pair AND same item, pick the primary method.
+  // Edges with different items (e.g. standard level-up vs Galarica Cuff) are kept separately.
+  const edgeKey = (e: any) => `${e.fromSpeciesPokeapiId}➔${e.toSpeciesPokeapiId}➔${e.itemPokeapiId ?? 'none'}`;
   const bestEdgeByKey = new Map<string, any>();
   for (const edge of edges) {
     const key = edgeKey(edge);
@@ -309,32 +310,106 @@ export async function populateChainLinkedList(chainPokeapiId: number): Promise<v
         if (toPkRows.some(p => p.slug.endsWith('-hisui'))) edgeSuffix = 'hisui';
       }
 
-      // Group all sibling edges to distinguish standard vs specific regional ones
+      function getPkSuffix(slug: string): string | null {
+        const REGIONAL_ONLY_SPECIES: Record<string, string> = {
+          'mr-rime': 'galar',
+          'obstagoon': 'galar',
+          'perrserker': 'galar',
+          'sirfetchd': 'galar',
+          'cursola': 'galar',
+          'runerigus': 'galar',
+          'sneasler': 'hisui',
+          'overqwil': 'hisui',
+          'basculegion': 'hisui',
+          'wyrdeer': 'hisui',
+          'kleavor': 'hisui',
+          'ursaluna': 'hisui'
+        };
+        for (const [k, v] of Object.entries(REGIONAL_ONLY_SPECIES)) {
+          if (slug === k || slug.startsWith(k + '-')) return v;
+        }
+        for (const suffix of ['alola', 'galar', 'hisui', 'paldea']) {
+          if (slug.endsWith('-' + suffix) || slug.includes('-' + suffix + '-')) {
+            return suffix;
+          }
+        }
+        return null;
+      }
+
+      // Group all sibling edges for the same target species to check other possible specific regional routes
       const siblingEdges = deduplicatedEdges.filter(e => e.fromSpeciesPokeapiId === edge.fromSpeciesPokeapiId && e.toSpeciesPokeapiId === edge.toSpeciesPokeapiId);
+
+      const siblingSuffixes = await Promise.all(siblingEdges.map(async (se) => {
+        let seItemDbId: number | null = null;
+        if (se.itemPokeapiId) seItemDbId = await ensureItem(se.itemPokeapiId);
+        let seHeldItemDbId: number | null = null;
+        if (se.heldItemPokeapiId) seHeldItemDbId = await ensureItem(se.heldItemPokeapiId);
+
+        let seItemSlug = '';
+        if (seItemDbId) {
+          const [it] = await db.select({ slug: schema.items.slug }).from(schema.items).where(eq(schema.items.id, seItemDbId)).limit(1);
+          seItemSlug = it?.slug ?? '';
+        }
+        let seHeldItemSlug = '';
+        if (seHeldItemDbId) {
+          const [it] = await db.select({ slug: schema.items.slug }).from(schema.items).where(eq(schema.items.id, seHeldItemDbId)).limit(1);
+          seHeldItemSlug = it?.slug ?? '';
+        }
+
+        let seSuffix: string | null = null;
+        for (const suffix of REGIONAL_SUFFIXES) {
+          if (seItemSlug.includes(suffix) || seHeldItemSlug.includes(suffix) || (se.location && se.location.includes(suffix))) {
+            seSuffix = suffix;
+            break;
+          }
+        }
+        if (!seSuffix && seItemSlug === 'ice-stone') {
+          const hasAlola = toPkRows.some(p => p.slug.endsWith('-alola'));
+          const hasGalar = toPkRows.some(p => p.slug.endsWith('-galar'));
+          if (hasAlola) seSuffix = 'alola';
+          else if (hasGalar) seSuffix = 'galar';
+        }
+        if (!seSuffix && seItemSlug === 'leaf-stone') {
+          const hasAlola = toPkRows.some(p => p.slug.endsWith('-alola'));
+          const hasHisui = toPkRows.some(p => p.slug.endsWith('-hisui'));
+          if (hasAlola) seSuffix = 'alola';
+          else if (hasHisui) seSuffix = 'hisui';
+        }
+        if (!seSuffix && seItemSlug === 'fire-stone') {
+          if (toPkRows.some(p => p.slug.endsWith('-hisui'))) seSuffix = 'hisui';
+        }
+        if (!seSuffix && seItemSlug === 'sun-stone') {
+          if (toPkRows.some(p => p.slug.endsWith('-hisui'))) seSuffix = 'hisui';
+        }
+        return seSuffix;
+      }));
 
       // Construct matched pairs of predecessor -> successor
       const matchedPairs: Array<{ from: typeof defaultFromPk; to: typeof defaultToPk }> = [];
 
-      if (siblingEdges.length > 1) {
+      for (const toPk of toPkRows) {
+        const toSuffix = getPkSuffix(toPk.slug);
+
         if (edgeSuffix) {
-          const suffixToPk = toPkRows.find(p => p.slug.endsWith('-' + edgeSuffix) || p.slug.includes('-' + edgeSuffix + '-'));
-          if (suffixToPk) {
-            const suffixFromPk = fromPkRows.find(p => p.slug.endsWith('-' + edgeSuffix) || p.slug.includes('-' + edgeSuffix + '-')) ?? defaultFromPk;
-            matchedPairs.push({ from: suffixFromPk, to: suffixToPk });
-          }
+          if (toSuffix !== edgeSuffix) continue;
         } else {
-          matchedPairs.push({ from: defaultFromPk, to: defaultToPk });
-        }
-      } else {
-        // Parallel matching: standard + matching regional variants
-        matchedPairs.push({ from: defaultFromPk, to: defaultToPk });
-        for (const suffix of REGIONAL_SUFFIXES) {
-          const suffixToPk = toPkRows.find(p => p.slug.endsWith('-' + suffix) || p.slug.includes('-' + suffix + '-'));
-          if (suffixToPk) {
-            const suffixFromPk = fromPkRows.find(p => p.slug.endsWith('-' + suffix) || p.slug.includes('-' + suffix + '-')) ?? defaultFromPk;
-            matchedPairs.push({ from: suffixFromPk, to: suffixToPk });
+          if (toSuffix) {
+            const hasSpecificSuffixEdge = siblingSuffixes.some(s => s === toSuffix);
+            if (hasSpecificSuffixEdge) continue;
+
+            const hasMatchingPredVariant = fromPkRows.some(p => getPkSuffix(p.slug) === toSuffix);
+            if (hasMatchingPredVariant) {
+              const matchingPred = fromPkRows.find(p => getPkSuffix(p.slug) === toSuffix);
+              if (matchingPred) {
+                matchedPairs.push({ from: matchingPred, to: toPk });
+                continue;
+              }
+            }
           }
         }
+
+        const fromPk = fromPkRows.find(p => getPkSuffix(p.slug) === toSuffix) ?? defaultFromPk;
+        matchedPairs.push({ from: fromPk, to: toPk });
       }
 
       // Upsert matched pairs to database
