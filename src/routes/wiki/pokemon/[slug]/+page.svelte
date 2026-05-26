@@ -197,9 +197,8 @@
       }
     }
 
-    const currentSp = data.chainSpecies.find(s => s.speciesId === data.pokemon.speciesId);
-    if (currentSp) {
-      for (const form of currentSp.forms) {
+    for (const sp of data.chainSpecies) {
+      for (const form of sp.forms) {
         if (form.isDefault) continue;
         const suffix = REGIONAL_SUFFIXES_CHAIN.find(r => form.slug.includes('-' + r));
         if (suffix) {

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
   import { startImport } from '$lib/stores/importActivity';
+  import RetroButton from './RetroButton.svelte';
 
   let {
     action,
@@ -39,13 +40,10 @@
 
 <div class="import-button-container">
   <form method="POST" {action} use:enhance={handleSubmit}>
-    <button 
+    <RetroButton 
       type="submit" 
-      class="btn" 
-      class:loading={btnState === 'loading'}
-      class:success={btnState === 'success'}
-      class:error={btnState === 'error'}
       disabled={disabled || btnState === 'loading'}
+      class="{btnState === 'loading' ? 'loading' : ''} {btnState === 'success' ? 'success' : ''} {btnState === 'error' ? 'error' : ''}"
     >
       {#if btnState === 'loading'}
         <span class="spinner"></span> {loadingLabel}
@@ -56,7 +54,7 @@
       {:else}
         {label}
       {/if}
-    </button>
+    </RetroButton>
   </form>
   
   {#if resultMessage}
@@ -72,42 +70,6 @@
     flex-direction: column;
     align-items: flex-start;
     gap: var(--spacing-2);
-  }
-
-  .btn {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-2);
-    padding: var(--spacing-3) var(--spacing-4);
-    background-color: var(--theme-bg-secondary);
-    border: 2px solid var(--theme-border-primary);
-    box-shadow: var(--shadow-card-subtle);
-    font-family: var(--font-display);
-    font-size: 10px;
-    color: var(--theme-text-primary);
-    cursor: pointer;
-    transition: all 0.1s ease;
-  }
-
-  .btn:not(:disabled):hover {
-    background-color: var(--theme-bg-hover);
-    transform: translate(-2px, -2px);
-    box-shadow: var(--shadow-card-hover);
-  }
-
-  .btn:disabled {
-    opacity: 0.7;
-    cursor: not-allowed;
-  }
-
-  .btn.success {
-    background-color: var(--theme-bg-hover);
-    border-color: var(--theme-text-primary);
-  }
-
-  .btn.error {
-    background-color: var(--color-text-error);
-    color: var(--color-bg-primary);
   }
 
   .spinner {
@@ -128,6 +90,7 @@
     font-family: var(--font-mono);
     font-size: 11px;
     color: var(--theme-text-secondary);
+    margin-top: 4px;
     margin-left: 2px;
   }
 

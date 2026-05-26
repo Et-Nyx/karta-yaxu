@@ -136,7 +136,6 @@
         <RetroSelect bind:value={selectedTheme} options={themeOptions} variant="header" class="theme-select" />
         <NavTab href="/wiki" active={$page.url.pathname.startsWith('/wiki')}>WIKI</NavTab>
         <NavTab href="/editor" active={$page.url.pathname.startsWith('/editor')}>EDITOR</NavTab>
-        <NavTab href="/import" active={$page.url.pathname.startsWith('/import')}>IMPORT</NavTab>
         <NavTab href="/battle" active={$page.url.pathname.startsWith('/battle')}>BATTLE</NavTab>
         {#if data.user}
           <NavTab href="/trainer/{data.user.username}" active={$page.url.pathname.startsWith('/trainer/' + data.user.username)}>{data.user.username.toUpperCase()}</NavTab>
@@ -166,7 +165,6 @@
           <RetroSelect bind:value={selectedTheme} options={themeOptions} variant="header" class="theme-select-mobile" />
           <a href="/wiki"    class="mobile-tab" class:active={$page.url.pathname.startsWith('/wiki')}>WIKI</a>
           <a href="/editor"  class="mobile-tab" class:active={$page.url.pathname.startsWith('/editor')}>EDITOR</a>
-          <a href="/import"  class="mobile-tab" class:active={$page.url.pathname.startsWith('/import')}>IMPORT</a>
           <a href="/battle"  class="mobile-tab" class:active={$page.url.pathname.startsWith('/battle')}>BATTLE</a>
           {#if data.user}
             <a href="/trainer/{data.user.username}" class="mobile-tab">{data.user.username.toUpperCase()}</a>
@@ -211,7 +209,6 @@
                 <a href="/editor/pokedex"   class:active={$page.url.pathname.startsWith('/editor/pokedex')}>Pokédex</a>
                 <a href="/editor/trainers"  class:active={$page.url.pathname.startsWith('/editor/trainers')}>Trainers</a>
                 <a href="/editor/species"   class:active={$page.url.pathname.startsWith('/editor/species')}>Species</a>
-                <a href="/import"           class:active={$page.url.pathname.startsWith('/import')}>PokeAPI Import</a>
               </div>
             {/if}
           {/if}

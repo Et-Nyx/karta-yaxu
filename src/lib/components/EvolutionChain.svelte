@@ -4,6 +4,7 @@
 
   import RetroSelect from '$lib/components/RetroSelect.svelte';
   import RetroButton from './RetroButton.svelte';
+  import RetroInput from './RetroInput.svelte';
 
   // --- Types ---
   interface ChainForm {
@@ -181,70 +182,68 @@
     // 1. Get the current suffix for filtering
     const tabSuffix = activeTab?.kind === 'regional' ? activeTab.suffix : null;
 
-    // 2. Identify target varieties under the active tab
-    const targetSlugs = new Set<string>();
-    if (activeTab?.kind === 'regional' && activeTab.forms) {
-      for (const f of activeTab.forms) {
-        targetSlugs.add(f.slug);
+    // 2. Find the focusSlug (active variety for current tab)
+    const activeSpeciesForms = chainSpecies.find((s: ChainSpecies) => s.speciesId === activePokemon.speciesId)?.forms ?? [];
+    const defaultForm = activeSpeciesForms.find((f: ChainForm) => f.isDefault) ?? activeSpeciesForms[0];
+    let focusSlug = defaultForm?.slug ?? activePokemon.slug;
+
+    if (tabSuffix) {
+      const matchingForm = activeSpeciesForms.find((f: ChainForm) => f.slug.endsWith('-' + tabSuffix) || f.slug.includes('-' + tabSuffix + '-'));
+      if (matchingForm) {
+        focusSlug = matchingForm.slug;
       }
-    } else {
-      targetSlugs.add(activePokemon.slug);
     }
 
-    // 3. Traversal up to build set of ancestors
-    const queue = [...targetSlugs];
-    const ancestors = new Set<string>(queue);
-    while (queue.length > 0) {
-      const current = queue.shift()!;
-      const parentEdges = evolutionChain.filter((e: EvolutionEdge) => e.toSlug === current);
-      for (const pe of parentEdges) {
-        if (!ancestors.has(pe.fromSlug)) {
-          ancestors.add(pe.fromSlug);
-          queue.push(pe.fromSlug);
+    // 3. Collect all ancestors of focusSlug
+    const ancestors = new Set<string>([focusSlug]);
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const edge of evolutionChain) {
+        if (ancestors.has(edge.toSlug) && !ancestors.has(edge.fromSlug)) {
+          ancestors.add(edge.fromSlug);
+          changed = true;
         }
       }
     }
 
-    // 4. Helper to check regional suffix
-    function getSlugSuffix(slug: string): string | null {
-      const REGIONAL_ONLY_SPECIES: Record<string, string> = {
-        'mr-rime': 'galar',
-        'obstagoon': 'galar',
-        'perrserker': 'galar',
-        'sirfetchd': 'galar',
-        'cursola': 'galar',
-        'runerigus': 'galar',
-        'sneasler': 'hisui',
-        'overqwil': 'hisui',
-        'basculegion': 'hisui',
-        'wyrdeer': 'hisui',
-        'kleavor': 'hisui',
-        'ursaluna': 'hisui'
-      };
-      for (const [k, v] of Object.entries(REGIONAL_ONLY_SPECIES)) {
-        if (slug === k || slug.startsWith(k + '-')) return v;
-      }
-      for (const suffix of ['alola', 'galar', 'hisui', 'paldea']) {
-        if (slug.endsWith('-' + suffix) || slug.includes('-' + suffix + '-')) {
-          return suffix;
+    // 4. Collect descendants of ancestors with regional pruning
+    const connectedSlugs = new Set<string>(ancestors);
+    changed = true;
+    while (changed) {
+      changed = false;
+      for (const edge of evolutionChain) {
+        if (connectedSlugs.has(edge.fromSlug) && !connectedSlugs.has(edge.toSlug)) {
+          const fromSpecies = chainSpecies.find((s: ChainSpecies) => s.forms.some((f: ChainForm) => f.slug === edge.fromSlug));
+          
+          if (fromSpecies && tabSuffix) {
+            const hasRegionalFrom = fromSpecies.forms.some((f: ChainForm) => f.slug.endsWith('-' + tabSuffix) || f.slug.includes('-' + tabSuffix + '-'));
+            const edgeFromHasSuffix = edge.fromSlug.endsWith('-' + tabSuffix) || edge.fromSlug.includes('-' + tabSuffix + '-');
+            if (hasRegionalFrom && !edgeFromHasSuffix) {
+              continue;
+            }
+          }
+
+          if (fromSpecies && !tabSuffix) {
+            const hasRegionalFrom = fromSpecies.forms.some((f: ChainForm) =>
+              REGIONAL_SUFFIXES_CHAIN.some(suffix => f.slug.endsWith('-' + suffix) || f.slug.includes('-' + suffix + '-'))
+            );
+            const edgeFromHasAnyRegionalSuffix = REGIONAL_SUFFIXES_CHAIN.some(suffix =>
+              edge.fromSlug.endsWith('-' + suffix) || edge.fromSlug.includes('-' + suffix + '-')
+            );
+            if (hasRegionalFrom && edgeFromHasAnyRegionalSuffix) {
+              continue;
+            }
+          }
+
+          connectedSlugs.add(edge.toSlug);
+          changed = true;
         }
       }
-      return null;
     }
 
-    // 5. Filter edges based on ancestors and suffixes
     const filteredEdges = evolutionChain.filter((edge: EvolutionEdge) => {
-      // Must branch off from one of our ancestors
-      if (!ancestors.has(edge.fromSlug)) return false;
-
-      const toSuffix = getSlugSuffix(edge.toSlug);
-      if (tabSuffix) {
-        // Under a regional tab: show standard branches or branches matching the tab suffix
-        return toSuffix === null || toSuffix === tabSuffix;
-      } else {
-        // Under standard tab: show only standard branches
-        return toSuffix === null;
-      }
+      return connectedSlugs.has(edge.fromSlug) && connectedSlugs.has(edge.toSlug);
     });
 
     // 3. Map species details by speciesId for displaying card info
@@ -435,11 +434,10 @@
         <div class="grid grid-cols-2 gap-2">
           <div class="field">
             <label for="popoverMinLevel">MIN LEVEL</label>
-            <input
+            <RetroInput
               type="number"
               id="popoverMinLevel"
               name="minLevel"
-              class="retro-input"
               placeholder="e.g. 16"
               bind:value={minLevel}
               min="1"
@@ -448,11 +446,10 @@
           </div>
           <div class="field">
             <label for="popoverMinHappiness">MIN HAPPINESS</label>
-            <input
+            <RetroInput
               type="number"
               id="popoverMinHappiness"
               name="minHappiness"
-              class="retro-input"
               placeholder="e.g. 220"
               bind:value={minHappiness}
               min="0"
@@ -495,11 +492,10 @@
 
         <div class="field">
           <label for="popoverLocation">LOCATION</label>
-          <input
+          <RetroInput
             type="text"
             id="popoverLocation"
             name="location"
-            class="retro-input"
             placeholder="e.g. Mount Coronet"
             bind:value={location}
           />
@@ -543,11 +539,10 @@
       {:else}
         <div class="field">
           <label for="popoverLocationNote">CUSTOM NOTE</label>
-          <input
+          <RetroInput
             type="text"
             id="popoverLocationNote"
             name="location"
-            class="retro-input"
             placeholder="e.g. Spin in circles"
             bind:value={location}
           />
@@ -1210,21 +1205,10 @@
     color: var(--theme-text-muted);
   }
 
-  .retro-form input.retro-input {
-    background-color: var(--theme-bg-primary);
-    border: 2px solid var(--theme-border-primary);
-    color: var(--theme-text-primary);
-    font-family: var(--font-mono);
-    font-size: 11px;
-    padding: var(--spacing-1) var(--spacing-2);
-    outline: none;
-    border-radius: 0;
-    box-sizing: border-box;
+  :global(.retro-form .retro-input) {
     width: 100%;
-  }
-
-  .retro-form input.retro-input:focus {
-    border-color: var(--theme-text-accent);
+    padding: var(--spacing-1) var(--spacing-2) !important;
+    font-size: 11px;
   }
 
 

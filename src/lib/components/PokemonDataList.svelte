@@ -1,4 +1,6 @@
 <script lang="ts">
+  import RetroInput from './RetroInput.svelte';
+
   let {
     height = $bindable(),
     weight = $bindable(),
@@ -56,7 +58,7 @@
     <span class="label">HEIGHT</span>
     {#if editable}
       <div class="data-input-wrap">
-        <input class="data-input" type="number" min="0" step="0.1" bind:value={uiHeight} />
+        <RetroInput class="data-input" type="number" min="0" step="0.1" bind:value={uiHeight} />
         <span class="data-unit">m</span>
       </div>
     {:else}
@@ -68,7 +70,7 @@
     <span class="label">WEIGHT</span>
     {#if editable}
       <div class="data-input-wrap">
-        <input class="data-input" type="number" min="0" step="0.1" bind:value={uiWeight} />
+        <RetroInput class="data-input" type="number" min="0" step="0.1" bind:value={uiWeight} />
         <span class="data-unit">kg</span>
       </div>
     {:else}
@@ -169,31 +171,9 @@
     gap: var(--spacing-2);
   }
 
-  .data-input {
+  :global(.data-input-wrap .data-input) {
     width: 60px;
-    height: 24px;
-    background-color: var(--theme-bg-secondary);
-    border: 2px solid var(--theme-border-primary);
-    box-shadow: 2px 2px 0 var(--theme-border-primary);
-    color: var(--theme-text-primary);
-    font-family: var(--font-mono);
-    font-size: 12px;
-    font-weight: bold;
-    text-align: center;
-    outline: none;
-    box-sizing: border-box;
-    padding: 0;
-    -moz-appearance: textfield;
-  }
-
-  .data-input::-webkit-outer-spin-button,
-  .data-input::-webkit-inner-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-  }
-
-  .data-input:focus {
-    border-color: var(--theme-text-accent);
+    padding: 0 !important;
   }
 
   .data-unit {

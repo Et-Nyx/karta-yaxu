@@ -1,4 +1,6 @@
 <script lang="ts">
+  import RetroInput from './RetroInput.svelte';
+
   let {
     name = 'hp',
     value = $bindable(0),
@@ -48,7 +50,7 @@
 <div class="stat-row">
   <div class="stat-label">{name.replace('special-', 'sp. ').toUpperCase()}</div>
   {#if editable}
-    <input
+    <RetroInput
       type="number"
       min="0"
       max={max}
@@ -99,31 +101,9 @@
     color: var(--theme-text-primary);
   }
 
-  .stat-input {
+  :global(.stat-row .stat-input) {
     width: 44px;
-    height: 24px;
-    background-color: var(--theme-bg-secondary);
-    border: 2px solid var(--theme-border-primary);
-    box-shadow: 2px 2px 0 var(--theme-border-primary);
-    color: var(--theme-text-primary);
-    font-family: var(--font-mono);
-    font-size: 12px;
-    font-weight: bold;
-    text-align: center;
-    outline: none;
-    box-sizing: border-box;
-    padding: 0;
-    -moz-appearance: textfield;
-  }
-
-  .stat-input::-webkit-outer-spin-button,
-  .stat-input::-webkit-inner-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-  }
-
-  .stat-input:focus {
-    border-color: var(--theme-text-accent);
+    padding: 0 !important;
   }
 
   .stat-bar-container {

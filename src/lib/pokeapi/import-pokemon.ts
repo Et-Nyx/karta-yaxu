@@ -207,27 +207,7 @@ export async function populateChainLinkedList(chainPokeapiId: number): Promise<v
   const processedTargets = new Set<number>();
   const REGIONAL_SUFFIXES = ['alola', 'galar', 'hisui', 'paldea'];
 
-  // Deduplicate: for edges with the same from→to species pair AND same item, pick the primary method.
-  // Edges with different items (e.g. standard level-up vs Galarica Cuff) are kept separately.
-  const edgeKey = (e: any) => `${e.fromSpeciesPokeapiId}➔${e.toSpeciesPokeapiId}➔${e.itemPokeapiId ?? 'none'}`;
-  const bestEdgeByKey = new Map<string, any>();
   for (const edge of edges) {
-    const key = edgeKey(edge);
-    const existing = bestEdgeByKey.get(key);
-    if (!existing) {
-      bestEdgeByKey.set(key, edge);
-    } else {
-      // Prefer use-item > level-up with level > first
-      if (edge.trigger === 'use-item' && existing.trigger !== 'use-item') {
-        bestEdgeByKey.set(key, edge);
-      } else if (edge.minLevel != null && existing.minLevel == null && existing.trigger !== 'use-item') {
-        bestEdgeByKey.set(key, edge);
-      }
-    }
-  }
-  const deduplicatedEdges = [...bestEdgeByKey.values()];
-
-  for (const edge of deduplicatedEdges) {
     try {
       // Find predecessor & successor species
       const [fromSp] = await db.select({ id: schema.pokemonSpecies.id, defaultPokemonId: schema.pokemonSpecies.defaultPokemonId })
@@ -310,6 +290,7 @@ export async function populateChainLinkedList(chainPokeapiId: number): Promise<v
         if (toPkRows.some(p => p.slug.endsWith('-hisui'))) edgeSuffix = 'hisui';
       }
 
+      // Helper to identify regional suffixes for both regular forms and regional-only species
       function getPkSuffix(slug: string): string | null {
         const REGIONAL_ONLY_SPECIES: Record<string, string> = {
           'mr-rime': 'galar',
@@ -328,7 +309,7 @@ export async function populateChainLinkedList(chainPokeapiId: number): Promise<v
         for (const [k, v] of Object.entries(REGIONAL_ONLY_SPECIES)) {
           if (slug === k || slug.startsWith(k + '-')) return v;
         }
-        for (const suffix of ['alola', 'galar', 'hisui', 'paldea']) {
+        for (const suffix of REGIONAL_SUFFIXES) {
           if (slug.endsWith('-' + suffix) || slug.includes('-' + suffix + '-')) {
             return suffix;
           }
@@ -336,80 +317,41 @@ export async function populateChainLinkedList(chainPokeapiId: number): Promise<v
         return null;
       }
 
-      // Group all sibling edges for the same target species to check other possible specific regional routes
-      const siblingEdges = deduplicatedEdges.filter(e => e.fromSpeciesPokeapiId === edge.fromSpeciesPokeapiId && e.toSpeciesPokeapiId === edge.toSpeciesPokeapiId);
-
-      const siblingSuffixes = await Promise.all(siblingEdges.map(async (se) => {
-        let seItemDbId: number | null = null;
-        if (se.itemPokeapiId) seItemDbId = await ensureItem(se.itemPokeapiId);
-        let seHeldItemDbId: number | null = null;
-        if (se.heldItemPokeapiId) seHeldItemDbId = await ensureItem(se.heldItemPokeapiId);
-
-        let seItemSlug = '';
-        if (seItemDbId) {
-          const [it] = await db.select({ slug: schema.items.slug }).from(schema.items).where(eq(schema.items.id, seItemDbId)).limit(1);
-          seItemSlug = it?.slug ?? '';
-        }
-        let seHeldItemSlug = '';
-        if (seHeldItemDbId) {
-          const [it] = await db.select({ slug: schema.items.slug }).from(schema.items).where(eq(schema.items.id, seHeldItemDbId)).limit(1);
-          seHeldItemSlug = it?.slug ?? '';
-        }
-
-        let seSuffix: string | null = null;
-        for (const suffix of REGIONAL_SUFFIXES) {
-          if (seItemSlug.includes(suffix) || seHeldItemSlug.includes(suffix) || (se.location && se.location.includes(suffix))) {
-            seSuffix = suffix;
-            break;
-          }
-        }
-        if (!seSuffix && seItemSlug === 'ice-stone') {
-          const hasAlola = toPkRows.some(p => p.slug.endsWith('-alola'));
-          const hasGalar = toPkRows.some(p => p.slug.endsWith('-galar'));
-          if (hasAlola) seSuffix = 'alola';
-          else if (hasGalar) seSuffix = 'galar';
-        }
-        if (!seSuffix && seItemSlug === 'leaf-stone') {
-          const hasAlola = toPkRows.some(p => p.slug.endsWith('-alola'));
-          const hasHisui = toPkRows.some(p => p.slug.endsWith('-hisui'));
-          if (hasAlola) seSuffix = 'alola';
-          else if (hasHisui) seSuffix = 'hisui';
-        }
-        if (!seSuffix && seItemSlug === 'fire-stone') {
-          if (toPkRows.some(p => p.slug.endsWith('-hisui'))) seSuffix = 'hisui';
-        }
-        if (!seSuffix && seItemSlug === 'sun-stone') {
-          if (toPkRows.some(p => p.slug.endsWith('-hisui'))) seSuffix = 'hisui';
-        }
-        return seSuffix;
-      }));
-
-      // Construct matched pairs of predecessor -> successor
+      // Construct matched pairs of predecessor -> successor variety
       const matchedPairs: Array<{ from: typeof defaultFromPk; to: typeof defaultToPk }> = [];
 
       for (const toPk of toPkRows) {
+        // Skip mega and gmax forms so they do not participate in the Evolution Chain
+        const isMegaOrGmax = toPk.slug.endsWith('-mega') ||
+                             toPk.slug.endsWith('-mega-x') ||
+                             toPk.slug.endsWith('-mega-y') ||
+                             toPk.slug.endsWith('-gmax') ||
+                             toPk.slug.includes('-mega-') ||
+                             toPk.slug.includes('-gmax-');
+        if (isMegaOrGmax) continue;
+
         const toSuffix = getPkSuffix(toPk.slug);
+        const hasMatchingPredecessor = fromPkRows.some(p => p.slug.endsWith('-' + toSuffix) || p.slug.includes('-' + toSuffix + '-'));
 
-        if (edgeSuffix) {
-          if (toSuffix !== edgeSuffix) continue;
-        } else {
+        if (toSuffix === edgeSuffix || (edgeSuffix === null && !hasMatchingPredecessor)) {
           if (toSuffix) {
-            const hasSpecificSuffixEdge = siblingSuffixes.some(s => s === toSuffix);
-            if (hasSpecificSuffixEdge) continue;
-
-            const hasMatchingPredVariant = fromPkRows.some(p => getPkSuffix(p.slug) === toSuffix);
-            if (hasMatchingPredVariant) {
-              const matchingPred = fromPkRows.find(p => getPkSuffix(p.slug) === toSuffix);
-              if (matchingPred) {
-                matchedPairs.push({ from: matchingPred, to: toPk });
-                continue;
-              }
+            // Successor is regional. Look for predecessor variety with matching suffix
+            const matchingFromPk = fromPkRows.find(p => p.slug.endsWith('-' + toSuffix) || p.slug.includes('-' + toSuffix + '-'));
+            if (matchingFromPk) {
+              matchedPairs.push({ from: matchingFromPk, to: toPk });
+            } else {
+              // Fallback to default predecessor (e.g. standard Pikachu -> Alolan Raichu)
+              matchedPairs.push({ from: defaultFromPk, to: toPk });
             }
+          } else {
+            // Successor is standard. Look for standard predecessor variety
+            const standardFromPk = fromPkRows.find(p => {
+              const suffix = getPkSuffix(p.slug);
+              return suffix === null;
+            }) ?? defaultFromPk;
+            matchedPairs.push({ from: standardFromPk, to: toPk });
           }
         }
-
-        const fromPk = fromPkRows.find(p => getPkSuffix(p.slug) === toSuffix) ?? defaultFromPk;
-        matchedPairs.push({ from: fromPk, to: toPk });
       }
 
       // Upsert matched pairs to database
@@ -601,6 +543,19 @@ export async function ensurePokemonSpecies(
   return species.id;
 }
 
+/**
+ * Resolve the database ID of the default/base Pokémon variety for a given species.
+ * Used to inherit missing attributes (types, abilities, stats) from the base form
+ * when PokeAPI returns incomplete data for alternate varieties (e.g. custom Megas).
+ */
+async function getBaseFormPokemonId(speciesDbId: number): Promise<number | null> {
+  const row = await db.select({ defaultPokemonId: schema.pokemonSpecies.defaultPokemonId })
+    .from(schema.pokemonSpecies)
+    .where(eq(schema.pokemonSpecies.id, speciesDbId))
+    .get();
+  return row?.defaultPokemonId ?? null;
+}
+
 export async function ensurePokemon(
   pokeapiId: number,
   opts: { forceRefresh?: boolean; overwriteEdited?: boolean } = {},
@@ -652,21 +607,55 @@ export async function ensurePokemon(
         .where(eq(schema.pokemonSpecies.id, speciesDbId));
     }
 
-    // Types
-    for (const t of mapped.types) {
-      const typeDbId = await ensureType(t.typePokeapiId);
-      await db.insert(schema.pokemonTypes).values({ pokemonId: pokemonDbId, typeId: typeDbId, slot: t.slot }).onConflictDoNothing();
+    // Types — fallback to base form if PokeAPI data is empty
+    if (mapped.types.length > 0) {
+      for (const t of mapped.types) {
+        const typeDbId = await ensureType(t.typePokeapiId);
+        await db.insert(schema.pokemonTypes).values({ pokemonId: pokemonDbId, typeId: typeDbId, slot: t.slot }).onConflictDoNothing();
+      }
+    } else {
+      const basePk = await getBaseFormPokemonId(speciesDbId);
+      if (basePk !== null) {
+        const baseTypes = await db.select().from(schema.pokemonTypes).where(eq(schema.pokemonTypes.pokemonId, basePk));
+        for (const bt of baseTypes) {
+          await db.insert(schema.pokemonTypes).values({ pokemonId: pokemonDbId, typeId: bt.typeId, slot: bt.slot }).onConflictDoNothing();
+        }
+        console.log(`  ⚠️ No types from PokeAPI for "${mapped.main.slug}" — inherited ${baseTypes.length} type(s) from base form.`);
+      }
     }
 
-    // Abilities
-    for (const a of mapped.abilities) {
-      const abilityDbId = await ensureAbility(a.abilityPokeapiId);
-      await db.insert(schema.pokemonAbilities).values({ pokemonId: pokemonDbId, abilityId: abilityDbId, slot: a.slot, isHidden: a.isHidden }).onConflictDoNothing();
+    // Abilities — fallback to base form if PokeAPI data is empty
+    if (mapped.abilities.length > 0) {
+      for (const a of mapped.abilities) {
+        const abilityDbId = await ensureAbility(a.abilityPokeapiId);
+        await db.insert(schema.pokemonAbilities).values({ pokemonId: pokemonDbId, abilityId: abilityDbId, slot: a.slot, isHidden: a.isHidden }).onConflictDoNothing();
+      }
+    } else {
+      const basePk = await getBaseFormPokemonId(speciesDbId);
+      if (basePk !== null) {
+        const baseAbilities = await db.select().from(schema.pokemonAbilities).where(eq(schema.pokemonAbilities.pokemonId, basePk));
+        for (const ba of baseAbilities) {
+          await db.insert(schema.pokemonAbilities).values({ pokemonId: pokemonDbId, abilityId: ba.abilityId, slot: ba.slot, isHidden: ba.isHidden }).onConflictDoNothing();
+        }
+        console.log(`  ⚠️ No abilities from PokeAPI for "${mapped.main.slug}" — inherited ${baseAbilities.length} ability/ies from base form.`);
+      }
     }
 
-    // Stats
-    for (const s of mapped.stats) {
-      await db.insert(schema.pokemonStats).values({ pokemonId: pokemonDbId, ...s }).onConflictDoNothing();
+    // Stats — fallback to base form if all stats are zero
+    const allStatsZero = mapped.stats.every(s => s.baseStat === 0);
+    if (mapped.stats.length > 0 && !allStatsZero) {
+      for (const s of mapped.stats) {
+        await db.insert(schema.pokemonStats).values({ pokemonId: pokemonDbId, ...s }).onConflictDoNothing();
+      }
+    } else {
+      const basePk = await getBaseFormPokemonId(speciesDbId);
+      if (basePk !== null) {
+        const baseStats = await db.select().from(schema.pokemonStats).where(eq(schema.pokemonStats.pokemonId, basePk));
+        for (const bs of baseStats) {
+          await db.insert(schema.pokemonStats).values({ pokemonId: pokemonDbId, statName: bs.statName, baseStat: bs.baseStat, effort: bs.effort }).onConflictDoNothing();
+        }
+        console.log(`  ⚠️ Stats missing/zero from PokeAPI for "${mapped.main.slug}" — inherited from base form.`);
+      }
     }
 
     // Forms (force-refresh propagates so existing form rows get updated, not skipped)
