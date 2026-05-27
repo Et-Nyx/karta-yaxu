@@ -7,6 +7,7 @@ import { pokedexEntries, pokemonSpecies, pokemon, pokemonTypes } from '$lib/db/s
 import { types } from '$lib/db/schema/core-data';
 import { bumpSource } from '$lib/editor/source';
 import { recordEdit } from '$lib/editor/audit';
+import { getEvolutionChainSpecies } from '$lib/editor/evolution';
 import {
   sortLinkedListEntries,
   savePokedexOrder,
@@ -26,10 +27,6 @@ const UpdateSchema = z.object({
     z.number().int().positive().nullable(),
   ),
   isMainSeries: z.preprocess((v) => v === 'true' || v === 'on' || v === true, z.boolean()),
-});
-
-const EntrySchema = z.object({
-  pokemonId:   z.coerce.number().int().positive(),
 });
 
 export const load: PageServerLoad = async ({ params }) => {
@@ -85,11 +82,14 @@ export const load: PageServerLoad = async ({ params }) => {
     }
   }
 
-  const entries = sortedEntriesRaw.map((e, index) => {
+  const entries = await Promise.all(sortedEntriesRaw.map(async (e, index) => {
     const calculatedNumber = index + 1;
+    const chainSpeciesIds = await getEvolutionChainSpecies(e.speciesId);
+    const chainId = Math.min(...chainSpeciesIds);
     return {
       pokemonId:   e.pokemonId,
       speciesId:   e.speciesId,
+      chainId,
       entryNumber: calculatedNumber,
       pokemonName: e.pokemonName,
       pokemonSlug: e.pokemonSlug,
@@ -102,7 +102,7 @@ export const load: PageServerLoad = async ({ params }) => {
         dexNumber: calculatedNumber,
       }
     };
-  });
+  }));
 
   const pokemonList = await db.select({
     id:   pokemon.id,
@@ -207,77 +207,5 @@ export const actions: Actions = {
     }
 
     throw redirect(303, `/editor/pokedex/${newSlug}`);
-  },
-
-  addEntry: async ({ request, params, locals }) => {
-    const form = Object.fromEntries(await request.formData());
-    const parsed = EntrySchema.safeParse(form);
-    if (!parsed.success) {
-      return fail(400, { entryError: parsed.error.issues[0]?.message ?? 'Entrada inválida' });
-    }
-    const data = parsed.data;
-
-    const [current] = await db.select().from(pokedexes).where(eq(pokedexes.slug, params.slug)).limit(1);
-    if (!current) throw error(404, 'Pokédex not found');
-    if (current.source !== 'custom') {
-      return fail(400, { entryError: 'Apenas pokédexes custom podem ser editadas' });
-    }
-
-    await addPokemonToPokedex(current.id, data.pokemonId);
-
-    if (locals.user) {
-      await recordEdit(locals.user.id, 'pokedex_entries', current.id, null, data);
-    }
-
-    return { entryOk: true };
-  },
-
-  removeEntry: async ({ request, params, locals }) => {
-    const form = Object.fromEntries(await request.formData());
-    const pokemonId = Number(form.pokemonId);
-    if (!Number.isInteger(pokemonId) || pokemonId <= 0) {
-      return fail(400, { entryError: 'pokemonId inválido' });
-    }
-
-    const [current] = await db.select().from(pokedexes).where(eq(pokedexes.slug, params.slug)).limit(1);
-    if (!current) throw error(404, 'Pokédex not found');
-    if (current.source !== 'custom') {
-      return fail(400, { entryError: 'Apenas pokédexes custom podem ser editadas' });
-    }
-
-    await removePokemonFromPokedex(current.id, pokemonId);
-
-    if (locals.user) {
-      await recordEdit(locals.user.id, 'pokedex_entries', current.id, { pokemonId }, null);
-    }
-
-    return { entryOk: true };
-  },
-
-  reorder: async ({ request, params, locals }) => {
-    const form = Object.fromEntries(await request.formData());
-    const rawPokemonIds = form.pokemonIds as string | undefined;
-    if (!rawPokemonIds) {
-      return fail(400, { reorderError: 'Faltando pokemonIds' });
-    }
-
-    const pokemonIds = rawPokemonIds.split(',').map(Number);
-    if (pokemonIds.some(isNaN)) {
-      return fail(400, { reorderError: 'ID de pokemon inválido' });
-    }
-
-    const [current] = await db.select().from(pokedexes).where(eq(pokedexes.slug, params.slug)).limit(1);
-    if (!current) throw error(404, 'Pokédex not found');
-    if (current.source !== 'custom') {
-      return fail(400, { reorderError: 'Apenas pokédexes custom podem ser reordenadas' });
-    }
-
-    await savePokedexOrder(current.id, pokemonIds);
-
-    if (locals.user) {
-      await recordEdit(locals.user.id, 'pokedex_reorder', current.id, null, { orderedIds: pokemonIds });
-    }
-
-    return { saved: true };
   },
 };

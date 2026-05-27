@@ -30,6 +30,7 @@
   );
 
   let selectedPokemonToAdd = $state('');
+  let entryError = $state('');
 
   let saved = $state(false);
   let isSaving = $state(false);
@@ -57,41 +58,118 @@
     return false;
   });
 
-  // HTML5 Drag and Drop states
-  let draggedIndex = $state<number | null>(null);
-  let dragHoverIndex = $state<number | null>(null);
+  // Derived evolution chain groups to treat them as unified draggable units
+  let groups = $derived.by(() => {
+    const list: Array<{ chainId: number; entries: typeof entries }> = [];
+    let currentGroup: { chainId: number; entries: typeof entries } | null = null;
+    
+    for (const entry of entries) {
+      if (!currentGroup || currentGroup.chainId !== entry.chainId) {
+        currentGroup = { chainId: entry.chainId, entries: [] };
+        list.push(currentGroup);
+      }
+      currentGroup.entries.push(entry);
+    }
+    return list;
+  });
 
-  function handleDragStart(index: number) {
+  // HTML5 Drag and Drop states (now tracking group indices)
+  let draggedGroupIndex = $state<number | null>(null);
+  let dragHoverGroupIndex = $state<number | null>(null);
+
+  function handleDragStart(groupIndex: number) {
     if (data.pokedex.source !== 'custom') return;
-    draggedIndex = index;
+    draggedGroupIndex = groupIndex;
   }
 
-  function handleDragOver(e: DragEvent, index: number) {
+  function handleDragOver(e: DragEvent, groupIndex: number) {
     if (data.pokedex.source !== 'custom') return;
+    if (draggedGroupIndex === null) return;
+    
     e.preventDefault();
-    dragHoverIndex = index;
+    dragHoverGroupIndex = groupIndex;
   }
 
   function handleDragLeave() {
-    dragHoverIndex = null;
+    dragHoverGroupIndex = null;
   }
 
-  function handleDrop(targetIndex: number) {
+  function handleDrop(targetGroupIndex: number) {
     if (data.pokedex.source !== 'custom') return;
-    if (draggedIndex === null || draggedIndex === targetIndex) return;
+    if (draggedGroupIndex === null || draggedGroupIndex === targetGroupIndex) {
+      draggedGroupIndex = null;
+      dragHoverGroupIndex = null;
+      return;
+    }
 
-    const items = [...entries];
-    const [moved] = items.splice(draggedIndex, 1);
-    items.splice(targetIndex, 0, moved);
+    const items = [...groups];
+    const [movedGroup] = items.splice(draggedGroupIndex, 1);
+    items.splice(targetGroupIndex, 0, movedGroup);
 
+    // Flatten back into entries
+    const flattened = items.flatMap(g => g.entries);
+    
     // Update dex numbers locally
-    items.forEach((item, idx) => {
+    flattened.forEach((item, idx) => {
       item.entryNumber = idx + 1;
     });
 
-    entries = items;
-    draggedIndex = null;
-    dragHoverIndex = null;
+    entries = flattened;
+    draggedGroupIndex = null;
+    dragHoverGroupIndex = null;
+  }
+
+  // Client-side local mutations for adding Pokémon
+  async function handleAddEntry(e: SubmitEvent) {
+    e.preventDefault();
+    entryError = '';
+    if (!selectedPokemonToAdd) return;
+
+    try {
+      const res = await fetch(`/api/pokemon/chain/${selectedPokemonToAdd}`);
+      if (!res.ok) {
+        entryError = 'Failed to fetch evolution chain details';
+        return;
+      }
+      const newEntries = await res.json();
+      if (!Array.isArray(newEntries) || newEntries.length === 0) {
+        entryError = 'No evolution chain entries returned';
+        return;
+      }
+
+      const currentIds = new Set(entries.map(e => e.pokemonId));
+      const toAdd = newEntries.filter(ne => !currentIds.has(ne.pokemonId));
+
+      if (toAdd.length === 0) {
+        entryError = 'This Pokémon chain is already in the Pokédex';
+        return;
+      }
+
+      const merged = [...entries, ...toAdd];
+      merged.forEach((item, idx) => {
+        item.entryNumber = idx + 1;
+      });
+
+      entries = merged;
+      selectedPokemonToAdd = '';
+    } catch (err) {
+      console.error(err);
+      entryError = 'An unexpected error occurred';
+    }
+  }
+
+  // Client-side local mutations for removing chain
+  function handleRemoveEntry(pokemonId: number, chainId: number) {
+    if (!confirm('Are you sure you want to remove this evolution chain from the Pokédex?')) {
+      return;
+    }
+    
+    const filtered = entries.filter(e => e.chainId !== chainId);
+    filtered.forEach((item, idx) => {
+      item.entryNumber = idx + 1;
+    });
+
+    entries = filtered;
   }
 
   function handleSave() {
@@ -237,15 +315,15 @@
   <!-- Entries sub-editor -->
   <section class="entries-section">
     {#if data.pokedex.source === 'custom'}
-      <form action="?/addEntry" method="post" use:enhance class="add-entry-form">
+      <form onsubmit={handleAddEntry} class="add-entry-form">
         <div class="field">
           <label for="add-pokemon">POKÉMON</label>
           <RetroSelect id="add-pokemon" name="pokemonId" bind:value={selectedPokemonToAdd} options={pokemonOptions} variant="editor" />
         </div>
         <div class="add-actions">
           <RetroButton type="submit" variant="secondary">+ ADD POKÉMON</RetroButton>
-          {#if form?.entryError}
-            <span class="form-error">{form.entryError}</span>
+          {#if entryError}
+            <span class="form-error">{entryError}</span>
           {/if}
         </div>
         <div class="evolution-note">
@@ -274,52 +352,56 @@
             <th style="width: 140px; text-align: center">ACTIONS</th>
           {/if}
         {/snippet}
-        {#each entries as e, index (e.pokemonId)}
-          <tr
-            class="draggable-row"
-            class:custom-row={data.pokedex.source === 'custom'}
-            draggable={data.pokedex.source === 'custom'}
-            class:dragging={draggedIndex === index}
-            class:drag-over={dragHoverIndex === index}
-            ondragstart={() => handleDragStart(index)}
-            ondragover={(ev) => handleDragOver(ev, index)}
-            ondragleave={handleDragLeave}
-            ondrop={() => handleDrop(index)}
-          >
-            <td class="entry-num">{e.entryNumber ?? index + 1}</td>
-            <td class="col-sprite">
-              {#if e.pokemonCard.spriteUrl}
-                <img src={e.pokemonCard.spriteUrl} alt={e.pokemonCard.name} class="sprite" loading="lazy" />
-              {:else}
-                <div class="sprite-placeholder"></div>
-              {/if}
-            </td>
-            <td class="entry-name">
-              {#if data.pokedex.source === 'custom'}
-                <span class="name-drag-text">{e.pokemonCard.name.toUpperCase()}</span>
-                <span class="drag-hint">(Drag row to reorder)</span>
-              {:else}
-                <a href="/wiki/pokemon/{e.pokemonCard.slug}">{e.pokemonCard.name.toUpperCase()}</a>
-              {/if}
-            </td>
-            <td class="col-types">
-              <div class="types-stack">
-                {#each e.pokemonCard.types as t}
-                  <TypeBadge name={t.name} hexColor={t.hexColor} size="sm" />
-                {/each}
-              </div>
-            </td>
-            {#if data.pokedex.source === 'custom'}
-              <td class="col-actions">
-                <form action="?/removeEntry" method="post" use:enhance class="remove-card-form">
-                  <input type="hidden" name="pokemonId" value={e.pokemonId}>
-                  <RetroButton type="submit" variant="secondary" class="remove-row-btn" title="Remove Pokémon and its entire evolution chain">
-                    REMOVE CHAIN
-                  </RetroButton>
-                </form>
+        {#each groups as g, groupIndex (g.chainId)}
+          {#each g.entries as e, entryIndex (e.pokemonId)}
+            <tr
+              class="draggable-row"
+              class:custom-row={data.pokedex.source === 'custom'}
+              draggable={data.pokedex.source === 'custom'}
+              class:dragging={draggedGroupIndex === groupIndex}
+              class:drag-over={dragHoverGroupIndex === groupIndex}
+              class:group-first={entryIndex === 0 && g.entries.length > 1}
+              class:group-middle={entryIndex > 0 && entryIndex < g.entries.length - 1}
+              class:group-last={entryIndex === g.entries.length - 1 && g.entries.length > 1}
+              ondragstart={() => handleDragStart(groupIndex)}
+              ondragover={(ev) => handleDragOver(ev, groupIndex)}
+              ondragleave={handleDragLeave}
+              ondrop={() => handleDrop(groupIndex)}
+            >
+              <td class="entry-num">{e.entryNumber}</td>
+              <td class="col-sprite">
+                {#if e.pokemonCard.spriteUrl}
+                  <img src={e.pokemonCard.spriteUrl} alt={e.pokemonCard.name} class="sprite" loading="lazy" />
+                {:else}
+                  <div class="sprite-placeholder"></div>
+                {/if}
               </td>
-            {/if}
-          </tr>
+              <td class="entry-name">
+                {#if data.pokedex.source === 'custom'}
+                  <span class="name-drag-text">{e.pokemonCard.name.toUpperCase()}</span>
+                  <span class="drag-hint">(Drag row to reorder chain)</span>
+                {:else}
+                  <a href="/wiki/pokemon/{e.pokemonCard.slug}">{e.pokemonCard.name.toUpperCase()}</a>
+                {/if}
+              </td>
+              <td class="col-types">
+                <div class="types-stack">
+                  {#each e.pokemonCard.types as t}
+                    <TypeBadge name={t.name} hexColor={t.hexColor} size="sm" />
+                  {/each}
+                </div>
+              </td>
+              {#if data.pokedex.source === 'custom'}
+                <td class="col-actions">
+                  <div class="remove-card-form">
+                    <RetroButton type="button" variant="secondary" class="remove-row-btn" title="Remove Pokémon and its entire evolution chain" onclick={() => handleRemoveEntry(e.pokemonId, e.chainId)}>
+                      REMOVE CHAIN
+                    </RetroButton>
+                  </div>
+                </td>
+              {/if}
+            </tr>
+          {/each}
         {/each}
       </DataTable>
     {/if}
@@ -544,13 +626,28 @@
   }
 
   .draggable-row.dragging {
-    opacity: 0.4;
-    border: 2px dashed var(--theme-border-primary) !important;
+    opacity: 0.45;
+    background-color: var(--theme-bg-hover) !important;
   }
 
   .draggable-row.drag-over {
     background-color: var(--theme-bg-hover) !important;
-    border-bottom: 2px solid var(--theme-text-accent) !important;
+  }
+
+  /* Evolution Group visual brackets */
+  .draggable-row.group-first {
+    border-top: 3px solid var(--color-text-warning) !important;
+    border-left: 6px solid var(--color-text-warning) !important;
+  }
+
+  .draggable-row.group-middle {
+    border-left: 6px solid var(--color-text-warning) !important;
+    border-bottom: 1px dashed var(--theme-border-primary) !important;
+  }
+
+  .draggable-row.group-last {
+    border-left: 6px solid var(--color-text-warning) !important;
+    border-bottom: 3px solid var(--color-text-warning) !important;
   }
 
   .entry-num {

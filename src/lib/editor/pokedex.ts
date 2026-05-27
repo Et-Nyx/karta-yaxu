@@ -47,25 +47,39 @@ export function sortLinkedListEntries<T extends { pokemonId: number; nextPokemon
  * the linked-list nextPokemonId pointers and recalculating regional Dex numbers.
  */
 export async function savePokedexOrder(pokedexId: number, orderedPokemonIds: number[]): Promise<void> {
+  if (orderedPokemonIds.length === 0) {
+    db.transaction((tx) => {
+      tx.delete(pokedexEntries).where(eq(pokedexEntries.pokedexId, pokedexId)).run();
+    });
+    return;
+  }
+
   const pokemonRows = await db.select({ id: pokemon.id, speciesId: pokemon.speciesId })
     .from(pokemon)
     .where(inArray(pokemon.id, orderedPokemonIds));
   const pokemonToSpeciesMap = new Map(pokemonRows.map(p => [p.id, p.speciesId]));
 
   db.transaction((tx) => {
+    tx.delete(pokedexEntries).where(eq(pokedexEntries.pokedexId, pokedexId)).run();
+
     for (let i = 0; i < orderedPokemonIds.length; i++) {
       const pokemonId = orderedPokemonIds[i];
       const nextPokemonId = i < orderedPokemonIds.length - 1 ? orderedPokemonIds[i + 1] : null;
-      const speciesId = pokemonToSpeciesMap.get(pokemonId)!;
-      const nextSpeciesId = nextPokemonId ? pokemonToSpeciesMap.get(nextPokemonId)! : null;
+      const speciesId = pokemonToSpeciesMap.get(pokemonId);
+      if (speciesId == null) continue;
+
+      const nextSpeciesId = nextPokemonId ? pokemonToSpeciesMap.get(nextPokemonId) ?? null : null;
       const entryNumber = i + 1;
 
-      tx.update(pokedexEntries)
-        .set({ nextPokemonId, nextSpeciesId, speciesId, entryNumber })
-        .where(and(
-          eq(pokedexEntries.pokedexId, pokedexId),
-          eq(pokedexEntries.pokemonId, pokemonId)
-        ))
+      tx.insert(pokedexEntries)
+        .values({
+          pokedexId,
+          pokemonId,
+          speciesId,
+          entryNumber,
+          nextPokemonId,
+          nextSpeciesId
+        })
         .run();
     }
   });
