@@ -1,7 +1,7 @@
 # ═══════════════════════════════════════════════
 # Stage 1: Build
 # ═══════════════════════════════════════════════
-FROM node:20-bookworm-slim AS build
+FROM node:22-bookworm-slim AS build
 
 WORKDIR /app
 
@@ -20,7 +20,7 @@ RUN npm run build
 # ═══════════════════════════════════════════════
 # Stage 2: Runtime
 # ═══════════════════════════════════════════════
-FROM node:20-bookworm-slim AS runtime
+FROM node:22-bookworm-slim AS runtime
 
 # curl needed for healthcheck
 RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
