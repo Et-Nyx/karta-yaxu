@@ -33,6 +33,7 @@ COPY --from=build /app/package.json ./
 # drizzle-kit needs these for db:push at boot
 COPY --from=build /app/drizzle.config.ts ./
 COPY --from=build /app/src/lib/db ./src/lib/db
+COPY --from=build /app/drizzle ./drizzle
 COPY docker/entrypoint.sh ./entrypoint.sh
 
 RUN chmod +x ./entrypoint.sh

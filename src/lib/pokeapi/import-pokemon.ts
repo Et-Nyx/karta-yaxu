@@ -817,6 +817,13 @@ export async function importPokemonById(
     const chain = await client.fetchEvolutionChain(chainPokeapiId);
     const speciesPokeapiIds = mappers.extractSpeciesFromChain(chain.chain);
 
+    // Special case for Meltan/Melmetal split evolution chain in PokeAPI
+    if (speciesPokeapiIds.includes(808) && !speciesPokeapiIds.includes(809)) {
+      speciesPokeapiIds.push(809);
+    } else if (speciesPokeapiIds.includes(809) && !speciesPokeapiIds.includes(808)) {
+      speciesPokeapiIds.push(808);
+    }
+
     // Import each family member's varieties
     for (const spPokeapiId of speciesPokeapiIds) {
       try {
@@ -834,6 +841,49 @@ export async function importPokemonById(
 
     // All family pokemon now exist → populate the linked-list evolution edges
     await populateChainLinkedList(chainPokeapiId);
+
+    // Link species that have evolves_from_species relations across split chains (like Meltan -> Melmetal)
+    for (const spPokeapiId of speciesPokeapiIds) {
+      try {
+        const spData = await client.fetchPokemonSpecies(spPokeapiId);
+        if (spData.evolves_from_species) {
+          const parentPokeapiId = client.extractIdFromUrl(spData.evolves_from_species.url);
+          
+          // Find default pokemon for both in our DB
+          const [parentSp] = await db.select({ defaultPokemonId: schema.pokemonSpecies.defaultPokemonId })
+            .from(schema.pokemonSpecies)
+            .where(eq(schema.pokemonSpecies.pokeapiId, parentPokeapiId)).limit(1);
+          const [childSp] = await db.select({ defaultPokemonId: schema.pokemonSpecies.defaultPokemonId })
+            .from(schema.pokemonSpecies)
+            .where(eq(schema.pokemonSpecies.pokeapiId, spPokeapiId)).limit(1);
+            
+          if (parentSp?.defaultPokemonId && childSp?.defaultPokemonId) {
+            // Check if evolvesFromPokemonId is null
+            const [childPk] = await db.select({ parent: schema.pokemon.evolvesFromPokemonId })
+              .from(schema.pokemon)
+              .where(eq(schema.pokemon.id, childSp.defaultPokemonId)).limit(1);
+              
+            if (childPk && childPk.parent === null) {
+              await db.update(schema.pokemon)
+                .set({ evolvesFromPokemonId: parentSp.defaultPokemonId })
+                .where(eq(schema.pokemon.id, childSp.defaultPokemonId));
+                
+              // Also insert a default evolution detail row so the editor can display and edit it
+              await db.insert(schema.pokemonEvolutionDetails)
+                .values({
+                  pokemonId: childSp.defaultPokemonId,
+                  trigger: 'other',
+                  conditions: {},
+                  source: 'pokeapi'
+                })
+                .onConflictDoNothing();
+            }
+          }
+        }
+      } catch (err) {
+        console.warn(`  ↪ Failed linking split-chain evolution: ${(err as Error).message}`);
+      }
+    }
   } catch (e) {
     console.warn(`  Chain processing for #${pokeapiId} skipped: ${(e as Error).message}`);
   }

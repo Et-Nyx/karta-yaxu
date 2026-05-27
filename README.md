@@ -31,7 +31,7 @@ Isso elimina a barreira de "adaptar manualmente a estrutura dos dados" e dá con
 | Busca Fuzzy | **Fuse.js** | Client-side, open-source, Levenshtein distance |
 | WebSocket / Battles | **Socket.io** | Rooms nativas, fallback automático, reconexão integrada |
 | Engine de Batalha | **TypeScript puro** | Roda no servidor (validação anti-cheat) e pode ser reusado no cliente |
-| Runtime | **Node.js 20+** | Padrão SvelteKit com `adapter-node`, compatível com Docker e Coolify |
+| Runtime | **Node.js 22+** | Padrão SvelteKit com `adapter-node`, compatível com Docker e Coolify |
 | Deploy | **Docker multi-stage** + **Coolify** + **Oracle Cloud (Free Tier)** | Infraestrutura já validada, 100% gratuita |
 
 ---
@@ -112,8 +112,8 @@ Quando o Editor salva uma alteração em um registro `source='pokeapi'`, o campo
 ```
 karta-yaxu-2.0/
 ├── docker/
-│   ├── Dockerfile                 # ✅ Multi-stage build (Node 20 Alpine)
-│   └── entrypoint.sh              # ✅ Runtime init script
+│   ├── Dockerfile                 # ✅ Multi-stage build (Node 22 Debian slim)
+│   └── entrypoint.sh              # ✅ Runtime init: snapshot rom.db + drizzle-kit migrate + node build
 ├── scripts/
 │   └── test-import.ts             # ✅ Script de verificação do módulo de importação
 ├── src/
@@ -212,12 +212,13 @@ karta-yaxu-2.0/
 │           └── [username]/        #    ✅ Perfil + histórico de edições
 │               ├── +page.{server.ts,svelte}
 │               └── edits/
-├── drizzle/
+├── drizzle/                       # ✅ Migrations versionadas (geradas por db:generate, aplicadas por db:migrate)
+│   ├── 0000_*.sql
 │   └── meta/
 ├── data/
-│   └── rom.db                     # ✅ SQLite database (criado por db:push)
+│   └── rom.db                     # ✅ SQLite database (criado/migrado por db:migrate no boot)
 ├── static/
-├── flake.nix                      # ✅ Nix dev environment (Node 20, SQLite)
+├── flake.nix                      # ✅ Nix dev environment (Node 22, SQLite)
 ├── package.json
 ├── svelte.config.js               # ✅ adapter-node
 ├── vite.config.ts                 # ✅ TailwindCSS v4 + SvelteKit
@@ -254,6 +255,45 @@ client.pragma('journal_mode = WAL');
 
 export const db = drizzle(client, { schema });
 ```
+
+### Migrations & Deploy
+
+Em produção o schema é aplicado via **migrations versionadas** (`drizzle-kit migrate`), não via `db:push`. Cada alteração de schema gera um arquivo SQL em `drizzle/<seq>_*.sql` que é commitado no repositório e aplicado no boot do container, idempotentemente — Drizzle controla o que já foi aplicado em uma tabela `__drizzle_migrations` dentro do próprio `rom.db`.
+
+**Workflow obrigatório para alterações de schema:**
+
+1. Editar arquivos em `src/lib/db/schema/`
+2. Rodar `nix develop -c npm run db:generate` — gera `drizzle/<próximo-seq>_*.sql` + atualiza `drizzle/meta/`
+3. Inspecionar o SQL gerado (Drizzle só gera DDL; se a mudança exigir backfill de dados, edite o arquivo à mão antes de commitar)
+4. Commitar `drizzle/` inteiro junto com a alteração de schema
+5. Push → Coolify roda `drizzle-kit migrate` no boot e aplica apenas as migrations pendentes
+
+**Por que não `db:push --force` em produção:** `push` compara schema vs. DB e tenta reshape ao vivo. Com `--force` ele responde "sim" a todos os prompts destrutivos — e em mudanças como rename, drop column ou alteração de NOT NULL, isso destrói dados sem aviso. Sem `--force`, push falha o deploy esperando interação humana. `migrate` aplica deltas explícitos e versionados, revisáveis em PR.
+
+**Backup automático no boot:** `docker/entrypoint.sh` faz snapshot de `/app/data/rom.db` antes de cada `migrate`, mantendo os 5 mais recentes em `/app/data/rom.db.bak.<timestamp>`. Para restaurar com o container parado:
+
+```sh
+docker stop <container>
+docker exec <container> sh -c 'cp /app/data/rom.db.bak.<ts> /app/data/rom.db'
+docker start <container>
+```
+
+**Migrar DB já existente sem `__drizzle_migrations`** (caso ainda criado por um `db:push` antigo): ou apagar `/app/data/rom.db*` para começar do zero, ou seedar manualmente a baseline:
+
+```sh
+# Pegue o hash da migration 0000 em drizzle/meta/_journal.json (campo "tag" → hash do conteúdo)
+sqlite3 /app/data/rom.db <<SQL
+CREATE TABLE IF NOT EXISTS __drizzle_migrations (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  hash TEXT NOT NULL,
+  created_at NUMERIC
+);
+INSERT INTO __drizzle_migrations (hash, created_at)
+VALUES ('<hash-da-0000>', strftime('%s','now') * 1000);
+SQL
+```
+
+Após isso, `drizzle-kit migrate` considera a 0000 aplicada e só roda as migrations posteriores.
 
 ### Schema — Game Metadata
 
@@ -1258,10 +1298,11 @@ export async function fetchList(endpoint: string, limit?: number): Promise<Named
 
 ### Bloco 9 — Deploy e Operações
 
-- [ ] Ajustar Dockerfile para build otimizado
-- [ ] Configurar Coolify (volumes, variáveis, domínio)
-- [ ] Validar que banco vazio funciona e importação via painel web
-- [ ] Backup e CI
+- [x] Ajustar Dockerfile para build otimizado (Node 22, multi-stage, drizzle no runtime)
+- [x] Configurar Coolify (volumes, variáveis, domínio)
+- [x] Validar que banco vazio funciona e importação via painel web
+- [x] Migrar de `db:push --force` para migrations versionadas (`drizzle-kit migrate`) + snapshot pré-deploy
+- [ ] CI: lint + check + build em PRs
 
 ---
 
