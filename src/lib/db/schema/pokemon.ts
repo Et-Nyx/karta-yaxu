@@ -186,10 +186,13 @@ export const pokemonForms = sqliteTable('pokemon_forms', {
 
 export const pokedexEntries = sqliteTable('pokedex_entries', {
   pokedexId: integer('pokedex_id').notNull().references(() => pokedexes.id),
+  pokemonId: integer('pokemon_id').notNull().references(() => pokemon.id),
   speciesId: integer('species_id').notNull().references(() => pokemonSpecies.id),
   entryNumber: integer('entry_number').notNull(),
+  nextPokemonId: integer('next_pokemon_id').references(() => pokemon.id),
+  nextSpeciesId: integer('next_species_id').references(() => pokemonSpecies.id),
 }, (t) => ({
-  pk: primaryKey({ columns: [t.pokedexId, t.speciesId] }),
+  pk: primaryKey({ columns: [t.pokedexId, t.pokemonId] }),
 }));
 
 // ── Encounters ─────────────────────────────────────────────────────────────

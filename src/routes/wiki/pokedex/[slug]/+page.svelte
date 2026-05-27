@@ -14,18 +14,25 @@
 </svelte:head>
 
 <div class="pokedex-detail">
-  <div class="detail-header">
-    <h2>{formatName(data.pokedex.name).toUpperCase()}</h2>
-    <div class="header-meta">
-      {#if data.pokedex.regionName}
-        <span class="meta-badge">{data.pokedex.regionName.toUpperCase()}</span>
-      {/if}
+  <header class="detail-header">
+    <div class="dex-num">#{data.entries.length.toString().padStart(3, '0')}</div>
+    <div class="header-main">
+      <h1>{formatName(data.pokedex.name).toUpperCase()}</h1>
+      <div class="header-sub-row">
+        {#if data.pokedex.regionName}
+          <span class="genus">{data.pokedex.regionName.toUpperCase()} REGION</span>
+        {/if}
+        <span class="genus">POKÉDEX</span>
+      </div>
+    </div>
+    <div class="types">
       {#if data.pokedex.isMainSeries}
         <span class="meta-badge accent">MAIN SERIES</span>
+      {:else}
+        <span class="meta-badge">CUSTOM</span>
       {/if}
-      <span class="meta-count">{data.entries.length} POKÉMON</span>
     </div>
-  </div>
+  </header>
 
   {#if data.entries.length === 0}
     <div class="empty-state">
@@ -75,20 +82,53 @@
 
   .detail-header {
     display: flex;
-    flex-direction: column;
-    gap: var(--spacing-2);
+    align-items: center;
+    gap: var(--spacing-4);
+    background-color: var(--theme-bg-secondary);
+    border: 4px solid var(--theme-border-primary);
+    padding: var(--spacing-4) var(--spacing-6);
+    box-shadow: var(--shadow-card);
+    flex-wrap: wrap;
   }
 
-  .detail-header h2 {
+  .dex-num {
+    font-family: var(--font-display);
+    font-size: 16px;
+    color: var(--theme-text-secondary);
+    flex-shrink: 0;
+  }
+
+  .header-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-1);
+    min-width: 0;
+  }
+
+  .detail-header h1 {
+    font-family: var(--font-display);
+    font-size: 24px;
     color: var(--theme-text-primary);
     margin: 0;
   }
 
-  .header-meta {
+  .header-sub-row {
     display: flex;
     align-items: center;
     gap: var(--spacing-3);
     flex-wrap: wrap;
+  }
+
+  .genus {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--theme-text-secondary);
+  }
+
+  .types {
+    display: flex;
+    gap: var(--spacing-2);
   }
 
   .meta-badge {
@@ -103,12 +143,6 @@
   .meta-badge.accent {
     color: var(--theme-text-accent);
     border-color: var(--theme-text-accent);
-  }
-
-  .meta-count {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--theme-text-secondary);
   }
 
   .entry-num {

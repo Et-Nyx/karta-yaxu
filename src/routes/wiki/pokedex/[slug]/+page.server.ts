@@ -24,15 +24,15 @@ export const load: PageServerLoad = async ({ params }) => {
 
   const entries = await db.select({
     entryNumber:  schema.pokedexEntries.entryNumber,
-    speciesName:  schema.pokemonSpecies.name,
+    speciesName:  schema.pokemon.name,
     speciesSlug:  schema.pokemonSpecies.slug,
     pokemonId:    schema.pokemon.id,
     pokemonSlug:  schema.pokemon.slug,
     pokemonSprite: schema.pokemon.spriteDefault,
   })
   .from(schema.pokedexEntries)
-  .innerJoin(schema.pokemonSpecies, eq(schema.pokedexEntries.speciesId, schema.pokemonSpecies.id))
-  .innerJoin(schema.pokemon, eq(schema.pokemon.id, schema.pokemonSpecies.defaultPokemonId))
+  .innerJoin(schema.pokemon, eq(schema.pokedexEntries.pokemonId, schema.pokemon.id))
+  .innerJoin(schema.pokemonSpecies, eq(schema.pokemon.speciesId, schema.pokemonSpecies.id))
   .where(eq(schema.pokedexEntries.pokedexId, pokedex.id))
   .orderBy(asc(schema.pokedexEntries.entryNumber));
 

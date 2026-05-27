@@ -1,11 +1,25 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
   import SearchBar from '$lib/components/SearchBar.svelte';
+  import DataTable from '$lib/components/DataTable.svelte';
+  import RetroInput from '$lib/components/RetroInput.svelte';
+  import RetroSelect from '$lib/components/RetroSelect.svelte';
+  import RetroButton from '$lib/components/RetroButton.svelte';
 
   let { data, form } = $props();
 
   let query = $state('');
   let showCreate = $state(false);
+
+  let createNameVal = $state<string>((form?.createValues?.name as string) ?? '');
+  let createSlugVal = $derived(
+    String(createNameVal)
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w\s-]/g, '')
+      .replace(/[\s_-]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+  );
 
   let filtered = $derived(
     data.pokedexes.filter(p =>
@@ -17,6 +31,12 @@
     if (id == null) return '—';
     return data.regions.find(r => r.id === id)?.name ?? `#${id}`;
   }
+
+  // Options mapping for selectors
+  let regionOptions = $derived([
+    { value: '', label: '— NONE —' },
+    ...data.regions.map(r => ({ value: r.id, label: r.name.toUpperCase() }))
+  ]);
 </script>
 
 <svelte:head>
@@ -28,40 +48,28 @@
     <div>
       <h2>POKÉDEXES</h2>
     </div>
-    <button type="button" class="new-btn" onclick={() => showCreate = !showCreate}>
+    <RetroButton type="button" variant="secondary" onclick={() => showCreate = !showCreate}>
       {showCreate ? '× CANCEL' : '+ NEW POKÉDEX'}
-    </button>
+    </RetroButton>
   </header>
 
   {#if showCreate}
     <section class="create-section">
       <h3 class="section-title">CREATE POKÉDEX</h3>
       <form action="?/create" method="post" use:enhance class="create-form">
+        <input type="hidden" name="slug" value={createSlugVal} />
+        <input type="hidden" name="isMainSeries" value="false" />
+
         <div class="field">
           <label for="c-name">NAME</label>
-          <input id="c-name" name="name" type="text" maxlength="80" required value={form?.createValues?.name ?? ''}>
-        </div>
-        <div class="field">
-          <label for="c-slug">SLUG</label>
-          <input id="c-slug" name="slug" type="text" maxlength="80" pattern="[a-z0-9-]+" required value={form?.createValues?.slug ?? ''}>
+          <RetroInput id="c-name" name="name" type="text" maxlength={80} required bind:value={createNameVal} />
         </div>
         <div class="field">
           <label for="c-region">REGION</label>
-          <select id="c-region" name="regionId">
-            <option value="">— none —</option>
-            {#each data.regions as r}
-              <option value={r.id} selected={String(form?.createValues?.regionId ?? '') === String(r.id)}>{r.name}</option>
-            {/each}
-          </select>
-        </div>
-        <div class="field field-check">
-          <label for="c-main">
-            <input id="c-main" name="isMainSeries" type="checkbox" value="true" checked>
-            MAIN SERIES
-          </label>
+          <RetroSelect id="c-region" name="regionId" value={form?.createValues?.regionId ?? ''} options={regionOptions} variant="editor" />
         </div>
         <div class="form-actions">
-          <button type="submit" class="save-btn">CREATE</button>
+          <RetroButton type="submit" variant="primary">CREATE</RetroButton>
           {#if form?.createError}
             <span class="form-error">{form.createError}</span>
           {/if}
@@ -78,26 +86,34 @@
       <p class="hint">Click "+ NEW POKÉDEX" above to create the first one. Custom dexes are perfect for ROM hacks.</p>
     </div>
   {:else}
-    <div class="entity-table">
-      <div class="table-header">
-        <span>SLUG</span>
-        <span>NAME</span>
-        <span>REGION</span>
-        <span>MAIN</span>
-        <span>SOURCE</span>
-        <span></span>
-      </div>
+    <DataTable compact>
+      {#snippet head()}
+        <th>SLUG</th>
+        <th>NAME</th>
+        <th>REGION</th>
+        <th style="text-align: right">ENTRIES</th>
+        <th style="text-align: center">SOURCE</th>
+        <th style="width: 80px; text-align: center"></th>
+      {/snippet}
       {#each filtered as p (p.id)}
-        <div class="table-row">
-          <span class="row-slug">{p.slug}</span>
-          <span class="row-name">{p.name}</span>
-          <span class="row-region">{regionName(p.regionId)}</span>
-          <span class="row-main">{p.isMainSeries ? '✓' : '—'}</span>
-          <span class="src-badge src-{p.source}">{p.source}</span>
-          <a href="/editor/pokedex/{p.slug}" class="edit-link">EDIT →</a>
-        </div>
+        <tr>
+          <td class="row-slug">{p.slug}</td>
+          <td class="row-name">{p.name.toUpperCase()}</td>
+          <td class="row-region">{regionName(p.regionId).toUpperCase()}</td>
+          <td class="row-entries" style="text-align: right">{p.entryCount}</td>
+          <td style="text-align: center">
+            <span class="src-badge src-{p.source}">{p.source.toUpperCase()}</span>
+          </td>
+          <td style="text-align: center">
+            {#if p.source === 'custom'}
+              <a href="/editor/pokedex/{p.slug}" class="edit-link edit-custom">EDIT →</a>
+            {:else}
+              <a href="/editor/pokedex/{p.slug}" class="edit-link edit-view">VIEW →</a>
+            {/if}
+          </td>
+        </tr>
       {/each}
-    </div>
+    </DataTable>
   {/if}
 </div>
 
@@ -117,27 +133,6 @@
   .page-header h2 {
     color: var(--theme-text-primary);
     margin: 0;
-  }
-
-  .count {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--theme-text-muted);
-  }
-
-  .new-btn {
-    font-family: var(--font-display);
-    font-size: 10px;
-    padding: var(--spacing-2) var(--spacing-3);
-    background: none;
-    border: 2px solid var(--theme-border-primary);
-    color: var(--theme-text-primary);
-    cursor: pointer;
-  }
-
-  .new-btn:hover {
-    border-color: var(--theme-text-accent);
-    color: var(--theme-text-accent);
   }
 
   .create-section {
@@ -165,46 +160,10 @@
     gap: var(--spacing-1);
   }
 
-  .field-check {
-    flex-direction: row;
-    align-items: center;
-  }
-
-  .field-check label {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-2);
-    font-family: var(--font-display);
-    font-size: 9px;
-    color: var(--theme-text-muted);
-    cursor: pointer;
-  }
-
   .field label {
     font-family: var(--font-display);
     font-size: 9px;
     color: var(--theme-text-muted);
-  }
-
-  .field input,
-  .field select {
-    font-family: var(--font-mono);
-    font-size: 12px;
-    padding: var(--spacing-2);
-    background-color: var(--theme-bg-primary);
-    border: 2px solid var(--theme-border-primary);
-    color: var(--theme-text-primary);
-  }
-
-  .field input[type="checkbox"] {
-    width: auto;
-    padding: 0;
-  }
-
-  .field input:focus,
-  .field select:focus {
-    outline: none;
-    border-color: var(--theme-text-accent);
   }
 
   .form-actions {
@@ -214,62 +173,11 @@
     gap: var(--spacing-3);
   }
 
-  .save-btn {
-    font-family: var(--font-display);
-    font-size: 11px;
-    padding: var(--spacing-2) var(--spacing-4);
-    background: none;
-    border: 2px solid var(--theme-text-accent);
-    color: var(--theme-text-accent);
-    cursor: pointer;
-  }
-
-  .save-btn:hover {
-    background-color: var(--theme-text-accent);
-    color: var(--theme-bg-primary);
-  }
-
   .form-error {
     font-family: var(--font-mono);
     font-size: 11px;
     color: var(--color-text-error);
   }
-
-  .entity-table {
-    display: flex;
-    flex-direction: column;
-    border: 4px solid var(--theme-border-primary);
-    box-shadow: var(--shadow-card);
-    background-color: var(--theme-bg-secondary);
-  }
-
-  .table-header,
-  .table-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr 60px 80px 60px;
-    gap: var(--spacing-3);
-    padding: var(--spacing-3) var(--spacing-4);
-    align-items: center;
-  }
-
-  .table-header {
-    background-color: var(--theme-bg-tertiary);
-    border-bottom: 3px solid var(--theme-border-primary);
-    font-family: var(--font-display);
-    font-size: 9px;
-    color: var(--theme-text-inverse);
-  }
-
-  .table-row {
-    border-bottom: 1px solid var(--theme-border-primary);
-    background-color: var(--theme-bg-secondary);
-    transition: background-color 0.05s ease;
-  }
-  .table-row:nth-child(even) {
-    background-color: var(--theme-bg-primary);
-  }
-  .table-row:last-child { border-bottom: none; }
-  .table-row:hover { background-color: var(--theme-bg-hover); }
 
   .row-slug {
     font-family: var(--font-mono);
@@ -284,10 +192,15 @@
   }
 
   .row-region,
-  .row-main {
+  .row-main,
+  .row-entries {
     font-family: var(--font-mono);
     font-size: 11px;
     color: var(--theme-text-muted);
+  }
+
+  .row-entries {
+    color: var(--theme-text-primary);
   }
 
   .src-badge {
@@ -296,6 +209,7 @@
     padding: 2px 6px;
     border: 2px solid var(--theme-border-primary);
     text-align: center;
+    display: inline-block;
   }
 
   .src-pokeapi { color: var(--theme-text-muted); }
@@ -305,8 +219,15 @@
   .edit-link {
     font-family: var(--font-display);
     font-size: 9px;
-    color: var(--theme-text-accent);
     text-decoration: none;
+  }
+
+  .edit-link.edit-custom {
+    color: var(--theme-text-accent);
+  }
+
+  .edit-link.edit-view {
+    color: var(--theme-text-muted);
   }
 
   .edit-link:hover {

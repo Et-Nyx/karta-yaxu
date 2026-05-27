@@ -1,11 +1,19 @@
 import { error, fail, redirect } from '@sveltejs/kit';
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, eq, inArray } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '$lib/db';
 import { pokedexes, regions } from '$lib/db/schema/game-metadata';
-import { pokedexEntries, pokemonSpecies } from '$lib/db/schema/pokemon';
+import { pokedexEntries, pokemonSpecies, pokemon, pokemonTypes } from '$lib/db/schema/pokemon';
+import { types } from '$lib/db/schema/core-data';
 import { bumpSource } from '$lib/editor/source';
 import { recordEdit } from '$lib/editor/audit';
+import {
+  sortLinkedListEntries,
+  savePokedexOrder,
+  addPokemonToPokedex,
+  removePokemonFromPokedex,
+  copyStaticPokedex
+} from '$lib/editor/pokedex';
 import type { PageServerLoad, Actions } from './$types';
 
 const slugRegex = /^[a-z0-9-]+$/;
@@ -21,35 +29,86 @@ const UpdateSchema = z.object({
 });
 
 const EntrySchema = z.object({
-  speciesId:   z.coerce.number().int().positive(),
-  entryNumber: z.coerce.number().int().min(0).max(9999),
-});
-
-const UpdateEntrySchema = z.object({
-  speciesId:   z.coerce.number().int().positive(),
-  entryNumber: z.coerce.number().int().min(0).max(9999),
+  pokemonId:   z.coerce.number().int().positive(),
 });
 
 export const load: PageServerLoad = async ({ params }) => {
   const [row] = await db.select().from(pokedexes).where(eq(pokedexes.slug, params.slug)).limit(1);
   if (!row) throw error(404, 'Pokédex not found');
 
-  const entries = await db.select({
-    speciesId:    pokedexEntries.speciesId,
-    entryNumber:  pokedexEntries.entryNumber,
-    speciesName:  pokemonSpecies.name,
-    speciesSlug:  pokemonSpecies.slug,
+  // Fetch all flat entries and join the pokemon and species details
+  const entriesRaw = await db.select({
+    pokemonId:        pokedexEntries.pokemonId,
+    speciesId:        pokedexEntries.speciesId,
+    entryNumber:      pokedexEntries.entryNumber,
+    nextPokemonId:    pokedexEntries.nextPokemonId,
+    nextSpeciesId:    pokedexEntries.nextSpeciesId,
+    pokemonName:      pokemon.name,
+    pokemonSlug:      pokemon.slug,
+    pokeapiId:        pokemon.pokeapiId,
+    spriteDefault:    pokemon.spriteDefault,
   })
     .from(pokedexEntries)
+    .innerJoin(pokemon, eq(pokedexEntries.pokemonId, pokemon.id))
     .innerJoin(pokemonSpecies, eq(pokedexEntries.speciesId, pokemonSpecies.id))
-    .where(eq(pokedexEntries.pokedexId, row.id))
-    .orderBy(asc(pokedexEntries.entryNumber));
+    .where(eq(pokedexEntries.pokedexId, row.id));
 
-  const speciesList = await db.select({
-    id:   pokemonSpecies.id,
-    name: pokemonSpecies.name,
-    slug: pokemonSpecies.slug,
-  }).from(pokemonSpecies).orderBy(asc(pokemonSpecies.dexNumber));
+  // Sort custom linked-list Pokédexes using our helper, otherwise sort static by entryNumber
+  let sortedEntriesRaw = [];
+  if (row.source === 'custom') {
+    sortedEntriesRaw = sortLinkedListEntries(entriesRaw);
+  } else {
+    sortedEntriesRaw = [...entriesRaw].sort((a, b) => a.entryNumber - b.entryNumber);
+  }
+
+  // Fetch the Pokémon types in bulk queries
+  const pokemonIds = sortedEntriesRaw.map(e => e.pokemonId);
+  
+  let pokemonTypesMap = new Map<number, any[]>();
+
+  if (pokemonIds.length > 0) {
+    const typesData = await db.select({
+      pokemonId:    pokemonTypes.pokemonId,
+      typeName:     types.name,
+      typeHexColor: types.hexColor,
+    })
+      .from(pokemonTypes)
+      .innerJoin(types, eq(pokemonTypes.typeId, types.id))
+      .where(inArray(pokemonTypes.pokemonId, pokemonIds))
+      .orderBy(asc(pokemonTypes.slot));
+
+    for (const t of typesData) {
+      if (!pokemonTypesMap.has(t.pokemonId)) {
+        pokemonTypesMap.set(t.pokemonId, []);
+      }
+      pokemonTypesMap.get(t.pokemonId)!.push({ name: t.typeName, hexColor: t.typeHexColor });
+    }
+  }
+
+  const entries = sortedEntriesRaw.map((e, index) => {
+    const calculatedNumber = index + 1;
+    return {
+      pokemonId:   e.pokemonId,
+      speciesId:   e.speciesId,
+      entryNumber: calculatedNumber,
+      pokemonName: e.pokemonName,
+      pokemonSlug: e.pokemonSlug,
+      pokemonCard: {
+        pokeapiId: e.pokeapiId ?? 0,
+        name:      e.pokemonName,
+        slug:      e.pokemonSlug,
+        spriteUrl: e.spriteDefault ?? null,
+        types:     pokemonTypesMap.get(e.pokemonId) ?? [],
+        dexNumber: calculatedNumber,
+      }
+    };
+  });
+
+  const pokemonList = await db.select({
+    id:   pokemon.id,
+    name: pokemon.name,
+    slug: pokemon.slug,
+  }).from(pokemon).orderBy(asc(pokemon.id));
 
   const regionList = await db.select({
     id:   regions.id,
@@ -57,7 +116,7 @@ export const load: PageServerLoad = async ({ params }) => {
     slug: regions.slug,
   }).from(regions).orderBy(asc(regions.id));
 
-  return { pokedex: row, entries, species: speciesList, regions: regionList };
+  return { pokedex: row, entries, pokemonList, regions: regionList };
 };
 
 export const actions: Actions = {
@@ -71,6 +130,9 @@ export const actions: Actions = {
 
     const [current] = await db.select().from(pokedexes).where(eq(pokedexes.slug, params.slug)).limit(1);
     if (!current) throw error(404, 'Pokédex not found');
+    if (current.source !== 'custom') {
+      return fail(400, { updateError: 'Apenas pokédexes custom podem ser editadas', values: form });
+    }
 
     if (data.slug !== current.slug) {
       const [clash] = await db.select({ id: pokedexes.id })
@@ -87,6 +149,13 @@ export const actions: Actions = {
     };
 
     await db.update(pokedexes).set(newRow).where(eq(pokedexes.id, current.id));
+
+    if (form.pokemonIds && typeof form.pokemonIds === 'string') {
+      const pokemonIds = form.pokemonIds.split(',').map(Number);
+      if (!pokemonIds.some(isNaN)) {
+        await savePokedexOrder(current.id, pokemonIds);
+      }
+    }
 
     if (locals.user) {
       await recordEdit(locals.user.id, 'pokedexes', current.id, current, { ...current, ...newRow });
@@ -113,6 +182,33 @@ export const actions: Actions = {
     throw redirect(303, '/editor/pokedex');
   },
 
+  copy: async ({ params, locals }) => {
+    const [current] = await db.select().from(pokedexes).where(eq(pokedexes.slug, params.slug)).limit(1);
+    if (!current) throw error(404, 'Pokédex not found');
+
+    // Create a new slug and name
+    const newName = `Cópia de ${current.name}`;
+    let baseSlug = `${current.slug}-copia`;
+    let newSlug = baseSlug;
+    let counter = 1;
+
+    // Check slug clashes
+    while (true) {
+      const [clash] = await db.select({ id: pokedexes.id })
+        .from(pokedexes).where(eq(pokedexes.slug, newSlug)).limit(1);
+      if (!clash) break;
+      newSlug = `${baseSlug}-${counter++}`;
+    }
+
+    const newPokedexId = await copyStaticPokedex(current.id, newName, newSlug, current.regionId);
+
+    if (locals.user) {
+      await recordEdit(locals.user.id, 'pokedexes', newPokedexId, null, { id: newPokedexId, name: newName, slug: newSlug });
+    }
+
+    throw redirect(303, `/editor/pokedex/${newSlug}`);
+  },
+
   addEntry: async ({ request, params, locals }) => {
     const form = Object.fromEntries(await request.formData());
     const parsed = EntrySchema.safeParse(form);
@@ -121,23 +217,13 @@ export const actions: Actions = {
     }
     const data = parsed.data;
 
-    const [current] = await db.select({ id: pokedexes.id })
-      .from(pokedexes).where(eq(pokedexes.slug, params.slug)).limit(1);
+    const [current] = await db.select().from(pokedexes).where(eq(pokedexes.slug, params.slug)).limit(1);
     if (!current) throw error(404, 'Pokédex not found');
+    if (current.source !== 'custom') {
+      return fail(400, { entryError: 'Apenas pokédexes custom podem ser editadas' });
+    }
 
-    const [exists] = await db.select({ speciesId: pokedexEntries.speciesId })
-      .from(pokedexEntries)
-      .where(and(
-        eq(pokedexEntries.pokedexId, current.id),
-        eq(pokedexEntries.speciesId, data.speciesId),
-      )).limit(1);
-    if (exists) return fail(400, { entryError: 'Essa species já está na pokédex' });
-
-    await db.insert(pokedexEntries).values({
-      pokedexId:   current.id,
-      speciesId:   data.speciesId,
-      entryNumber: data.entryNumber,
-    });
+    await addPokemonToPokedex(current.id, data.pokemonId);
 
     if (locals.user) {
       await recordEdit(locals.user.id, 'pokedex_entries', current.id, null, data);
@@ -148,66 +234,50 @@ export const actions: Actions = {
 
   removeEntry: async ({ request, params, locals }) => {
     const form = Object.fromEntries(await request.formData());
-    const speciesId = Number(form.speciesId);
-    if (!Number.isInteger(speciesId) || speciesId <= 0) {
-      return fail(400, { entryError: 'speciesId inválido' });
+    const pokemonId = Number(form.pokemonId);
+    if (!Number.isInteger(pokemonId) || pokemonId <= 0) {
+      return fail(400, { entryError: 'pokemonId inválido' });
     }
 
-    const [current] = await db.select({ id: pokedexes.id })
-      .from(pokedexes).where(eq(pokedexes.slug, params.slug)).limit(1);
+    const [current] = await db.select().from(pokedexes).where(eq(pokedexes.slug, params.slug)).limit(1);
     if (!current) throw error(404, 'Pokédex not found');
+    if (current.source !== 'custom') {
+      return fail(400, { entryError: 'Apenas pokédexes custom podem ser editadas' });
+    }
 
-    const [existing] = await db.select()
-      .from(pokedexEntries)
-      .where(and(
-        eq(pokedexEntries.pokedexId, current.id),
-        eq(pokedexEntries.speciesId, speciesId),
-      )).limit(1);
-    if (!existing) return fail(404, { entryError: 'Entrada não encontrada' });
-
-    await db.delete(pokedexEntries).where(and(
-      eq(pokedexEntries.pokedexId, current.id),
-      eq(pokedexEntries.speciesId, speciesId),
-    ));
+    await removePokemonFromPokedex(current.id, pokemonId);
 
     if (locals.user) {
-      await recordEdit(locals.user.id, 'pokedex_entries', current.id, existing, null);
+      await recordEdit(locals.user.id, 'pokedex_entries', current.id, { pokemonId }, null);
     }
 
     return { entryOk: true };
   },
 
-  updateEntry: async ({ request, params, locals }) => {
+  reorder: async ({ request, params, locals }) => {
     const form = Object.fromEntries(await request.formData());
-    const parsed = UpdateEntrySchema.safeParse(form);
-    if (!parsed.success) {
-      return fail(400, { entryError: parsed.error.issues[0]?.message ?? 'Inválido' });
+    const rawPokemonIds = form.pokemonIds as string | undefined;
+    if (!rawPokemonIds) {
+      return fail(400, { reorderError: 'Faltando pokemonIds' });
     }
-    const data = parsed.data;
 
-    const [current] = await db.select({ id: pokedexes.id })
-      .from(pokedexes).where(eq(pokedexes.slug, params.slug)).limit(1);
+    const pokemonIds = rawPokemonIds.split(',').map(Number);
+    if (pokemonIds.some(isNaN)) {
+      return fail(400, { reorderError: 'ID de pokemon inválido' });
+    }
+
+    const [current] = await db.select().from(pokedexes).where(eq(pokedexes.slug, params.slug)).limit(1);
     if (!current) throw error(404, 'Pokédex not found');
+    if (current.source !== 'custom') {
+      return fail(400, { reorderError: 'Apenas pokédexes custom podem ser reordenadas' });
+    }
 
-    const [existing] = await db.select()
-      .from(pokedexEntries)
-      .where(and(
-        eq(pokedexEntries.pokedexId, current.id),
-        eq(pokedexEntries.speciesId, data.speciesId),
-      )).limit(1);
-    if (!existing) return fail(404, { entryError: 'Entrada não encontrada' });
-
-    await db.update(pokedexEntries)
-      .set({ entryNumber: data.entryNumber })
-      .where(and(
-        eq(pokedexEntries.pokedexId, current.id),
-        eq(pokedexEntries.speciesId, data.speciesId),
-      ));
+    await savePokedexOrder(current.id, pokemonIds);
 
     if (locals.user) {
-      await recordEdit(locals.user.id, 'pokedex_entries', current.id, existing, { ...existing, entryNumber: data.entryNumber });
+      await recordEdit(locals.user.id, 'pokedex_reorder', current.id, null, { orderedIds: pokemonIds });
     }
 
-    return { entryOk: true };
+    return { saved: true };
   },
 };

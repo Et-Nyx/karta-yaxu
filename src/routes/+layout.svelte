@@ -150,7 +150,17 @@
         }
       } catch {}
     };
-    return () => es.close();
+
+    // Global capturing event listener for form submissions to intercept BEFORE SvelteKit use:enhance
+    const submitListener = (e: SubmitEvent) => {
+      handleGlobalSubmit(e);
+    };
+    window.addEventListener('submit', submitListener, { capture: true });
+
+    return () => {
+      es.close();
+      window.removeEventListener('submit', submitListener, { capture: true });
+    };
   });
 
   let breadcrumbs = $derived(() => {
@@ -187,6 +197,8 @@
 
     // Intercept!
     e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
     pendingForm = form;
     editCommentText = '';
     showEditPrompt = true;
@@ -203,7 +215,7 @@
     const formToSubmit = pendingForm;
     pendingForm = null;
     showEditPrompt = false;
-    formToSubmit.submit();
+    formToSubmit.requestSubmit();
   }
 
   function cancelPendingSubmit() {
@@ -212,7 +224,7 @@
   }
 </script>
 
-<div class="app-container" data-theme={isAdminRoute ? 'admin' : null} onsubmit={handleGlobalSubmit}>
+<div class="app-container" data-theme={isAdminRoute ? 'admin' : null}>
   <div class="gameboy-frame">
     <!-- Header -->
     <header class="header">

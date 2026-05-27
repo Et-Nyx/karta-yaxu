@@ -432,13 +432,28 @@ export async function ensurePokedex(pokeapiId: number): Promise<number> {
 
   // Always sync entries so re-running picks up newly imported species
   const speciesMap = await buildIdMap(schema.pokemonSpecies);
+  const speciesRows = await db.select({ id: schema.pokemonSpecies.id, defaultPokemonId: schema.pokemonSpecies.defaultPokemonId }).from(schema.pokemonSpecies);
+  const speciesToDefaultPokemonMap = new Map<number, number>();
+  for (const s of speciesRows) {
+    if (s.defaultPokemonId) {
+      speciesToDefaultPokemonMap.set(s.id, s.defaultPokemonId);
+    }
+  }
+
   for (const entry of data.pokemon_entries) {
     const speciesDbId = speciesMap.get(client.extractIdFromUrl(entry.pokemon_species.url));
     if (!speciesDbId) continue;
+    const pokemonDbId = speciesToDefaultPokemonMap.get(speciesDbId);
+    if (!pokemonDbId) continue;
     await db.insert(schema.pokedexEntries)
-      .values({ pokedexId: id, speciesId: speciesDbId, entryNumber: entry.entry_number })
+      .values({ 
+        pokedexId: id, 
+        pokemonId: pokemonDbId, 
+        speciesId: speciesDbId, 
+        entryNumber: entry.entry_number 
+      })
       .onConflictDoUpdate({
-        target: [schema.pokedexEntries.pokedexId, schema.pokedexEntries.speciesId],
+        target: [schema.pokedexEntries.pokedexId, schema.pokedexEntries.pokemonId],
         set: { entryNumber: entry.entry_number },
       });
   }

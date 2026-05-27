@@ -235,9 +235,14 @@
   let knownMoveId = $state<string>('');
   let knownMoveTypeId = $state<string>('');
 
+  let lastPokemonId = $state(data.pokemon.id);
   $effect(() => {
     // Reactively reset state variables on page transition or after save reload
     const p = data.pokemon;
+    if (p.id !== lastPokemonId) {
+      lastPokemonId = p.id;
+      saved = false;
+    }
     nameVal = p.name;
     speciesIdVal = p.speciesId;
     heightVal = p.height;
@@ -251,7 +256,6 @@
     spriteBackShinyVal = p.spriteBackShiny ?? '';
     isShiny = false;
     activeImageTab = 'artwork';
-    saved = false;
     
     defaultFileSelected = false;
     shinyFileSelected = false;
@@ -472,6 +476,7 @@
       isSaving = false;
       if (result.type === 'success') {
         saved = true;
+        await update({ reset: false });
         setTimeout(() => saved = false, 2500);
       } else {
         // failure → show error; redirect → follow new slug

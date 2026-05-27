@@ -3,6 +3,7 @@ import { asc, count, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '$lib/db';
 import { pokedexes, regions } from '$lib/db/schema/game-metadata';
+import { pokedexEntries } from '$lib/db/schema/pokemon';
 import { recordEdit } from '$lib/editor/audit';
 import type { PageServerLoad, Actions } from './$types';
 
@@ -27,7 +28,12 @@ export const load: PageServerLoad = async () => {
     isMainSeries: pokedexes.isMainSeries,
     source:       pokedexes.source,
     pokeapiId:    pokedexes.pokeapiId,
-  }).from(pokedexes).orderBy(asc(pokedexes.id));
+    entryCount:   count(pokedexEntries.speciesId),
+  })
+    .from(pokedexes)
+    .leftJoin(pokedexEntries, eq(pokedexes.id, pokedexEntries.pokedexId))
+    .groupBy(pokedexes.id)
+    .orderBy(asc(pokedexes.id));
 
   const regionList = await db.select({
     id:   regions.id,
