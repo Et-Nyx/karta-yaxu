@@ -13,6 +13,8 @@
   import PokemonDataList from '$lib/components/PokemonDataList.svelte';
   import EvolutionChain from '$lib/components/EvolutionChain.svelte';
   import { goto, afterNavigate } from '$app/navigation';
+  import { onMount } from 'svelte';
+  import { selectedPokedexSlug } from '$lib/stores/selectedPokedex';
 
   let { data } = $props();
 
@@ -235,6 +237,16 @@
 
 
 
+  // On mount: if no ?dex= param set, redirect using the stored slug (if valid for this Pokémon)
+  onMount(() => {
+    if (data.nav && !new URL(window.location.href).searchParams.has('dex')) {
+      const storedSlug = $selectedPokedexSlug;
+      if (storedSlug && data.nav.dexList.find((d: any) => d.slug === storedSlug)) {
+        goto(`?dex=${storedSlug}`, { replaceState: true });
+      }
+    }
+  });
+
   function handleKeydown(e: KeyboardEvent) {
     const tag = (e.target as HTMLElement).tagName;
     if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
@@ -294,7 +306,7 @@
           <RetroSelect
             value={data.nav.selectedDex.slug}
             options={data.nav.dexList.map(dex => ({ value: dex.slug, label: dex.name.toUpperCase().replace(/-/g, ' ') }))}
-            onchange={(val) => goto(`?dex=${val}`)}
+            onchange={(val) => { selectedPokedexSlug.set(val); goto(`?dex=${val}`); }}
             class="dex-select"
           />
         </div>
