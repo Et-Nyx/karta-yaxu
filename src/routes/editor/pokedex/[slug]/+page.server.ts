@@ -124,20 +124,20 @@ export const actions: Actions = {
     const form = Object.fromEntries(await request.formData());
     const parsed = UpdateSchema.safeParse(form);
     if (!parsed.success) {
-      return fail(400, { updateError: parsed.error.issues[0]?.message ?? 'Inválido', values: form });
+      return fail(400, { updateError: parsed.error.issues[0]?.message ?? 'Invalid', values: form });
     }
     const data = parsed.data;
 
     const [current] = await db.select().from(pokedexes).where(eq(pokedexes.slug, params.slug)).limit(1);
     if (!current) throw error(404, 'Pokédex not found');
     if (current.source !== 'custom') {
-      return fail(400, { updateError: 'Apenas pokédexes custom podem ser editadas', values: form });
+      return fail(400, { updateError: 'Only custom Pokédexes can be edited', values: form });
     }
 
     if (data.slug !== current.slug) {
       const [clash] = await db.select({ id: pokedexes.id })
         .from(pokedexes).where(eq(pokedexes.slug, data.slug)).limit(1);
-      if (clash) return fail(400, { updateError: 'slug já em uso', values: form });
+      if (clash) return fail(400, { updateError: 'Slug already in use', values: form });
     }
 
     const newRow = {
@@ -169,7 +169,7 @@ export const actions: Actions = {
     const [current] = await db.select().from(pokedexes).where(eq(pokedexes.slug, params.slug)).limit(1);
     if (!current) throw error(404, 'Pokédex not found');
     if (current.source !== 'custom') {
-      return fail(400, { updateError: 'Apenas pokédexes custom podem ser deletadas' });
+      return fail(400, { updateError: 'Only custom Pokédexes can be deleted' });
     }
 
     await db.delete(pokedexEntries).where(eq(pokedexEntries.pokedexId, current.id));
@@ -186,9 +186,8 @@ export const actions: Actions = {
     const [current] = await db.select().from(pokedexes).where(eq(pokedexes.slug, params.slug)).limit(1);
     if (!current) throw error(404, 'Pokédex not found');
 
-    // Create a new slug and name
-    const newName = `Cópia de ${current.name}`;
-    let baseSlug = `${current.slug}-copia`;
+    // Create a new slug and name in English
+    let baseSlug = `${current.slug}-copy`;
     let newSlug = baseSlug;
     let counter = 1;
 
@@ -200,6 +199,7 @@ export const actions: Actions = {
       newSlug = `${baseSlug}-${counter++}`;
     }
 
+    const newName = newSlug;
     const newPokedexId = await copyStaticPokedex(current.id, newName, newSlug, current.regionId);
 
     if (locals.user) {

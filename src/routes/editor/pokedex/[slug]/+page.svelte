@@ -412,7 +412,7 @@
       <RetroButton type="submit" variant="secondary" class="delete-btn" onclick={(e) => { if (!confirm('Are you absolutely sure you want to delete this custom Pokédex and all its entries? This cannot be undone.')) e.preventDefault(); }}>
         DELETE THIS POKÉDEX
       </RetroButton>
-      <span class="delete-hint">Apenas pokédexes custom podem ser deletadas. Todas as entries são removidas junto.</span>
+      <span class="delete-hint">Only custom Pokédexes can be deleted. All entries are removed along with it.</span>
     </form>
   {/if}
 </div>
