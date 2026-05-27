@@ -85,6 +85,15 @@
           </div>
           <div class="form-actions">
             <RetroButton type="submit" variant="primary">CREATE</RetroButton>
+            <RetroButton
+              type="button"
+              variant="text"
+              onclick={() => {
+                showCreate = false;
+              }}
+            >
+              CANCEL
+            </RetroButton>
             {#if form?.createError}
               <span class="form-error">{form.createError}</span>
             {/if}
@@ -185,12 +194,30 @@
     display: flex;
     flex-direction: column;
     gap: var(--spacing-1);
+    justify-content: flex-end;
   }
 
   .field label {
     font-family: var(--font-display);
     font-size: 9px;
     color: var(--theme-text-muted);
+    min-height: 20px;
+    display: flex;
+    align-items: flex-end;
+  }
+
+  :global(.create-form .retro-input) {
+    height: 32px !important;
+    width: 100% !important;
+    text-align: left !important;
+    padding-left: 10px !important;
+    font-family: var(--font-display) !important;
+    font-size: 10px !important;
+  }
+
+  :global(.create-form .retro-select-wrapper) {
+    width: 100% !important;
+    height: 32px !important;
   }
 
   .form-actions {
