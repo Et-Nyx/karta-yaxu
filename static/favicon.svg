@@ -6,8 +6,8 @@
       <stop offset="100%" stop-color="#0a0a0a" />
     </radialGradient>
     <radialGradient id="bottomSpherical" cx="45%" cy="65%" r="60%">
-      <stop offset="0%" stop-color="#36a35b" />
-      <stop offset="100%" stop-color="#144d27" />
+      <stop offset="0%" stop-color="#9bbc0f" />
+      <stop offset="100%" stop-color="#0f380f" />
     </radialGradient>
     <linearGradient id="whiteBand" x1="0%" y1="0%" x2="0%" y2="100%">
       <stop offset="0%" stop-color="#ffffff" />
@@ -41,9 +41,12 @@
   <circle cx="256" cy="256" r="74" fill="url(#whiteBand)" stroke="#0d0d0d" stroke-width="6" />
 
   <!-- Center Button Inner Circle -->
+  <defs>
+    <radialGradient id="green-glow" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.9" />
+      <stop offset="100%" stop-color="#9bbc0f" stop-opacity="1" />
+    </radialGradient>
+  </defs>
   <circle cx="256" cy="256" r="44" fill="#0d0d0d" />
-  <circle cx="256" cy="256" r="34" fill="#ffffff" />
-
-  <!-- Gloss Highlight Overlay -->
-  <path d="M 40,150 A 230,230 0 0 1 472,150 A 230,220 0 0 0 40,150 Z" fill="#ffffff" opacity="0.08" />
+  <circle cx="256" cy="256" r="34" fill="url(#green-glow)" />
 </svg>

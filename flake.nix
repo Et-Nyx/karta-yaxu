@@ -16,6 +16,7 @@
           buildInputs = [
             pkgs.nodejs_22
             pkgs.sqlite
+            pkgs.librsvg
           ];
 
           shellHook = ''
