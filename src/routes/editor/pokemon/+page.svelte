@@ -32,7 +32,7 @@
   });
 
   let pokedexOptions = $derived([
-    { value: '', label: '— NATIONAL POKÉDEX (ALL) —' },
+    { value: '', label: '— Alphabetic —' },
     ...data.pokedexes.map((d: any) => ({
       value: d.id,
       label: d.name.toUpperCase()
