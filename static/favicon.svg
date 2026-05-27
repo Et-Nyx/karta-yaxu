@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradients for 3D premium look -->
+    <radialGradient id="topSpherical" cx="45%" cy="35%" r="60%">
+      <stop offset="0%" stop-color="#2a2a2a" />
+      <stop offset="100%" stop-color="#0a0a0a" />
+    </radialGradient>
+    <radialGradient id="bottomSpherical" cx="45%" cy="65%" r="60%">
+      <stop offset="0%" stop-color="#36a35b" />
+      <stop offset="100%" stop-color="#144d27" />
+    </radialGradient>
+    <linearGradient id="whiteBand" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="100%" stop-color="#e0e0e0" />
+    </linearGradient>
+  </defs>
+
+  <!-- Outer Ring Shadow/Outline -->
+  <circle cx="256" cy="256" r="236" fill="#0d0d0d" stroke="#000000" stroke-width="12" />
+
+  <!-- Ball Clipping Mask -->
+  <clipPath id="ballClip">
+    <circle cx="256" cy="256" r="230" />
+  </clipPath>
+
+  <g clip-path="url(#ballClip)">
+    <!-- Top Half (All Black) -->
+    <path d="M 16,256 A 240,240 0 0 1 496,256 Z" fill="url(#topSpherical)" />
+    <!-- Bottom Half (All Green) -->
+    <path d="M 16,256 A 240,240 0 0 0 496,256 Z" fill="url(#bottomSpherical)" />
+
+    <!-- Center White Horizontal Band -->
+    <rect x="0" y="226" width="512" height="60" fill="url(#whiteBand)" stroke="#0d0d0d" stroke-width="8" />
+  </g>
+
+  <!-- Outline for the whole ball -->
+  <circle cx="256" cy="256" r="230" fill="none" stroke="#0d0d0d" stroke-width="10" />
+
+  <!-- Center Button Outer Ring -->
+  <circle cx="256" cy="256" r="88" fill="#0d0d0d" />
+  <circle cx="256" cy="256" r="74" fill="url(#whiteBand)" stroke="#0d0d0d" stroke-width="6" />
+
+  <!-- Center Button Inner Circle -->
+  <circle cx="256" cy="256" r="44" fill="#0d0d0d" />
+  <circle cx="256" cy="256" r="34" fill="#ffffff" />
+
+  <!-- Gloss Highlight Overlay -->
+  <path d="M 40,150 A 230,230 0 0 1 472,150 A 230,220 0 0 0 40,150 Z" fill="#ffffff" opacity="0.08" />
+</svg>
