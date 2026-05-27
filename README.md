@@ -55,28 +55,38 @@ A principal vantagem arquitetural é que o mesmo código TypeScript do **engine 
 
 ---
 
-## Arquitetura — Importação Sob Demanda
+## Arquitetura — Importação Sob Demanda & Staging Assecrônico
 
 ```
 ┌──────────────────┐     ┌──────────────────┐     ┌──────────────────┐
-│   PokeAPI        │     │   Módulo de      │     │   SQLite         │
-│   (pokeapi.co)   │────►│   Importação     │────►│   (Drizzle ORM)  │
-│                  │     │   (src/lib/       │     │                  │
-│   /pokemon/25    │     │    pokeapi/)      │     │   source=pokeapi │
-│   /type/3        │     │                  │     │   source=edited   │
-│   /move/1        │     │   - Busca JSON   │     │   source=custom  │
-│   /generation/3  │     │   - Mapeia campos│     │                  │
-│   /location/88   │     │   - Insere/       │     │   pokeapi_id=25  │
-│   /pokedex/2     │     │     atualiza      │     │   pokeapi_id=3   │
-│                  │     │   - Protege       │     └──────────────────┘
-└──────────────────┘     │     edited/custom │              │
-                          └──────────────────┘              ▼
-                                                  ┌──────────────────┐
-                                                  │   Painel Web     │
-                                                  │   /import        │
-                                                  │   (role=editor)  │
-                                                  └──────────────────┘
+│   PokeAPI        │     │  Staged Imports  │     │   SQLite         │
+│   (pokeapi.co)   │────►│ (staged_imports) │────►│   (Drizzle ORM)  │
+│                  │     │                  │     │                  │
+│   /pokemon/25    │     │   - JSON Temp    │     │   source=pokeapi │
+│   /type/3        │     │   - status=      │     │   source=edited  │
+│   /move/1        │     │     'fetched'    │     │   source=custom  │
+│   /generation/3  │     │                  │     │                  │
+│   /location/88   │     │   - Permite      │     │   pokeapi_id=25  │
+│   /pokedex/2     │     │     revisar      │     │   pokeapi_id=3   │
+│                  │     │     e auditar    │     └──────────────────┘
+└──────────────────┘     └────────┬─────────┘              │
+                                  │                        ▼
+                                  │ commit         ┌──────────────────┐
+                                  └───────────────►│    Painel Web    │
+                                    (Transação     │     /editor      │
+                                     SQLite com    │   (role=editor)  │
+                                     comentário)   └──────────────────┘
 ```
+
+### O Fluxo de Staging Import Assecrônico
+
+Para evitar sobrecarga na thread principal e dar total previsibilidade ao banco de dados, o processo de importação foi projetado usando um padrão de **Staging Assecrônico**:
+
+1. **Trigger em Background**: Quando o Editor solicita a importação de uma grande quantidade de entidades (ex: Pokémon de uma região inteira ou range grande), um worker assecrônico é acionado (`triggerBackgroundStaging`).
+2. **Armazenamento em Staging**: A PokeAPI é consultada assecronicamente respeitando os limites de taxa (rate limits). Cada resposta JSON é stringificada e armazenada temporariamente na tabela `staged_imports` com o status `'fetched'`.
+3. **Persistência de Progresso na Sidebar**: Um componente SSE (Server-Sent Events) sincroniza o progresso global em tempo real e exibe um card de progresso persistente na sidebar (`ImportActivity.svelte`) do app.
+4. **Commit Atômico e Auditoria**: O Editor pode então decidir aplicar as mudanças. O app inicia uma transação atômica nativa do SQLite (`BEGIN TRANSACTION`), popula o client-side cache para evitar requests de rede desnecessários, migra todas as entidades staged para o banco, limpa a tabela de staging e confirma o commit (`COMMIT`).
+5. **Auditoria com Comentário**: Todo commit de importação staged exige um comentário do Editor, o qual é gravado de forma permanente no histórico (`edits.comment` e `import_log.comment`), permitindo auditoria total de quem importou o quê e o porquê.
 
 ### Campo `source` — Proteção contra Sobrescrita
 
@@ -173,9 +183,15 @@ karta-yaxu-2.0/
 │       ├── wiki/                  # ✅ pokemon, moves, abilities, types, natures, items, locations, games, pokedex
 │       ├── search/                # (pendente)
 │       ├── api/                   # ✅ (parcial)
-│       │   └── editor/
-│       │       └── base-form/     #    ✅ GET /[speciesId] for New Pokemon prefill
-│       ├── editor/                # ✅ Painel de edição (role=editor)
+│       │   ├── editor/
+│       │   │   ├── base-form/     #    ✅ GET /[speciesId] for New Pokémon prefill
+│       │   │   ├── clear-staging/ #    ✅ POST clear staged imports
+│       │   │   └── commit-import/ #    ✅ POST commit staged imports
+│       │   ├── pokemon/
+│       │   │   └── chain/         #    ✅ GET /[id] for topological evolution chain
+│       │   └── import/
+│       │       └── sse/           #    ✅ GET sse stream for import logging
+│       ├── editor/                # ✅ Painel do Editor e Importação integrado (role=editor)
 │       │   ├── types/             #    ✅
 │       │   ├── natures/           #    ✅
 │       │   ├── abilities/         #    ✅
@@ -183,8 +199,9 @@ karta-yaxu-2.0/
 │       │   ├── moves/             #    ✅
 │       │   ├── pokedex/           #    ✅
 │       │   ├── pokemon/           #    ✅ (types, abilities, forms, evolution, learnset sub-editors)
-│       │   └── species/           #    ✅ (auto-Base-Form, egg groups)
-│       ├── import/                # ✅ Painel de importação PokeAPI
+│       │   ├── species/           #    ✅ (auto-Base-Form, egg groups)
+│       │   └── trainers/          #    ✅ (lista global de trainers, NPCS, promote/demote/ban)
+│       ├── import/                # ✅ Redireciona para /editor (painel de importação unificado)
 │       ├── battle/                # (pendente)
 │       └── trainer/               # ✅
 │           ├── +page.server.ts    #    Lista de trainers + ações admin
@@ -889,6 +906,7 @@ export const edits = sqliteTable('edits', {
   recordId: integer('record_id').notNull(),
   previousData: text('previous_data'),
   newData: text('new_data'),
+  comment: text('comment'),
   editedAt: integer('edited_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
 });
 
@@ -898,7 +916,19 @@ export const importLog = sqliteTable('import_log', {
   pokeapiId: integer('pokeapi_id').notNull(),
   action: text('action', { enum: ['inserted', 'updated', 'skipped'] }).notNull(),
   reason: text('reason'),
+  comment: text('comment'),
   timestamp: integer('timestamp', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+});
+
+export const stagedImports = sqliteTable('staged_imports', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  trainerId: text('trainer_id').notNull().references(() => trainers.id),
+  entityType: text('entity_type').notNull(),
+  pokeapiId: integer('pokeapi_id').notNull(),
+  payload: text('payload'),
+  status: text('status', { enum: ['pending', 'fetching', 'fetched', 'failed'] }).notNull().default('pending'),
+  errorMessage: text('error_message'),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
 });
 ```
 
@@ -906,7 +936,7 @@ export const importLog = sqliteTable('import_log', {
 
 ## Módulo de Importação — PokeAPI
 
-A lógica de importação vive em `src/lib/pokeapi/` e é acionada via **painel web** (`/import`).
+A lógica de importação vive em `src/lib/pokeapi/` e é acionada via **painel web** integrado ao Editor (`/editor`).
 
 ### Client da PokeAPI (`src/lib/pokeapi/client.ts`)
 
@@ -949,8 +979,8 @@ export async function fetchList(endpoint: string, limit?: number): Promise<Named
 | **Importar Game Data** | Languages, Generations, Regions, Version Groups, Versions, Pokedexes, Pokedex Entries, Natures, Encounter Methods, Encounter Conditions, Move Learn Methods, Egg Groups | ~7,000 registros (leve) |
 | **Importar todos os Tipos** | Types + type_effectiveness + type_names | ~20 × 3 = ~60 registros |
 | **Importar todas as Abilities** | Abilities + ability_names + ability_flavor_texts + ability_effects | ~300 × ~8 = ~2,400 registros |
-| **Importar todos os Moves** | Moves + move_names + move_flavor_texts + move_effects | ~900 × ~8 = ~7,200 registros |
-| **Importar todos os Items** | Items + item_names + item_flavor_texts + item_effects | ~1,000 × ~8 = ~8,000 registros |
+| **Importar todas as Moves** | Moves + move_names + move_flavor_texts + move_effects | ~900 × ~8 = ~7,200 registros |
+| **Importar todas as Items** | Items + item_names + item_flavor_texts + item_effects | ~1,000 × ~8 = ~8,000 registros |
 | **Importar Pokémon (individual)** | Species + pokemon + forms + types + abilities + stats + moves + flavor texts + evolution chain | ~5,000+ registros por importação em lote |
 | **Importar Locations & Encounters** | Locations + location_areas + encounter methods + encounters | ~100,000+ registros (pesado) |
 | **Re-importar tudo (source=pokeapi)** | Atualiza apenas registros com `source='pokeapi'`, protege `edited`/`custom` | Variável |
@@ -992,12 +1022,15 @@ export async function fetchList(endpoint: string, limit?: number): Promise<Named
 │   ├── search/
 │   │   └── suggestions/
 │   ├── editor/
-│   │   └── base-form/[speciesId]  ← GET prefill da Base Form para New Pokemon
+│   │   ├── base-form/[speciesId]  ← GET prefill da Base Form para New Pokémon
+│   │   ├── clear-staging          ← POST descarta importações em staging
+│   │   └── commit-import          ← POST aplica importações em staging no banco
+│   ├── pokemon/
+│   │   └── chain/[id]             ← GET recupera cadeia evolutiva topologicamente ordenada
 │   └── import/
-│       ├── POST /            ← dispara importação
-│       └── GET /status       ← status de imports em andamento
+│       └── sse                    ← GET canal SSE para logs em tempo real
 │
-├── editor/                   ← protegido por role=editor
+├── editor/                   ← painel do editor e de importação integrado (protegido por role=editor)
 │   ├── types/
 │   ├── natures/
 │   ├── abilities/
@@ -1005,9 +1038,10 @@ export async function fetchList(endpoint: string, limit?: number): Promise<Named
 │   ├── moves/
 │   ├── pokedex/
 │   ├── pokemon/              ← sub-editors: types, abilities, forms, evolution, learnset
-│   └── species/              ← auto-Base-Form, egg groups
+│   ├── species/              ← auto-Base-Form, egg groups
+│   └── trainers/             ← controles administrativos (promote, demote, ban) + NPCs
 │
-├── import/                   ← painel de importação (role=editor)
+├── import/                   ← redireciona para /editor (consolidado no painel unificado)
 │
 ├── battle/
 │   ├── new
@@ -1199,6 +1233,7 @@ export async function fetchList(endpoint: string, limit?: number): Promise<Named
 
 - [x] Egg groups multi-select no Species editor (sub-form `updateEggGroups` + UI)
 - [x] Move-picker autocomplete (datalist) no Learnset editor — substitui o `<select>` de 610 opções
+- [x] Fallback robusto para Pokédex selecionada (National Pokédex / Alphabetic) com suporte a valores falsos e ordenação alfabética por padrão nas listagens (Wiki e Editor)
 
 ### Bloco 6 — Busca Global
 
@@ -1265,6 +1300,6 @@ FKs garantem integridade referencial, permitem JOINs eficientes, e facilitam fil
 
 ---
 
-*Última atualização do plano: 2026-05-11 (revisão pós-Bloco 5.5)*
+*Última atualização do plano: 2026-05-27 (revisão pós-correções de Pokédex e ordenação)*
 *Versão da stack: 2.0 (TypeScript / SvelteKit — Importação sob demanda da PokeAPI — Game metadata completo — Locations & Encounters)*
-*Progresso: Blocos 0–5.5 concluídos — Editor completo (todas as entidades editáveis, linked-list evolution, RE-SOURCE, polish). Próximo: Bloco 6 (Busca Global)*
+*Progresso: Blocos 0–5.5 concluídos — Editor completo (todas as entidades editáveis, linked-list evolution, RE-SOURCE, polish) e correção de ordenação alfabética/Pokédex. Próximo: Bloco 6 (Busca Global)*
