@@ -23,7 +23,7 @@
   });
 
   $effect(() => {
-    if (selectedPokedexId === '') {
+    if (!selectedPokedexId) {
       selectedPokedexSlug.set('');
     } else {
       const matched = data.pokedexes.find((d: any) => d.id === selectedPokedexId);
@@ -32,7 +32,7 @@
   });
 
   let pokedexOptions = $derived([
-    { value: '', label: '— Alphabetic —' },
+    { value: '', label: '— Alphabetical (All)—' },
     ...data.pokedexes.map((d: any) => ({
       value: d.id,
       label: d.name.toUpperCase()
@@ -44,8 +44,8 @@
       p.slug.includes(query.toLowerCase()) || p.name.toLowerCase().includes(query.toLowerCase()) ||
       p.pokeapiId?.toString() === query;
 
-    if (selectedPokedexId === '') {
-      return data.pokemon.filter(matchesSearch);
+    if (!selectedPokedexId) {
+      return [...data.pokemon].filter(matchesSearch).sort((a: any, b: any) => a.name.localeCompare(b.name));
     }
 
     const activeIds = data.pokedexEntriesMap[selectedPokedexId] || [];
@@ -113,7 +113,7 @@
 <div class="entity-page">
   <div class="page-header">
     <h2>POKÉMON</h2>
-    <SearchBar bind:value={query} placeholder="Search pokémon... (/)" count={filtered.length} total={selectedPokedexId === '' ? data.total : (data.pokedexEntriesMap[selectedPokedexId]?.length ?? 0)} />
+    <SearchBar bind:value={query} placeholder="Search pokémon... (/)" count={filtered.length} total={!selectedPokedexId ? data.total : (data.pokedexEntriesMap[selectedPokedexId]?.length ?? 0)} />
     <div class="pokedex-select-container">
       <label for="pokedexSelect">POKÉDEX:</label>
       <RetroSelect id="pokedexSelect" bind:value={selectedPokedexId} options={pokedexOptions} class="pokedex-select" />

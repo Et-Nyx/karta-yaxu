@@ -21,7 +21,7 @@
 
   // When the user picks a different Pokédex, persist it to the store
   $effect(() => {
-    if (selectedPokedexId === '') {
+    if (!selectedPokedexId) {
       selectedPokedexSlug.set('');
     } else {
       const matched = data.pokedexes.find((d: any) => d.id === selectedPokedexId);
@@ -31,7 +31,7 @@
 
   // 1. Build the retro pokedex options
   let pokedexOptions = $derived([
-    { value: '', label: '— NATIONAL POKÉDEX (ALL) —' },
+    { value: '', label: '— Alphabetical (ALL) —' },
     ...data.pokedexes.map((d: any) => ({
       value: d.id,
       label: d.name.toUpperCase()
@@ -41,12 +41,12 @@
   // 2. Derive the filtered and ordered Pokémon cards list
   let filteredPokemon = $derived.by(() => {
     const matchesSearch = (p: any) =>
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.pokeapiId?.toString() === searchQuery;
 
-    if (selectedPokedexId === '') {
-      // Return National Pokédex order and default regional numbers
-      return data.pokemon.filter(matchesSearch);
+    if (!selectedPokedexId) {
+      // Return all Pokémon sorted alphabetically by name
+      return [...data.pokemon].filter(matchesSearch).sort((a, b) => a.name.localeCompare(b.name));
     }
 
     // Specific Pokédex is selected
@@ -83,7 +83,7 @@
       bind:value={searchQuery}
       placeholder="Search by name or ID... (/)"
       count={filteredPokemon.length}
-      total={selectedPokedexId === '' ? data.pokemon.length : (data.pokedexEntriesMap[selectedPokedexId]?.length ?? 0)}
+      total={!selectedPokedexId ? data.pokemon.length : (data.pokedexEntriesMap[selectedPokedexId]?.length ?? 0)}
     />
     <div class="pokedex-select-container">
       <label for="pokedexSelect">POKÉDEX:</label>
@@ -106,7 +106,7 @@
       />
     {/each}
   </div>
-  
+
   {#if filteredPokemon.length === 0}
     <div class="empty-state">
       <p>No Pokémon found matching "{searchQuery}".</p>

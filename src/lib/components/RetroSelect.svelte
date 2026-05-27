@@ -51,7 +51,9 @@
 
   // Helper to get active label for rendering when closed
   let selectedLabel = $derived(
-    normalizedOptions.find(opt => opt.value === value)?.label || '— NONE —'
+    normalizedOptions.find(opt => opt.value === value)?.label || 
+    normalizedOptions.find(opt => opt.value === '')?.label || 
+    '— NONE —'
   );
 
   function handleSelect(val: any) {
