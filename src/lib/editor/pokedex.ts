@@ -250,7 +250,8 @@ export async function removePokemonFromPokedex(pokedexId: number, pokemonId: num
 
 /**
  * Copies a static, read-only Pokédex to create a brand new custom Pokédex.
- * Links all entries sequentially using the linked-list pattern in the database.
+ * Maps PokeAPI species entries to their default/base Pokémon form IDs,
+ * then links all entries sequentially in the database.
  */
 export async function copyStaticPokedex(
   staticPokedexId: number,
@@ -278,10 +279,60 @@ export async function copyStaticPokedex(
       .orderBy(pokedexEntries.entryNumber)
       .all();
 
-    for (let i = 0; i < staticEntries.length; i++) {
-      const entry = staticEntries[i];
-      const nextPokemonId = i < staticEntries.length - 1 ? staticEntries[i + 1].pokemonId : null;
-      const nextSpeciesId = i < staticEntries.length - 1 ? staticEntries[i + 1].speciesId : null;
+    if (staticEntries.length === 0) {
+      return newPokedex.id;
+    }
+
+    // Map each speciesId to its default/base pokemonId
+    const speciesIds = staticEntries.map(e => e.speciesId);
+    
+    // Fetch defaultPokemonId for these species
+    const speciesRows = tx.select({
+      id: pokemonSpecies.id,
+      defaultPokemonId: pokemonSpecies.defaultPokemonId
+    })
+      .from(pokemonSpecies)
+      .where(inArray(pokemonSpecies.id, speciesIds))
+      .all();
+
+    const speciesToPokemonMap = new Map<number, number>();
+    for (const s of speciesRows) {
+      if (s.defaultPokemonId) {
+        speciesToPokemonMap.set(s.id, s.defaultPokemonId);
+      }
+    }
+
+    // Fallback: query pokemon table for first form of any missing species
+    const missingSpeciesIds = speciesIds.filter(sId => !speciesToPokemonMap.has(sId));
+    if (missingSpeciesIds.length > 0) {
+      const fallbackRows = tx.select({
+        id: pokemon.id,
+        speciesId: pokemon.speciesId
+      })
+        .from(pokemon)
+        .where(inArray(pokemon.speciesId, missingSpeciesIds))
+        .all();
+
+      for (const f of fallbackRows) {
+        if (!speciesToPokemonMap.has(f.speciesId)) {
+          speciesToPokemonMap.set(f.speciesId, f.id);
+        }
+      }
+    }
+
+    // Map all static entries to pokemon form entries
+    const mappedEntries = staticEntries.map(e => {
+      const resolvedPokemonId = speciesToPokemonMap.get(e.speciesId);
+      return {
+        speciesId: e.speciesId,
+        pokemonId: resolvedPokemonId ?? e.pokemonId ?? e.speciesId // Fallback safety
+      };
+    });
+
+    for (let i = 0; i < mappedEntries.length; i++) {
+      const entry = mappedEntries[i];
+      const nextPokemonId = i < mappedEntries.length - 1 ? mappedEntries[i + 1].pokemonId : null;
+      const nextSpeciesId = i < mappedEntries.length - 1 ? mappedEntries[i + 1].speciesId : null;
 
       tx.insert(pokedexEntries).values({
         pokedexId: newPokedex.id,
