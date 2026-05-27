@@ -37,6 +37,14 @@
     { value: '', label: '— NONE —' },
     ...data.regions.map(r => ({ value: r.id, label: r.name.toUpperCase() }))
   ]);
+
+  let copyFromOptions = $derived([
+    { value: '', label: '— START EMPTY —' },
+    ...data.pokedexes.map(p => ({
+      value: p.id,
+      label: `${p.name.toUpperCase()} (${p.source.toUpperCase()})`
+    }))
+  ]);
 </script>
 
 <svelte:head>
@@ -49,32 +57,40 @@
       <h2>POKÉDEXES</h2>
     </div>
     <RetroButton type="button" variant="secondary" onclick={() => showCreate = !showCreate}>
-      {showCreate ? '× CANCEL' : '+ NEW POKÉDEX'}
+      {showCreate ? '× CANCEL' : '+ NEW CUSTOM POKÉDEX'}
     </RetroButton>
   </header>
 
   {#if showCreate}
     <section class="create-section">
-      <h3 class="section-title">CREATE POKÉDEX</h3>
-      <form action="?/create" method="post" use:enhance class="create-form">
-        <input type="hidden" name="slug" value={createSlugVal} />
-        <input type="hidden" name="isMainSeries" value="false" />
+      <header class="section-header">
+        <h3>CREATE CUSTOM POKÉDEX</h3>
+      </header>
+      <div class="section-body">
+        <form action="?/create" method="post" use:enhance class="create-form">
+          <input type="hidden" name="slug" value={createSlugVal} />
+          <input type="hidden" name="isMainSeries" value="false" />
 
-        <div class="field">
-          <label for="c-name">NAME</label>
-          <RetroInput id="c-name" name="name" type="text" maxlength={80} required bind:value={createNameVal} />
-        </div>
-        <div class="field">
-          <label for="c-region">REGION</label>
-          <RetroSelect id="c-region" name="regionId" value={form?.createValues?.regionId ?? ''} options={regionOptions} variant="editor" />
-        </div>
-        <div class="form-actions">
-          <RetroButton type="submit" variant="primary">CREATE</RetroButton>
-          {#if form?.createError}
-            <span class="form-error">{form.createError}</span>
-          {/if}
-        </div>
-      </form>
+          <div class="field">
+            <label for="c-name">NAME</label>
+            <RetroInput id="c-name" name="name" type="text" maxlength={80} required bind:value={createNameVal} />
+          </div>
+          <div class="field">
+            <label for="c-region">REGION</label>
+            <RetroSelect id="c-region" name="regionId" value={form?.createValues?.regionId ?? ''} options={regionOptions} variant="editor" />
+          </div>
+          <div class="field">
+            <label for="c-copy">COPY FROM EXISTING POKÉDEX (OPTIONAL)</label>
+            <RetroSelect id="c-copy" name="copyFromId" value={form?.createValues?.copyFromId ?? ''} options={copyFromOptions} variant="editor" />
+          </div>
+          <div class="form-actions">
+            <RetroButton type="submit" variant="primary">CREATE</RetroButton>
+            {#if form?.createError}
+              <span class="form-error">{form.createError}</span>
+            {/if}
+          </div>
+        </form>
+      </div>
     </section>
   {/if}
 
@@ -83,7 +99,7 @@
   {#if filtered.length === 0}
     <div class="empty-state">
       <p>No pokédexes yet.</p>
-      <p class="hint">Click "+ NEW POKÉDEX" above to create the first one. Custom dexes are perfect for ROM hacks.</p>
+      <p class="hint">Click "+ NEW CUSTOM POKÉDEX" above to create the first one. Custom dexes are perfect for ROM hacks.</p>
     </div>
   {:else}
     <DataTable compact>
@@ -137,21 +153,32 @@
 
   .create-section {
     background-color: var(--theme-bg-secondary);
-    border: 3px solid var(--theme-border-primary);
-    padding: var(--spacing-4);
+    border: 4px solid var(--theme-border-primary);
+    box-shadow: var(--shadow-card);
   }
 
-  .section-title {
+  .section-header {
+    background-color: var(--theme-bg-tertiary);
+    border-bottom: 4px solid var(--theme-border-primary);
+    padding: var(--spacing-3) var(--spacing-4);
+  }
+
+  .section-header h3 {
     font-family: var(--font-display);
-    font-size: 10px;
-    color: var(--theme-text-secondary);
-    margin: 0 0 var(--spacing-3) 0;
+    font-size: 11px;
+    color: var(--theme-text-inverse);
+    margin: 0;
+    text-transform: uppercase;
+  }
+
+  .section-body {
+    padding: var(--spacing-4);
   }
 
   .create-form {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    gap: var(--spacing-3);
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: var(--spacing-4);
   }
 
   .field {
