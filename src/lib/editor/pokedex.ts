@@ -250,8 +250,8 @@ export async function removePokemonFromPokedex(pokedexId: number, pokemonId: num
 
 /**
  * Copies a static, read-only Pokédex to create a brand new custom Pokédex.
- * Maps PokeAPI species entries to their default/base Pokémon form IDs,
- * then links all entries sequentially in the database.
+ * Automatically resolves and maps all species entries to their FULL evolution chains,
+ * resolved to base/default Pokémon form IDs, ensuring total custom editor stability.
  */
 export async function copyStaticPokedex(
   staticPokedexId: number,
@@ -259,6 +259,94 @@ export async function copyStaticPokedex(
   slug: string,
   regionId: number | null
 ): Promise<number> {
+  // 1. Fetch static entries first (asynchronously)
+  const staticEntries = await db.select({
+    pokemonId: pokedexEntries.pokemonId,
+    speciesId: pokedexEntries.speciesId,
+    entryNumber: pokedexEntries.entryNumber
+  })
+    .from(pokedexEntries)
+    .where(eq(pokedexEntries.pokedexId, staticPokedexId))
+    .orderBy(pokedexEntries.entryNumber);
+
+  if (staticEntries.length === 0) {
+    return db.transaction((tx) => {
+      const [newPokedex] = tx.insert(pokedexes).values({
+        name,
+        slug,
+        regionId,
+        isMainSeries: false,
+        source: 'custom',
+        pokeapiId: null
+      }).returning({ id: pokedexes.id }).all();
+      return newPokedex.id;
+    });
+  }
+
+  // 2. Expand each species to its entire evolution chain, preserving Pokédex order
+  const speciesIdsOrdered: number[] = [];
+  const seenSpecies = new Set<number>();
+
+  for (const entry of staticEntries) {
+    if (seenSpecies.has(entry.speciesId)) {
+      continue;
+    }
+
+    const chainSpeciesIds = await getEvolutionChainSpecies(entry.speciesId);
+    const sortedChain = await sortSpeciesByEvolutionRelation(chainSpeciesIds);
+
+    for (const sId of sortedChain) {
+      if (!seenSpecies.has(sId)) {
+        seenSpecies.add(sId);
+        speciesIdsOrdered.push(sId);
+      }
+    }
+  }
+
+  // 3. Map each speciesId in the expanded chain to its default/base pokemonId (asynchronously)
+  const speciesToPokemonMap = new Map<number, number>();
+  
+  if (speciesIdsOrdered.length > 0) {
+    const speciesRows = await db.select({
+      id: pokemonSpecies.id,
+      defaultPokemonId: pokemonSpecies.defaultPokemonId
+    })
+      .from(pokemonSpecies)
+      .where(inArray(pokemonSpecies.id, speciesIdsOrdered));
+
+    for (const s of speciesRows) {
+      if (s.defaultPokemonId) {
+        speciesToPokemonMap.set(s.id, s.defaultPokemonId);
+      }
+    }
+
+    const missingSpeciesIds = speciesIdsOrdered.filter(sId => !speciesToPokemonMap.has(sId));
+    if (missingSpeciesIds.length > 0) {
+      const fallbackRows = await db.select({
+        id: pokemon.id,
+        speciesId: pokemon.speciesId
+      })
+        .from(pokemon)
+        .where(inArray(pokemon.speciesId, missingSpeciesIds));
+
+      for (const f of fallbackRows) {
+        if (!speciesToPokemonMap.has(f.speciesId)) {
+          speciesToPokemonMap.set(f.speciesId, f.id);
+        }
+      }
+    }
+  }
+
+  // 4. Map the fully expanded, ordered list of species to form entries
+  const mappedEntries = speciesIdsOrdered.map(speciesId => {
+    const resolvedPokemonId = speciesToPokemonMap.get(speciesId);
+    return {
+      speciesId,
+      pokemonId: resolvedPokemonId ?? speciesId // Fallback safety
+    };
+  });
+
+  // 5. Perform the final atomic database write synchronously inside the transaction block
   return db.transaction((tx) => {
     const [newPokedex] = tx.insert(pokedexes).values({
       name,
@@ -268,66 +356,6 @@ export async function copyStaticPokedex(
       source: 'custom',
       pokeapiId: null
     }).returning({ id: pokedexes.id }).all();
-
-    const staticEntries = tx.select({
-      pokemonId: pokedexEntries.pokemonId,
-      speciesId: pokedexEntries.speciesId,
-      entryNumber: pokedexEntries.entryNumber
-    })
-      .from(pokedexEntries)
-      .where(eq(pokedexEntries.pokedexId, staticPokedexId))
-      .orderBy(pokedexEntries.entryNumber)
-      .all();
-
-    if (staticEntries.length === 0) {
-      return newPokedex.id;
-    }
-
-    // Map each speciesId to its default/base pokemonId
-    const speciesIds = staticEntries.map(e => e.speciesId);
-    
-    // Fetch defaultPokemonId for these species
-    const speciesRows = tx.select({
-      id: pokemonSpecies.id,
-      defaultPokemonId: pokemonSpecies.defaultPokemonId
-    })
-      .from(pokemonSpecies)
-      .where(inArray(pokemonSpecies.id, speciesIds))
-      .all();
-
-    const speciesToPokemonMap = new Map<number, number>();
-    for (const s of speciesRows) {
-      if (s.defaultPokemonId) {
-        speciesToPokemonMap.set(s.id, s.defaultPokemonId);
-      }
-    }
-
-    // Fallback: query pokemon table for first form of any missing species
-    const missingSpeciesIds = speciesIds.filter(sId => !speciesToPokemonMap.has(sId));
-    if (missingSpeciesIds.length > 0) {
-      const fallbackRows = tx.select({
-        id: pokemon.id,
-        speciesId: pokemon.speciesId
-      })
-        .from(pokemon)
-        .where(inArray(pokemon.speciesId, missingSpeciesIds))
-        .all();
-
-      for (const f of fallbackRows) {
-        if (!speciesToPokemonMap.has(f.speciesId)) {
-          speciesToPokemonMap.set(f.speciesId, f.id);
-        }
-      }
-    }
-
-    // Map all static entries to pokemon form entries
-    const mappedEntries = staticEntries.map(e => {
-      const resolvedPokemonId = speciesToPokemonMap.get(e.speciesId);
-      return {
-        speciesId: e.speciesId,
-        pokemonId: resolvedPokemonId ?? e.pokemonId ?? e.speciesId // Fallback safety
-      };
-    });
 
     for (let i = 0; i < mappedEntries.length; i++) {
       const entry = mappedEntries[i];
