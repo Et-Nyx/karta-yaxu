@@ -7,7 +7,7 @@ import { pokedexEntries, pokemonSpecies, pokemon, pokemonTypes } from '$lib/db/s
 import { types } from '$lib/db/schema/core-data';
 import { bumpSource } from '$lib/editor/source';
 import { recordEdit } from '$lib/editor/audit';
-import { getEvolutionChainSpecies } from '$lib/editor/evolution';
+import { getEvolutionChainPokemon } from '$lib/editor/evolution';
 import {
   sortLinkedListEntries,
   savePokedexOrder,
@@ -90,8 +90,8 @@ export const load: PageServerLoad = async ({ params }) => {
 
   const entries = await Promise.all(sortedEntriesRaw.map(async (e, index) => {
     const calculatedNumber = index + 1;
-    const chainSpeciesIds = await getEvolutionChainSpecies(e.speciesId);
-    const chainId = Math.min(...chainSpeciesIds);
+    const chainPokemonIds = await getEvolutionChainPokemon(e.pokemonId);
+    const chainId = chainPokemonIds[0];
     return {
       pokemonId:   e.pokemonId,
       speciesId:   e.speciesId,
