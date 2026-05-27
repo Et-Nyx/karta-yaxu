@@ -9,9 +9,12 @@ import {
   pokemonMoves,
   pokemonSpecies,
   pokemonTypes,
+  pokedexEntries,
 } from '$lib/db/schema/pokemon';
 import { types } from '$lib/db/schema/core-data';
+import { pokedexes } from '$lib/db/schema/game-metadata';
 import { recordEdit } from '$lib/editor/audit';
+import { sortLinkedListEntries } from '$lib/editor/pokedex';
 import type { PageServerLoad, Actions } from './$types';
 
 const slugRegex = /^[a-z0-9-]+$/;
@@ -74,7 +77,45 @@ export const load: PageServerLoad = async () => {
 
   const [{ total }] = await db.select({ total: count() }).from(pokemon);
 
-  return { pokemon: rows, species: speciesList, typeRows, total };
+  // 1. Fetch all available pokedexes
+  const pokedexesList = await db.select({
+    id: pokedexes.id,
+    name: pokedexes.name,
+    slug: pokedexes.slug,
+    source: pokedexes.source,
+  })
+  .from(pokedexes)
+  .orderBy(asc(pokedexes.name));
+
+  // 2. Fetch entries for all pokedexes
+  const rawEntries = await db.select({
+    pokedexId: pokedexEntries.pokedexId,
+    pokemonId: pokedexEntries.pokemonId,
+    entryNumber: pokedexEntries.entryNumber,
+    nextPokemonId: pokedexEntries.nextPokemonId,
+  })
+  .from(pokedexEntries);
+
+  const pokedexEntriesMap: Record<number, number[]> = {};
+
+  for (const dex of pokedexesList) {
+    const entries = rawEntries.filter(e => e.pokedexId === dex.id);
+    if (entries.length === 0) {
+      pokedexEntriesMap[dex.id] = [];
+      continue;
+    }
+
+    let sorted = [];
+    if (dex.source === 'custom') {
+      sorted = sortLinkedListEntries(entries);
+    } else {
+      sorted = [...entries].sort((a, b) => a.entryNumber - b.entryNumber);
+    }
+
+    pokedexEntriesMap[dex.id] = sorted.map(s => s.pokemonId);
+  }
+
+  return { pokemon: rows, species: speciesList, typeRows, total, pokedexes: pokedexesList, pokedexEntriesMap };
 };
 
 export const actions: Actions = {

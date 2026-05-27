@@ -1,20 +1,66 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { enhance } from '$app/forms';
   import SearchBar from '$lib/components/SearchBar.svelte';
   import PokemonCard from '$lib/components/PokemonCard.svelte';
+  import RetroSelect from '$lib/components/RetroSelect.svelte';
+  import { selectedPokedexSlug } from '$lib/stores/selectedPokedex';
 
   let { data, form } = $props();
 
   let query = $state('');
+  let selectedPokedexId = $state<number | ''>('');
   let showCreate = $state(false);
   let prefillFetched = $state(false);
   let prefillMsg = $state('');
 
-  let filtered = $derived(
-    data.pokemon.filter(p =>
-      p.slug.includes(query.toLowerCase()) || p.name.toLowerCase().includes(query.toLowerCase())
-    )
-  );
+  onMount(() => {
+    const storedSlug = $selectedPokedexSlug;
+    if (storedSlug) {
+      const matched = data.pokedexes.find((d: any) => d.slug === storedSlug);
+      if (matched) selectedPokedexId = matched.id;
+    }
+  });
+
+  $effect(() => {
+    if (selectedPokedexId === '') {
+      selectedPokedexSlug.set('');
+    } else {
+      const matched = data.pokedexes.find((d: any) => d.id === selectedPokedexId);
+      if (matched) selectedPokedexSlug.set(matched.slug);
+    }
+  });
+
+  let pokedexOptions = $derived([
+    { value: '', label: '— NATIONAL POKÉDEX (ALL) —' },
+    ...data.pokedexes.map((d: any) => ({
+      value: d.id,
+      label: d.name.toUpperCase()
+    }))
+  ]);
+
+  let filtered = $derived.by(() => {
+    const matchesSearch = (p: any) =>
+      p.slug.includes(query.toLowerCase()) || p.name.toLowerCase().includes(query.toLowerCase()) ||
+      p.pokeapiId?.toString() === query;
+
+    if (selectedPokedexId === '') {
+      return data.pokemon.filter(matchesSearch);
+    }
+
+    const activeIds = data.pokedexEntriesMap[selectedPokedexId] || [];
+    const activeIdSet = new Set(activeIds);
+
+    const list = data.pokemon.filter((p: any) => activeIdSet.has(p.id) && matchesSearch(p));
+
+    const idToIndex = new Map(activeIds.map((id: number, index: number) => [id, index]));
+    list.sort((a: any, b: any) => (idToIndex.get(a.id) ?? 0) - (idToIndex.get(b.id) ?? 0));
+
+    return list.map((p: any) => ({
+      ...p,
+      dexNumber: (idToIndex.get(p.id) ?? 0) + 1
+    }));
+  });
 
   function getTypes(pokemonId: number) {
     return data.typeRows
@@ -67,7 +113,11 @@
 <div class="entity-page">
   <div class="page-header">
     <h2>POKÉMON</h2>
-    <SearchBar bind:value={query} placeholder="Search pokémon..." count={filtered.length} total={data.total} />
+    <SearchBar bind:value={query} placeholder="Search pokémon... (/)" count={filtered.length} total={selectedPokedexId === '' ? data.total : (data.pokedexEntriesMap[selectedPokedexId]?.length ?? 0)} />
+    <div class="pokedex-select-container">
+      <label for="pokedexSelect">POKÉDEX:</label>
+      <RetroSelect id="pokedexSelect" bind:value={selectedPokedexId} options={pokedexOptions} class="pokedex-select" />
+    </div>
   </div>
 
   <div class="header-actions">
@@ -186,6 +236,31 @@
   .page-header h2 {
     color: var(--theme-text-primary);
     margin: 0;
+  }
+
+  .pokedex-select-container {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-4);
+    background-color: var(--theme-bg-secondary);
+    border: 3px solid var(--theme-border-primary);
+    padding: var(--spacing-3) var(--spacing-4);
+    box-shadow: 2px 2px 0px var(--theme-border-primary);
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .pokedex-select-container label {
+    font-family: var(--font-display);
+    font-size: 10px;
+    color: var(--theme-text-primary);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  :global(.pokedex-select) {
+    flex: 1;
+    min-width: 0;
   }
 
   .header-actions {

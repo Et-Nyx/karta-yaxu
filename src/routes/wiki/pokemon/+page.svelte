@@ -1,12 +1,33 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import PokemonCard from '$lib/components/PokemonCard.svelte';
   import SearchBar from '$lib/components/SearchBar.svelte';
   import RetroSelect from '$lib/components/RetroSelect.svelte';
+  import { selectedPokedexSlug } from '$lib/stores/selectedPokedex';
 
   let { data } = $props();
 
   let searchQuery = $state('');
   let selectedPokedexId = $state<number | ''>('');
+
+  // On mount: restore the stored Pokédex choice (match by slug)
+  onMount(() => {
+    const storedSlug = $selectedPokedexSlug;
+    if (storedSlug) {
+      const matched = data.pokedexes.find((d: any) => d.slug === storedSlug);
+      if (matched) selectedPokedexId = matched.id;
+    }
+  });
+
+  // When the user picks a different Pokédex, persist it to the store
+  $effect(() => {
+    if (selectedPokedexId === '') {
+      selectedPokedexSlug.set('');
+    } else {
+      const matched = data.pokedexes.find((d: any) => d.id === selectedPokedexId);
+      if (matched) selectedPokedexSlug.set(matched.slug);
+    }
+  });
 
   // 1. Build the retro pokedex options
   let pokedexOptions = $derived([
@@ -48,6 +69,7 @@
       };
     });
   });
+
 </script>
 
 <svelte:head>
@@ -57,17 +79,15 @@
 <div class="pokedex-page">
   <div class="page-header">
     <h2>POKÉMON</h2>
-    <div class="filters-container">
-      <div class="pokedex-select-container">
-        <label for="pokedexSelect">POKÉDEX:</label>
-        <RetroSelect id="pokedexSelect" bind:value={selectedPokedexId} options={pokedexOptions} class="pokedex-select" />
-      </div>
-      <SearchBar
-        bind:value={searchQuery}
-        placeholder="Search by name or ID... (/)"
-        count={filteredPokemon.length}
-        total={selectedPokedexId === '' ? data.pokemon.length : (data.pokedexEntriesMap[selectedPokedexId]?.length ?? 0)}
-      />
+    <SearchBar
+      bind:value={searchQuery}
+      placeholder="Search by name or ID... (/)"
+      count={filteredPokemon.length}
+      total={selectedPokedexId === '' ? data.pokemon.length : (data.pokedexEntriesMap[selectedPokedexId]?.length ?? 0)}
+    />
+    <div class="pokedex-select-container">
+      <label for="pokedexSelect">POKÉDEX:</label>
+      <RetroSelect id="pokedexSelect" bind:value={selectedPokedexId} options={pokedexOptions} class="pokedex-select" />
     </div>
   </div>
 
@@ -117,13 +137,6 @@
     margin: 0;
   }
 
-  .filters-container {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-4);
-    width: 100%;
-  }
-
   .pokedex-select-container {
     display: flex;
     align-items: center;
@@ -132,9 +145,7 @@
     border: 3px solid var(--theme-border-primary);
     padding: var(--spacing-3) var(--spacing-4);
     box-shadow: 2px 2px 0px var(--theme-border-primary);
-    flex-shrink: 0;
-    min-width: 280px;
-    height: 48px;
+    width: 100%;
     box-sizing: border-box;
   }
 
@@ -143,6 +154,7 @@
     font-size: 10px;
     color: var(--theme-text-primary);
     white-space: nowrap;
+    flex-shrink: 0;
   }
 
   :global(.pokedex-select) {
@@ -163,13 +175,5 @@
     color: var(--theme-text-secondary);
   }
 
-  @media (max-width: 768px) {
-    .filters-container {
-      flex-direction: column;
-      align-items: stretch;
-    }
-    .pokedex-select-container {
-      width: 100%;
-    }
-  }
+
 </style>
