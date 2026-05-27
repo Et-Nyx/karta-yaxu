@@ -13,7 +13,8 @@ import {
   savePokedexOrder,
   addPokemonToPokedex,
   removePokemonFromPokedex,
-  copyStaticPokedex
+  copyStaticPokedex,
+  syncCustomPokedexEntries
 } from '$lib/editor/pokedex';
 import type { PageServerLoad, Actions } from './$types';
 
@@ -32,6 +33,11 @@ const UpdateSchema = z.object({
 export const load: PageServerLoad = async ({ params }) => {
   const [row] = await db.select().from(pokedexes).where(eq(pokedexes.slug, params.slug)).limit(1);
   if (!row) throw error(404, 'Pokédex not found');
+
+  // Automatically sync custom pokedex entries with any recent evolution changes
+  if (row.source === 'custom') {
+    await syncCustomPokedexEntries(row.id);
+  }
 
   // Fetch all flat entries and join the pokemon and species details
   const entriesRaw = await db.select({

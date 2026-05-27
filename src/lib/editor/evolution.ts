@@ -135,3 +135,109 @@ export async function sortSpeciesByEvolutionRelation(speciesIds: number[]): Prom
 
   return orderedSpeciesIds;
 }
+
+/**
+ * Fetches all unique pokemon IDs within the form-based evolution chain of a given pokemon ID.
+ * Walks up to the root parent forms and then BFS-traverses down to get all descendants.
+ */
+export async function getEvolutionChainPokemon(pokemonId: number): Promise<number[]> {
+  // 1. Walk up to the root parent pokemon ID
+  let rootId = pokemonId;
+  const seen = new Set<number>([rootId]);
+  let cursor: number | null = pokemonId;
+
+  while (cursor != null) {
+    const [current] = await db.select({ parentId: pokemon.evolvesFromPokemonId })
+      .from(pokemon)
+      .where(eq(pokemon.id, cursor))
+      .limit(1);
+
+    if (current && current.parentId != null && !seen.has(current.parentId)) {
+      seen.add(current.parentId);
+      rootId = current.parentId;
+      cursor = current.parentId;
+    } else {
+      cursor = null;
+    }
+  }
+
+  // 2. BFS down from rootId to collect all descendant pokemon IDs
+  const allPokemonIds = new Set<number>([rootId]);
+  let frontier = [rootId];
+
+  while (frontier.length > 0) {
+    const children = await db.select({ id: pokemon.id })
+      .from(pokemon)
+      .where(inArray(pokemon.evolvesFromPokemonId, frontier));
+
+    const nextFrontier: number[] = [];
+    for (const c of children) {
+      if (!allPokemonIds.has(c.id)) {
+        allPokemonIds.add(c.id);
+        nextFrontier.push(c.id);
+      }
+    }
+    frontier = nextFrontier;
+  }
+
+  // Sort the collected pokemon IDs topologically
+  const sortedList = await sortPokemonByEvolutionRelation([...allPokemonIds]);
+  return sortedList;
+}
+
+/**
+ * Sorts a list of pokemon IDs based on their evolution chain relationships.
+ * Parent forms are positioned before their evolved/child forms.
+ */
+export async function sortPokemonByEvolutionRelation(pokemonIds: number[]): Promise<number[]> {
+  if (pokemonIds.length <= 1) return pokemonIds;
+
+  // Fetch all pokemon details
+  const pList = await db.select({
+    id: pokemon.id,
+    speciesId: pokemon.speciesId,
+    evolvesFromPokemonId: pokemon.evolvesFromPokemonId
+  })
+    .from(pokemon)
+    .where(inArray(pokemon.id, pokemonIds));
+
+  const pokemonMap = new Map(pList.map(p => [p.id, p]));
+  const adj = new Map<number, number[]>();
+
+  for (const p of pList) {
+    if (p.evolvesFromPokemonId && pokemonMap.has(p.evolvesFromPokemonId)) {
+      if (!adj.has(p.evolvesFromPokemonId)) {
+        adj.set(p.evolvesFromPokemonId, []);
+      }
+      adj.get(p.evolvesFromPokemonId)!.push(p.id);
+    }
+  }
+
+  const roots = pList.filter(p => !p.evolvesFromPokemonId || !pokemonMap.has(p.evolvesFromPokemonId));
+  const orderedPokemonIds: number[] = [];
+  const visited = new Set<number>();
+
+  function traverse(id: number) {
+    if (visited.has(id)) return;
+    visited.add(id);
+    orderedPokemonIds.push(id);
+    const children = adj.get(id) ?? [];
+    for (const childId of children) {
+      traverse(childId);
+    }
+  }
+
+  for (const root of roots) {
+    traverse(root.id);
+  }
+
+  // Fallback: append any missed ones
+  for (const id of pokemonIds) {
+    if (!visited.has(id)) {
+      orderedPokemonIds.push(id);
+    }
+  }
+
+  return orderedPokemonIds;
+}
+

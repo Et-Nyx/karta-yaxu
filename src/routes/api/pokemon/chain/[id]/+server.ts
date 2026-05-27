@@ -3,29 +3,19 @@ import { and, eq, inArray, asc } from 'drizzle-orm';
 import { db } from '$lib/db';
 import { pokemon, pokemonSpecies, pokemonTypes } from '$lib/db/schema/pokemon';
 import { types } from '$lib/db/schema/core-data';
-import { getEvolutionChainSpecies } from '$lib/editor/evolution';
+import { getEvolutionChainPokemon } from '$lib/editor/evolution';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ params }) => {
   const pokemonId = Number(params.id);
   
-  // 1. Get speciesId for this pokemon form
-  const [pk] = await db.select({ speciesId: pokemon.speciesId })
-    .from(pokemon)
-    .where(eq(pokemon.id, pokemonId))
-    .limit(1);
-
-  if (!pk) {
-    return new Response(JSON.stringify({ error: 'Pokemon not found' }), { status: 404 });
-  }
-
-  // 2. Fetch evolution chain species ids
-  const chainSpeciesIds = await getEvolutionChainSpecies(pk.speciesId);
-  if (chainSpeciesIds.length === 0) {
+  // 1. Fetch form-based evolution chain pokemon IDs
+  const chainPokemonIds = await getEvolutionChainPokemon(pokemonId);
+  if (chainPokemonIds.length === 0) {
     return json([]);
   }
 
-  // 3. Fetch default pokemon variants for each species in the chain
+  // 2. Fetch pokemon details for all resolved pokemon in the chain
   const pkList = await db.select({
     pokemonId: pokemon.id,
     speciesId: pokemon.speciesId,
@@ -36,39 +26,16 @@ export const GET: RequestHandler = async ({ params }) => {
   })
     .from(pokemon)
     .innerJoin(pokemonSpecies, eq(pokemon.speciesId, pokemonSpecies.id))
-    .where(
-      and(
-        inArray(pokemon.speciesId, chainSpeciesIds),
-        eq(pokemon.id, pokemonSpecies.defaultPokemonId)
-      )
-    );
+    .where(inArray(pokemon.id, chainPokemonIds));
 
-  // Fallback if defaultPokemonId is not set
+  // Sort them according to the topological chain order
   const resolvedPokemon: typeof pkList = [];
-  for (const sId of chainSpeciesIds) {
-    const matched = pkList.find(p => p.speciesId === sId);
-    if (matched) {
-      resolvedPokemon.push(matched);
-    } else {
-      const [fallback] = await db.select({
-        pokemonId: pokemon.id,
-        speciesId: pokemon.speciesId,
-        pokemonName: pokemon.name,
-        pokemonSlug: pokemon.slug,
-        spriteDefault: pokemon.spriteDefault,
-        pokeapiId: pokemonSpecies.pokeapiId,
-      })
-        .from(pokemon)
-        .innerJoin(pokemonSpecies, eq(pokemon.speciesId, pokemonSpecies.id))
-        .where(eq(pokemon.speciesId, sId))
-        .limit(1);
-      if (fallback) {
-        resolvedPokemon.push(fallback);
-      }
-    }
+  for (const pId of chainPokemonIds) {
+    const matched = pkList.find(p => p.pokemonId === pId);
+    if (matched) resolvedPokemon.push(matched);
   }
 
-  // 4. Fetch types for all resolved pokemon
+  // 3. Fetch types for all resolved pokemon
   const pokemonIds = resolvedPokemon.map(p => p.pokemonId);
   const pokemonTypesMap = new Map<number, Array<{ name: string, hexColor: string }>>();
   
@@ -91,9 +58,10 @@ export const GET: RequestHandler = async ({ params }) => {
     }
   }
 
-  // 5. Build standard entries mapping
+  // 4. Build standard entries mapping
   const entries = resolvedPokemon.map((p, index) => {
-    const chainId = Math.min(...chainSpeciesIds);
+    // Treat the root parent pokemon ID as the chainId group identifier
+    const chainId = chainPokemonIds[0];
     return {
       pokemonId: p.pokemonId,
       speciesId: p.speciesId,

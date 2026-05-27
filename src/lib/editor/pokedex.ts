@@ -2,7 +2,12 @@ import { db } from '$lib/db';
 import { and, eq, inArray } from 'drizzle-orm';
 import { pokedexes } from '$lib/db/schema/game-metadata';
 import { pokedexEntries, pokemon, pokemonSpecies } from '$lib/db/schema/pokemon';
-import { getEvolutionChainSpecies, sortSpeciesByEvolutionRelation } from './evolution';
+import {
+  getEvolutionChainSpecies,
+  sortSpeciesByEvolutionRelation,
+  getEvolutionChainPokemon,
+  sortPokemonByEvolutionRelation
+} from './evolution';
 
 /**
  * Sorts flat database entries of a custom Pokédex by traversing its linked list structure.
@@ -87,57 +92,30 @@ export async function savePokedexOrder(pokedexId: number, orderedPokemonIds: num
 
 /**
  * Adds a Pokémon form to a custom Pokédex, automatically fetching, sorting, and
- * appending its entire evolution chain (in relation order) to the end of the list.
+ * appending its entire form-based evolution chain to the end of the list.
  */
 export async function addPokemonToPokedex(pokedexId: number, pokemonId: number): Promise<void> {
-  // 1. Fetch the pokemon form and species
-  const [chosen] = await db.select({ speciesId: pokemon.speciesId })
-    .from(pokemon)
-    .where(eq(pokemon.id, pokemonId))
-    .limit(1);
-  if (!chosen) return;
+  // 1. Fetch entire form-based evolution chain pokemon IDs
+  const chainPokemonIds = await getEvolutionChainPokemon(pokemonId);
+  if (chainPokemonIds.length === 0) return;
 
-  const chosenSpeciesId = chosen.speciesId;
-
-  // 2. Fetch entire evolution chain species
-  const chainSpeciesIds = await getEvolutionChainSpecies(chosenSpeciesId);
-
-  // 3. Fetch existing entries
+  // 2. Fetch existing entries
   const existing = await db.select({ pokemonId: pokedexEntries.pokemonId })
     .from(pokedexEntries)
     .where(eq(pokedexEntries.pokedexId, pokedexId));
   const existingSet = new Set(existing.map(e => e.pokemonId));
 
-  // 4. Map each species in the chain to the correct pokemonId
-  // (either the chosen pokemonId, or the species' defaultPokemonId)
-  const speciesList = await db.select({ id: pokemonSpecies.id, defaultPokemonId: pokemonSpecies.defaultPokemonId })
-    .from(pokemonSpecies)
-    .where(inArray(pokemonSpecies.id, chainSpeciesIds));
-  
-  const speciesToPokemonMap = new Map<number, number>();
-  for (const s of speciesList) {
-    if (s.id === chosenSpeciesId) {
-      speciesToPokemonMap.set(s.id, pokemonId);
-    } else if (s.defaultPokemonId) {
-      speciesToPokemonMap.set(s.id, s.defaultPokemonId);
-    }
-  }
-
   // Filter to only non-existing ones
-  const newPokemonIds = chainSpeciesIds
-    .map(sId => speciesToPokemonMap.get(sId)!)
-    .filter(pId => pId && !existingSet.has(pId));
-  
+  const newPokemonIds = chainPokemonIds.filter(pId => !existingSet.has(pId));
   if (newPokemonIds.length === 0) return;
 
-  // Sort the new pokemon IDs by their species' evolution relation order
-  const orderedNewSpeciesIds = await sortSpeciesByEvolutionRelation(
-    chainSpeciesIds.filter(sId => newPokemonIds.includes(speciesToPokemonMap.get(sId)!))
-  );
+  // Fetch species IDs for these new pokemon
+  const pokemonRows = await db.select({ id: pokemon.id, speciesId: pokemon.speciesId })
+    .from(pokemon)
+    .where(inArray(pokemon.id, newPokemonIds));
+  const pokemonToSpeciesMap = new Map(pokemonRows.map(p => [p.id, p.speciesId]));
 
-  const orderedNewPokemonIds = orderedNewSpeciesIds.map(sId => speciesToPokemonMap.get(sId)!);
-
-  // 5. Update pointers and append new entries inside a transaction
+  // 3. Update pointers and append new entries inside a transaction
   db.transaction((tx) => {
     const currentRows = tx.select({
       pokemonId: pokedexEntries.pokemonId,
@@ -158,8 +136,8 @@ export async function addPokemonToPokedex(pokedexId: number, pokemonId: number):
     if (lastEntry) {
       tx.update(pokedexEntries)
         .set({ 
-          nextPokemonId: orderedNewPokemonIds[0],
-          nextSpeciesId: orderedNewSpeciesIds[0]
+          nextPokemonId: newPokemonIds[0],
+          nextSpeciesId: pokemonToSpeciesMap.get(newPokemonIds[0]) ?? null
         })
         .where(and(
           eq(pokedexEntries.pokedexId, pokedexId),
@@ -169,12 +147,13 @@ export async function addPokemonToPokedex(pokedexId: number, pokemonId: number):
     }
 
     // Insert new entries linked sequentially
-    for (let i = 0; i < orderedNewPokemonIds.length; i++) {
-      const pId = orderedNewPokemonIds[i];
-      const nextPId = i < orderedNewPokemonIds.length - 1 ? orderedNewPokemonIds[i + 1] : null;
+    for (let i = 0; i < newPokemonIds.length; i++) {
+      const pId = newPokemonIds[i];
+      const nextPId = i < newPokemonIds.length - 1 ? newPokemonIds[i + 1] : null;
       
-      const sId = orderedNewSpeciesIds[i];
-      const nextSId = i < orderedNewSpeciesIds.length - 1 ? orderedNewSpeciesIds[i + 1] : null;
+      const sId = pokemonToSpeciesMap.get(pId);
+      if (sId == null) continue;
+      const nextSId = nextPId ? pokemonToSpeciesMap.get(nextPId) ?? null : null;
       currentNumber++;
 
       tx.insert(pokedexEntries).values({
@@ -191,17 +170,12 @@ export async function addPokemonToPokedex(pokedexId: number, pokemonId: number):
 
 /**
  * Removes a Pokémon form from a custom Pokédex, automatically removing all
- * related species in its evolution chain and re-linking the remaining entries.
+ * related forms in its evolution chain and re-linking the remaining entries.
  */
 export async function removePokemonFromPokedex(pokedexId: number, pokemonId: number): Promise<void> {
-  const [chosen] = await db.select({ speciesId: pokemon.speciesId })
-    .from(pokemon)
-    .where(eq(pokemon.id, pokemonId))
-    .limit(1);
-  if (!chosen) return;
-
-  const chainIds = await getEvolutionChainSpecies(chosen.speciesId);
-  const toRemoveSpeciesSet = new Set(chainIds);
+  const chainPokemonIds = await getEvolutionChainPokemon(pokemonId);
+  if (chainPokemonIds.length === 0) return;
+  const toRemoveSet = new Set(chainPokemonIds);
 
   db.transaction((tx) => {
     const currentRows = tx.select({
@@ -218,7 +192,7 @@ export async function removePokemonFromPokedex(pokedexId: number, pokemonId: num
     const sortedCurrent = sortLinkedListEntries(currentRows);
     
     // Filter remaining entries
-    const remaining = sortedCurrent.filter(e => !toRemoveSpeciesSet.has(e.speciesId));
+    const remaining = sortedCurrent.filter(e => !toRemoveSet.has(e.pokemonId));
 
     // Re-link remaining entries and update regional dex numbers
     for (let i = 0; i < remaining.length; i++) {
@@ -237,15 +211,90 @@ export async function removePokemonFromPokedex(pokedexId: number, pokemonId: num
     }
 
     // Delete removed entries from database
-    if (chainIds.length > 0) {
-      tx.delete(pokedexEntries)
-        .where(and(
-          eq(pokedexEntries.pokedexId, pokedexId),
-          inArray(pokedexEntries.speciesId, chainIds)
-        ))
-        .run();
-    }
+    tx.delete(pokedexEntries)
+      .where(and(
+        eq(pokedexEntries.pokedexId, pokedexId),
+        inArray(pokedexEntries.pokemonId, chainPokemonIds)
+      ))
+      .run();
   });
+}
+
+/**
+ * Automatically synchronizes a custom Pokédex with any recent evolution chain changes
+ * (e.g. newly created forms or updated evolution relations).
+ */
+export async function syncCustomPokedexEntries(pokedexId: number): Promise<void> {
+  // 1. Fetch current database entries
+  const currentRows = await db.select({
+    pokemonId: pokedexEntries.pokemonId,
+    speciesId: pokedexEntries.speciesId,
+    nextPokemonId: pokedexEntries.nextPokemonId,
+    nextSpeciesId: pokedexEntries.nextSpeciesId,
+    entryNumber: pokedexEntries.entryNumber
+  })
+    .from(pokedexEntries)
+    .where(eq(pokedexEntries.pokedexId, pokedexId));
+
+  if (currentRows.length === 0) return;
+
+  const sortedCurrent = sortLinkedListEntries(currentRows);
+  const currentPokemonIds = sortedCurrent.map(e => e.pokemonId);
+  const currentSet = new Set(currentPokemonIds);
+
+  // 2. Resolve all unique evolution chain groups present in this pokedex
+  const processedSet = new Set<number>();
+  const missingPokemonToAdd: Array<{ insertAfterId: number; idsToAdd: number[] }> = [];
+
+  for (const entry of sortedCurrent) {
+    if (processedSet.has(entry.pokemonId)) continue;
+
+    // Get full form-based evolution chain for this pokemon
+    const chain = await getEvolutionChainPokemon(entry.pokemonId);
+    
+    // Mark all members of this chain as processed so we don't scan them again
+    for (const id of chain) {
+      processedSet.add(id);
+    }
+
+    // Check if there are any missing pokemon forms in the database chain
+    const missingInDex = chain.filter(id => !currentSet.has(id));
+    if (missingInDex.length > 0) {
+      // We want to insert the missing forms right after the last existing member of this chain!
+      let lastExistingIndex = -1;
+      for (let i = sortedCurrent.length - 1; i >= 0; i--) {
+        if (chain.includes(sortedCurrent[i].pokemonId)) {
+          lastExistingIndex = i;
+          break;
+        }
+      }
+
+      if (lastExistingIndex !== -1) {
+        const lastExistingId = sortedCurrent[lastExistingIndex].pokemonId;
+        missingPokemonToAdd.push({
+          insertAfterId: lastExistingId,
+          idsToAdd: missingInDex
+        });
+      }
+    }
+  }
+
+  // If no missing forms to add, we're fully in sync!
+  if (missingPokemonToAdd.length === 0) return;
+
+  // 3. Build the new synchronized ordered list of pokemon IDs
+  let newOrder: number[] = [...currentPokemonIds];
+
+  for (const { insertAfterId, idsToAdd } of missingPokemonToAdd) {
+    const index = newOrder.indexOf(insertAfterId);
+    if (index !== -1) {
+      // Insert all missing forms contiguously right after the last sibling
+      newOrder.splice(index + 1, 0, ...idsToAdd);
+    }
+  }
+
+  // 4. Atomically persist the new sequence back to database
+  await savePokedexOrder(pokedexId, newOrder);
 }
 
 /**

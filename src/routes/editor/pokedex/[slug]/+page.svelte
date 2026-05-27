@@ -62,7 +62,7 @@
   let groups = $derived.by(() => {
     const list: Array<{ chainId: number; entries: typeof entries }> = [];
     let currentGroup: { chainId: number; entries: typeof entries } | null = null;
-    
+
     for (const entry of entries) {
       if (!currentGroup || currentGroup.chainId !== entry.chainId) {
         currentGroup = { chainId: entry.chainId, entries: [] };
@@ -85,7 +85,7 @@
   function handleDragOver(e: DragEvent, groupIndex: number) {
     if (data.pokedex.source !== 'custom') return;
     if (draggedGroupIndex === null) return;
-    
+
     e.preventDefault();
     dragHoverGroupIndex = groupIndex;
   }
@@ -108,7 +108,7 @@
 
     // Flatten back into entries
     const flattened = items.flatMap(g => g.entries);
-    
+
     // Update dex numbers locally
     flattened.forEach((item, idx) => {
       item.entryNumber = idx + 1;
@@ -163,7 +163,7 @@
     if (!confirm('Are you sure you want to remove this evolution chain from the Pokédex?')) {
       return;
     }
-    
+
     const filtered = entries.filter(e => e.chainId !== chainId);
     filtered.forEach((item, idx) => {
       item.entryNumber = idx + 1;
@@ -250,7 +250,7 @@
       <div class="meta-strip">
         <input type="hidden" name="slug" value={slugVal} />
         <input type="hidden" name="isMainSeries" value="false" />
-        
+
         <div class="meta-field">
           <label class="meta-label">REGION</label>
           <RetroSelect id="region" name="regionId" bind:value={regionIdVal} options={regionOptions} variant="editor" />
@@ -379,7 +379,6 @@
               <td class="entry-name">
                 {#if data.pokedex.source === 'custom'}
                   <span class="name-drag-text">{e.pokemonCard.name.toUpperCase()}</span>
-                  <span class="drag-hint">(Drag row to reorder chain)</span>
                 {:else}
                   <a href="/wiki/pokemon/{e.pokemonCard.slug}">{e.pokemonCard.name.toUpperCase()}</a>
                 {/if}
@@ -395,7 +394,7 @@
                 <td class="col-actions">
                   <div class="remove-card-form">
                     <RetroButton type="button" variant="secondary" class="remove-row-btn" title="Remove Pokémon and its entire evolution chain" onclick={() => handleRemoveEntry(e.pokemonId, e.chainId)}>
-                      REMOVE CHAIN
+                      REMOVE
                     </RetroButton>
                   </div>
                 </td>
@@ -676,18 +675,18 @@
     border: 1px solid var(--theme-border-primary);
   }
 
-  .entry-name { 
-    font-family: var(--font-display); 
-    font-size: 10px; 
+  .entry-name {
+    font-family: var(--font-display);
+    font-size: 10px;
   }
-  
-  .entry-name a { 
-    color: var(--theme-text-primary); 
-    text-decoration: none; 
+
+  .entry-name a {
+    color: var(--theme-text-primary);
+    text-decoration: none;
   }
-  
-  .entry-name a:hover { 
-    color: var(--theme-text-accent); 
+
+  .entry-name a:hover {
+    color: var(--theme-text-accent);
   }
 
   .name-drag-text {

@@ -80,7 +80,7 @@
             <RetroSelect id="c-region" name="regionId" value={form?.createValues?.regionId ?? ''} options={regionOptions} variant="editor" />
           </div>
           <div class="field">
-            <label for="c-copy">COPY FROM EXISTING POKÉDEX (OPTIONAL)</label>
+            <label for="c-copy">COPY EXISTING POKÉDEX</label>
             <RetroSelect id="c-copy" name="copyFromId" value={form?.createValues?.copyFromId ?? ''} options={copyFromOptions} variant="editor" />
           </div>
           <div class="form-actions">
