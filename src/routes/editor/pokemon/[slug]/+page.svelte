@@ -18,6 +18,8 @@
   import TypeMatchupDisplay from '$lib/components/TypeMatchupDisplay.svelte';
   import EvolutionChain from '$lib/components/EvolutionChain.svelte';
   import RetroButton from '$lib/components/RetroButton.svelte';
+  import FormErrors from '$lib/components/FormErrors.svelte';
+  import FieldError from '$lib/components/FieldError.svelte';
   import { pageSource } from '$lib/stores/pageSource';
   import { selectedPokedexSlug } from '$lib/stores/selectedPokedex';
 
@@ -96,6 +98,10 @@
 
   // Save states
   let saved = $state(false);
+
+  // Live mirrors of server-side field errors; cleared as soon as the user edits anything.
+  let liveUpdateFieldErrors = $state<Record<string, string>>({});
+  let liveLearnsetFieldErrors = $state<Record<string, string>>({});
 
   // --- Main update form state ---
   let nameVal = $state(data.pokemon.name);
@@ -479,6 +485,15 @@
 
   let isSaving = false;
 
+  // Sync field errors from server form action, and clear them as soon as the user edits.
+  $effect(() => { liveUpdateFieldErrors = form?.updateFieldErrors ?? {}; });
+  $effect(() => { liveLearnsetFieldErrors = form?.learnsetFieldErrors ?? {}; });
+  $effect(() => {
+    if (isDirty && Object.keys(liveUpdateFieldErrors).length > 0) {
+      liveUpdateFieldErrors = {};
+    }
+  });
+
   // --- Save handlers ---
   function handleSave() {
     isSaving = true;
@@ -564,8 +579,18 @@
       <div class="dex-num">#{(currentSpecies?.dexNumber ?? 0).toString().padStart(3, '0')}</div>
       <div class="header-main">
         <div class="flex items-center gap-2">
-          <input class="h1-input" name="name" type="text" maxlength="80" required bind:value={nameVal} />
+          <input
+            class="h1-input"
+            class:invalid={!!liveUpdateFieldErrors.name || !!liveUpdateFieldErrors.slug}
+            name="name"
+            type="text"
+            maxlength="80"
+            required
+            bind:value={nameVal}
+          />
         </div>
+        <FieldError name="name" errors={liveUpdateFieldErrors} />
+        <FieldError name="slug" errors={liveUpdateFieldErrors} />
         <div class="header-sub-row">
           {#if data.genus}
             <div class="genus">{data.genus.toUpperCase()}</div>
@@ -592,7 +617,9 @@
           bind:value={speciesIdVal}
           options={data.species.map((s: any) => ({ value: s.id, label: `#${s.dexNumber} ${s.name}` }))}
           variant="editor"
+          invalid={!!liveUpdateFieldErrors.speciesId}
         />
+        <FieldError name="speciesId" errors={liveUpdateFieldErrors} />
       </div>
       <div class="meta-actions">
         <RetroButton type="submit" variant="primary">SAVE</RetroButton>
@@ -608,7 +635,7 @@
           CANCEL
         </RetroButton>
         {#if saved}<span class="save-ok">✓ SAVED</span>{/if}
-        {#if form?.updateError}<span class="form-error">{form.updateError}</span>{/if}
+        <FormErrors message={form?.updateError ?? ''} fieldErrors={liveUpdateFieldErrors} expanded />
       </div>
     </div>
   </form>
@@ -793,7 +820,9 @@
               bind:value={slot1AbilityVal}
               options={data.allAbilities.map((a: any) => ({ value: a.id, label: a.name.toUpperCase() }))}
               variant="editor"
+              invalid={!!liveUpdateFieldErrors.slot1AbilityId}
             />
+            <FieldError name="slot1AbilityId" errors={liveUpdateFieldErrors} />
           </div>
           <div class="sub-field">
             <label class="sub-label">SLOT 2</label>
@@ -804,7 +833,9 @@
                 ...data.allAbilities.map((a: any) => ({ value: a.id, label: a.name.toUpperCase() }))
               ]}
               variant="editor"
+              invalid={!!liveUpdateFieldErrors.slot2AbilityId}
             />
+            <FieldError name="slot2AbilityId" errors={liveUpdateFieldErrors} />
           </div>
           <div class="sub-field">
             <label class="sub-label">HIDDEN</label>
@@ -815,7 +846,9 @@
                 ...data.allAbilities.map((a: any) => ({ value: a.id, label: a.name.toUpperCase() }))
               ]}
               variant="editor"
+              invalid={!!liveUpdateFieldErrors.hiddenAbilityId}
             />
+            <FieldError name="hiddenAbilityId" errors={liveUpdateFieldErrors} />
           </div>
         </div>
       </InfoBox>
@@ -859,7 +892,9 @@
             bind:value={slot1TypeId}
             options={data.allTypes.map((t: any) => ({ value: t.id, label: t.name.toUpperCase() }))}
             variant="editor"
+            invalid={!!liveUpdateFieldErrors.slot1TypeId}
           />
+          <FieldError name="slot1TypeId" errors={liveUpdateFieldErrors} />
         </div>
         <div class="sub-field">
           <label class="sub-label">SLOT 2</label>
@@ -870,7 +905,9 @@
               ...data.allTypes.map((t: any) => ({ value: t.id, label: t.name.toUpperCase() }))
             ]}
             variant="editor"
+            invalid={!!liveUpdateFieldErrors.slot2TypeId}
           />
+          <FieldError name="slot2TypeId" errors={liveUpdateFieldErrors} />
         </div>
       </div>
 
@@ -1000,7 +1037,7 @@
         <div class="form-actions"><button type="submit" class="save-btn-sm">ADD ENTRY</button></div>
       </form>
     </details>
-    {#if form?.learnsetError}<p class="form-error">{form.learnsetError}</p>{/if}
+    <FormErrors message={form?.learnsetError ?? ''} fieldErrors={liveLearnsetFieldErrors} expanded />
   </section>
 
 
@@ -1056,6 +1093,7 @@
     text-transform: uppercase;
   }
   .h1-input:focus { border-bottom-color: var(--theme-text-accent); }
+  .h1-input.invalid, .h1-input.invalid:focus { border-bottom-color: var(--color-text-error); }
   .genus { font-family: var(--font-mono); font-size: 12px; color: var(--theme-text-secondary); white-space: nowrap; }
   .types { display: flex; gap: var(--spacing-2); }
   .header-sub-row { display: flex; align-items: center; gap: var(--spacing-3); flex-wrap: wrap; }
@@ -1088,7 +1126,6 @@
 
 
   .save-ok { font-family: var(--font-mono); font-size: 10px; color: var(--theme-text-accent); }
-  .form-error { font-family: var(--font-mono); font-size: 10px; color: var(--color-text-error); }
   .delete-btn-sm {
     font-family: var(--font-display); font-size: 9px; color: var(--color-text-error);
     background: none; border: 2px solid var(--color-text-error);

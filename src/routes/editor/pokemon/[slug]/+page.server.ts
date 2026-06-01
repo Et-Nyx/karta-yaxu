@@ -12,9 +12,44 @@ import { alias } from 'drizzle-orm/sqlite-core';
 import { bumpSource } from '$lib/editor/source';
 import { recordEdit } from '$lib/editor/audit';
 import { reimportEntity } from '$lib/editor/resource';
+import { formatZodError } from '$lib/editor/formErrors';
 import type { PageServerLoad, Actions } from './$types';
 
 const slugRegex = /^[a-z0-9-]+$/;
+
+const POKEMON_LABELS: Record<string, string> = {
+  name: 'Name',
+  slug: 'Slug',
+  speciesId: 'Species',
+  height: 'Height',
+  weight: 'Weight',
+  hp: 'HP',
+  atk: 'Attack',
+  def: 'Defense',
+  spa: 'Sp. Atk',
+  spd: 'Sp. Def',
+  spe: 'Speed',
+  slot1TypeId: 'Type slot 1',
+  slot2TypeId: 'Type slot 2',
+  slot1AbilityId: 'Ability slot 1',
+  slot2AbilityId: 'Ability slot 2',
+  hiddenAbilityId: 'Hidden ability',
+};
+
+const LEARNSET_LABELS: Record<string, string> = {
+  moveId: 'Move',
+  learnMethodId: 'Method',
+  level: 'Level',
+  versionGroupId: 'Version group',
+  oldMoveId: 'Move',
+  oldLearnMethodId: 'Method',
+  oldLevel: 'Level',
+  oldVersionGroupId: 'Version group',
+  newMoveId: 'Move',
+  newLearnMethodId: 'Method',
+  newLevel: 'Level',
+  newVersionGroupId: 'Version group',
+};
 
 const intOrNull = z.preprocess(
   (v) => (v === '' || v === null || v === undefined ? null : Number(v)),
@@ -25,7 +60,7 @@ const stat = z.coerce.number().int().min(0).max(255);
 
 const UpdateSchema = z.object({
   name:          z.string().trim().min(1).max(80),
-  slug:          z.string().trim().min(1).max(80).regex(slugRegex, 'slug: lowercase letras/números/hífen'),
+  slug:          z.string().trim().min(1).max(80).regex(slugRegex, 'Slug must be lowercase letters, numbers, or hyphens'),
   speciesId:     z.coerce.number().int().positive(),
   height:        z.coerce.number().int().min(0),
   weight:        z.coerce.number().int().min(0),
@@ -740,7 +775,8 @@ export const actions: Actions = {
 
     const parsed = UpdateSchema.safeParse(form);
     if (!parsed.success) {
-      return fail(400, { updateError: parsed.error.issues[0]?.message ?? 'Inválido', values: form });
+      const { message, fieldErrors } = formatZodError(parsed.error, POKEMON_LABELS);
+      return fail(400, { updateError: message, updateFieldErrors: fieldErrors, values: form });
     }
     const data = parsed.data;
 
@@ -750,7 +786,7 @@ export const actions: Actions = {
     if (data.slug !== current.slug) {
       const [clash] = await db.select({ id: pokemon.id })
         .from(pokemon).where(eq(pokemon.slug, data.slug)).limit(1);
-      if (clash) return fail(400, { updateError: 'slug já em uso', values: form });
+      if (clash) return fail(400, { updateError: 'Slug already in use', updateFieldErrors: { slug: 'Slug already in use' }, values: form });
     }
 
     // Save uploaded files if any
@@ -948,7 +984,7 @@ export const actions: Actions = {
     const basePokemonId = Number(form.basePokemonId);
     const formType = String(form.formType || 'other');
     if (!Number.isInteger(basePokemonId) || basePokemonId <= 0) {
-      return fail(400, { evoError: 'basePokemonId inválido' });
+      return fail(400, { evoError: 'Invalid base Pokémon ID' });
     }
     const [current] = await db.select({ id: pokemon.id, source: pokemon.source })
       .from(pokemon).where(eq(pokemon.slug, params.slug)).limit(1);
@@ -978,7 +1014,7 @@ export const actions: Actions = {
   addSuccessor: async ({ request, params, locals }) => {
     const formData = await request.formData();
     const childId = intOrNull.parse(formData.get('childPokemonId'));
-    if (!childId) return fail(400, { evoError: 'childPokemonId required' });
+    if (!childId) return fail(400, { evoError: 'Child Pokémon is required' });
 
     const [cur] = await db.select({ id: pokemon.id })
       .from(pokemon).where(eq(pokemon.slug, params.slug)).limit(1);
@@ -1006,7 +1042,8 @@ export const actions: Actions = {
     const form = Object.fromEntries(await request.formData());
     const parsed = LearnsetEntrySchema.safeParse(form);
     if (!parsed.success) {
-      return fail(400, { learnsetError: parsed.error.issues[0]?.message ?? 'Inválido' });
+      const { message, fieldErrors } = formatZodError(parsed.error, LEARNSET_LABELS);
+      return fail(400, { learnsetError: message, learnsetFieldErrors: fieldErrors });
     }
     const data = parsed.data;
 
@@ -1022,7 +1059,7 @@ export const actions: Actions = {
         eq(pokemonMoves.level, data.level),
         eq(pokemonMoves.versionGroupId, data.versionGroupId),
       )).limit(1);
-    if (exists) return fail(400, { learnsetError: 'Entrada já existe nessa combinação' });
+    if (exists) return fail(400, { learnsetError: 'Entry already exists for that combination' });
 
     await db.insert(pokemonMoves).values({
       pokemonId:      current.id,
@@ -1043,7 +1080,8 @@ export const actions: Actions = {
     const form = Object.fromEntries(await request.formData());
     const parsed = LearnsetEntrySchema.safeParse(form);
     if (!parsed.success) {
-      return fail(400, { learnsetError: parsed.error.issues[0]?.message ?? 'Inválido' });
+      const { message, fieldErrors } = formatZodError(parsed.error, LEARNSET_LABELS);
+      return fail(400, { learnsetError: message, learnsetFieldErrors: fieldErrors });
     }
     const data = parsed.data;
 
@@ -1069,7 +1107,8 @@ export const actions: Actions = {
     const form = Object.fromEntries(await request.formData());
     const parsed = LearnsetUpdateSchema.safeParse(form);
     if (!parsed.success) {
-      return fail(400, { learnsetError: parsed.error.issues[0]?.message ?? 'Inválido' });
+      const { message, fieldErrors } = formatZodError(parsed.error, LEARNSET_LABELS);
+      return fail(400, { learnsetError: message, learnsetFieldErrors: fieldErrors });
     }
     const data = parsed.data;
 
@@ -1107,7 +1146,7 @@ export const actions: Actions = {
     const form = Object.fromEntries(await request.formData());
     const vgId = Number(form.versionGroupId);
     if (!Number.isInteger(vgId) || vgId <= 0) {
-      return fail(400, { learnsetError: 'versionGroupId inválido' });
+      return fail(400, { learnsetError: 'Invalid version group ID' });
     }
 
     const [current] = await db.select({ id: pokemon.id }).from(pokemon).where(eq(pokemon.slug, params.slug)).limit(1);
@@ -1134,10 +1173,10 @@ export const actions: Actions = {
     const sourceVgId = Number(form.sourceVgId);
     const targetVgId = Number(form.targetVgId);
     if (!Number.isInteger(sourceVgId) || sourceVgId <= 0 || !Number.isInteger(targetVgId) || targetVgId <= 0) {
-      return fail(400, { learnsetError: 'IDs de version group inválidos' });
+      return fail(400, { learnsetError: 'Invalid version group IDs' });
     }
     if (sourceVgId === targetVgId) {
-      return fail(400, { learnsetError: 'Source e target precisam ser diferentes' });
+      return fail(400, { learnsetError: 'Source and target must be different' });
     }
 
     const [current] = await db.select({ id: pokemon.id }).from(pokemon).where(eq(pokemon.slug, params.slug)).limit(1);
@@ -1152,7 +1191,7 @@ export const actions: Actions = {
       .where(and(eq(pokemonMoves.pokemonId, current.id), eq(pokemonMoves.versionGroupId, sourceVgId)));
 
     if (sourceRows.length === 0) {
-      return fail(400, { learnsetError: 'Source version group não tem nenhuma entrada' });
+      return fail(400, { learnsetError: 'Source version group has no entries' });
     }
 
     let copied = 0;
@@ -1179,8 +1218,8 @@ export const actions: Actions = {
   resource: async ({ params, locals }) => {
     const [current] = await db.select().from(pokemon).where(eq(pokemon.slug, params.slug)).limit(1);
     if (!current) throw error(404, 'Pokémon not found');
-    if (current.source !== 'edited') return fail(400, { updateError: 'Apenas pokémon edited podem ser re-sourceados' });
-    if (current.pokeapiId == null) return fail(400, { updateError: 'Sem pokeapiId — não há fonte para re-importar' });
+    if (current.source !== 'edited') return fail(400, { updateError: 'Only edited Pokémon can be re-sourced' });
+    if (current.pokeapiId == null) return fail(400, { updateError: 'No pokeapiId — no source to re-import' });
 
     await db.update(pokemon).set({ source: 'pokeapi' }).where(eq(pokemon.id, current.id));
     try {
@@ -1200,7 +1239,7 @@ export const actions: Actions = {
     const [current] = await db.select().from(pokemon).where(eq(pokemon.slug, params.slug)).limit(1);
     if (!current) throw error(404, 'Pokémon not found');
     if (current.source !== 'custom') {
-      return fail(400, { updateError: 'Apenas pokémon custom podem ser deletados' });
+      return fail(400, { updateError: 'Only custom Pokémon can be deleted' });
     }
 
     await db.delete(pokemonTypes).where(eq(pokemonTypes.pokemonId, current.id));

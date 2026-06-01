@@ -10,12 +10,14 @@
     placeholder,
     disabled = false,
     name,
+    invalid = false,
     class: className = '',
     oninput,
     ...rest
   }: HTMLInputAttributes & {
     value?: any;
     type?: string;
+    invalid?: boolean;
   } = $props();
 </script>
 
@@ -29,6 +31,7 @@
   {disabled}
   bind:value={value}
   class="retro-input {className}"
+  class:invalid
   {oninput}
   {...rest}
 />
@@ -60,6 +63,12 @@
   .retro-input:focus {
     border-color: var(--theme-text-accent);
     box-shadow: 2px 2px 0 var(--theme-text-accent);
+  }
+
+  .retro-input.invalid,
+  .retro-input.invalid:focus {
+    border-color: var(--color-text-error);
+    box-shadow: 2px 2px 0 var(--color-text-error);
   }
 
   .retro-input:disabled {

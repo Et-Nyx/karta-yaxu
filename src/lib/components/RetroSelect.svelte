@@ -8,6 +8,7 @@
     name = '',
     class: className = '',
     variant = 'default',
+    invalid = false,
     onchange
   }: {
     value: any;
@@ -16,6 +17,7 @@
     name?: string;
     class?: string;
     variant?: 'default' | 'header' | 'editor';
+    invalid?: boolean;
     onchange?: (val: any) => void;
   } = $props();
 
@@ -147,9 +149,10 @@
   });
 </script>
 
-<div 
-  bind:this={containerEl} 
+<div
+  bind:this={containerEl}
   class="retro-select-wrapper {className} {variant}"
+  class:invalid
 >
   <!-- Hidden inputs to submit standard HTML forms -->
   <input type="hidden" {id} {name} value={value !== null && value !== undefined ? value.toString() : ''} />
@@ -389,5 +392,18 @@
     color: var(--theme-text-accent);
     border-color: var(--theme-text-accent);
     box-shadow: 1px 1px 0 var(--theme-text-accent);
+  }
+
+  /* Invalid state (applies regardless of variant) */
+  .retro-select-wrapper.invalid .retro-select-trigger,
+  .retro-select-wrapper.invalid .retro-select-input,
+  .retro-select-wrapper.invalid .retro-select-trigger:focus,
+  .retro-select-wrapper.invalid .retro-select-input:focus {
+    border-color: var(--color-text-error);
+    box-shadow: 2px 2px 0 var(--color-text-error);
+  }
+
+  .retro-select-wrapper.invalid .retro-caret {
+    color: var(--color-text-error);
   }
 </style>
