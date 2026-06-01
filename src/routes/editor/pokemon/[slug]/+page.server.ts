@@ -58,6 +58,12 @@ const intOrNull = z.preprocess(
 
 const stat = z.coerce.number().int().min(0).max(255);
 
+// IDs are auto-increment positive integers; treat '', null/undefined, and 0/'0' as "absent".
+const nullableId = z.preprocess(
+  (v) => (v === '' || v == null || v === 0 || v === '0' ? null : Number(v)),
+  z.number().int().positive().nullable(),
+);
+
 const UpdateSchema = z.object({
   name:          z.string().trim().min(1).max(80),
   slug:          z.string().trim().min(1).max(80).regex(slugRegex, 'Slug must be lowercase letters, numbers, or hyphens'),
@@ -77,10 +83,10 @@ const UpdateSchema = z.object({
   spriteBackDefault:  z.preprocess((v) => v === '' ? null : v, z.string().nullable()),
   spriteBackShiny:    z.preprocess((v) => v === '' ? null : v, z.string().nullable()),
   slot1TypeId:    z.coerce.number().int().positive(),
-  slot2TypeId:    z.preprocess((v) => (v === '' || v == null ? null : Number(v)), z.number().int().positive().nullable()),
+  slot2TypeId:    nullableId,
   slot1AbilityId: z.coerce.number().int().positive(),
-  slot2AbilityId: z.preprocess((v) => (v === '' || v == null ? null : Number(v)), z.number().int().positive().nullable()),
-  hiddenAbilityId: z.preprocess((v) => (v === '' || v == null ? null : Number(v)), z.number().int().positive().nullable()),
+  slot2AbilityId: nullableId,
+  hiddenAbilityId: nullableId,
 });
 
 const boolField = z.preprocess(

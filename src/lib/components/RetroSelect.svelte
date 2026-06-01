@@ -59,15 +59,16 @@
   );
 
   function handleSelect(val: any) {
-    // Auto-convert to number if existing value type is numeric
+    // Auto-convert to number when current value is numeric, but never coerce
+    // an explicit "no value" choice (null/undefined/'') to the number 0.
     let converted = val;
-    if (typeof value === 'number') {
+    if (val !== null && val !== undefined && val !== '' && typeof value === 'number') {
       const parsed = Number(val);
       if (!isNaN(parsed)) {
         converted = parsed;
       }
     }
-    
+
     value = converted;
     isOpen = false;
     if (onchange) {
