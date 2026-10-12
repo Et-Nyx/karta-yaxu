@@ -1,0 +1,15 @@
+[package]
+name = "web-app"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+game-data.workspace = true
+axum.workspace = true
+tokio.workspace = true
+askama.workspace = true
+serde.workspace = true
+
+[dev-dependencies]
+tower.workspace = true

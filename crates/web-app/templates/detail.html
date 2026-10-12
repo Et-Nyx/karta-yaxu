@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}{{ creature.display_name() }} — Karta Yaxu{% endblock %}
+{% block content %}
+<a href="/creatures">← All creatures</a>
+<p class="eyebrow detail-heading">Creature field notes</p>
+<h1>{{ creature.display_name() }}</h1>
+<p class="notice">Development placeholder — not approved game content.</p>
+<section class="panel">
+  <h2>Description</h2><p class="lead">{{ creature.description() }}</p>
+  <dl><dt>Canonical ID</dt><dd><code>{{ creature.id() }}</code></dd><dt>Slug</dt><dd>{{ creature.slug() }}</dd><dt>Source</dt><dd>Invented local development fixture</dd></dl>
+</section>
+<p class="muted">Stats and mechanics have not been defined. Editing will become available in a later milestone.</p>
+{% endblock %}

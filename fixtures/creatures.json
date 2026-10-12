@@ -1,0 +1,20 @@
+[
+  {
+    "id": "6a64df7c88604b3f9381536710449a8b",
+    "slug": "emberling",
+    "display_name": "Emberling",
+    "description": "A small woodland wanderer that shelters a warm ember beneath its curled tail. It gathers smooth stones to line its nest."
+  },
+  {
+    "id": "9071b88e3d1e4d86a75e720c6019c2a4",
+    "slug": "mosswhisk",
+    "display_name": "Mosswhisk",
+    "description": "A patient forest companion with moss-soft whiskers. After rain, it follows the scent of new shoots along the forest floor."
+  },
+  {
+    "id": "cbc381a09164403ebf52f134f99401a7",
+    "slug": "ripplefin",
+    "display_name": "Ripplefin",
+    "description": "A curious stream dweller that traces circles in quiet pools. Its broad fins help it glide between river stones."
+  }
+]

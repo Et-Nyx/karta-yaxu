@@ -1,0 +1,12 @@
+/target/
+/.direnv/
+/.env
+/.env.*
+!/.env.example
+/data/
+/exports/
+*.db
+*.db-shm
+*.db-wal
+*.sqlite*
+*Zone.Identifier
