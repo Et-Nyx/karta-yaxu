@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Account — Karta Yaxu{% endblock %}
+{% block content %}
+<section class="panel">
+  <p class="eyebrow">Signed in</p>
+  <h1>{{ display_name }}</h1>
+  <dl>
+    <dt>Local user ID</dt><dd><code>{{ user_id }}</code></dd>
+    <dt>Role</dt><dd>{{ role }}</dd>
+  </dl>
+  <form method="post" action="/logout">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <div class="form-actions"><button type="submit">Sign out</button></div>
+  </form>
+  <p class="muted">Signing out ends this browser session. Editing attribution will build on this account.</p>
+</section>
+{% endblock %}

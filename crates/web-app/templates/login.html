@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Sign in — Karta Yaxu{% endblock %}
+{% block content %}
+<section class="panel narrow">
+  <p class="eyebrow">Account</p>
+  <h1>Sign in</h1>
+  {% if dev_auth %}
+  <p class="notice">Development placeholder authentication — not secure. Anyone who can reach this server can sign in as any invited user. Replace it before any real use.</p>
+  {% else %}
+  <p class="notice">Authentication is disabled. Set <code>KARTA_DEV_AUTH=1</code> for local development, or configure a real identity provider.</p>
+  {% endif %}
+  {% if !error.is_empty() %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+  {% if dev_auth %}
+  <form method="post" action="/login">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label for="username">Username</label>
+    <input id="username" name="username" type="text" value="{{ username }}" maxlength="64" required autocomplete="username" aria-describedby="username-help">
+    <p id="username-help" class="muted">Use a username an administrator invited.</p>
+    <div class="form-actions"><button type="submit">Sign in</button></div>
+  </form>
+  {% endif %}
+</section>
+{% endblock %}

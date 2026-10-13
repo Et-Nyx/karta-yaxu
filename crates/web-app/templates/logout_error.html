@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Sign-out unavailable — Karta Yaxu{% endblock %}
+{% block content %}
+<section class="panel narrow">
+  <h1>Sign-out unavailable</h1>
+  <p class="error" role="alert">Sign-out could not be completed. Your session may still be active. Please try again.</p>
+  <form method="post" action="/logout">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button type="submit">Try signing out again</button>
+  </form>
+  <p><a href="/account">Return to your account</a></p>
+</section>
+{% endblock %}
