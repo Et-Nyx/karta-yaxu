@@ -1,8 +1,6 @@
 <div class="field">
-  <label for="slug">Slug</label>
-  <input id="slug" name="slug" value="{{ draft.slug }}" maxlength="80" required aria-describedby="slug-help slug-error" {% if !self.field_error("slug").is_empty() %}aria-invalid="true"{% endif %}>
-  <p id="slug-help" class="muted">1–80 characters: lowercase letters, digits, and separating hyphens. A world variant slug must be unique in its world.</p>
-  <p id="slug-error" class="field-error">{{ self.field_error("slug") }}</p>
+  <p>{{ self.slug_information() }}</p>
+  <p id="slug-help" class="muted">Automatically generated from display name on creation/rename; collisions get a suffix. Renaming changes the readable address; canonical-ID links remain durable.</p>
 </div>
 <div class="field">
   <label for="display-name">Display name</label>

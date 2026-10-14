@@ -376,7 +376,32 @@ impl ContentPage {
         self.errors.get(field).map(String::as_str).unwrap_or("")
     }
 
+    fn slug_information(&self) -> String {
+        if !self.draft.slug.is_empty() {
+            format!("Stored slug: {}", self.draft.slug)
+        } else if (1..=100).contains(&self.draft.display_name.trim().chars().count())
+            && !self.draft.display_name.trim().chars().any(char::is_control)
+        {
+            format!(
+                "Generated base preview: {} (final suffix assigned when saved)",
+                game_data::authoring::slug_from_name(self.draft.display_name.trim())
+            )
+        } else {
+            "Slug: assigned when saved".into()
+        }
+    }
+
     fn failed(&mut self, error: &Error) {
+        // Legacy browser input is ignored by the service and is not a stored slug.
+        // Creation conflicts may compare parent membership, not a saved child.
+        self.draft.slug = if self.action.ends_with("/new") {
+            String::new()
+        } else {
+            self.current
+                .as_ref()
+                .map(|row| row.fields.slug.clone())
+                .unwrap_or_default()
+        };
         self.error = error_text(error).to_owned();
         if matches!(error, Error::Unavailable) {
             self.error_title = "Save could not be confirmed";
@@ -547,6 +572,7 @@ async fn species_save(
 struct FormPage {
     form: FormRecord,
     species: SpeciesRecord,
+    current_species: SpeciesRecord,
     worlds: Vec<WorldRecord>,
     can_edit_library: bool,
 }
@@ -558,6 +584,7 @@ async fn form_detail(
 ) -> Response {
     let result = async {
         let form = state.authoring.form_detail(&id).await?;
+        let current_species = state.authoring.species_detail(&form.species_id).await?;
         let species = state
             .authoring
             .species_version(&form.species_id, form.species_version)
@@ -570,6 +597,7 @@ async fn form_detail(
         Ok(render(FormPage {
             form,
             species,
+            current_species,
             worlds,
             can_edit_library: caps.can_edit_library,
         }))
@@ -925,10 +953,9 @@ async fn variant_new(
         let Query(query) = query.map_err(|_| invalid("form_id", "Check the source ID and exact version in the link."))?;
         let world = state.authoring.world_detail(&world_id).await?;
         let mut draft = ContentForm { expected_world_revision: world.revision.to_string(), form_id: query.form_id, form_version: query.form_version, ..ContentForm::default() };
-        let mut context = format!("Canonical world ID: {world_id}. Starting world membership revision: {}. Blank source creates world-exclusive content. The local slug must be unique within this world. Multiple variants may use the same form.", world.revision);
+        let mut context = format!("Canonical world ID: {world_id}. Starting world membership revision: {}. Blank source creates world-exclusive content. Local slugs are generated automatically. Multiple variants may use the same form.", world.revision);
         if let Some(pin) = draft.source()? {
             let source = state.authoring.form_version(&pin.form_id, pin.version).await?;
-            draft.slug = source.fields.slug;
             draft.display_name = source.fields.display_name;
             draft.description = source.fields.description;
             context.push_str(&format!(" Source form ID: {}. Pinned version: {}. Species ID: {}. Pinned species version: {}.", source.id, source.revision, source.species_id, source.species_version));
@@ -980,7 +1007,7 @@ async fn variant_create(
                 draft,
             );
             page.context = format!(
-                "Canonical world ID: {world_id}. The local slug must be unique within this world. Source selection is an explicit pin; no latest version is inferred."
+                "Canonical world ID: {world_id}. Local slugs are generated automatically. Source selection is an explicit pin; no latest version is inferred."
             );
             page.choose_source = true;
             page.button = "Create variant".into();
@@ -1151,7 +1178,7 @@ async fn adoption_comparisons(
         .adoption_preview(world_id, id, target)
         .await?;
     page.context = format!(
-        "{}. Review old source, your local effective values, and new source below. The editable draft starts with LOCAL values, including the local slug. Choose every value manually; adoption changes the baseline, not an automatic merge.",
+        "{}. Review old source, your local effective values, and new source below. The editable draft starts with LOCAL values. Choose the name and description manually; adoption changes the baseline, not an automatic merge. A name change also regenerates the local slug.",
         variant_context(&preview.entry)
     );
     page.comparisons = vec![
@@ -1820,15 +1847,29 @@ mod tests {
             } else {
                 format!("karta_csrf={csrf}")
             };
-            let request = axum::http::Request::builder()
-                .method(method)
-                .uri(path)
-                .header(header::ORIGIN, "http://127.0.0.1:3000")
-                .header(header::COOKIE, cookie)
-                .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
-                .body(Body::from(body.to_owned()))
-                .unwrap();
-            let response = self.router.clone().oneshot(request).await.unwrap();
+            let mut path = path.to_owned();
+            let mut hops = 0;
+            let response = loop {
+                let request = axum::http::Request::builder()
+                    .method(method)
+                    .uri(&path)
+                    .header(header::ORIGIN, "http://127.0.0.1:3000")
+                    .header(header::COOKIE, &cookie)
+                    .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
+                    .body(Body::from(body.to_owned()))
+                    .unwrap();
+                let response = self.router.clone().oneshot(request).await.unwrap();
+                if method != "GET" || response.status() != StatusCode::TEMPORARY_REDIRECT {
+                    break response;
+                }
+                hops += 1;
+                assert!(hops <= 4, "GET redirect loop");
+                path = response.headers()[header::LOCATION]
+                    .to_str()
+                    .unwrap()
+                    .to_owned();
+                assert!(path.starts_with('/') && !path.starts_with("//"));
+            };
             let status = response.status();
             let headers = response.headers().clone();
             let bytes = to_bytes(response.into_body(), 128 * 1024).await.unwrap();
@@ -2083,14 +2124,14 @@ mod tests {
             .unwrap();
         let path = format!("/creatures/{}/edit", species.id);
         let body = format!(
-            "csrf={}&slug=BAD+SLUG&display_name=%3Cscript%3Edraft%3C%2Fscript%3E&description=Draft%0A%0Aparagraph&reason=Keep+this+reason&expected_revision=1",
+            "csrf={}&slug=BAD+SLUG&display_name=%3Cscript%3Edraft%3C%2Fscript%3E&description=Draft%0A%0Aparagraph%00&reason=Keep+this+reason&expected_revision=1",
             "a".repeat(64)
         );
         let (status, _, html) = site.request("POST", &path, &body, true).await;
         assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
-        assert!(html.contains("slug-error"));
+        assert!(html.contains("description-error"));
         assert!(html.contains("aria-invalid=\"true\""));
-        assert!(html.contains("value=\"BAD SLUG\""));
+        assert!(!html.contains("BAD SLUG"));
         assert!(html.contains("Keep this reason"));
         assert!(html.contains("Draft\n\nparagraph"));
         assert!(!html.contains("<script>draft</script>"));
@@ -2100,7 +2141,7 @@ mod tests {
         assert_eq!(status, StatusCode::UNAUTHORIZED);
         assert_eq!(headers[header::CACHE_CONTROL], "no-store");
         assert!(html.contains("Keep this reason"));
-        assert!(html.contains("value=\"BAD SLUG\""));
+        assert!(!html.contains("BAD SLUG"));
         let (status, _, _) = site.request("GET", &path, "", true).await;
         assert_eq!(status, StatusCode::UNAUTHORIZED);
 
@@ -2115,7 +2156,7 @@ mod tests {
         assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE);
         assert_eq!(headers[header::CACHE_CONTROL], "no-store");
         assert!(html.contains("Keep this reason"));
-        assert!(html.contains("value=\"BAD SLUG\""));
+        assert!(!html.contains("BAD SLUG"));
     }
 
     #[tokio::test]
@@ -2188,7 +2229,7 @@ mod tests {
             .unwrap();
         assert_eq!(saved.source.unwrap().version, 2);
         assert_eq!(saved.fields.display_name, "Submitted draft");
-        assert_eq!(saved.fields.slug, "draft");
+        assert_eq!(saved.fields.slug, "submitted-draft");
 
         let current_world = site.state.authoring.world_detail(&world.id).await.unwrap();
         let second = TestSite::body(&format!(

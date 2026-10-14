@@ -1,6 +1,7 @@
 //! HTTP layer: routing, form parsing, session cookies, and rendering.
 //! Routes stay thin and delegate policy to the accounts service.
 
+mod addresses;
 mod authoring;
 mod login_limit;
 
@@ -56,7 +57,7 @@ impl AppState {
 }
 
 pub fn router(state: AppState) -> Router {
-    Router::new()
+    let inner = Router::new()
         .merge(authoring::routes())
         .route("/", get(home))
         .route("/creatures", get(creatures))
@@ -76,7 +77,11 @@ pub fn router(state: AppState) -> Router {
         .route("/static/style.css", get(styles))
         .route("/healthz", get(|| async { "ok\n" }))
         .fallback(not_found)
-        .with_state(state)
+        .with_state(state.clone());
+    // The adapter must run before inner route matching (including static `new`).
+    Router::new()
+        .fallback_service(inner)
+        .layer(middleware::from_fn_with_state(state, addresses::adapt))
 }
 
 async fn limit_login(State(state): State<AppState>, request: Request, next: Next) -> Response {

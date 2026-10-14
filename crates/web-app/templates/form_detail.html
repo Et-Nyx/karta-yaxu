@@ -1,14 +1,16 @@
 {% extends "base.html" %}
 {% block title %}{{ form.fields.display_name }} — Shared form — Karta Yaxu{% endblock %}
 {% block content %}
-<a href="/creatures/{{ form.species_id }}">← Parent species</a>
+{% let species_segment = crate::web::addresses::segment(current_species.fields.slug) %}
+{% let form_segment = crate::web::addresses::segment(form.fields.slug) %}
+<a href="/creatures/{{ species_segment }}">← Parent species</a>
 <p class="eyebrow">Shared form{% if form.is_default %} · Default{% endif %}</p>
 <h1>{{ form.fields.display_name }}</h1>
 <p class="notice">Development placeholder — not approved game content.</p>
 <section class="panel"><p class="lead plain-text">{{ form.fields.description }}</p>
 <dl><dt>Canonical form ID</dt><dd><code>{{ form.id }}</code></dd><dt>Slug</dt><dd>{{ form.fields.slug }}</dd><dt>Form version</dt><dd>{{ form.revision }}</dd><dt>Canonical species ID and pinned version</dt><dd><a href="/creatures/{{ species.id }}"><code>{{ species.id }}</code></a> · version {{ form.species_version }}</dd><dt>Species name at pin</dt><dd>{{ species.fields.display_name }}</dd></dl></section>
-<p><a href="/forms/{{ form.id }}/history">Form history</a>{% if can_edit_library %} · <a href="/forms/{{ form.id }}/edit">Edit shared form</a>{% endif %}</p>
+<p><a href="/creatures/{{ species_segment }}/forms/{{ form_segment }}/history">Form history</a>{% if can_edit_library %} · <a href="/creatures/{{ species_segment }}/forms/{{ form_segment }}/edit">Edit shared form</a>{% endif %}</p>
 <h2>Use this version in a world</h2>
 <p>World owners and collaborators can create multiple independent variants with this concrete source pin. Each variant has its own effective values.</p>
-<ul>{% for world in worlds %}<li><a href="/worlds/{{ world.id }}">{{ world.fields.display_name }}</a> · <code>{{ world.id }}</code> · <a href="/worlds/{{ world.id }}/variants/new?form_id={{ form.id }}&amp;form_version={{ form.revision }}">Add form version {{ form.revision }} to this world</a></li>{% else %}<li>No worlds yet. <a href="/worlds">Browse worlds</a>.</li>{% endfor %}</ul>
+<ul>{% for world in worlds %}<li><a href="/worlds/{{ crate::web::addresses::segment(world.fields.slug) }}">{{ world.fields.display_name }}</a> · <code>{{ world.id }}</code> · <a href="/worlds/{{ crate::web::addresses::segment(world.fields.slug) }}/variants/new?form_id={{ form.id }}&amp;form_version={{ form.revision }}">Add form version {{ form.revision }} to this world</a></li>{% else %}<li>No worlds yet. <a href="/worlds">Browse worlds</a>.</li>{% endfor %}</ul>
 {% endblock %}

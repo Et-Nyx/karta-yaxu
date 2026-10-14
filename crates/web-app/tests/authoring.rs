@@ -3,7 +3,7 @@ use sqlx::{SqlSafeStr, SqlitePool};
 use tempfile::TempDir;
 use web_app::{
     accounts::Accounts,
-    application::authoring::{Authoring, Edit, Error, HistoryKind, SourcePin},
+    application::authoring::{AddressKey, Authoring, Edit, Error, HistoryKind, SourcePin},
     auth::{Actor, Role, Subject},
     persistence,
 };
@@ -74,7 +74,7 @@ impl Lab {
 fn fields(slug: &str) -> ContentFields {
     ContentFields {
         slug: slug.into(),
-        display_name: format!("Name {slug}"),
+        display_name: slug.into(),
         description: "First paragraph.\n\nSecond paragraph.".into(),
     }
 }
@@ -87,6 +87,930 @@ fn edit(revision: i64, slug: &str) -> Edit {
 }
 fn bundled() -> Catalog {
     Catalog::from_json(BUNDLED_FIXTURES).unwrap()
+}
+
+#[tokio::test]
+async fn generated_addresses_ignore_forgery_and_rename_without_changing_identity_or_pins() {
+    let l = Lab::new().await;
+    let mut submitted = fields("forged / BAD");
+    submitted.display_name = " Éclair 🦄 ".into();
+    let s = l
+        .service
+        .create_species(&l.admin.token, submitted.clone(), None)
+        .await
+        .unwrap();
+    assert_eq!(s.fields.slug, "eclair-unicorn");
+    assert_eq!(s.fields.display_name, "Éclair 🦄");
+    let default = l.service.form_detail(&s.default_form_id).await.unwrap();
+    assert_eq!(default.fields, s.fields);
+    let w = l
+        .service
+        .create_world(&l.owner.token, submitted.clone(), None)
+        .await
+        .unwrap();
+    assert_eq!(w.fields.slug, "eclair-unicorn");
+    let f = l
+        .service
+        .create_form(&l.admin.token, &s.id, 1, submitted.clone(), None)
+        .await
+        .unwrap();
+    assert_eq!(f.fields.slug, "eclair-unicorn-2");
+    let pin = SourcePin {
+        form_id: f.id.clone(),
+        version: 1,
+    };
+    let v = l
+        .service
+        .create_variant(&l.owner.token, &w.id, 1, Some(pin.clone()), submitted, None)
+        .await
+        .unwrap();
+    assert_eq!(v.fields.slug, "eclair-unicorn");
+
+    // Whitespace-only name normalization and forged slugs are true no-ops.
+    let unchanged = |revision, fields: &ContentFields| {
+        let mut fields = fields.clone();
+        fields.slug = "ignore-me".into();
+        fields.display_name = format!(" {} ", fields.display_name);
+        Edit {
+            expected_revision: revision,
+            fields,
+            reason: None,
+        }
+    };
+    let baseline = l.count("audit_events").await;
+    assert_eq!(
+        l.service
+            .save_species(&l.admin.token, &s.id, unchanged(1, &s.fields))
+            .await
+            .unwrap(),
+        s
+    );
+    assert_eq!(
+        l.service
+            .save_form(&l.admin.token, &f.id, 1, unchanged(1, &f.fields))
+            .await
+            .unwrap(),
+        f
+    );
+    assert_eq!(
+        l.service
+            .save_world(&l.owner.token, &w.id, unchanged(2, &w.fields))
+            .await
+            .unwrap()
+            .fields,
+        w.fields
+    );
+    assert_eq!(
+        l.service
+            .save_variant(&l.owner.token, &w.id, &v.id, unchanged(1, &v.fields))
+            .await
+            .unwrap(),
+        v
+    );
+    assert_eq!(l.count("audit_events").await, baseline);
+
+    // Change only names: the old submitted slug must not dictate the new address.
+    let rename = |revision, fields: &ContentFields, name: &str| {
+        let mut fields = fields.clone();
+        fields.display_name = name.into();
+        Edit {
+            expected_revision: revision,
+            fields,
+            reason: Some("Rename".into()),
+        }
+    };
+    let s2 = l
+        .service
+        .save_species(&l.admin.token, &s.id, rename(1, &s.fields, "北亰"))
+        .await
+        .unwrap();
+    assert_eq!(s2.id, s.id);
+    assert_eq!(s2.default_form_id, s.default_form_id);
+    assert_eq!(s2.fields.slug, "bei-jing");
+    assert_eq!(l.service.form_detail(&default.id).await.unwrap(), default);
+    let f2 = l
+        .service
+        .save_form(&l.admin.token, &f.id, 2, rename(1, &f.fields, "げんまい茶"))
+        .await
+        .unwrap();
+    assert_eq!(f2.id, f.id);
+    assert_eq!(f2.species_id, s.id);
+    assert_eq!(f2.fields.slug, "genmaicha");
+    let w2 = l
+        .service
+        .save_world(&l.owner.token, &w.id, rename(2, &w.fields, "New world"))
+        .await
+        .unwrap();
+    assert_eq!(w2.id, w.id);
+    assert_eq!(w2.owner_user_id, w.owner_user_id);
+    assert_eq!(w2.fields.slug, "new-world");
+    assert_eq!(l.service.variant_detail(&w.id, &v.id).await.unwrap(), v);
+    let v2 = l
+        .service
+        .save_variant(
+            &l.owner.token,
+            &w.id,
+            &v.id,
+            rename(1, &v.fields, "... !!!"),
+        )
+        .await
+        .unwrap();
+    assert_eq!(v2.id, v.id);
+    assert_eq!(v2.world_id, w.id);
+    assert_eq!(v2.fields.slug, "object");
+    assert_eq!(v2.source, Some(pin));
+    assert_eq!(l.service.form_version(&f.id, 1).await.unwrap(), f);
+    assert_eq!(l.service.species_version(&s.id, 1).await.unwrap(), s);
+    let before_stale = l.count("audit_events").await;
+    assert_eq!(
+        l.service
+            .save_variant(&l.owner.token, &w.id, &v.id, rename(1, &v.fields, "stale"))
+            .await
+            .unwrap_err(),
+        Error::Conflict
+    );
+    assert_eq!(l.service.variant_detail(&w.id, &v.id).await.unwrap(), v2);
+    assert_eq!(l.count("audit_events").await, before_stale);
+
+    // Pin-only adoption retains the address despite different source names/slugs.
+    let adopted = l
+        .service
+        .adopt_variant(&l.owner.token, &w.id, &v.id, 2, unchanged(2, &v2.fields))
+        .await
+        .unwrap();
+    assert_eq!(adopted.fields, v2.fields);
+    assert_eq!(adopted.source.unwrap().version, 2);
+    let form_pin_only = l
+        .service
+        .save_form(
+            &l.admin.token,
+            &default.id,
+            2,
+            unchanged(1, &default.fields),
+        )
+        .await
+        .unwrap();
+    assert_eq!(form_pin_only.fields, default.fields);
+    assert_eq!(form_pin_only.species_version, 2);
+}
+
+#[tokio::test]
+async fn duplicate_species_names_allocate_default_form_addresses_in_each_new_scope() {
+    let l = Lab::new().await;
+    let first = l
+        .service
+        .create_species(&l.admin.token, fields("Emberling"), Some("Initial species"))
+        .await
+        .unwrap();
+    let second = l
+        .service
+        .create_species(&l.admin.token, fields("Emberling"), Some("Initial species"))
+        .await
+        .unwrap();
+    assert_ne!(first.id, second.id);
+    assert_ne!(first.default_form_id, second.default_form_id);
+    assert_eq!(l.count("species").await, 2);
+    assert_eq!(l.count("species_versions").await, 2);
+    assert_eq!(l.count("forms").await, 2);
+    assert_eq!(l.count("form_versions").await, 2);
+    assert_eq!(l.count("audit_events").await, 4);
+    for (species, slug) in [(&first, "emberling"), (&second, "emberling-2")] {
+        assert_eq!(species.fields.slug, slug);
+        assert_eq!(species.revision, 1);
+        let form = l
+            .service
+            .form_detail(&species.default_form_id)
+            .await
+            .unwrap();
+        assert_eq!(form.species_id, species.id);
+        assert_eq!((form.species_version, form.revision), (1, 1));
+        assert!(form.is_default);
+        assert_eq!(form.fields.slug, "emberling");
+        assert_eq!(form.fields.display_name, species.fields.display_name);
+        assert_eq!(form.fields.description, species.fields.description);
+        assert_eq!(l.service.form_version(&form.id, 1).await.unwrap(), form);
+        assert_eq!(
+            l.service
+                .resolve_form(
+                    AddressKey::Slug(slug.into()),
+                    AddressKey::Slug("emberling".into())
+                )
+                .await
+                .unwrap(),
+            (species.clone(), form.clone())
+        );
+        for (kind, id, expected_slug) in [
+            (HistoryKind::Species, &species.id, slug),
+            (HistoryKind::Form, &form.id, "emberling"),
+        ] {
+            let history = l.service.history_entry(kind, id, 1).await.unwrap();
+            assert_eq!(history.actor_name, "Alice");
+            assert_eq!(history.action, "create");
+            assert_eq!(history.reason.as_deref(), Some("Initial species"));
+            assert!(history.previous_revision.is_none());
+            assert!(history.before_json.is_none());
+            let content = snapshot_content(&history.after_json);
+            assert_eq!(content["id"], *id);
+            assert_eq!(content["fields"]["slug"], expected_slug);
+        }
+    }
+    let world = l
+        .service
+        .create_world(&l.owner.token, fields("world"), None)
+        .await
+        .unwrap();
+    for (species, revision) in [(&first, 1), (&second, 2)] {
+        let pin = SourcePin {
+            form_id: species.default_form_id.clone(),
+            version: 1,
+        };
+        let variant = l
+            .service
+            .create_variant(
+                &l.owner.token,
+                &world.id,
+                revision,
+                Some(pin.clone()),
+                fields("Emberling"),
+                None,
+            )
+            .await
+            .unwrap();
+        assert_eq!(variant.source, Some(pin));
+        assert_eq!(
+            l.service
+                .form_version(&species.default_form_id, 1)
+                .await
+                .unwrap()
+                .species_id,
+            species.id
+        );
+    }
+}
+
+#[tokio::test]
+async fn collisions_use_existing_scopes_and_preserve_suffixes_on_description_edits() {
+    let l = Lab::new().await;
+    let a = l
+        .service
+        .create_species(&l.admin.token, fields("same"), None)
+        .await
+        .unwrap();
+    let b = l
+        .service
+        .create_species(&l.admin.token, fields("same"), None)
+        .await
+        .unwrap();
+    assert_eq!(a.fields.slug, "same");
+    assert_eq!(b.fields.slug, "same-2");
+    let c = l
+        .service
+        .create_species(&l.admin.token, fields("same-2"), None)
+        .await
+        .unwrap();
+    assert_eq!(c.fields.slug, "same-2-2");
+    let a2 = l
+        .service
+        .save_species(&l.admin.token, &a.id, edit(1, "same-2"))
+        .await
+        .unwrap();
+    assert_eq!(a2.fields.slug, "same-2-3");
+    // Self is excluded when a name change transliterates to the same base.
+    let a3 = l
+        .service
+        .save_species(&l.admin.token, &a.id, edit(2, "SAME-2"))
+        .await
+        .unwrap();
+    assert_eq!(a3.fields.slug, "same-2-3");
+    let free = l
+        .service
+        .create_species(&l.admin.token, fields("same"), None)
+        .await
+        .unwrap();
+    assert_eq!(free.fields.slug, "same");
+    let fa = l
+        .service
+        .create_form(&l.admin.token, &a.id, 1, fields("same"), None)
+        .await
+        .unwrap();
+    assert_eq!(fa.fields.slug, "same-2"); // the original default form still owns same
+    let fb = l
+        .service
+        .create_form(&l.admin.token, &b.id, 1, fields("same"), None)
+        .await
+        .unwrap();
+    assert_eq!(fb.fields.slug, "same-2"); // each species' default form owns its own same
+    let fa2 = l
+        .service
+        .create_form(&l.admin.token, &a.id, 1, fields("same"), None)
+        .await
+        .unwrap();
+    assert_eq!(fa2.fields.slug, "same-3");
+    let wa = l
+        .service
+        .create_world(&l.owner.token, fields("same"), None)
+        .await
+        .unwrap();
+    let wb = l
+        .service
+        .create_world(&l.owner.token, fields("same"), None)
+        .await
+        .unwrap();
+    assert_eq!(wa.fields.slug, "same");
+    assert_eq!(wb.fields.slug, "same-2");
+    let va = l
+        .service
+        .create_variant(&l.owner.token, &wa.id, 1, None, fields("same"), None)
+        .await
+        .unwrap();
+    let va2 = l
+        .service
+        .create_variant(&l.owner.token, &wa.id, 2, None, fields("same"), None)
+        .await
+        .unwrap();
+    let vb = l
+        .service
+        .create_variant(&l.owner.token, &wb.id, 1, None, fields("same"), None)
+        .await
+        .unwrap();
+    assert_eq!(va.fields.slug, "same");
+    assert_eq!(va2.fields.slug, "same-2");
+    assert_eq!(vb.fields.slug, "same");
+    let desc = |revision, fields: &ContentFields| {
+        let mut fields = fields.clone();
+        fields.slug = "forged".into();
+        fields.description = "Description-only edit".into();
+        Edit {
+            expected_revision: revision,
+            fields,
+            reason: None,
+        }
+    };
+    assert_eq!(
+        l.service
+            .save_species(&l.admin.token, &b.id, desc(1, &b.fields))
+            .await
+            .unwrap()
+            .fields
+            .slug,
+        "same-2"
+    );
+    assert_eq!(
+        l.service
+            .save_form(&l.admin.token, &fa2.id, 1, desc(1, &fa2.fields))
+            .await
+            .unwrap()
+            .fields
+            .slug,
+        "same-3"
+    );
+    assert_eq!(
+        l.service
+            .save_world(&l.owner.token, &wb.id, desc(2, &wb.fields))
+            .await
+            .unwrap()
+            .fields
+            .slug,
+        "same-2"
+    );
+    assert_eq!(
+        l.service
+            .save_variant(&l.owner.token, &wa.id, &va2.id, desc(1, &va2.fields))
+            .await
+            .unwrap()
+            .fields
+            .slug,
+        "same-2"
+    );
+
+    let long = fields(&"é".repeat(100));
+    let first = l
+        .service
+        .create_world(&l.owner.token, long.clone(), None)
+        .await
+        .unwrap();
+    let second = l
+        .service
+        .create_world(&l.owner.token, long, None)
+        .await
+        .unwrap();
+    assert_eq!(first.fields.slug, "e".repeat(80));
+    assert_eq!(second.fields.slug, format!("{}-2", "e".repeat(78)));
+    assert!(second.fields.normalized().is_ok());
+}
+
+#[tokio::test]
+async fn explicit_legacy_fixture_addresses_survive_unchanged_names_and_history_reads() {
+    let l = Lab::new().await;
+    let mut data: serde_json::Value = serde_json::from_str(BUNDLED_FIXTURES).unwrap();
+    data[0]["slug"] = "manual-legacy-77".into();
+    data[0]["display_name"] = "Éclair".into();
+    let fixture_id = data[0]["id"].as_str().unwrap().to_owned();
+    let catalog = Catalog::from_json(&data.to_string()).unwrap();
+    l.service.seed_catalog(&catalog).await.unwrap();
+    let s = l.service.species_detail(&fixture_id).await.unwrap();
+    assert_eq!(s.fields.slug, "manual-legacy-77");
+    let mut fields = s.fields.clone();
+    fields.slug = "ignored".into();
+    fields.display_name = " Éclair ".into();
+    fields.description = "Description change".into();
+    let e = Edit {
+        expected_revision: 1,
+        fields,
+        reason: None,
+    };
+    let saved = l
+        .service
+        .save_species(&l.admin.token, &s.id, e.clone())
+        .await
+        .unwrap();
+    let form = l
+        .service
+        .save_form(&l.admin.token, &s.default_form_id, 1, e)
+        .await
+        .unwrap();
+    assert_eq!(saved.fields.slug, s.fields.slug);
+    assert_eq!(form.fields.slug, s.fields.slug);
+    assert_eq!(
+        l.service
+            .seed_catalog(&catalog)
+            .await
+            .unwrap()
+            .species_skipped,
+        3
+    );
+    assert_eq!(l.service.species_version(&s.id, 1).await.unwrap(), s);
+    let history = l
+        .service
+        .history(HistoryKind::Species, &s.id, None)
+        .await
+        .unwrap();
+    assert_snapshot_continuity(&history);
+    assert_eq!(
+        snapshot_content(&history[1].after_json)["fields"]["slug"],
+        "manual-legacy-77"
+    );
+    let renamed = l
+        .service
+        .save_species(&l.admin.token, &s.id, edit(2, "Éclair deluxe"))
+        .await
+        .unwrap();
+    assert_eq!(renamed.fields.slug, "eclair-deluxe");
+    assert_eq!(renamed.id, s.id);
+    assert_eq!(
+        l.service
+            .seed_catalog(&catalog)
+            .await
+            .unwrap()
+            .species_skipped,
+        3
+    );
+    assert_eq!(
+        l.service.form_detail(&s.default_form_id).await.unwrap(),
+        form
+    );
+}
+
+#[tokio::test]
+async fn concurrent_creates_and_renames_allocate_distinct_addresses() {
+    let l = Lab::new().await;
+    let (one, two) = tokio::join!(
+        l.service
+            .create_species(&l.admin.token, fields("racing"), None),
+        l.service
+            .create_species(&l.admin.token, fields("racing"), None),
+    );
+    let (one, two) = (one.unwrap(), two.unwrap());
+    assert_ne!(one.id, two.id);
+    let mut slugs = vec![one.fields.slug.clone(), two.fields.slug.clone()];
+    slugs.sort();
+    assert_eq!(slugs, ["racing", "racing-2"]);
+    let (a, b) = tokio::join!(
+        l.service
+            .save_species(&l.admin.token, &one.id, edit(1, "new race")),
+        l.service
+            .save_species(&l.admin.token, &two.id, edit(1, "new race")),
+    );
+    let (a, b) = (a.unwrap(), b.unwrap());
+    let mut slugs = vec![a.fields.slug, b.fields.slug];
+    slugs.sort();
+    assert_eq!(slugs, ["new-race", "new-race-2"]);
+    assert_eq!(l.count("species_versions").await, 4);
+    assert_eq!(l.count("form_versions").await, 2);
+    assert_eq!(l.count("audit_events").await, 6);
+    let (wa, wb) = tokio::join!(
+        l.service
+            .create_world(&l.owner.token, fields("world race"), None),
+        l.service
+            .create_world(&l.owner.token, fields("world race"), None),
+    );
+    let (wa, wb) = (wa.unwrap(), wb.unwrap());
+    assert_ne!(wa.fields.slug, wb.fields.slug);
+    assert_eq!(l.count("world_revisions").await, 2);
+    assert_eq!(l.count("world_access_revisions").await, 2);
+}
+
+#[tokio::test]
+async fn exhausted_candidate_search_is_a_name_error_and_leaves_no_partial_mutation() {
+    let l = Lab::new().await;
+    let w = l
+        .service
+        .create_world(&l.owner.token, fields("template"), None)
+        .await
+        .unwrap();
+    let world_json = l
+        .service
+        .history_entry(HistoryKind::World, &w.id, 1)
+        .await
+        .unwrap()
+        .after_json;
+    let access_json = l
+        .service
+        .access(&l.owner.token, &w.id)
+        .await
+        .unwrap()
+        .history[0]
+        .after_json
+        .clone();
+    // Bulk-build valid test-owned worlds with attributed revisions, not 10,000 HTTP calls.
+    let mut tx = persistence::begin_write(&l.pool).await.unwrap();
+    sqlx::query("WITH RECURSIVE numbers(n) AS (VALUES(1) UNION ALL SELECT n+1 FROM numbers WHERE n < 10000) INSERT INTO worlds(id, owner_user_id, slug, display_name, description, revision, access_revision) SELECT printf('%032x',n), ?1, CASE n WHEN 1 THEN 'crowded' ELSE 'crowded-' || n END, 'crowded', ?2, 1, 1 FROM numbers")
+        .bind(&l.owner.actor.user_id).bind(&w.fields.description).execute(&mut *tx).await.unwrap();
+    sqlx::query("WITH RECURSIVE numbers(n) AS (VALUES(1) UNION ALL SELECT n+1 FROM numbers WHERE n < 10000) INSERT INTO audit_events(id, actor_user_id, action) SELECT printf('%032x',100000+n), ?1, 'create' FROM numbers UNION ALL SELECT printf('%032x',200000+n), ?1, 'own' FROM numbers")
+        .bind(&l.owner.actor.user_id).execute(&mut *tx).await.unwrap();
+    sqlx::query("WITH RECURSIVE numbers(n) AS (VALUES(1) UNION ALL SELECT n+1 FROM numbers WHERE n < 10000) INSERT INTO world_revisions(world_id, revision, audit_id, after_json) SELECT printf('%032x',n), 1, printf('%032x',100000+n), json_set(?1, '$.content.id', printf('%032x',n), '$.content.fields.display_name', 'crowded', '$.content.fields.slug', CASE n WHEN 1 THEN 'crowded' ELSE 'crowded-' || n END) FROM numbers")
+        .bind(world_json).execute(&mut *tx).await.unwrap();
+    sqlx::query("WITH RECURSIVE numbers(n) AS (VALUES(1) UNION ALL SELECT n+1 FROM numbers WHERE n < 10000) INSERT INTO world_access_revisions(world_id, revision, audit_id, after_json) SELECT printf('%032x',n), 1, printf('%032x',200000+n), json_set(?1, '$.content.world_id', printf('%032x',n)) FROM numbers")
+        .bind(access_json).execute(&mut *tx).await.unwrap();
+    tx.commit().await.unwrap();
+    let before = l.count("audit_events").await;
+    assert!(
+        matches!(l.service.create_world(&l.owner.token, fields("crowded"), None).await, Err(Error::Invalid(e)) if e.len() == 1 && e.contains_key("display_name"))
+    );
+    assert!(
+        matches!(l.service.save_world(&l.owner.token, &w.id, edit(1, "crowded")).await, Err(Error::Invalid(e)) if e.len() == 1 && e.contains_key("display_name"))
+    );
+    assert_eq!(
+        l.service
+            .save_world(&l.owner.token, &w.id, edit(0, "crowded"))
+            .await
+            .unwrap_err(),
+        Error::Conflict
+    );
+    assert_eq!(
+        l.service
+            .create_world("revoked", fields("crowded"), None)
+            .await
+            .unwrap_err(),
+        Error::Unauthorized
+    );
+    assert!(
+        matches!(l.service.create_world(&l.owner.token, fields("crowded"), Some(&"x".repeat(501))).await, Err(Error::Invalid(e)) if e.contains_key("reason") && !e.contains_key("display_name"))
+    );
+    assert_eq!(l.service.world_detail(&w.id).await.unwrap(), w);
+    assert_eq!(l.count("worlds").await, 10001);
+    assert_eq!(l.count("world_revisions").await, 10001);
+    assert_eq!(l.count("world_access_revisions").await, 10001);
+    assert_eq!(l.count("audit_events").await, before);
+    // Removing the last candidate from the scope makes exactly candidate 10,000 available.
+    sqlx::query("UPDATE worlds SET slug = 'moved' WHERE id = printf('%032x',10000)")
+        .execute(&l.pool)
+        .await
+        .unwrap();
+    let last = l
+        .service
+        .create_world(&l.owner.token, fields("crowded"), None)
+        .await
+        .unwrap();
+    assert_eq!(last.fields.slug, "crowded-10000");
+}
+
+#[tokio::test]
+async fn read_address_resolvers_are_strict_current_and_parent_scoped() {
+    let l = Lab::new().await;
+    let s = l
+        .service
+        .create_species(&l.admin.token, fields("species"), None)
+        .await
+        .unwrap();
+    let t = l
+        .service
+        .create_species(&l.admin.token, fields("other"), None)
+        .await
+        .unwrap();
+    let f = l
+        .service
+        .create_form(&l.admin.token, &s.id, 1, fields("shared"), None)
+        .await
+        .unwrap();
+    let g = l
+        .service
+        .create_form(&l.admin.token, &t.id, 1, fields("shared"), None)
+        .await
+        .unwrap();
+    let w = l
+        .service
+        .create_world(&l.owner.token, fields("world"), None)
+        .await
+        .unwrap();
+    let x = l
+        .service
+        .create_world(&l.owner.token, fields("other"), None)
+        .await
+        .unwrap();
+    let v = l
+        .service
+        .create_variant(
+            &l.owner.token,
+            &w.id,
+            1,
+            Some(SourcePin {
+                form_id: f.id.clone(),
+                version: 1,
+            }),
+            fields("shared"),
+            None,
+        )
+        .await
+        .unwrap();
+    let z = l
+        .service
+        .create_variant(&l.owner.token, &x.id, 1, None, fields("shared"), None)
+        .await
+        .unwrap();
+    let id = |s: &str| AddressKey::Id(s.into());
+    let slug = |s: &str| AddressKey::Slug(s.into());
+    for key in [id(&s.id), slug("species")] {
+        assert_eq!(l.service.resolve_species(key).await.unwrap(), s);
+    }
+    for key in [id(&w.id), slug("world")] {
+        assert_eq!(
+            l.service.resolve_world(key).await.unwrap(),
+            l.service.world_detail(&w.id).await.unwrap()
+        );
+    }
+    for parent in [id(&s.id), slug("species")] {
+        for child in [id(&f.id), slug("shared")] {
+            assert_eq!(
+                l.service.resolve_form(parent.clone(), child).await.unwrap(),
+                (s.clone(), f.clone())
+            );
+        }
+    }
+    assert_eq!(
+        l.service
+            .resolve_form(slug("other"), slug("shared"))
+            .await
+            .unwrap()
+            .1,
+        g
+    );
+    assert_eq!(
+        l.service.resolve_legacy_form(&f.id).await.unwrap(),
+        (s.clone(), f.clone())
+    );
+    assert_eq!(
+        l.service.resolve_legacy_form("shared").await.unwrap_err(),
+        Error::NotFound
+    );
+    assert_eq!(
+        l.service
+            .resolve_variant(slug("other"), slug("shared"))
+            .await
+            .unwrap()
+            .1,
+        z
+    );
+    for parent in [id(&w.id), slug("world")] {
+        for child in [id(&v.id), slug("shared")] {
+            assert_eq!(
+                l.service
+                    .resolve_variant(parent.clone(), child)
+                    .await
+                    .unwrap()
+                    .1,
+                v
+            );
+        }
+    }
+    assert_eq!(
+        l.service
+            .resolve_form(id(&t.id), id(&f.id))
+            .await
+            .unwrap_err(),
+        Error::NotFound
+    );
+    assert_eq!(
+        l.service
+            .resolve_variant(id(&x.id), id(&v.id))
+            .await
+            .unwrap_err(),
+        Error::NotFound
+    );
+    assert_eq!(
+        l.service.resolve_species(id("species")).await.unwrap_err(),
+        Error::NotFound
+    );
+    assert_eq!(
+        l.service.resolve_world(id("world")).await.unwrap_err(),
+        Error::NotFound
+    );
+    assert_eq!(
+        l.service
+            .resolve_form(id(&s.id), id("shared"))
+            .await
+            .unwrap_err(),
+        Error::NotFound
+    );
+    assert_eq!(
+        l.service
+            .resolve_variant(id(&w.id), id("shared"))
+            .await
+            .unwrap_err(),
+        Error::NotFound
+    );
+    assert_eq!(
+        l.service.species_detail("species").await.unwrap_err(),
+        Error::NotFound
+    );
+    assert_eq!(
+        l.service.world_detail("world").await.unwrap_err(),
+        Error::NotFound
+    );
+    assert_eq!(
+        l.service.form_detail("shared").await.unwrap_err(),
+        Error::NotFound
+    );
+    assert_eq!(
+        l.service.variant_detail(&w.id, "shared").await.unwrap_err(),
+        Error::NotFound
+    );
+    assert_eq!(
+        l.service
+            .resolve_species(slug("' OR 1=1 --"))
+            .await
+            .unwrap_err(),
+        Error::NotFound
+    );
+
+    let s2 = l
+        .service
+        .save_species(&l.admin.token, &s.id, edit(1, "renamed species"))
+        .await
+        .unwrap();
+    let w2 = l
+        .service
+        .save_world(&l.owner.token, &w.id, edit(2, "renamed world"))
+        .await
+        .unwrap();
+    assert_eq!(
+        l.service
+            .resolve_form(slug("renamed-species"), slug("shared"))
+            .await
+            .unwrap(),
+        (s2.clone(), f.clone())
+    );
+    assert_eq!(
+        l.service.resolve_legacy_form(&f.id).await.unwrap(),
+        (s2, f.clone())
+    );
+    assert_eq!(
+        l.service
+            .resolve_variant(slug("renamed-world"), slug("shared"))
+            .await
+            .unwrap(),
+        (w2, v.clone())
+    );
+    assert_eq!(
+        l.service
+            .resolve_species(slug("species"))
+            .await
+            .unwrap_err(),
+        Error::NotFound
+    );
+    assert_eq!(
+        l.service.resolve_world(slug("world")).await.unwrap_err(),
+        Error::NotFound
+    );
+    assert_eq!(l.service.form_detail(&f.id).await.unwrap(), f);
+    assert_eq!(l.service.variant_detail(&w.id, &v.id).await.unwrap(), v);
+
+    // A 32hex slug which equals another record's id is still unambiguous.
+    let shadow = l
+        .service
+        .create_species(&l.admin.token, fields(&t.id), None)
+        .await
+        .unwrap();
+    assert_eq!(l.service.resolve_species(id(&t.id)).await.unwrap(), t);
+    assert_eq!(
+        l.service.resolve_species(slug(&t.id)).await.unwrap(),
+        shadow
+    );
+    let hex_slug = "00000000000000000000000000000001";
+    let hex = l
+        .service
+        .create_world(&l.owner.token, fields(hex_slug), None)
+        .await
+        .unwrap();
+    assert_eq!(l.service.resolve_world(slug(hex_slug)).await.unwrap(), hex);
+    assert_eq!(
+        l.service.resolve_world(id(hex_slug)).await.unwrap_err(),
+        Error::NotFound
+    );
+
+    // Resolution reads no grants/access history, even if private history is broken.
+    sqlx::query("DROP TRIGGER access_revisions_update")
+        .execute(&l.pool)
+        .await
+        .unwrap();
+    sqlx::query("UPDATE world_access_revisions SET after_json = '{\"snapshot_version\":1}' WHERE world_id = ?").bind(&w.id).execute(&l.pool).await.unwrap();
+    assert!(
+        l.service
+            .resolve_variant(id(&w.id), id(&v.id))
+            .await
+            .is_ok()
+    );
+    assert_eq!(
+        l.service.access(&l.owner.token, &w.id).await.unwrap_err(),
+        Error::Unavailable
+    );
+}
+
+#[tokio::test]
+async fn nested_address_reads_keep_one_snapshot_during_competing_writes() {
+    let l = Lab::new().await;
+    let s = l
+        .service
+        .create_species(&l.admin.token, fields("initial"), None)
+        .await
+        .unwrap();
+    let w = l
+        .service
+        .create_world(&l.owner.token, fields("initial"), None)
+        .await
+        .unwrap();
+    let v = l
+        .service
+        .create_variant(&l.owner.token, &w.id, 1, None, fields("initial"), None)
+        .await
+        .unwrap();
+    let pool = l.pool.clone();
+    let species_id = s.id.clone();
+    let form_id = s.default_form_id.clone();
+    let world_id = w.id.clone();
+    let variant_id = v.id.clone();
+    let writer = tokio::spawn(async move {
+        // Inject paired fixture changes in one transaction so a split read would
+        // expose mismatched descriptions. Only these temporary test rows change.
+        for n in 0..100 {
+            let mut tx = persistence::begin_write(&pool).await.unwrap();
+            let description = format!("Snapshot generation {n}");
+            for (sql, id) in [
+                (
+                    "UPDATE species SET description = ? WHERE id = ?",
+                    &species_id,
+                ),
+                ("UPDATE forms SET description = ? WHERE id = ?", &form_id),
+                ("UPDATE worlds SET description = ? WHERE id = ?", &world_id),
+                (
+                    "UPDATE variants SET description = ? WHERE id = ?",
+                    &variant_id,
+                ),
+            ] {
+                sqlx::query(sql)
+                    .bind(&description)
+                    .bind(id)
+                    .execute(&mut *tx)
+                    .await
+                    .unwrap();
+            }
+            tx.commit().await.unwrap();
+            tokio::task::yield_now().await;
+        }
+    });
+    for _ in 0..100 {
+        let (form, legacy, variant) = tokio::join!(
+            l.service.resolve_form(
+                AddressKey::Slug("initial".into()),
+                AddressKey::Slug("initial".into())
+            ),
+            l.service.resolve_legacy_form(&s.default_form_id),
+            l.service.resolve_variant(
+                AddressKey::Slug("initial".into()),
+                AddressKey::Id(v.id.clone())
+            ),
+        );
+        let (species, form) = form.unwrap();
+        let (legacy_species, legacy_form) = legacy.unwrap();
+        let (world, variant) = variant.unwrap();
+        assert_eq!(species.fields.description, form.fields.description);
+        assert_eq!(
+            legacy_species.fields.description,
+            legacy_form.fields.description
+        );
+        assert_eq!(world.fields.description, variant.fields.description);
+    }
+    writer.await.unwrap();
 }
 
 #[tokio::test]
@@ -371,9 +1295,13 @@ async fn scoped_variants_exact_dependency_pins_and_explicit_adoption() {
             .unwrap_err(),
         Error::Conflict
     );
-    assert!(
-        matches!(l.service.create_variant(&l.owner.token, &a.id, 4, None, fields("local-one"), None).await, Err(Error::Invalid(e)) if e.contains_key("slug"))
-    );
+    let duplicate = l
+        .service
+        .create_variant(&l.owner.token, &a.id, 4, None, fields("local-one"), None)
+        .await
+        .unwrap();
+    assert_eq!(duplicate.fields.slug, "local-one-2");
+    assert_ne!(duplicate.id, v.id);
     let s2 = l
         .service
         .save_species(&l.admin.token, &s.id, edit(1, "species-new"))
@@ -419,7 +1347,7 @@ async fn scoped_variants_exact_dependency_pins_and_explicit_adoption() {
         .unwrap();
     assert_eq!(adopted.source.unwrap().version, 2);
     assert_eq!(adopted.fields, fields("local-reviewed"));
-    assert_eq!(l.service.world_detail(&a.id).await.unwrap().revision, 4);
+    assert_eq!(l.service.world_detail(&a.id).await.unwrap().revision, 5);
     assert_eq!(l.service.world_detail(&b.id).await.unwrap().revision, 2);
     assert_eq!(l.service.form_version(&f.id, 1).await.unwrap(), f);
     let h = l
@@ -473,7 +1401,7 @@ async fn stale_noops_validation_and_bounded_attributed_history() {
         reason: Some("x".repeat(501)),
     };
     assert!(
-        matches!(l.service.save_species(&l.admin.token, &s.id, invalid_edit).await, Err(Error::Invalid(e)) if e.len() == 4)
+        matches!(l.service.save_species(&l.admin.token, &s.id, invalid_edit).await, Err(Error::Invalid(e)) if e.len() == 3 && e.contains_key("display_name") && e.contains_key("description") && e.contains_key("reason"))
     );
     assert_eq!(original.slug, "BAD SLUG");
     assert_eq!(l.service.species_detail(&s.id).await.unwrap(), s);

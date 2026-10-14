@@ -1,6 +1,6 @@
 //! Concrete authoring queries; all writes use the caller's transaction connection.
 use crate::application::authoring::{
-    self as app, Collaborator, Error, FormRecord, HistoryEntry, HistoryKind, SourcePin,
+    self as app, AddressKey, Collaborator, Error, FormRecord, HistoryEntry, HistoryKind, SourcePin,
     SpeciesRecord, VariantRecord, WorldRecord,
 };
 use game_data::authoring::{ContentFields, FieldErrors};
@@ -26,8 +26,8 @@ fn content_write_error(error: sqlx::Error) -> Error {
         .is_some_and(|e| e.is_unique_violation())
     {
         Error::Invalid(FieldErrors::from([(
-            "slug".into(),
-            "This slug is already in use in this scope.".into(),
+            "display_name".into(),
+            "This address is already in use in this scope. Choose a different name.".into(),
         )]))
     } else {
         storage_error(error)
@@ -129,6 +129,135 @@ pub(crate) async fn species_list(c: &mut SqliteConnection) -> Result<Vec<Species
         .into_iter()
         .map(species_row)
         .collect()
+}
+
+/// Closed scope choices keep SQL identifiers independent of submitted input.
+#[derive(Clone, Copy)]
+pub(crate) enum SlugScope<'a> {
+    Species,
+    World,
+    Form(&'a str),
+    Variant(&'a str),
+}
+
+pub(crate) async fn slug_exists(
+    c: &mut SqliteConnection,
+    scope: SlugScope<'_>,
+    slug: &str,
+    excluded_id: Option<&str>,
+) -> Result<bool, Error> {
+    let (sql, parent) = match scope {
+        SlugScope::Species => (
+            "SELECT EXISTS(SELECT 1 FROM species WHERE slug = ?1 AND id <> ?2)",
+            None,
+        ),
+        SlugScope::World => (
+            "SELECT EXISTS(SELECT 1 FROM worlds WHERE slug = ?1 AND id <> ?2)",
+            None,
+        ),
+        SlugScope::Form(id) => (
+            "SELECT EXISTS(SELECT 1 FROM forms WHERE slug = ?1 AND id <> ?2 AND species_id = ?3)",
+            Some(id),
+        ),
+        SlugScope::Variant(id) => (
+            "SELECT EXISTS(SELECT 1 FROM variants WHERE slug = ?1 AND id <> ?2 AND world_id = ?3)",
+            Some(id),
+        ),
+    };
+    let query = sqlx::query_scalar(sql)
+        .bind(slug)
+        .bind(excluded_id.unwrap_or(""));
+    let query = if let Some(parent) = parent {
+        query.bind(parent)
+    } else {
+        query
+    };
+    query.fetch_one(c).await.map_err(storage_error)
+}
+
+pub(crate) async fn resolve_species(
+    c: &mut SqliteConnection,
+    key: AddressKey,
+) -> Result<SpeciesRecord, Error> {
+    let (sql, value) = match key {
+        AddressKey::Id(value) => ("SELECT * FROM species WHERE id = ?", value),
+        AddressKey::Slug(value) => ("SELECT * FROM species WHERE slug = ?", value),
+    };
+    species_row(
+        sqlx::query(sql)
+            .bind(value)
+            .fetch_optional(c)
+            .await
+            .map_err(storage_error)?
+            .ok_or(Error::NotFound)?,
+    )
+}
+
+pub(crate) async fn resolve_world(
+    c: &mut SqliteConnection,
+    key: AddressKey,
+) -> Result<WorldRecord, Error> {
+    let (sql, value) = match key {
+        AddressKey::Id(value) => ("SELECT * FROM worlds WHERE id = ?", value),
+        AddressKey::Slug(value) => ("SELECT * FROM worlds WHERE slug = ?", value),
+    };
+    world_row(
+        sqlx::query(sql)
+            .bind(value)
+            .fetch_optional(c)
+            .await
+            .map_err(storage_error)?
+            .ok_or(Error::NotFound)?,
+    )
+}
+
+pub(crate) async fn resolve_form(
+    c: &mut SqliteConnection,
+    species_id: &str,
+    key: AddressKey,
+) -> Result<FormRecord, Error> {
+    let (sql, value) = match key {
+        AddressKey::Id(value) => ("SELECT * FROM forms WHERE species_id = ? AND id = ?", value),
+        AddressKey::Slug(value) => (
+            "SELECT * FROM forms WHERE species_id = ? AND slug = ?",
+            value,
+        ),
+    };
+    form_row(
+        sqlx::query(sql)
+            .bind(species_id)
+            .bind(value)
+            .fetch_optional(c)
+            .await
+            .map_err(storage_error)?
+            .ok_or(Error::NotFound)?,
+    )
+}
+
+pub(crate) async fn resolve_variant(
+    c: &mut SqliteConnection,
+    world_id: &str,
+    key: AddressKey,
+) -> Result<VariantRecord, Error> {
+    let (sql, value) = match key {
+        AddressKey::Id(value) => (
+            "SELECT * FROM variants WHERE world_id = ? AND id = ?",
+            value,
+        ),
+        AddressKey::Slug(value) => (
+            "SELECT * FROM variants WHERE world_id = ? AND slug = ?",
+            value,
+        ),
+    };
+    variant_row(
+        sqlx::query(sql)
+            .bind(world_id)
+            .bind(value)
+            .fetch_optional(c)
+            .await
+            .map_err(storage_error)?
+            .ok_or(Error::NotFound)?,
+    )
 }
 pub(crate) async fn species(c: &mut SqliteConnection, key: &str) -> Result<SpeciesRecord, Error> {
     species_row(

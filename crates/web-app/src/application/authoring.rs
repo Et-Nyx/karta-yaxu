@@ -6,11 +6,18 @@ use crate::{
 };
 use game_data::{
     Catalog,
-    authoring::{ContentFields, FieldErrors, validate_reason},
+    authoring::{ContentFields, FieldErrors, slug_candidate, slug_from_name, validate_reason},
 };
 use serde::{Deserialize, Serialize};
 use sqlx::{Sqlite, SqliteConnection, Transaction};
 use std::fmt;
+
+/// The web adapter chooses the address interpretation; ids never fall back to slugs.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum AddressKey {
+    Id(String),
+    Slug(String),
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct SpeciesRecord {
@@ -154,7 +161,7 @@ fn fields_and_reason(
     fields: &ContentFields,
     reason: Option<&str>,
 ) -> Result<(ContentFields, Option<String>), Error> {
-    let fields_result = fields.normalized();
+    let fields_result = fields.normalized_for_auto_slug();
     let reason_result = validate_reason(reason);
     let mut errors = FieldErrors::new();
     if let Err(e) = &fields_result {
@@ -173,6 +180,34 @@ fn fields_and_reason(
 }
 fn next(revision: i64) -> Result<i64, Error> {
     revision.checked_add(1).ok_or(Error::Unavailable)
+}
+
+/// Called within the same BEGIN IMMEDIATE transaction as the authorized mutation.
+/// Unchanged normalized names retain even legacy and collision-suffixed slugs.
+async fn allocate_slug(
+    c: &mut SqliteConnection,
+    scope: store::SlugScope<'_>,
+    fields: &mut ContentFields,
+    previous: Option<(&str, &ContentFields)>,
+) -> Result<(), Error> {
+    if let Some((_, old)) = previous
+        && fields.display_name == old.display_name
+    {
+        fields.slug = old.slug.clone();
+        return Ok(());
+    }
+    let base = slug_from_name(&fields.display_name);
+    for number in 1..=10_000 {
+        let candidate = slug_candidate(&base, number);
+        if !store::slug_exists(c, scope, &candidate, previous.map(|(id, _)| id)).await? {
+            fields.slug = candidate;
+            return Ok(());
+        }
+    }
+    Err(invalid(
+        "display_name",
+        "Too many records share this address. Choose a different name.",
+    ))
 }
 fn expected(actual: i64, expected: i64) -> Result<(), Error> {
     if actual == expected {
@@ -224,6 +259,71 @@ async fn access_snapshot(c: &mut SqliteConnection, world: &WorldRecord) -> Resul
 impl Authoring {
     pub fn new(accounts: Accounts) -> Self {
         Self { accounts }
+    }
+    pub async fn resolve_species(&self, key: AddressKey) -> Result<SpeciesRecord, Error> {
+        let mut c = self
+            .accounts
+            .pool()
+            .acquire()
+            .await
+            .map_err(store::storage_error)?;
+        store::resolve_species(&mut c, key).await
+    }
+    pub async fn resolve_world(&self, key: AddressKey) -> Result<WorldRecord, Error> {
+        let mut c = self
+            .accounts
+            .pool()
+            .acquire()
+            .await
+            .map_err(store::storage_error)?;
+        store::resolve_world(&mut c, key).await
+    }
+    pub async fn resolve_form(
+        &self,
+        species_key: AddressKey,
+        form_key: AddressKey,
+    ) -> Result<(SpeciesRecord, FormRecord), Error> {
+        let mut tx = self
+            .accounts
+            .pool()
+            .begin()
+            .await
+            .map_err(store::storage_error)?;
+        let species = store::resolve_species(&mut tx, species_key).await?;
+        let form = store::resolve_form(&mut tx, &species.id, form_key).await?;
+        tx.commit().await.map_err(store::storage_error)?;
+        Ok((species, form))
+    }
+    pub async fn resolve_legacy_form(
+        &self,
+        id: &str,
+    ) -> Result<(SpeciesRecord, FormRecord), Error> {
+        let mut tx = self
+            .accounts
+            .pool()
+            .begin()
+            .await
+            .map_err(store::storage_error)?;
+        let form = store::form(&mut tx, id).await?;
+        let species = store::species(&mut tx, &form.species_id).await?;
+        tx.commit().await.map_err(store::storage_error)?;
+        Ok((species, form))
+    }
+    pub async fn resolve_variant(
+        &self,
+        world_key: AddressKey,
+        variant_key: AddressKey,
+    ) -> Result<(WorldRecord, VariantRecord), Error> {
+        let mut tx = self
+            .accounts
+            .pool()
+            .begin()
+            .await
+            .map_err(store::storage_error)?;
+        let world = store::resolve_world(&mut tx, world_key).await?;
+        let variant = store::resolve_variant(&mut tx, &world.id, variant_key).await?;
+        tx.commit().await.map_err(store::storage_error)?;
+        Ok((world, variant))
     }
     async fn write(&self) -> Result<Transaction<'static, Sqlite>, Error> {
         persistence::begin_write(self.accounts.pool())
@@ -424,12 +524,23 @@ impl Authoring {
         let mut tx = self.write().await?;
         let actor = self.actor(&mut tx, token).await?;
         require_admin(&actor)?;
-        let (fields, reason) = fields_and_reason(&fields, reason)?;
+        let (mut fields, reason) = fields_and_reason(&fields, reason)?;
+        allocate_slug(&mut tx, store::SlugScope::Species, &mut fields, None).await?;
+        let id = new_id()?;
+        let mut default_form_fields = fields.clone();
+        allocate_slug(
+            &mut tx,
+            store::SlugScope::Form(&id),
+            &mut default_form_fields,
+            None,
+        )
+        .await?;
         let result = self
             .insert_species(
                 &mut tx,
-                new_id()?,
+                id,
                 fields,
+                default_form_fields,
                 Some(&actor.user_id),
                 reason.as_deref(),
             )
@@ -442,12 +553,13 @@ impl Authoring {
         c: &mut SqliteConnection,
         id: String,
         fields: ContentFields,
+        default_form_fields: ContentFields,
         actor: Option<&str>,
         reason: Option<&str>,
     ) -> Result<SpeciesRecord, Error> {
         let species = SpeciesRecord {
             id,
-            fields: fields.clone(),
+            fields,
             revision: 1,
             default_form_id: new_id()?,
             archived_at: None,
@@ -456,7 +568,7 @@ impl Authoring {
             id: species.default_form_id.clone(),
             species_id: species.id.clone(),
             species_version: 1,
-            fields,
+            fields: default_form_fields,
             revision: 1,
             is_default: true,
             archived_at: None,
@@ -486,7 +598,14 @@ impl Authoring {
         require_admin(&actor)?;
         let mut row = store::species(&mut tx, id).await?;
         expected(row.revision, edit.expected_revision)?;
-        let (fields, reason) = fields_and_reason(&edit.fields, edit.reason.as_deref())?;
+        let (mut fields, reason) = fields_and_reason(&edit.fields, edit.reason.as_deref())?;
+        allocate_slug(
+            &mut tx,
+            store::SlugScope::Species,
+            &mut fields,
+            Some((&row.id, &row.fields)),
+        )
+        .await?;
         if fields != row.fields {
             let before = snapshot(&row)?;
             row.fields = fields;
@@ -518,11 +637,18 @@ impl Authoring {
         let mut tx = self.write().await?;
         let actor = self.actor(&mut tx, token).await?;
         require_admin(&actor)?;
-        let (fields, reason) = fields_and_reason(&fields, reason)?;
+        let (mut fields, reason) = fields_and_reason(&fields, reason)?;
         store::species(&mut tx, species_id).await?;
         store::species_version(&mut tx, species_id, species_version)
             .await
             .map_err(|error| missing_reference(error, "species_version"))?;
+        allocate_slug(
+            &mut tx,
+            store::SlugScope::Form(species_id),
+            &mut fields,
+            None,
+        )
+        .await?;
         let row = FormRecord {
             id: new_id()?,
             species_id: species_id.into(),
@@ -559,10 +685,17 @@ impl Authoring {
         require_admin(&actor)?;
         let mut row = store::form(&mut tx, id).await?;
         expected(row.revision, edit.expected_revision)?;
-        let (fields, reason) = fields_and_reason(&edit.fields, edit.reason.as_deref())?;
+        let (mut fields, reason) = fields_and_reason(&edit.fields, edit.reason.as_deref())?;
         store::species_version(&mut tx, &row.species_id, species_version)
             .await
             .map_err(|error| missing_reference(error, "species_version"))?;
+        allocate_slug(
+            &mut tx,
+            store::SlugScope::Form(&row.species_id),
+            &mut fields,
+            Some((&row.id, &row.fields)),
+        )
+        .await?;
         if fields != row.fields || species_version != row.species_version {
             let before = snapshot(&row)?;
             row.fields = fields;
@@ -593,7 +726,8 @@ impl Authoring {
         let mut tx = self.write().await?;
         let actor = self.actor(&mut tx, token).await?;
         require_eligible(&actor)?;
-        let (fields, reason) = fields_and_reason(&fields, reason)?;
+        let (mut fields, reason) = fields_and_reason(&fields, reason)?;
+        allocate_slug(&mut tx, store::SlugScope::World, &mut fields, None).await?;
         let row = WorldRecord {
             id: new_id()?,
             owner_user_id: actor.user_id.clone(),
@@ -636,7 +770,14 @@ impl Authoring {
         let mut row = store::world(&mut tx, id).await?;
         self.world_actor(&mut tx, &actor, &row, false).await?;
         expected(row.revision, edit.expected_revision)?;
-        let (fields, reason) = fields_and_reason(&edit.fields, edit.reason.as_deref())?;
+        let (mut fields, reason) = fields_and_reason(&edit.fields, edit.reason.as_deref())?;
+        allocate_slug(
+            &mut tx,
+            store::SlugScope::World,
+            &mut fields,
+            Some((&row.id, &row.fields)),
+        )
+        .await?;
         if row.fields != fields {
             let before = world_snapshot(&mut tx, &row).await?;
             row.fields = fields;
@@ -673,12 +814,19 @@ impl Authoring {
         let mut world = store::world(&mut tx, world_id).await?;
         self.world_actor(&mut tx, &actor, &world, false).await?;
         expected(world.revision, expected_world_revision)?;
-        let (fields, reason) = fields_and_reason(&fields, reason)?;
+        let (mut fields, reason) = fields_and_reason(&fields, reason)?;
         if let Some(pin) = &source {
             store::form_version(&mut tx, &pin.form_id, pin.version)
                 .await
                 .map_err(|error| missing_reference(error, "source_pin"))?;
         }
+        allocate_slug(
+            &mut tx,
+            store::SlugScope::Variant(world_id),
+            &mut fields,
+            None,
+        )
+        .await?;
         let before = world_snapshot(&mut tx, &world).await?;
         let row = VariantRecord {
             id: new_id()?,
@@ -751,7 +899,7 @@ impl Authoring {
         self.world_actor(&mut tx, &actor, &world, false).await?;
         let mut row = store::variant(&mut tx, world_id, id).await?;
         expected(row.revision, edit.expected_revision)?;
-        let (fields, reason) = fields_and_reason(&edit.fields, edit.reason.as_deref())?;
+        let (mut fields, reason) = fields_and_reason(&edit.fields, edit.reason.as_deref())?;
         let before = snapshot(&row)?;
         if let Some(version) = target {
             let pin = row.source.as_mut().ok_or_else(|| {
@@ -768,6 +916,13 @@ impl Authoring {
                 .map_err(|error| missing_reference(error, "target_version"))?;
             pin.version = version;
         }
+        allocate_slug(
+            &mut tx,
+            store::SlugScope::Variant(world_id),
+            &mut fields,
+            Some((&row.id, &row.fields)),
+        )
+        .await?;
         if fields != row.fields || target.is_some() {
             row.fields = fields;
             row.revision = next(row.revision)?;
@@ -1027,7 +1182,7 @@ impl Authoring {
                         "A fixture slug has a different initial species identity.",
                     ));
                 }
-                self.insert_species(&mut tx, id.into(), fields, None, None)
+                self.insert_species(&mut tx, id.into(), fields.clone(), fields, None, None)
                     .await?;
                 report.species_created += 1;
                 report.forms_created += 1;

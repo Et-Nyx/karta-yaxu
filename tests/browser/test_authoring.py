@@ -6,6 +6,7 @@ to probe protected URLs that intentionally have no link for unauthorized users.
 """
 
 import json
+import re
 import unittest
 
 from playwright.sync_api import expect
@@ -44,30 +45,45 @@ class AuthoringWorkflows(BrowserFixture):
         self.page.keyboard.insert_text(value)
         expect(field).to_have_value(value)
 
-    def content(self, slug, name, description, reason="Browser authoring review"):
-        for label, value in (("Slug", slug), ("Display name", name),
+    def content(self, name, description, reason="Browser authoring review"):
+        expect(self.page.locator('input[name="slug"]')).to_have_count(0)
+        for label, value in (("Display name", name),
                              ("Description", description), ("Change reason (optional)", reason)):
             self.enter(label, value)
 
     def submit(self, name, status=303, destination=None):
         button = self.page.get_by_role("button", name=name, exact=True)
         action = button.locator("xpath=ancestor::form").get_attribute("action")
+        if action.startswith(("/creatures/", "/forms/", "/worlds/")):
+            self.assertRegex(action, r"^/(?:creatures|forms|worlds)/(?:new|[0-9a-f]{32})(?:/|$)")
+            if "/variants/" in action:
+                self.assertRegex(action, r"/variants/(?:new|[0-9a-f]{32})(?:/|$)")
         self.tab_to(button)
-        with self.page.expect_navigation(wait_until="load"):
+        with self.page.expect_navigation(wait_until="load") as navigation:
             with self.page.expect_response(
                 lambda response: response.url == self.origin + action
                 and response.request.method == "POST"
             ) as submission:
                 self.page.keyboard.press("Enter")
         self.assertEqual(submission.value.status, status)
+        if status == 303 and re.match(r"^/(?:creatures|forms|worlds)/", action):
+            # Mutations target IDs, then 303 -> legacy GET 307 -> readable GET.
+            legacy = navigation.value.request.redirected_from
+            self.assertIsNotNone(legacy)
+            self.assertEqual(legacy.method, "GET")
+            self.assertEqual(legacy.response().status, 307)
+            self.assertEqual(legacy.response().headers.get("cache-control"), "no-store")
+            self.assertEqual(legacy.url, self.origin + submission.value.headers["location"])
+        elif status >= 400:
+            expect(self.page).to_have_url(self.origin + action)
         if destination is not None:
             expect(self.page).to_have_url(self.origin + destination)
         self.assert_no_horizontal_overflow()
 
-    def create_world(self, slug="alice-world", name="Alice World"):
+    def create_world(self, name="Alice World"):
         self.follow("Worlds")
         self.follow("Create world")
-        self.content(slug, name, f"Independent definition for {name}.")
+        self.content(name, f"Independent definition for {name}.")
         self.submit("Create world")
         expect(self.page.get_by_role("heading", name=name, exact=True)).to_be_visible()
         return self.page.url.removeprefix(self.origin)
@@ -83,10 +99,10 @@ class AuthoringWorkflows(BrowserFixture):
         self.page.keyboard.press("Tab")
         expect(select).to_have_value(value)
 
-    def create_variant(self, world, slug, name, source=None, description=None):
+    def create_variant(self, world, name, source=None, description=None):
         self.follow("Add variant")
         self.select_source(source or "")
-        self.content(slug, name, description or f"Local values for {name}.")
+        self.content(name, description or f"Local values for {name}.")
         self.submit("Create variant")
         path = self.page.url.removeprefix(self.origin)
         self.assertTrue(path.startswith(world + "/variants/"))
@@ -111,6 +127,11 @@ class AuthoringWorkflows(BrowserFixture):
         # Inspect a semantic definition list, never change the DOM.
         return self.page.get_by_text(label, exact=True).locator("xpath=following-sibling::dd[1]")
 
+    def canonical_id(self, kind):
+        value = self.saved_value(f"Canonical {kind} ID").inner_text()
+        self.assertRegex(value, r"^[0-9a-f]{32}$")
+        return value
+
     def snapshot(self, history_link, revision):
         self.follow(history_link)
         self.follow(f"Revision {revision}")
@@ -126,14 +147,16 @@ class AuthoringWorkflows(BrowserFixture):
         self.sign_in()
         alice_page = self.page
         alice_world = self.create_world()
-        world_id = alice_world.rsplit("/", 1)[1]
+        self.assertEqual(alice_world, "/worlds/alice-world")
+        world_id = self.canonical_id("world")
         form_id = self.sql("SELECT default_form_id FROM species WHERE slug = 'emberling'")[0][0]
-        first = self.create_variant(alice_world, "local-one", "Local One", f"{form_id}@1")
+        first = self.create_variant(alice_world, "Local One", f"{form_id}@1")
+        expect(self.saved_value("Local slug")).to_have_text("local-one")
         self.follow_path(alice_world)
-        second = self.create_variant(alice_world, "local-two", "Local Two", f"{form_id}@1")
+        second = self.create_variant(alice_world, "Local Two", f"{form_id}@1")
         self.assertNotEqual(first, second)
         self.follow_path(alice_world)
-        self.create_variant(alice_world, "exclusive", "Exclusive")
+        self.create_variant(alice_world, "Exclusive")
         expect(self.saved_value("Source")).to_have_text("World-exclusive · no shared source pin")
         self.assertEqual(self.sql(
             "SELECT source_form_id, source_form_version FROM variants WHERE world_id = ? ORDER BY slug",
@@ -149,9 +172,12 @@ class AuthoringWorkflows(BrowserFixture):
 
         collaborator_context, collaborator_page = self.new_context()
         self.sign_in("collaborator")
-        collaborator_world = self.create_world("collaborator-world", "Collaborator World")
+        collaborator_world = self.create_world("Collaborator World")
         # Local slugs are scoped to a world, not globally unique.
-        self.create_variant(collaborator_world, "local-one", "Other Local One")
+        other_first = self.create_variant(collaborator_world, "Local One")
+        self.assertEqual(other_first, collaborator_world + "/variants/local-one")
+        self.assertEqual(first, alice_world + "/variants/local-one")
+        expect(self.saved_value("Local slug")).to_have_text("local-one")
         self.follow("Worlds")
         self.follow("Alice World")
         expect(self.link("Edit world")).to_have_count(0)
@@ -171,22 +197,26 @@ class AuthoringWorkflows(BrowserFixture):
         librarian_page = self.page
         self.follow("Creatures")
         self.follow("Create species")
-        self.content("lantern-moth", "Lantern Moth", "Shared species description.", "New shared species")
+        self.content("Lantern Moth", "Shared species description.", "New shared species")
         self.submit("Create species")
         species = self.page.url.removeprefix(self.origin)
-        default_id = self.sql("SELECT default_form_id FROM species WHERE slug = 'lantern-moth'")[0][0]
-        self.follow_path(f"/forms/{default_id}")
+        self.assertEqual(species, "/creatures/lantern-moth")
+        species_id = self.canonical_id("species")
+        default_slug = self.sql("SELECT slug FROM forms WHERE id = (SELECT default_form_id FROM species WHERE id = ?)",
+                                (species_id,))[0][0]
+        self.follow_path(species + f"/forms/{default_slug}")
         expect(self.page.get_by_text("Shared form · Default", exact=True)).to_be_visible()
         expect(self.saved_value("Form version")).to_have_text("1")
         self.follow("← Parent species")
         self.follow("Add shared form")
         expect(self.page.get_by_label("Pinned species version", exact=True)).to_have_value("1")
-        self.content("dusk-form", "Dusk Form", "Old source description.", "Additional shared form")
+        self.content("Dusk Form", "Old source description.", "Additional shared form")
         self.submit("Create shared form")
         form = self.page.url.removeprefix(self.origin)
-        form_id = form.rsplit("/", 1)[1]
+        self.assertEqual(form, species + "/forms/dusk-form")
+        form_id = self.canonical_id("form")
         self.assertEqual(self.sql("SELECT species_id, species_version, is_default FROM forms WHERE id = ?",
-                                  (form_id,)), [(species.rsplit("/", 1)[1], 1, 0)])
+                                  (form_id,)), [(species_id, 1, 0)])
 
         alice_context, alice_page = self.new_context()
         self.sign_in()
@@ -196,16 +226,21 @@ class AuthoringWorkflows(BrowserFixture):
         self.follow_path(source_link)
         expect(self.page.get_by_label("Source form and version", exact=True)).to_have_value(f"{form_id}@1")
         expect(self.page.get_by_label("Display name", exact=True)).to_have_value("Dusk Form")
-        self.content("local-dusk", "Local Dusk", "Keep this local description.", "Local divergence")
+        self.content("Local Dusk", "Keep this local description.", "Local divergence")
         self.submit("Create variant")
         variant = self.page.url.removeprefix(self.origin)
+        variant_id = self.canonical_id("variant")
         self.follow_path(world)
-        other = self.create_variant(world, "other-dusk", "Other Dusk", f"{form_id}@1")
+        self.create_variant(world, "Other Dusk", f"{form_id}@1")
+        other_id = self.canonical_id("variant")
 
         self.page = librarian_page
         self.follow("Edit shared form")
-        self.content("dusk-form", "Dusk Form Updated", "New source description.", "Publish form version two")
+        self.content("Dusk Form Updated", "New source description.", "Publish form version two")
+        form = species + "/forms/dusk-form-updated"
         self.submit("Save changes", destination=form)
+        self.assertEqual(self.canonical_id("form"), form_id)
+        expect(self.saved_value("Slug")).to_have_text("dusk-form-updated")
         expect(self.saved_value("Form version")).to_have_text("2")
         self.probe_forbidden(world + "/edit", self.context)
         self.probe_forbidden(world + "/access", self.context)
@@ -227,7 +262,8 @@ class AuthoringWorkflows(BrowserFixture):
                                      ("New source", "New source description.")):
             panel = self.page.locator("section").filter(has=self.page.get_by_role("heading", name=heading, exact=True))
             expect(panel).to_contain_text(description)
-        expect(self.page.get_by_label("Slug", exact=True)).to_have_value("local-dusk")
+        expect(self.page.locator('input[name="slug"]')).to_have_count(0)
+        expect(self.page.get_by_text("Stored slug: local-dusk", exact=True)).to_be_visible()
         expect(self.page.get_by_label("Display name", exact=True)).to_have_value("Local Dusk")
         expect(self.page.get_by_label("Description", exact=True)).to_have_value("Keep this local description.")
         expect(self.page.locator('input[name="target_version"]')).to_have_value("2")
@@ -236,9 +272,9 @@ class AuthoringWorkflows(BrowserFixture):
         expect(self.saved_value("Canonical source form ID and pinned version")).to_contain_text("version 2")
         self.assertEqual(self.sql(
             "SELECT source_form_version, slug, display_name, description FROM variants WHERE id = ?",
-            (variant.rsplit("/", 1)[1],),
+            (variant_id,),
         ), [(2, "local-dusk", "Local Dusk", "Keep this local description.")])
-        self.assertEqual(self.sql("SELECT source_form_version FROM variants WHERE id = ?", (other.rsplit("/", 1)[1],)),
+        self.assertEqual(self.sql("SELECT source_form_version FROM variants WHERE id = ?", (other_id,)),
                          [(1,)])
         adopted = self.snapshot("Variant history", 2)
         self.assertEqual(adopted["source"]["version"], 2)
@@ -251,19 +287,21 @@ class AuthoringWorkflows(BrowserFixture):
         self.follow("Worlds")
         self.follow("Create world")
         description = "Draft <script>inert text</script> & notes.\n\nSecond paragraph."
+        invalid_description = description + "\tInvalid control character."
         reason = "Correct the retained draft"
-        self.content("BAD SLUG", "Retained World", description, reason)
+        self.content("Retained World", invalid_description, reason)
         audit_count = self.sql("SELECT count(*) FROM audit_events")
         self.submit("Create world", status=422, destination="/worlds/new")
         expect(self.page.get_by_role("alert")).to_contain_text("entered values have been kept")
-        for label, value in (("Slug", "BAD SLUG"), ("Display name", "Retained World"),
-                             ("Description", description), ("Change reason (optional)", reason)):
+        for label, value in (("Display name", "Retained World"),
+                             ("Description", invalid_description), ("Change reason (optional)", reason)):
             expect(self.page.get_by_label(label, exact=True)).to_have_value(value)
-        expect(self.page.get_by_label("Slug", exact=True)).to_have_attribute("aria-invalid", "true")
+        expect(self.page.get_by_label("Description", exact=True)).to_have_attribute("aria-invalid", "true")
+        expect(self.page.locator("main script")).to_have_count(0)
         self.assertEqual(self.sql("SELECT count(*) FROM worlds"), [(0,)])
         self.assertEqual(self.sql("SELECT count(*) FROM audit_events"), audit_count)
-        self.enter("Slug", "retained-world")
-        self.submit("Create world")
+        self.enter("Description", description)
+        self.submit("Create world", destination="/worlds/retained-world")
         world = self.page.url.removeprefix(self.origin)
         expect(self.page.locator("main script")).to_have_count(0)
         expect(self.page.get_by_role("main")).to_contain_text(description)
@@ -293,11 +331,14 @@ class AuthoringWorkflows(BrowserFixture):
         name = "🌿" * 100
         description = "🌿" * 2000
         reason = "🌿" * 500
-        self.content("unicode-limits", name, description, reason)
+        self.content(name, description, reason)
         self.submit("Create world")
+        world_id = self.canonical_id("world")
+        slug = self.saved_value("Slug").inner_text()
+        expect(self.page).to_have_url(self.origin + "/worlds/" + slug)
         self.assertEqual(self.sql(
-            "SELECT display_name, description FROM worlds WHERE slug = 'unicode-limits'"
-        ), [(name, description)])
+            "SELECT slug, display_name, description FROM worlds WHERE id = ?", (world_id,)
+        ), [(slug, name, description)])
         self.follow("World content history")
         self.follow("Revision 1")
         expect(self.page.get_by_role("heading", name="Field changes", exact=True)).to_be_visible()
@@ -309,8 +350,9 @@ class AuthoringWorkflows(BrowserFixture):
         self.sign_in()
         first_page = self.page
         world = self.create_world()
-        variant = self.create_variant(world, "contested", "Contested")
-        variant_id = variant.rsplit("/", 1)[1]
+        variant = self.create_variant(world, "Contested")
+        variant_id = self.canonical_id("variant")
+        variant_action = f"/worlds/{self.canonical_id('world')}/variants/{variant_id}/edit"
         self.follow("Edit local values")
         self.enter("Description", "First editor retained draft.")
         self.enter("Change reason (optional)", "Explicitly reviewed winner")
@@ -325,7 +367,7 @@ class AuthoringWorkflows(BrowserFixture):
         self.submit("Save changes", destination=variant)
 
         self.page = first_page
-        self.submit("Save changes", status=409, destination=variant + "/edit")
+        self.submit("Save changes", status=409, destination=variant_action)
         expect(self.page.get_by_role("alert")).to_contain_text("Nothing was saved")
         expect(self.page.locator(".saved-state")).to_contain_text("Second editor saved version two.")
         expect(self.page.get_by_label("Description", exact=True)).to_have_value("First editor retained draft.")
@@ -340,7 +382,7 @@ class AuthoringWorkflows(BrowserFixture):
         self.enter("Description", "Second editor saved version three.")
         self.submit("Save changes", destination=variant)
         self.page = first_page
-        self.submit("Save reviewed changes", status=409, destination=variant + "/edit")
+        self.submit("Save reviewed changes", status=409, destination=variant_action)
         expect(self.page.locator(".saved-state")).to_contain_text("revision 3")
         expect(self.page.locator(".saved-state")).to_contain_text("Second editor saved version three.")
         expect(self.page.get_by_label("Description", exact=True)).to_have_value("First editor retained draft.")
@@ -363,7 +405,8 @@ class AuthoringWorkflows(BrowserFixture):
         self.sign_in()
         owner_page = self.page
         world = self.create_world()
-        world_id = world.rsplit("/", 1)[1]
+        world_id = self.canonical_id("world")
+        world_action = f"/worlds/{world_id}"
         collaborator_context, collaborator_page = self.new_context()
         self.sign_in("collaborator")
         collaborator_id = self.user_id("collaborator")
@@ -405,7 +448,7 @@ class AuthoringWorkflows(BrowserFixture):
         expect(self.page.get_by_role("main")).to_contain_text("Access revision 3 · revoke")
         audit_count = self.sql("SELECT count(*) FROM audit_events")
         self.page = collaborator_page
-        self.submit("Save changes", status=403, destination=world + "/edit")
+        self.submit("Save changes", status=403, destination=world_action + "/edit")
         expect(self.page.get_by_label("Description", exact=True)).to_have_value("Revoked stale draft must not be saved.")
         self.assertEqual(self.sql("SELECT revision, description FROM worlds WHERE id = ?", (world_id,)),
                          [(2, "Collaborator contribution.")])
@@ -433,7 +476,7 @@ class AuthoringWorkflows(BrowserFixture):
         self.submit("Sign out", destination="/")
         self.sign_in("collaborator")
         self.page = owner_page
-        self.submit("Grant collaboration", status=403, destination=world + "/access/grant")
+        self.submit("Grant collaboration", status=403, destination=world_action + "/access/grant")
         expect(self.page.get_by_role("main")).to_contain_text("Private access state could not be loaded")
         expect(self.page.get_by_role("heading", name="Private access history", exact=True)).to_have_count(0)
         expect(self.page.get_by_role("heading", name="Current saved access — revision 3", exact=True)).to_have_count(0)
@@ -446,7 +489,8 @@ class AuthoringWorkflows(BrowserFixture):
         self.sign_in()
         owner_page = self.page
         world = self.create_world()
-        world_id = world.rsplit("/", 1)[1]
+        world_id = self.canonical_id("world")
+        grant_action = f"/worlds/{world_id}/access/grant"
         for subject in ("collaborator", "outsider"):
             self.new_context()
             self.sign_in(subject)
@@ -466,7 +510,7 @@ class AuthoringWorkflows(BrowserFixture):
         self.enter("Target user ID", collaborator_id)
         self.submit("Grant collaboration", destination=world + "/access")
         self.page = owner_page
-        self.submit("Grant collaboration", status=409, destination=world + "/access/grant")
+        self.submit("Grant collaboration", status=409, destination=grant_action)
         expect(self.page.get_by_role("main")).to_contain_text("Current saved access — revision 2")
         expect(self.page.get_by_label("Target user ID", exact=True)).to_have_value(outsider_id)
         expect(self.page.get_by_label("Change reason (optional)", exact=True)).to_have_value("Review outsider grant")
@@ -479,7 +523,7 @@ class AuthoringWorkflows(BrowserFixture):
         self.page = second_owner
         self.submit("Revoke collaboration for collaborator", destination=world + "/access")
         self.page = owner_page
-        self.submit("Save reviewed changes", status=409, destination=world + "/access/grant")
+        self.submit("Save reviewed changes", status=409, destination=grant_action)
         expect(self.page.get_by_role("main")).to_contain_text("Current saved access — revision 3")
         expect(self.page.get_by_role("main")).to_contain_text("No collaborators. Only the owner")
         expect(self.page.locator('input[name="expected_access_revision"]')).to_have_value("2")
@@ -491,6 +535,114 @@ class AuthoringWorkflows(BrowserFixture):
         self.assertEqual(self.sql("SELECT count(*) FROM world_access_revisions WHERE world_id = ?", (world_id,)), [(4,)])
         expect(self.page.get_by_role("main")).to_contain_text("Access revision 4 · grant")
         expect(self.page.get_by_role("main")).to_contain_text("Review outsider grant")
+
+    def test_name_derived_addresses_keep_identity_through_rename_collision_and_reuse(self):
+        self.sign_in()
+        original = self.create_world("Flabébé Forest")
+        self.assertEqual(original, "/worlds/flabebe-forest")
+        original_id = self.canonical_id("world")
+        expect(self.saved_value("Slug")).to_have_text("flabebe-forest")
+        duplicate = self.create_world("Flabébé Forest")
+        self.assertEqual(duplicate, "/worlds/flabebe-forest-2")
+        self.assertNotEqual(self.canonical_id("world"), original_id)
+        expect(self.saved_value("Slug")).to_have_text("flabebe-forest-2")
+
+        # Open a real revision-1 draft before the other editor renames its target.
+        self.follow("Worlds")
+        self.follow_path(original)
+        self.follow("Edit world")
+        stale_page = self.page
+        original_action = f"/worlds/{original_id}/edit"
+        expect(self.page.locator('form[method="post"]')).to_have_attribute("action", original_action)
+        expect(self.page.locator('input[name="expected_revision"]')).to_have_value("1")
+        self.enter("Description", "Retained draft belongs to original A.")
+        self.enter("Change reason (optional)", "Review the original immutable target")
+
+        self.new_context()
+        self.sign_in()
+        self.follow("Worlds")
+        self.follow_path(original)
+        self.follow("Edit world")
+        self.enter("Display name", "Flabébé Grove")
+        renamed = "/worlds/flabebe-grove"
+        self.submit("Save changes", destination=renamed)
+        self.assertEqual(self.canonical_id("world"), original_id)
+        expect(self.saved_value("Slug")).to_have_text("flabebe-grove")
+        # Reuse is allowed; B has revision 1, matching A's old draft revision.
+        replacement = self.create_world("Flabébé Forest")
+        self.assertEqual(replacement, original)
+        replacement_id = self.canonical_id("world")
+        self.assertNotEqual(replacement_id, original_id)
+        replacement_state = self.sql(
+            "SELECT revision, slug, display_name, description FROM worlds WHERE id = ?",
+            (replacement_id,),
+        )
+        self.assertEqual(replacement_state, [
+            (1, "flabebe-forest", "Flabébé Forest", "Independent definition for Flabébé Forest.")
+        ])
+
+        # Fresh-context permalink probes are the only programmatic navigation.
+        self.new_context(f"/worlds/{original_id}", authenticated_context=self.context)
+        self.assertEqual(self.initial_status, 200)
+        expect(self.page).to_have_url(self.origin + renamed)
+        self.assertEqual(self.canonical_id("world"), original_id)
+        expect(self.page.get_by_role("heading", name="Flabébé Grove", exact=True)).to_be_visible()
+        self.assert_no_horizontal_overflow()
+
+        audit_count = self.sql("SELECT count(*) FROM audit_events")
+        self.page = stale_page
+        self.submit("Save changes", status=409, destination=original_action)
+        expect(self.page.locator(".saved-state")).to_contain_text("Flabébé Grove")
+        expect(self.page.locator(".saved-state")).to_contain_text("revision 2")
+        expect(self.page.get_by_label("Display name", exact=True)).to_have_value("Flabébé Forest")
+        expect(self.page.get_by_label("Description", exact=True)).to_have_value("Retained draft belongs to original A.")
+        expect(self.page.locator('input[name="expected_revision"]')).to_have_value("1")
+        expect(self.page.get_by_role("button", name="Save reviewed changes", exact=True)).to_have_attribute("value", "2")
+        expect(self.page.locator('form[method="post"]')).to_have_attribute("action", original_action)
+        self.assertEqual(self.sql("SELECT count(*) FROM audit_events"), audit_count)
+        self.assertEqual(self.sql(
+            "SELECT revision, description FROM worlds WHERE id = ?", (original_id,)
+        ), [(2, "Independent definition for Flabébé Forest.")])
+        self.assertEqual(self.sql(
+            "SELECT revision, slug, display_name, description FROM worlds WHERE id = ?", (replacement_id,)
+        ), replacement_state)
+
+        # Explicit review can update A while keeping its new name and B intact.
+        self.enter("Display name", "Flabébé Grove")
+        self.submit("Save reviewed changes", destination=renamed)
+        self.assertEqual(self.canonical_id("world"), original_id)
+        self.assertEqual(self.sql(
+            "SELECT revision, description FROM worlds WHERE id = ?", (original_id,)
+        ), [(3, "Retained draft belongs to original A.")])
+        self.assertEqual(self.sql(
+            "SELECT revision, slug, display_name, description FROM worlds WHERE id = ?", (replacement_id,)
+        ), replacement_state)
+
+        # Parent renames change the child's coordinates, never its identity/version.
+        child = self.create_variant(renamed, "Forest Sprite")
+        self.assertEqual(child, renamed + "/variants/forest-sprite")
+        child_id = self.canonical_id("variant")
+        self.follow_path(renamed)
+        self.follow("Edit world")
+        self.enter("Display name", "Flabébé Meadow")
+        parent = "/worlds/flabebe-meadow"
+        self.submit("Save changes", destination=parent)
+        self.assertEqual(self.canonical_id("world"), original_id)
+        self.follow_path(parent + "/variants/forest-sprite")
+        self.assertEqual(self.canonical_id("variant"), child_id)
+        expect(self.saved_value("Variant revision")).to_have_text("1")
+        self.assertEqual(self.sql(
+            "SELECT world_id, revision, slug FROM variants WHERE id = ?", (child_id,)
+        ), [(original_id, 1, "forest-sprite")])
+
+        self.new_context(child, authenticated_context=self.context)
+        self.assertEqual(self.initial_status, 404)
+        self.assert_no_horizontal_overflow()
+        self.new_context(f"/worlds/{original_id}/variants/{child_id}", authenticated_context=self.context)
+        self.assertEqual(self.initial_status, 200)
+        expect(self.page).to_have_url(self.origin + parent + "/variants/forest-sprite")
+        self.assertEqual(self.canonical_id("variant"), child_id)
+        self.assert_no_horizontal_overflow()
 
 
 class DesktopAuthoringTests(AuthoringWorkflows, unittest.TestCase):

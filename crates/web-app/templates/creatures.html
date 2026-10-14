@@ -16,7 +16,7 @@
 {% for creature in creatures %}
   <article class="card">
     <p class="eyebrow">Placeholder creature</p>
-    <h2><a href="/creatures/{{ creature.id }}">{{ creature.fields.display_name }}</a></h2>
+    <h2><a href="/creatures/{{ crate::web::addresses::segment(creature.fields.slug) }}">{{ creature.fields.display_name }}</a></h2>
     <p class="plain-text">{{ creature.fields.description }}</p>
   </article>
 {% else %}

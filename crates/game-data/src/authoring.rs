@@ -15,8 +15,22 @@ pub struct ContentFields {
 impl ContentFields {
     /// Return a normalized copy; callers retain their original on failure.
     pub fn normalized(&self) -> Result<Self, FieldErrors> {
+        self.normalize(true)
+    }
+
+    /// User mutations validate text independently of the ignored submitted slug.
+    /// Slug allocation happens only after authorization and concurrency checks.
+    pub fn normalized_for_auto_slug(&self) -> Result<Self, FieldErrors> {
+        self.normalize(false)
+    }
+
+    fn normalize(&self, validate_slug: bool) -> Result<Self, FieldErrors> {
         let normalized = Self {
-            slug: self.slug.trim().to_owned(),
+            slug: if validate_slug {
+                self.slug.trim().to_owned()
+            } else {
+                String::new()
+            },
             display_name: self.display_name.trim().to_owned(),
             description: self
                 .description
@@ -26,14 +40,15 @@ impl ContentFields {
                 .to_owned(),
         };
         let mut errors = FieldErrors::new();
-        if normalized.slug.is_empty()
-            || normalized.slug.len() > 80
-            || !normalized.slug.split('-').all(|part| {
-                !part.is_empty()
-                    && part
-                        .bytes()
-                        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit())
-            })
+        if validate_slug
+            && (normalized.slug.is_empty()
+                || normalized.slug.len() > 80
+                || !normalized.slug.split('-').all(|part| {
+                    !part.is_empty()
+                        && part
+                            .bytes()
+                            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit())
+                }))
         {
             errors.insert(
                 "slug".into(),
@@ -64,6 +79,48 @@ impl ContentFields {
     }
 }
 
+/// Derive an address base from a previously normalized, validated display name.
+/// Unknown characters are separators, rather than invented transliterations.
+pub fn slug_from_name(display_name: &str) -> String {
+    let ascii = deunicode::deunicode_with_tofu(display_name, " ");
+    let mut slug = String::with_capacity(80);
+    let mut separator = false;
+    for byte in ascii.bytes() {
+        if byte.is_ascii_alphanumeric() {
+            if separator && !slug.is_empty() {
+                if slug.len() == 80 {
+                    break;
+                }
+                slug.push('-');
+            }
+            if slug.len() == 80 {
+                break;
+            }
+            slug.push(char::from(byte.to_ascii_lowercase()));
+            separator = false;
+        } else {
+            separator = true;
+        }
+    }
+    let slug = slug.trim_end_matches('-');
+    if slug.is_empty() {
+        "object".into()
+    } else {
+        slug.into()
+    }
+}
+
+/// Numbered candidates for a `slug_from_name` base and a positive search ordinal.
+/// Preserve the ASCII 80-byte cap, including the suffix.
+pub fn slug_candidate(base: &str, number: u32) -> String {
+    if number == 1 {
+        return base.into();
+    }
+    let suffix = format!("-{number}");
+    let prefix = &base[..base.len().min(80 - suffix.len())];
+    format!("{}{suffix}", prefix.trim_end_matches('-'))
+}
+
 pub fn validate_reason(reason: Option<&str>) -> Result<Option<String>, FieldErrors> {
     if let Some(reason) = reason {
         if reason.chars().count() > 500 || reason.chars().any(char::is_control) {
@@ -82,6 +139,59 @@ pub fn validate_reason(reason: Option<&str>) -> Result<Option<String>, FieldErro
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn automatic_slugs_transliterate_and_bound_ascii_addresses() {
+        for (name, slug) in [
+            ("Été — Æneid!", "ete-aeneid"),
+            ("北亰", "bei-jing"),
+            ("げんまい茶", "genmaicha"),
+            ("🦄☣", "unicorn-biohazard"),
+            ("... — !!!", "object"),
+            ("\u{e000}", "object"),
+            (" Hello___WORLD / 123 ", "hello-world-123"),
+        ] {
+            assert_eq!(slug_from_name(name), slug);
+        }
+        let base = slug_from_name(&"é".repeat(100));
+        assert_eq!(base, "e".repeat(80));
+        assert_eq!(slug_candidate(&base, 2), format!("{}-2", "e".repeat(78)));
+        assert_eq!(
+            slug_candidate(&base, 10_000),
+            format!("{}-10000", "e".repeat(74))
+        );
+        assert_eq!(
+            slug_from_name(&format!("{} b", "a".repeat(79))),
+            "a".repeat(79)
+        );
+        let hyphen_at_cut = format!("{}-bc", "a".repeat(77));
+        assert_eq!(
+            slug_candidate(&hyphen_at_cut, 2),
+            format!("{}-2", "a".repeat(77))
+        );
+    }
+
+    #[test]
+    fn automatic_normalization_ignores_slug_but_persisted_validation_does_not() {
+        let fields = ContentFields {
+            slug: "forged / INVALID".into(),
+            display_name: " Éclair ".into(),
+            description: " First\r\nSecond ".into(),
+        };
+        assert!(fields.normalized().unwrap_err().contains_key("slug"));
+        let normalized = fields.normalized_for_auto_slug().unwrap();
+        assert_eq!(normalized.display_name, "Éclair");
+        assert_eq!(normalized.description, "First\nSecond");
+        assert!(normalized.slug.is_empty());
+        let mut invalid = fields;
+        invalid.display_name = "bad\nname".into();
+        assert!(
+            invalid
+                .normalized_for_auto_slug()
+                .unwrap_err()
+                .contains_key("display_name")
+        );
+    }
 
     #[test]
     fn character_limits_plain_text_and_lf_normalization() {

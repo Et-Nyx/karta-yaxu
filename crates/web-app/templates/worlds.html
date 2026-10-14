@@ -4,5 +4,5 @@
 <p class="eyebrow">Authored definitions</p><h1>Worlds</h1>
 <p class="lead">Worlds hold independent variants and explicitly adopt shared form versions.</p>
 {% if can_create_world %}<p><a class="button" href="/worlds/new">Create world</a></p>{% endif %}
-<div class="cards">{% for world in worlds %}<article class="card"><h2><a href="/worlds/{{ world.id }}">{{ world.fields.display_name }}</a></h2><p class="plain-text">{{ world.fields.description }}</p><p class="muted">Content revision {{ world.revision }}</p></article>{% else %}<section class="panel"><h2>No worlds yet</h2><p>An eligible editor or administrator can create the first authored world.</p></section>{% endfor %}</div>
+<div class="cards">{% for world in worlds %}<article class="card"><h2><a href="/worlds/{{ crate::web::addresses::segment(world.fields.slug) }}">{{ world.fields.display_name }}</a></h2><p class="plain-text">{{ world.fields.description }}</p><p class="muted">Content revision {{ world.revision }}</p></article>{% else %}<section class="panel"><h2>No worlds yet</h2><p>An eligible editor or administrator can create the first authored world.</p></section>{% endfor %}</div>
 {% endblock %}

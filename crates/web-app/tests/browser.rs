@@ -14,7 +14,7 @@ async fn browse_search_and_follow_detail() {
     let (status, catalog) = common::text(&app.router, "/creatures").await;
     assert_eq!(status, StatusCode::OK);
     for creature in Catalog::from_json(BUNDLED_FIXTURES).unwrap().creatures() {
-        let path = format!("/creatures/{}", creature.id());
+        let path = format!("/creatures/{}", creature.slug());
         assert!(catalog.contains(&format!("href=\"{path}\"")));
         let (status, detail) = common::text(&app.router, &path).await;
         assert_eq!(status, StatusCode::OK);
@@ -66,6 +66,6 @@ async fn escapes_fixture_text_and_reflected_search() {
     let (_, body) = common::text(&app.router, "/creatures?q=%22%3E%3Cscript%3E").await;
     assert!(!body.contains("<script>"));
 
-    let (_, body) = common::text(&app.router, "/creatures/6a64df7c88604b3f9381536710449a8b").await;
+    let (_, body) = common::text(&app.router, "/creatures/emberling").await;
     assert!(!body.contains("<script>"));
 }
