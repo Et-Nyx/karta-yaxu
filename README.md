@@ -1,8 +1,9 @@
 # Karta Yaxu
 
 A creature collector design wiki and future Battle Lab, built with Rust and
-server-rendered HTML. The current milestone is a local, read-only creature
-browser plus an invite-only authentication foundation.
+server-rendered HTML. The local app authors a versioned shared species/form library
+and independently owned game worlds, with scoped collaboration, multiple local
+variants, explicit source adoption, and attributed history.
 
 ## Run locally
 
@@ -11,7 +12,9 @@ Requires Nix with flakes enabled on Linux. From the project root:
 ```bash
 nix develop
 cargo run -p web-app --bin admin -- migrate
+cargo run -p web-app --bin admin -- seed-fixtures
 KARTA_DEV_AUTH=1 cargo run -p web-app --bin admin -- invite-user --subject alice --role administrator
+KARTA_DEV_AUTH=1 cargo run -p web-app --bin admin -- invite-user --subject bob --role editor
 KARTA_DEV_AUTH=1 cargo run -p web-app
 ```
 
@@ -65,17 +68,87 @@ and offers a retry button; it does not claim logout succeeded.
 Keep the database file out of tracked source (`/data/` and `*.db*` are ignored).
 Cookies are `HttpOnly` and `SameSite=Strict`; `Secure` is off only for local HTTP.
 
+## Authoring workflow
+
+| Action | Access |
+| --- | --- |
+| Browse library, worlds and content history | Public local preview |
+| Create a world | Editor or administrator; creator becomes its owner |
+| Create/edit shared species and forms | Administrator |
+| Edit a world or its variants | Owner or collaborator with editor/administrator eligibility |
+| Grant/revoke collaboration and inspect access history | World owner |
+
+Administrator status does not bypass another world's ownership. Accounts remain
+invite-only; collaborators are existing enabled accounts, not new identity invites.
+Users can find their immutable user id on `/account` and share it with the owner.
+Disabling an owner preserves ownership and history. Ownership transfer/recovery
+is a future explicit operation; it is not silently performed by account disabling.
+
+1. Sign in as `alice`, open **Creatures**, and edit/create shared species or forms.
+   A new species automatically creates its default form. Every successful change
+   adds an immutable definition version and audit event in the same transaction.
+2. Sign in as `bob`, open **Worlds → Create world**. Add variants from a concrete
+   shared form/version, or choose world-exclusive content. Multiple variants may
+   use the same form/version; local slugs distinguish them within the world.
+3. Edit a variant's effective name/description without changing the library or
+   another variant. Each form version also pins its exact species version.
+4. After an administrator edits a source form, follow **Review adoption of version
+   N** from a variant. Compare old source, local values and new source; explicitly
+   confirm the effective fields and new pin. Untouched variants/worlds stay pinned.
+5. Follow history links for actor, UTC time, reason, readable field changes and
+   complete before/after snapshots. Public world snapshots omit access details.
+6. The owner can manage collaborators using their immutable account ids. Access
+   history is private and has a separate revision counter from content.
+
+Forms preserve submitted values after validation/authorization/storage failures.
+Stale edits return **409**, display the newer record, and require **Save reviewed
+changes**; another competing save produces another conflict. No automatic merging
+or silent overwrite occurs. Authoring bodies are capped at **32 KiB**; slug/name/
+description limits are 80/100/2,000 characters, with optional 500-character reasons.
+Descriptions support plain-text paragraphs with LF line endings. The server is
+authoritative for Unicode character limits; HTML's code-unit limits allow valid
+non-BMP characters rather than prematurely truncating them.
+
+### Existing database upgrade and initialization
+
+For an existing development database, stop the old server and back up with
+SQLite's backup facility (the example uses the default path; choose an unused
+backup filename). Migrate/initialize deliberately, then restart the new binary:
+
+```bash
+sqlite3 -cmd ".timeout 5000" data/karta.db ".backup 'data/karta-before-authoring.db'"
+cargo run -p web-app --bin admin -- migrate
+cargo run -p web-app --bin admin -- seed-fixtures
+```
+
+Migration `0002_world_authoring.sql` adds typed content/version/access tables and
+preserves existing auth records. New binaries require both migrations; older
+binaries reject the newer schema. Migrations do not initialize content. The
+explicit fixture command preserves existing canonical creature ids as species
+ids, creates default-form ids once, and attributes initial history to the named
+`bundled-fixture-loader` system actor. It creates no login account. Matching seed
+baselines are skipped after edits; drift/collisions roll back the entire seed batch.
+An empty uninitialized library is supported.
+
 ## Available workflows
 
 - `/`: project overview.
 - `/creatures`: catalog and case-insensitive name search.
 - `/creatures/{id}`: creature details addressed by stable canonical ID.
+- `/creatures/new`, `/creatures/{id}/edit`: administrator shared-species authoring.
+- `/creatures/{id}/forms/new`, `/forms/{id}`, `/forms/{id}/edit`: shared forms.
+- `/worlds`, `/worlds/new`, `/worlds/{id}`: world catalog and creation/detail.
+- `/worlds/{world}/variants/{id}`: local variant detail, editing and adoption.
+- Content detail URLs have `/history` and `/history/{revision}` views; lists are
+  bounded to 50 changes per page.
+- `/worlds/{id}/access`: owner-only collaboration and private access history.
 - `/login`, `/logout`, `/account`: placeholder sign-in and the signed-in account.
 - `/healthz`: process health.
 - `cargo run -p tools -- validate-fixtures [path.json]`: validate bundled or
   custom fixtures; errors exit nonzero. Custom files are checked, not imported.
 - `cargo run -p web-app --bin admin -- <command>`: operator CLI:
   - `migrate` — apply pending migrations (deliberate; never automatic).
+  - `seed-fixtures` — initialize bundled species/forms without overwriting edits.
   - `invite-user --subject <name> [--role <viewer|editor|administrator>] [--provider <id>] [--note <text>]` (default role: viewer).
   - `list-users`, `list-invites`.
   - `disable-user --id <immutable-user-id>`, `enable-user --id <immutable-user-id>`.
@@ -97,12 +170,14 @@ The server and non-migration commands require an existing, compatible database.
 Startup checks migration versions, success/checksums, and required schema columns
 without applying migrations. Missing migrations give the explicit migration
 command; incompatible history requires investigation instead of automatic repair.
-These refinements need no new migration: existing auth accounts, invites and
-sessions remain compatible. Back up an existing database using SQLite's backup
+Auth accounts, invites and sessions remain compatible through the additive
+authoring migration. Back up an existing database using SQLite's backup
 facilities before deliberately applying future migrations.
 
-Fixtures, templates, and CSS are compiled into the executable; rebuild after
-editing them. The running app does not require a particular working directory.
+Initialization fixtures, templates and CSS are compiled into the executable;
+rebuild after editing them. Live content is read from SQLite. The default database
+path is relative to the working directory; set an absolute `KARTA_DATABASE_URL`
+when running the executable elsewhere.
 
 ## Checks
 
@@ -120,6 +195,52 @@ transaction rollback, disable/re-enable and session-creation races, persistence
 across database reopening, expiry, cookie attributes, Origin/CSRF validation,
 form limits, login throttling, and retryable storage/logout failures. A second
 provider exercises the port using the existing development credential flow.
+Authoring tests additionally cover direct-use-case scope/role checks, exact version
+references, immutable history, typed snapshot validation, rollback after late
+revision/audit faults, initialization baselines, explicit adoption, no-ops and
+concurrent permission revocation. Migration 1→2 preserves existing sessions.
+
+### Headless keyboard browser tests (WSL/Linux)
+
+From the project root:
+
+```bash
+nix develop .#browser-tests --command python tests/browser/run.py
+```
+
+This separate shell supplies Python Playwright, its matching driver, Chromium,
+and fonts from the existing `flake.lock`. It runs headlessly: WSLg, a GUI, Xvfb,
+and a display server are not required. No pip/npm or `playwright install` step
+is needed. First use may download Nix packages and Rust build dependencies;
+browser requests during the tests are restricted to the local test server.
+
+The runner builds current native web/admin binaries with `--locked`, then runs
+22 keyboard-driven tests at desktop (1280px) and narrow (320px) widths. It
+uses fresh test-owned databases, servers on available loopback ports, and browser
+contexts, independent of your running app or `KARTA_*` configuration. Those
+processes and databases are cleaned up after each test. Custom `CARGO_TARGET_DIR`
+locations are supported through Cargo metadata.
+
+Coverage includes skip-link focus, forward/reverse Tab navigation, sign-in and
+sign-out using Enter, retained username and correction after rejection, and a
+keyboard-reachable retry after a real logout failure. Authoring coverage includes
+two-world scoping, multiple/exclusive variants, library versions and adoption,
+collaboration grant/revoke, repeated edit/access conflicts, readable history and
+snapshots, and Unicode field limits. Assertions check focused controls are in view
+(textareas may scroll the caret rather than the entire box), have a non-transparent
+outline, and that pages have no
+horizontal overflow. Navigation and typing use only keyboard events; locators
+inspect state rather than clicking/focusing/filling controls.
+
+Failures save screenshots in a unique ignored `target/browser-tests/run-*`
+directory. Screenshots can be opened from Windows for diagnosis. No traces,
+session tokens, cookie dumps or browser storage state are recorded. The suite
+uses only synthetic accounts and does not replace `cargo test --workspace`.
+
+This is document-level headless Chromium coverage. The 320px viewport checks
+reflow, not actual 200% browser zoom; human readability/contrast assessment,
+screen-reader behavior, address-bar navigation and other browsers still need
+separate verification. See `docs/decisions/0005-headless-browser-tests.md`.
 
 Manual keyboard check: Tab from the address bar to the skip link, then to Account;
 sign in using the labelled username field and Enter, reach Sign out using Tab,
@@ -135,8 +256,13 @@ failure page's retry button is keyboard-accessible.
   - `src/auth/`: the provider port and the placeholder adapter.
   - `src/accounts.rs`: invite-only membership and opaque sessions.
   - `src/persistence.rs` + `migrations/`: SQLite queries and versioned migrations.
+  - `src/application/authoring.rs`: scoped policy, transactions, versions and adoption.
+  - `src/persistence/authoring.rs`: typed rows/queries and strict snapshot readers.
+  - `src/web/authoring.rs`: native authoring/history forms and error rendering.
   - `src/bin/admin.rs`: migration and invite operator CLI.
 - `crates/tools`: fixture validator.
+- `tests/browser`: Python `unittest` + Playwright for isolated real-browser
+  keyboard workflows; test-only dependencies live in the optional Nix shell.
 - `src/web/login_limit.rs`: bounded process-local login request budget.
 - SQLx provides SQLite access and migrations; SHA-256 hashes session tokens;
   `getrandom` supplies tokens; Serde decodes fixtures. The POC that used a
@@ -144,10 +270,15 @@ failure page's retry button is keyboard-accessible.
 
 ## Next milestones and boundaries
 
-Editing creatures with attributed revision history and optimistic conflicts is the
-next milestone, built on this account and session foundation. PokeAPI imports,
-engine export, backups, and combat follow. The fixture format does not settle
-creature stats or the export schema.
+The world-aware foundation currently authors slug, name and description. Types,
+stats, moves/learnsets, items, abilities, natures, evolution/transformation rules,
+maps/encounters, PokeAPI adapters and engine exports follow in separate domain
+slices. The reference benchmark is documented in
+`docs/architecture/reference-coverage.md`; Pokémon-specific limits belong to
+versioned rulesets, not universal database constraints. No actual Pokémon content
+or complete mechanics model has been imported. World edit revisions are not yet
+immutable complete-world packages. Archive/revert and ownership transfer/recovery
+also require explicit future workflows. See decision `0006-world-aware-authoring`.
 
 The independent Polycentric proof of concept was extracted from this repository to
 `/home/eter/experiments/polycentric` and its local server stack was removed. It is

@@ -14,6 +14,7 @@ use tower::ServiceExt;
 use web_app::{
     AppState,
     accounts::Accounts,
+    application::authoring::Authoring,
     auth::{IdentityProvider, placeholder::PlaceholderProvider},
     persistence, router,
 };
@@ -42,8 +43,11 @@ pub async fn app_with_options(
     let pool = persistence::connect_for_migration(&url).await.unwrap();
     persistence::migrate(&pool).await.unwrap();
     let accounts = Accounts::new(pool.clone(), 3600).unwrap();
+    Authoring::new(accounts.clone())
+        .seed_catalog(&catalog)
+        .await
+        .unwrap();
     let state = AppState::new(
-        catalog,
         accounts.clone(),
         provider,
         "http://127.0.0.1:3000".to_owned(),

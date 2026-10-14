@@ -19,6 +19,7 @@ fn invalid_commands_and_help_have_no_database_side_effects() {
         vec![],
         vec!["unknown"],
         vec!["migrate", "extra"],
+        vec!["seed-fixtures", "--subject", "alice"],
         vec!["invite-user", "--subject", "--role", "administrator"],
         vec!["invite-user", "--subject", "alice", "--provider"],
         vec!["invite-user", "--subject", "alice", "--role"],
@@ -49,6 +50,46 @@ fn invalid_commands_and_help_have_no_database_side_effects() {
     let result = admin(&["list-users"], &url);
     assert!(!result.status.success());
     assert!(!parent.exists(), "listing must not create a database");
+    assert!(!admin(&["seed-fixtures"], &url).status.success());
+    assert!(
+        !parent.exists(),
+        "initialization must require a migrated database"
+    );
+}
+
+#[tokio::test]
+async fn explicit_initialization_is_idempotent_and_does_not_create_accounts() {
+    let dir = tempfile::tempdir().unwrap();
+    let url = format!("sqlite://{}/content.db", dir.path().display());
+    assert!(admin(&["migrate"], &url).status.success());
+    let first = admin(&["seed-fixtures"], &url);
+    assert!(first.status.success());
+    assert!(
+        String::from_utf8(first.stdout)
+            .unwrap()
+            .contains("Initialized 3 species and 3 default forms")
+    );
+    let second = admin(&["seed-fixtures"], &url);
+    assert!(second.status.success());
+    assert!(
+        String::from_utf8(second.stdout)
+            .unwrap()
+            .contains("skipped 3 existing species")
+    );
+    let pool = persistence::connect(&url).await.unwrap();
+    let users: i64 = sqlx::query_scalar("SELECT count(*) FROM users")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    let events: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM audit_events WHERE system_key = 'bundled-fixture-loader'",
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(users, 0);
+    assert_eq!(events, 6);
+    pool.close().await;
 }
 
 #[tokio::test]

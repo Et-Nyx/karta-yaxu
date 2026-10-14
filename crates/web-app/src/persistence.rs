@@ -9,6 +9,8 @@ use sqlx::{
 };
 use std::{str::FromStr, time::Duration};
 
+pub mod authoring;
+
 static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations");
 
 #[derive(Debug, Clone, FromRow)]
@@ -95,11 +97,11 @@ pub async fn schema_ready(pool: &SqlitePool) -> Result<bool, String> {
     .await
     .map_err(|error| error.to_string())?;
     if count == 0 {
-        let auth_tables: i64 = sqlx::query_scalar(
-            "SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name IN ('users', 'sessions', 'invites')",
+        let application_tables: i64 = sqlx::query_scalar(
+            "SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name IN ('users', 'sessions', 'invites', 'species', 'species_versions', 'forms', 'form_versions', 'worlds', 'variants', 'world_revisions', 'variant_revisions', 'world_collaborators', 'world_access_revisions', 'audit_events')",
         ).fetch_one(pool).await.map_err(|error| error.to_string())?;
-        if auth_tables != 0 {
-            return Err("Database has authentication tables without migration history; select a compatible database or investigate its history.".to_owned());
+        if application_tables != 0 {
+            return Err("Database has application tables without migration history; select a compatible database or investigate its history.".to_owned());
         }
         return Ok(false);
     }
@@ -129,9 +131,20 @@ pub async fn schema_ready(pool: &SqlitePool) -> Result<bool, String> {
         "SELECT id, provider, provider_subject, display_name, role, is_disabled, created_at, updated_at FROM users LIMIT 0",
         "SELECT token_hash, user_id, created_at, expires_at, revoked_at FROM sessions LIMIT 0",
         "SELECT id, provider, provider_subject, role, note, created_at, consumed_at, consumed_by FROM invites LIMIT 0",
+        "SELECT id, slug, display_name, description, revision, default_form_id, archived_at FROM species LIMIT 0",
+        "SELECT species_id, revision, slug, display_name, description, default_form_id, archived_at, audit_id, previous_revision, before_json, after_json FROM species_versions LIMIT 0",
+        "SELECT id, species_id, species_version, slug, display_name, description, revision, is_default, archived_at FROM forms LIMIT 0",
+        "SELECT form_id, species_id, species_version, revision, slug, display_name, description, is_default, archived_at, audit_id, previous_revision, before_json, after_json FROM form_versions LIMIT 0",
+        "SELECT id, owner_user_id, slug, display_name, description, revision, access_revision, archived_at FROM worlds LIMIT 0",
+        "SELECT world_id, revision, previous_revision, audit_id, before_json, after_json FROM world_revisions LIMIT 0",
+        "SELECT id, world_id, source_form_id, source_form_version, slug, display_name, description, revision, archived_at FROM variants LIMIT 0",
+        "SELECT world_id, variant_id, revision, previous_revision, audit_id, before_json, after_json FROM variant_revisions LIMIT 0",
+        "SELECT world_id, user_id FROM world_collaborators LIMIT 0",
+        "SELECT world_id, revision, previous_revision, audit_id, before_json, after_json FROM world_access_revisions LIMIT 0",
+        "SELECT id, actor_user_id, system_key, occurred_at, action, reason FROM audit_events LIMIT 0",
     ] {
         sqlx::query(query).execute(pool).await
-            .map_err(|_| "Authentication schema does not match its migration history; investigate the database before proceeding.".to_owned())?;
+            .map_err(|_| "Application schema does not match its migration history; investigate the database before proceeding.".to_owned())?;
     }
     Ok(true)
 }

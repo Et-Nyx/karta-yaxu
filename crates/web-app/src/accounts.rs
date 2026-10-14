@@ -133,6 +133,28 @@ impl Accounts {
         }))
     }
 
+    /// Authoring checks sessions on its already-locked transaction connection.
+    pub async fn authenticate_in_transaction(
+        &self,
+        connection: &mut sqlx::SqliteConnection,
+        token: &str,
+    ) -> Result<Option<Actor>, AuthError> {
+        let row = store::session_with_user(connection, &hash_token(token))
+            .await
+            .map_err(auth_storage_error)?;
+        let Some(row) = row else {
+            return Ok(None);
+        };
+        if row.revoked_at.is_some() || row.expires_at <= unix_now()? || row.is_disabled != 0 {
+            return Ok(None);
+        }
+        Ok(Some(Actor {
+            user_id: row.user_id,
+            display_name: row.display_name,
+            role: Role::parse(&row.role).ok_or(AuthError::Unavailable)?,
+        }))
+    }
+
     pub async fn sign_out(&self, token: &str) -> Result<(), AuthError> {
         store::revoke_session(&self.pool, &hash_token(token), unix_now()?)
             .await

@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}{{ object_label }} history — Karta Yaxu{% endblock %}
+{% block content %}
+<a href="{{ detail_url }}">← Current content</a><h1>{{ object_label }} history</h1>
+<p>Canonical ID: <code>{{ object_id }}</code>. Public content history; up to 50 changes per page. Individual snapshots are inert JSON text.</p>
+{% for view in entries %}<article class="panel history-entry"><h2><a href="{{ history_url }}/{{ view.entry.revision }}">Revision {{ view.entry.revision }}</a> · {{ view.entry.action }}</h2><p>{{ view.entry.actor_name }} · <time>{{ view.entry.occurred_at }}</time> (UTC)</p>{% match view.entry.previous_revision %}{% when Some with (previous) %}<p>Previous revision: {{ previous }}</p>{% when None %}<p>Initial creation</p>{% endmatch %}{% match view.entry.reason %}{% when Some with (reason) %}<p>Reason: {{ reason }}</p>{% when None %}<p class="muted">No reason supplied.</p>{% endmatch %}
+{% for change in view.changes %}<details class="field-change"><summary>{{ change.label }} changed</summary><dl><dt>Before</dt><dd class="plain-text">{{ change.before }}</dd><dt>After</dt><dd class="plain-text">{{ change.after }}</dd></dl></details>{% endfor %}
+</article>{% else %}<p>No changes on this history page.</p>{% endfor %}
+{% match next_before %}{% when Some with (before) %}<p><a href="{{ history_url }}?before={{ before }}">Older changes</a></p>{% when None %}{% endmatch %}
+<p><a href="{{ history_url }}">Newest changes</a></p>
+{% endblock %}

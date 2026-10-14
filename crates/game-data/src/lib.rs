@@ -2,6 +2,8 @@
 use serde::Deserialize;
 use std::collections::HashSet;
 
+pub mod authoring;
+
 pub const BUNDLED_FIXTURES: &str = include_str!("../../../fixtures/creatures.json");
 
 #[derive(Debug, Deserialize)]
@@ -45,25 +47,16 @@ impl Catalog {
                     .id
                     .bytes()
                     .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b));
-            let valid_slug = !creature.slug.is_empty()
-                && creature.slug.len() <= 80
-                && creature.slug.split('-').all(|part| {
-                    !part.is_empty()
-                        && part
-                            .bytes()
-                            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit())
-                });
-            let valid_text = |text: &str, max| {
-                !text.trim().is_empty()
-                    && text == text.trim()
-                    && text.chars().count() <= max
-                    && !text.chars().any(char::is_control)
+            let fields = authoring::ContentFields {
+                slug: creature.slug.clone(),
+                display_name: creature.display_name.clone(),
+                description: creature.description.clone(),
             };
-            if !valid_id
-                || !valid_slug
-                || !valid_text(&creature.display_name, 100)
-                || !valid_text(&creature.description, 2000)
-            {
+            // Fixtures must already be canonical; do not silently rewrite baselines.
+            let valid_fields = fields
+                .normalized()
+                .is_ok_and(|normalized| normalized == fields);
+            if !valid_id || !valid_fields {
                 return Err(format!(
                     "Creature {} has invalid ID, slug, name, or description",
                     index + 1
@@ -119,5 +112,29 @@ mod tests {
         assert!(Catalog::from_json(&data.to_string()).is_err());
         assert!(Catalog::from_json("not json").is_err());
         assert!(Catalog::from_json("[]").unwrap().creatures().is_empty());
+    }
+
+    #[test]
+    fn fixture_paragraphs_share_authoring_validation_but_require_canonical_text() {
+        let mut data = serde_json::from_str::<serde_json::Value>(BUNDLED_FIXTURES).unwrap();
+        data[0]["description"] = "First paragraph.\n\nSecond paragraph.".into();
+        let catalog = Catalog::from_json(&data.to_string()).unwrap();
+        assert_eq!(
+            catalog.creatures()[0].description(),
+            "First paragraph.\n\nSecond paragraph."
+        );
+        for description in [
+            "First\r\n\r\nSecond",
+            "First\rSecond",
+            " First\nSecond",
+            "First\nSecond ",
+            "First\tSecond",
+        ] {
+            data[0]["description"] = description.into();
+            assert!(
+                Catalog::from_json(&data.to_string()).is_err(),
+                "{description:?}"
+            );
+        }
     }
 }

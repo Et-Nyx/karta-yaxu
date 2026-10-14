@@ -1,9 +1,11 @@
 //! Trusted local operator CLI. Validate all inputs before database access.
 //! Operators are authorized by access to the executable/database, not web roles.
 
+use game_data::{BUNDLED_FIXTURES, Catalog};
 use std::{collections::BTreeMap, process::ExitCode};
 use web_app::{
     accounts::Accounts,
+    application::authoring::Authoring,
     auth::{Role, placeholder},
     config::Config,
     persistence,
@@ -14,6 +16,7 @@ Usage: admin <command> [options]
 
 Commands:
   migrate                 Create the database and apply pending migrations.
+  seed-fixtures           Initialize bundled species/default forms; never overwrite edits.
   invite-user             Pre-authorize an identity for first sign-in.
       --subject <name>      Required. Placeholder username, or provider subject.
       --role <role>         viewer | editor | administrator (default: viewer).
@@ -28,6 +31,7 @@ Commands:
 enum Command {
     Help,
     Migrate,
+    SeedFixtures,
     Invite {
         provider: String,
         subject: String,
@@ -73,6 +77,17 @@ async fn run() -> Result<(), String> {
         Command::Migrate => {
             persistence::migrate(&pool).await?;
             println!("Migrations applied.");
+        }
+        Command::SeedFixtures => {
+            let catalog = Catalog::from_json(BUNDLED_FIXTURES)?;
+            let report = Authoring::new(accounts.clone())
+                .seed_catalog(&catalog)
+                .await
+                .map_err(|error| error.to_string())?;
+            println!(
+                "Initialized {} species and {} default forms; skipped {} existing species.",
+                report.species_created, report.forms_created, report.species_skipped
+            );
         }
         Command::Invite {
             provider,
@@ -138,7 +153,7 @@ fn parse(args: &[String]) -> Result<Command, String> {
         return Ok(Command::Help);
     }
     let allowed: &[&str] = match name.as_str() {
-        "migrate" | "list-users" | "list-invites" => &[],
+        "migrate" | "seed-fixtures" | "list-users" | "list-invites" => &[],
         "invite-user" => &["--subject", "--role", "--provider", "--note"],
         "disable-user" | "enable-user" => &["--id"],
         _ => return Err(format!("Unknown command.\n{USAGE}")),
@@ -166,6 +181,7 @@ fn parse(args: &[String]) -> Result<Command, String> {
     }
     match name.as_str() {
         "migrate" => Ok(Command::Migrate),
+        "seed-fixtures" => Ok(Command::SeedFixtures),
         "list-users" => Ok(Command::ListUsers),
         "list-invites" => Ok(Command::ListInvites),
         "disable-user" | "enable-user" => {

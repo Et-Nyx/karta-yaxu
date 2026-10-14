@@ -1,0 +1,25 @@
+<div class="field">
+  <label for="slug">Slug</label>
+  <input id="slug" name="slug" value="{{ draft.slug }}" maxlength="80" required aria-describedby="slug-help slug-error" {% if !self.field_error("slug").is_empty() %}aria-invalid="true"{% endif %}>
+  <p id="slug-help" class="muted">1–80 characters: lowercase letters, digits, and separating hyphens. A world variant slug must be unique in its world.</p>
+  <p id="slug-error" class="field-error">{{ self.field_error("slug") }}</p>
+</div>
+<div class="field">
+  <label for="display-name">Display name</label>
+  {# HTML maxlength counts UTF-16 code units; authoritative Rust limits count Unicode characters. #}
+  <input id="display-name" name="display_name" value="{{ draft.display_name }}" maxlength="200" required aria-describedby="name-help name-error" {% if !self.field_error("display_name").is_empty() %}aria-invalid="true"{% endif %}>
+  <p id="name-help" class="muted">1–100 characters of plain text. Renaming does not change the canonical ID.</p>
+  <p id="name-error" class="field-error">{{ self.field_error("display_name") }}</p>
+</div>
+<div class="field">
+  <label for="description">Description</label>
+  <textarea id="description" name="description" maxlength="4000" rows="8" required aria-describedby="description-help description-error" {% if !self.field_error("description").is_empty() %}aria-invalid="true"{% endif %}>{{ draft.description }}</textarea>
+  <p id="description-help" class="muted">1–2,000 characters of plain text. Separate paragraphs with blank lines. Line endings are saved as LF; HTML and Markdown are displayed as text.</p>
+  <p id="description-error" class="field-error">{{ self.field_error("description") }}</p>
+</div>
+<div class="field">
+  <label for="reason">Change reason (optional)</label>
+  <input id="reason" name="reason" value="{{ draft.reason }}" maxlength="1000" aria-describedby="reason-help reason-error" {% if !self.field_error("reason").is_empty() %}aria-invalid="true"{% endif %}>
+  <p id="reason-help" class="muted">At most 500 characters, one line. This reason is recorded in history.</p>
+  <p id="reason-error" class="field-error">{{ self.field_error("reason") }}</p>
+</div>

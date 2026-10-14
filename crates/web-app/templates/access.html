@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}World collaborators — Karta Yaxu{% endblock %}
+{% block content %}
+<a href="/worlds/{{ world_id }}">← Return to world</a><h1>World collaborators</h1>
+<p class="notice">Owner-only access management and private audit. Target user IDs identify collaborators; actions are attributed to your authenticated session.</p>
+{% if !error.is_empty() %}<section class="error" role="alert"><h2>Access was not changed</h2><p>{{ error }}</p>{% if !errors.is_empty() %}<ul>{% for (field, text) in errors %}<li><strong>{{ field }}</strong>: {{ text }}</li>{% endfor %}</ul>{% endif %}<p><a href="/account">Check account or sign in</a></p></section>{% endif %}
+{% match state %}{% when Some with (access) %}
+<section class="panel"><h2>Current saved access — revision {{ access.world.access_revision }}</h2><dl><dt>World</dt><dd>{{ access.world.fields.display_name }} · <code>{{ world_id }}</code></dd><dt>Immutable owner user ID</dt><dd><code>{{ access.world.owner_user_id }}</code></dd></dl>
+<h3>Current collaborators</h3><ul>{% for collaborator in access.collaborators %}<li>{{ collaborator.display_name }} · <code>{{ collaborator.user_id }}</code></li>{% else %}<li>No collaborators. Only the owner can edit this world.</li>{% endfor %}</ul></section>
+{% when None %}<p>Private access state could not be loaded. Your submitted target and reason are retained below.</p>{% endmatch %}
+<section class="panel"><h2>{% if error.is_empty() %}Grant collaboration{% else %}Your submitted {{ operation }} request{% endif %}</h2>
+<form method="post" action="/worlds/{{ world_id }}/access/{{ operation }}">
+<input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="expected_access_revision" value="{{ draft.expected_access_revision }}">
+<p class="muted">Request starting access revision: {{ draft.expected_access_revision }}</p><p class="field-error">{{ self.field_error("expected_access_revision") }}</p>
+<label for="user-id">Target user ID</label><input id="user-id" name="user_id" value="{{ draft.user_id }}" required aria-describedby="user-help user-error"><p id="user-help" class="muted">An existing enabled editor or administrator's immutable user ID. This is the target of the change, not its actor. Users can find their ID on their Account page.</p><p id="user-error" class="field-error">{{ self.field_error("user_id") }}</p>
+<label for="access-reason">Change reason (optional)</label><input id="access-reason" name="reason" value="{{ draft.reason }}" maxlength="1000" aria-describedby="access-reason-help access-reason-error"><p id="access-reason-help" class="muted">At most 500 characters, one line. Recorded in the private access history.</p><p id="access-reason-error" class="field-error">{{ self.field_error("reason") }}</p>
+{% if reviewed_revision.is_empty() %}<button type="submit">{% if operation == "grant" %}Grant collaboration{% else %}Revoke collaboration{% endif %}</button>{% else %}<p class="notice">Compare the saved collaborators above with this request. Explicit resubmission uses access revision {{ reviewed_revision }}.</p><button type="submit" name="reviewed_access_revision" value="{{ reviewed_revision }}">Save reviewed changes</button>{% endif %}
+</form></section>
+{% match state %}{% when Some with (access) %}
+{% if error.is_empty() %}{% for collaborator in access.collaborators %}
+<section class="panel"><h2>Revoke {{ collaborator.display_name }}</h2><p>Revocation removes this collaborator's edit access to this world.</p>
+<form method="post" action="/worlds/{{ world_id }}/access/revoke"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="expected_access_revision" value="{{ access.world.access_revision }}"><input type="hidden" name="user_id" value="{{ collaborator.user_id }}"><label for="revoke-reason-{{ loop.index }}">Revocation reason (optional)</label><input id="revoke-reason-{{ loop.index }}" name="reason" maxlength="1000" aria-describedby="revoke-help-{{ loop.index }}"><p id="revoke-help-{{ loop.index }}" class="muted">At most 500 characters, one line. This action affects <code>{{ collaborator.user_id }}</code>.</p><button type="submit">Revoke collaboration for {{ collaborator.display_name }}</button></form></section>
+{% endfor %}{% endif %}
+<h2>Private access history</h2>
+{% for entry in access.history %}<article class="panel history-entry"><h3>Access revision {{ entry.revision }} · {{ entry.action }}</h3><p>{{ entry.actor_name }} · <time>{{ entry.occurred_at }}</time> (UTC)</p>{% match entry.reason %}{% when Some with (reason) %}<p>Reason: {{ reason }}</p>{% when None %}{% endmatch %}<details><summary>Inspect private JSON snapshots</summary>{% match entry.before_json %}{% when Some with (json) %}<h4>Before</h4><pre>{{ json }}</pre>{% when None %}<p>No previous snapshot.</p>{% endmatch %}<h4>After</h4><pre>{{ entry.after_json }}</pre></details></article>{% else %}<p>No private access changes recorded.</p>{% endfor %}
+{% when None %}{% endmatch %}
+{% endblock %}

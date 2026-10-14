@@ -37,7 +37,7 @@ async fn readiness_checks_migration_history_and_actual_columns() {
             .fetch_one(&pool)
             .await
             .unwrap();
-    sqlx::query("UPDATE _sqlx_migrations SET checksum = X'00'")
+    sqlx::query("UPDATE _sqlx_migrations SET checksum = X'00' WHERE version = 1")
         .execute(&pool)
         .await
         .unwrap();
@@ -47,7 +47,7 @@ async fn readiness_checks_migration_history_and_actual_columns() {
             .unwrap_err()
             .contains("checksum")
     );
-    sqlx::query("UPDATE _sqlx_migrations SET checksum = ?1, success = 0")
+    sqlx::query("UPDATE _sqlx_migrations SET checksum = ?1, success = 0 WHERE version = 1")
         .bind(checksum)
         .execute(&pool)
         .await
@@ -58,7 +58,7 @@ async fn readiness_checks_migration_history_and_actual_columns() {
             .unwrap_err()
             .contains("incomplete")
     );
-    sqlx::query("UPDATE _sqlx_migrations SET success = 1, version = 99")
+    sqlx::query("UPDATE _sqlx_migrations SET success = 1, version = 99 WHERE version = 1")
         .execute(&pool)
         .await
         .unwrap();
@@ -68,7 +68,7 @@ async fn readiness_checks_migration_history_and_actual_columns() {
             .unwrap_err()
             .contains("unknown")
     );
-    sqlx::query("UPDATE _sqlx_migrations SET version = 1")
+    sqlx::query("UPDATE _sqlx_migrations SET version = 1 WHERE version = 99")
         .execute(&pool)
         .await
         .unwrap();

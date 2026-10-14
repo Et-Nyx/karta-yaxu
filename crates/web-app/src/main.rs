@@ -1,4 +1,3 @@
-use game_data::{BUNDLED_FIXTURES, Catalog};
 use std::sync::Arc;
 use web_app::{
     AppState, accounts::Accounts, auth::IdentityProvider, auth::placeholder::PlaceholderProvider,
@@ -8,7 +7,6 @@ use web_app::{
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = Config::from_env().map_err(std::io::Error::other)?;
-    let catalog = Catalog::from_json(BUNDLED_FIXTURES).map_err(std::io::Error::other)?;
     let pool = persistence::connect(&config.database_url)
         .await
         .map_err(std::io::Error::other)?;
@@ -34,7 +32,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let state = AppState::new(
-        catalog,
         accounts,
         provider,
         config.public_origin.clone(),

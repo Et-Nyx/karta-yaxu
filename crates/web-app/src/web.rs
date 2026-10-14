@@ -1,11 +1,12 @@
 //! HTTP layer: routing, form parsing, session cookies, and rendering.
 //! Routes stay thin and delegate policy to the accounts service.
 
+mod authoring;
 mod login_limit;
 
 use crate::{
     accounts::Accounts,
-    application,
+    application::authoring::{Authoring, FormRecord, SpeciesRecord, WorldRecord},
     auth::{Actor, AuthError, Credential, IdentityProvider},
 };
 use askama::Template;
@@ -17,7 +18,6 @@ use axum::{
     response::{Html, IntoResponse, Redirect, Response},
     routing::{get, post},
 };
-use game_data::{Catalog, Creature};
 use login_limit::LoginLimit;
 use serde::Deserialize;
 use std::{sync::Arc, time::Instant};
@@ -29,7 +29,7 @@ const AUTH_FORM_LIMIT: usize = 4096;
 
 #[derive(Clone)]
 pub struct AppState {
-    catalog: Arc<Catalog>,
+    authoring: Authoring,
     accounts: Accounts,
     provider: Option<Arc<dyn IdentityProvider>>,
     public_origin: String,
@@ -39,14 +39,13 @@ pub struct AppState {
 
 impl AppState {
     pub fn new(
-        catalog: Catalog,
         accounts: Accounts,
         provider: Option<Arc<dyn IdentityProvider>>,
         public_origin: String,
         cookie_secure: bool,
     ) -> Self {
         Self {
-            catalog: Arc::new(catalog),
+            authoring: Authoring::new(accounts.clone()),
             accounts,
             provider,
             public_origin,
@@ -58,6 +57,7 @@ impl AppState {
 
 pub fn router(state: AppState) -> Router {
     Router::new()
+        .merge(authoring::routes())
         .route("/", get(home))
         .route("/creatures", get(creatures))
         .route("/creatures/{id}", get(detail))
@@ -105,15 +105,19 @@ struct Home {
 
 #[derive(Template)]
 #[template(path = "creatures.html")]
-struct Creatures<'a> {
-    creatures: Vec<&'a Creature>,
-    query: &'a str,
+struct Creatures {
+    creatures: Vec<SpeciesRecord>,
+    query: String,
+    can_edit_library: bool,
 }
 
 #[derive(Template)]
 #[template(path = "detail.html")]
-struct Detail<'a> {
-    creature: &'a Creature,
+struct Detail {
+    creature: SpeciesRecord,
+    forms: Vec<FormRecord>,
+    worlds: Vec<WorldRecord>,
+    can_edit_library: bool,
 }
 
 #[derive(Template)]
@@ -176,9 +180,12 @@ fn message(status: StatusCode, title: &str, body: &str) -> Response {
 }
 
 async fn home(State(state): State<AppState>) -> Response {
-    render(Home {
-        count: state.catalog.creatures().len(),
-    })
+    match state.authoring.species().await {
+        Ok(species) => render(Home {
+            count: species.len(),
+        }),
+        Err(error) => authoring::read_error(error),
+    }
 }
 
 #[derive(Default, Deserialize)]
@@ -189,6 +196,7 @@ struct Search {
 
 async fn creatures(
     State(state): State<AppState>,
+    headers: HeaderMap,
     query: Result<Query<Search>, axum::extract::rejection::QueryRejection>,
 ) -> Response {
     let query = match query {
@@ -201,17 +209,51 @@ async fn creatures(
             );
         }
     };
+    let species = match state.authoring.species().await {
+        Ok(species) => species,
+        Err(error) => return authoring::read_error(error),
+    };
+    let capabilities = match state
+        .authoring
+        .capabilities(cookie_value(&headers, SESSION_COOKIE).as_deref(), None)
+        .await
+    {
+        Ok(value) => value,
+        Err(error) => return authoring::read_error(error),
+    };
+    let needle = query.q.trim().to_lowercase();
     render(Creatures {
-        creatures: application::search(&state.catalog, &query.q),
-        query: &query.q,
+        creatures: species
+            .into_iter()
+            .filter(|species| species.fields.display_name.to_lowercase().contains(&needle))
+            .collect(),
+        query: query.q,
+        can_edit_library: capabilities.can_edit_library,
     })
 }
 
-async fn detail(State(state): State<AppState>, Path(id): Path<String>) -> Response {
-    match application::find(&state.catalog, &id) {
-        Some(creature) => render(Detail { creature }),
-        None => not_found().await,
+async fn detail(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+) -> Response {
+    let result = async {
+        let creature = state.authoring.species_detail(&id).await?;
+        let forms = state.authoring.forms(&id).await?;
+        let worlds = state.authoring.availability(&id).await?;
+        let capabilities = state
+            .authoring
+            .capabilities(cookie_value(&headers, SESSION_COOKIE).as_deref(), None)
+            .await?;
+        Ok(render(Detail {
+            creature,
+            forms,
+            worlds,
+            can_edit_library: capabilities.can_edit_library,
+        }))
     }
+    .await;
+    authoring::finish(result)
 }
 
 async fn not_found() -> Response {
