@@ -3,7 +3,13 @@
 
 mod addresses;
 mod authoring;
+mod charts;
+#[cfg(test)]
+mod charts_tests;
 mod login_limit;
+mod stats;
+#[cfg(test)]
+mod stats_tests;
 mod types;
 #[cfg(test)]
 mod types_tests;
@@ -35,6 +41,9 @@ const AUTH_FORM_LIMIT: usize = 4096;
 pub struct AppState {
     authoring: Authoring,
     types: crate::application::types::Types,
+    charts: crate::application::charts::Charts,
+    stats: crate::application::stats::Stats,
+    stat_values: crate::application::stat_values::StatValues,
     accounts: Accounts,
     provider: Option<Arc<dyn IdentityProvider>>,
     public_origin: String,
@@ -52,6 +61,9 @@ impl AppState {
         Self {
             authoring: Authoring::new(accounts.clone()),
             types: crate::application::types::Types::new(accounts.clone()),
+            charts: crate::application::charts::Charts::new(accounts.clone()),
+            stats: crate::application::stats::Stats::new(accounts.clone()),
+            stat_values: crate::application::stat_values::StatValues::new(accounts.clone()),
             accounts,
             provider,
             public_origin,
@@ -65,6 +77,8 @@ pub fn router(state: AppState) -> Router {
     let inner = Router::new()
         .merge(authoring::routes())
         .merge(types::routes())
+        .merge(charts::routes())
+        .merge(stats::routes())
         .route("/", get(home))
         .route("/creatures", get(creatures))
         .route("/creatures/{id}", get(detail))

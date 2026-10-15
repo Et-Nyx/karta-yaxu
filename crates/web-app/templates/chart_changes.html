@@ -1,0 +1,1 @@
+{% for change in view.changes %}<details class="field-change"><summary>{{ change.label }} changed</summary><dl><dt>Before</dt><dd class="plain-text">{{ change.before }}</dd><dt>After</dt><dd class="plain-text">{{ change.after }}</dd></dl></details>{% endfor %}

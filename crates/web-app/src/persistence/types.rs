@@ -4,6 +4,7 @@ use crate::application::{
     authoring::{self as author, AddressKey, Error, HistoryKind},
     types::{TypeAssignment, TypeRecord, TypingState, WorldTypeRecord},
 };
+use game_data::stats::BaseStats;
 use game_data::types::{TypePin, validate_pins};
 use serde_json::Value;
 use sqlx::{Row, SqliteConnection, sqlite::SqliteRow};
@@ -341,6 +342,10 @@ pub(crate) struct FullContent {
     pub(crate) after: String,
     pub(crate) projection_after: String,
     pub(crate) typing: TypingState,
+    pub(crate) stats: BaseStats,
+    /// Actual stored v2 bytes, or v1 for a pre-typing predecessor.
+    pub(crate) typing_projection_after: String,
+    typing_projection_before: Option<String>,
 }
 // Closed aggregate choices are the only source of SQL identifiers.
 fn tables(
@@ -382,8 +387,13 @@ async fn load_content(
     } else {
         "AND (?3 IS NULL OR ?3 IS NOT NULL)"
     };
+    let extension_column = if matches!(kind, HistoryKind::World) {
+        "0"
+    } else {
+        "stat_snapshot_version"
+    };
     let sql = format!(
-        "SELECT before_json,after_json,content_snapshot_version,{scope_column} AS scope FROM {legacy} WHERE {key}=?1 AND revision=?2 {filter}"
+        "SELECT before_json,after_json,content_snapshot_version,{extension_column} AS stat_marker,{scope_column} AS scope FROM {legacy} WHERE {key}=?1 AND revision=?2 {filter}"
     );
     let r = sqlx::query(sqlx::AssertSqlSafe(sql))
         .bind(id)
@@ -399,6 +409,12 @@ async fn load_content(
         .try_get("content_snapshot_version")
         .map_err(storage_error)?;
     let scope: Option<String> = r.try_get("scope").map_err(storage_error)?;
+    let stat_marker: i64 = r.try_get("stat_marker").map_err(storage_error)?;
+    let stat_world = if matches!(kind, HistoryKind::Variant) {
+        scope.as_deref()
+    } else {
+        None
+    };
     content::validate_snapshot(
         &projection_after,
         SnapshotKind::Public(kind),
@@ -479,11 +495,29 @@ async fn load_content(
         if !bindings.is_empty() {
             return Err(Error::Unavailable);
         }
+        if !matches!(kind, HistoryKind::World) {
+            super::stat_content::load(
+                c,
+                kind,
+                id,
+                stat_world,
+                revision,
+                stat_marker,
+                &projection_after,
+            )
+            .await?;
+            if stat_marker != 0 {
+                return Err(Error::Unavailable);
+            }
+        }
         return Ok(FullContent {
             before,
             after: projection_after.clone(),
+            typing_projection_after: projection_after.clone(),
+            typing_projection_before: None,
             projection_after,
             typing: TypingState::unmodeled(),
+            stats: BaseStats::unmodeled(),
         });
     }
     if marker != 2 {
@@ -535,11 +569,23 @@ async fn load_content(
         return Err(Error::Unavailable);
     }
     // The projection's strict v1 parser above rejects every unrecognized full field.
+    let extension = if matches!(kind, HistoryKind::World) {
+        None
+    } else {
+        super::stat_content::load(c, kind, id, stat_world, revision, stat_marker, &after).await?
+    };
+    let (before, authoritative, stats) = match extension {
+        Some(v) => (v.before, v.after, v.stats),
+        None => (full_before.clone(), after.clone(), BaseStats::unmodeled()),
+    };
     Ok(FullContent {
-        before: full_before,
-        after,
+        before,
+        after: authoritative,
         projection_after,
         typing,
+        stats,
+        typing_projection_after: after,
+        typing_projection_before: full_before,
     })
 }
 /// Membership snapshots retain identities, independently of current metadata/archive state
@@ -581,6 +627,12 @@ pub(crate) async fn full_content(
             .await
             .map_err(|_| Error::Unavailable)?;
         if full.before.as_deref() != Some(previous.after.as_str()) {
+            return Err(Error::Unavailable);
+        }
+        if full.typing_projection_after != full.projection_after
+            && full.typing_projection_before.as_deref()
+                != Some(previous.typing_projection_after.as_str())
+        {
             return Err(Error::Unavailable);
         }
         let (legacy, _, key, _) = tables(kind)?;
@@ -687,7 +739,9 @@ pub(crate) struct ContentSeal {
     before: Option<String>,
     after: String,
     typing: TypingState,
+    stats: Option<super::stat_content::StatContent>,
 }
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn prepare_content(
     c: &mut SqliteConnection,
     kind: HistoryKind,
@@ -696,6 +750,7 @@ pub(crate) async fn prepare_content(
     revision: i64,
     projection: &str,
     typing: Option<&TypingState>,
+    stats: Option<&BaseStats>,
 ) -> Result<ContentSeal, Error> {
     let previous = if revision > 1 {
         Some(full_content(c, kind, id, world, revision - 1).await?)
@@ -714,7 +769,7 @@ pub(crate) async fn prepare_content(
         let ids: Vec<String> =
             sqlx::query_scalar("SELECT id FROM world_types WHERE world_id=? ORDER BY id")
                 .bind(id)
-                .fetch_all(c)
+                .fetch_all(&mut *c)
                 .await
                 .map_err(storage_error)?;
         after["content"]["type_ids"] = serde_json::to_value(ids).map_err(|_| Error::Unavailable)?;
@@ -722,11 +777,31 @@ pub(crate) async fn prepare_content(
         after["content"]["typing"] =
             serde_json::to_value(&typing).map_err(|_| Error::Unavailable)?;
     }
+    let stat_seal = if matches!(kind, HistoryKind::World) {
+        None
+    } else {
+        let stats = stats.cloned().unwrap_or_else(|| {
+            previous
+                .as_ref()
+                .map(|p| p.stats.clone())
+                .unwrap_or_default()
+        });
+        super::stat_content::validate(c, kind, world, &stats).await?;
+        let mut v3 = after.clone();
+        v3["snapshot_version"] = 3.into();
+        v3["content"]["stats"] = serde_json::to_value(&stats).map_err(|_| Error::Unavailable)?;
+        Some(super::stat_content::StatContent {
+            before: previous.as_ref().map(|p| p.after.clone()),
+            after: encode(&v3)?,
+            stats,
+        })
+    };
     Ok(ContentSeal {
         projection_before: previous.as_ref().map(|p| p.projection_after.clone()),
-        before: previous.map(|p| p.after),
+        before: previous.map(|p| p.typing_projection_after),
         after: encode(&after)?,
         typing,
+        stats: stat_seal,
     })
 }
 pub(crate) async fn seal_content(
@@ -790,7 +865,10 @@ pub(crate) async fn seal_content(
     } else {
         query
     };
-    query.execute(c).await.map_err(storage_error)?;
+    query.execute(&mut *c).await.map_err(storage_error)?;
+    if let Some(stats) = &seal.stats {
+        super::stat_content::seal(c, kind, id, world, revision, stats).await?;
+    }
     Ok(())
 }
 

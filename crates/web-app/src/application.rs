@@ -1,7 +1,12 @@
 use game_data::{Catalog, Creature};
 
 pub mod authoring;
+mod chart_fixtures;
+pub mod charts;
 pub mod fixtures;
+mod stat_fixtures;
+pub mod stat_values;
+pub mod stats;
 pub mod types;
 
 pub fn search<'a>(catalog: &'a Catalog, query: &str) -> Vec<&'a Creature> {

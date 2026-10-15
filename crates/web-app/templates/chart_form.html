@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} — Karta Yaxu{% endblock %}
+{% block content %}
+<a href="{{ cancel }}">← Return to chart</a><h1>{{ title }}</h1>
+{% if !context.is_empty() %}<p>{{ context }}</p>{% endif %}
+<p class="notice">Development placeholder content. Factors are exact nonnegative fractions. Unknown, Neutral and No effect are different states.</p>
+{% if definition %}<p>Roster edits retain cells for identities that remain; new Types start Unknown. Removing a Type removes its cells and mappings only in the new revision. Old snapshots remain readable. Metadata versions stay pinned independently of Type edits.</p>{% endif %}
+{% if neutral %}<p>This explicit command fills every remaining Unknown directed pair, including diagonals, with 1/1 Neutral. Existing known factors remain unchanged.</p>{% endif %}
+{% if !error.is_empty() %}<section class="error" role="alert"><h2>Nothing was saved</h2><p>{{ error }}</p><ul>{% for (field, text) in errors %}<li><strong>{{ field }}</strong>: {{ text }}</li>{% endfor %}</ul><p><a href="/account">Check account or sign in</a></p></section>{% endif %}
+{% for comparison in comparisons %}<section class="panel chart-comparison"><h2>{{ comparison.label }}</h2>{% let matrix = comparison.matrix %}{% include "chart_matrix.html" %}</section>{% endfor %}
+{% if definition %}<form method="get" action="{{ action }}" class="panel"><h2>Reload editor before editing</h2><label for="reload-slots">Displayed slots (0–32)</label><input id="reload-slots" name="slots" type="number" min="0" max="32" value="{{ crate::web::charts::value(draft, "slots") }}">
+{% if reload_source %}<label for="reload-source">Source shared chart and exact version</label><select id="reload-source" name="source_pin">{% for choice in sources %}<option value="{{ choice.value }}" {% if choice.value == crate::web::charts::value(draft, "source_pin") %}selected{% endif %}>{{ choice.label }}</option>{% endfor %}</select>{% endif %}
+<p>Reload before editing: this discards unsaved fields and reloads the saved chart, or a fresh creation draft. Source selection does not infer a roster or mappings. An empty roster is a valid draft.</p><button type="submit">Reload slots{% if reload_source %} and source{% endif %}</button></form>{% endif %}
+<section class="panel"><h2>{% if !error.is_empty() %}Your submitted draft{% else %}Your values{% endif %}</h2>
+<form method="{% if adoption %}get{% else %}post{% endif %}" action="{{ action }}" class="chart-editor">
+{% if adoption %}<input type="hidden" name="preview" value="yes">{% else %}<input type="hidden" name="csrf" value="{{ csrf }}">{% endif %}
+{% for (name, raw) in hidden %}<input type="hidden" name="{{ name }}" value="{{ raw }}">{% endfor %}
+{% if !crate::web::charts::value(draft, "expected_revision").is_empty() %}<p>Draft starting revision: {{ crate::web::charts::value(draft, "expected_revision") }}.</p>{% endif %}
+{% include "chart_controls.html" %}
+{% if neutral %}<div class="field"><label for="confirm-neutral"><input id="confirm-neutral" name="confirm" type="checkbox" value="yes"> I confirm filling all remaining Unknown cells with 1/1 Neutral.</label></div>{% endif %}
+{% if !reviewed_revision.is_empty() %}<p class="notice">Compare the current saved chart above with this retained draft. Explicitly review revision {{ reviewed_revision }} before resubmitting.</p>{% endif %}
+<div class="form-actions">{% if !reviewed_revision.is_empty() %}<button type="submit" name="reviewed_revision" value="{{ reviewed_revision }}">{% if adoption %}Preview against reviewed revision{% else %}Save reviewed changes{% endif %}</button>{% else %}<button type="submit">{% if creation %}Preview creation{% else if adoption %}Preview selected mappings and policy{% else if neutral %}Fill remaining Unknown with neutral{% else %}Save chart changes{% endif %}</button>{% endif %}<a href="{{ cancel }}">Cancel</a></div>
+</form></section>
+{% if preview_ready %}<section class="panel"><h2>Confirm reviewed {% if creation %}creation{% else %}adoption{% endif %}</h2><p>The proposed matrix above and these exact roster/mapping/policy values will be submitted. To change them, use the draft controls and preview again.</p>
+<form method="post" action="{{ action }}"><input type="hidden" name="csrf" value="{{ csrf }}">{% for (name, raw) in draft %}{% if name != "csrf" && name != "confirm" && name != "intent" && name != "preview" && name != "reviewed_revision" %}<input type="hidden" name="{{ name }}" value="{{ raw }}">{% endif %}{% endfor %}{% if creation %}<input type="hidden" name="intent" value="create">{% endif %}
+<label for="confirm-chart"><input id="confirm-chart" type="checkbox" name="confirm" value="yes"> I reviewed the proposed matrix, exact pins, explicit mappings and selected source policy.</label><button type="submit">{% if creation %}Create reviewed chart{% else %}Adopt reviewed source version{% endif %}</button></form></section>{% endif %}
+{% endblock %}

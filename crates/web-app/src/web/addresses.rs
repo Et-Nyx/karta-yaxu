@@ -70,6 +70,16 @@ fn content_suffix(parts: &[&str]) -> bool {
         || matches!(parts, ["history", revision] if !revision.is_empty())
 }
 
+fn chart_suffix(parts: &[&str]) -> bool {
+    content_suffix(parts)
+        || matches!(parts, ["neutral"])
+        || matches!(parts, ["rows", attacker] if !attacker.is_empty())
+}
+
+fn historical_stats_suffix(parts: &[&str]) -> bool {
+    matches!(parts,["history",revision,"stats"] if !revision.is_empty())
+}
+
 enum Object<'a> {
     Species(&'a str),
     Form(&'a str, &'a str),
@@ -78,6 +88,10 @@ enum Object<'a> {
     Variant(&'a str, &'a str),
     Type(&'a str),
     WorldType(&'a str, &'a str),
+    Chart(&'a str),
+    WorldChart(&'a str, &'a str),
+    Stat(&'a str),
+    WorldStat(&'a str, &'a str),
 }
 
 struct Address<'a> {
@@ -87,18 +101,51 @@ struct Address<'a> {
 
 fn classify<'a>(parts: &'a [&'a str]) -> Option<Address<'a>> {
     let (object, suffix) = match parts {
-        ["creatures", "new"] | ["worlds", "new"] | ["types", "new"] => return None,
+        ["creatures", "new"]
+        | ["worlds", "new"]
+        | ["types", "new"]
+        | ["charts", "new"]
+        | ["stats", "new"] => {
+            return None;
+        }
+        ["stats", value, suffix @ ..] if content_suffix(suffix) => (Object::Stat(value), suffix),
+        ["worlds", world, "stats"] | ["worlds", world, "stats", "new"] => {
+            (Object::World(world), &parts[2..])
+        }
+        ["worlds", world, "stat-roster", suffix @ ..] if content_suffix(suffix) => {
+            (Object::World(world), &parts[2..])
+        }
+        ["worlds", world, "stats", value, suffix @ ..]
+            if content_suffix(suffix) || matches!(suffix, ["adopt"]) =>
+        {
+            (Object::WorldStat(world, value), suffix)
+        }
+        ["charts", value, suffix @ ..] if chart_suffix(suffix) => (Object::Chart(value), suffix),
+        ["worlds", world, "charts"] | ["worlds", world, "charts", "new"] => {
+            (Object::World(world), &parts[2..])
+        }
+        ["worlds", world, "charts", value, suffix @ ..]
+            if chart_suffix(suffix) || matches!(suffix, ["adopt"]) =>
+        {
+            (Object::WorldChart(world, value), suffix)
+        }
         ["types", value, suffix @ ..] if content_suffix(suffix) => (Object::Type(value), suffix),
         ["creatures", species, "forms", "new"] => (Object::Species(species), &parts[2..]),
         ["creatures", species, "forms", form, suffix @ ..]
-            if content_suffix(suffix) || matches!(suffix, ["typing"]) =>
+            if content_suffix(suffix)
+                || historical_stats_suffix(suffix)
+                || matches!(suffix, ["typing"] | ["stats"]) =>
         {
             (Object::Form(species, form), suffix)
         }
         ["creatures", species, suffix @ ..] if content_suffix(suffix) => {
             (Object::Species(species), suffix)
         }
-        ["forms", id, suffix @ ..] if content_suffix(suffix) || matches!(suffix, ["typing"]) => {
+        ["forms", id, suffix @ ..]
+            if content_suffix(suffix)
+                || historical_stats_suffix(suffix)
+                || matches!(suffix, ["typing"] | ["stats"]) =>
+        {
             (Object::LegacyForm(id), suffix)
         }
         ["worlds", world, "types", "new"] => (Object::World(world), &parts[2..]),
@@ -109,7 +156,16 @@ fn classify<'a>(parts: &'a [&'a str]) -> Option<Address<'a>> {
         }
         ["worlds", world, "variants", "new"] => (Object::World(world), &parts[2..]),
         ["worlds", world, "variants", variant, suffix @ ..]
-            if content_suffix(suffix) || matches!(suffix, ["adopt"] | ["typing"]) =>
+            if content_suffix(suffix)
+                || historical_stats_suffix(suffix)
+                || matches!(
+                    suffix,
+                    ["adopt"]
+                        | ["typing"]
+                        | ["stats"]
+                        | ["stats", "reconcile"]
+                        | ["stats", "source"]
+                ) =>
         {
             (Object::Variant(world, variant), suffix)
         }
@@ -125,6 +181,45 @@ fn classify<'a>(parts: &'a [&'a str]) -> Option<Address<'a>> {
 
 async fn resolve(state: &AppState, address: Address<'_>) -> Result<(String, String), Error> {
     let (pretty, inner) = match address.object {
+        Object::Stat(value) => {
+            let row = state.stats.resolve_shared(key(value)?).await?;
+            (
+                format!("/stats/{}", segment(&row.fields.slug)),
+                format!("/stats/{}", row.id),
+            )
+        }
+        Object::WorldStat(parent, value) => {
+            let (parent, row) = state.stats.resolve_world(key(parent)?, key(value)?).await?;
+            (
+                format!(
+                    "/worlds/{}/stats/{}",
+                    segment(&parent.fields.slug),
+                    segment(&row.fields.slug)
+                ),
+                format!("/worlds/{}/stats/{}", parent.id, row.id),
+            )
+        }
+        Object::Chart(value) => {
+            let row = state.charts.resolve_shared(key(value)?).await?;
+            (
+                format!("/charts/{}", segment(&row.fields.slug)),
+                format!("/charts/{}", row.id),
+            )
+        }
+        Object::WorldChart(parent, value) => {
+            let (parent, row) = state
+                .charts
+                .resolve_world(key(parent)?, key(value)?)
+                .await?;
+            (
+                format!(
+                    "/worlds/{}/charts/{}",
+                    segment(&parent.fields.slug),
+                    segment(&row.fields.slug)
+                ),
+                format!("/worlds/{}/charts/{}", parent.id, row.id),
+            )
+        }
         Object::Type(value) => {
             let row = state.types.resolve_type(key(value)?).await?;
             (
@@ -217,7 +312,10 @@ async fn translate(state: &AppState, request: &mut Request) -> Result<Option<Res
     let Some(root) = raw.first().and_then(|s| decode(s).ok()) else {
         return Ok(None);
     };
-    if !matches!(root.as_str(), "creatures" | "forms" | "worlds" | "types") {
+    if !matches!(
+        root.as_str(),
+        "creatures" | "forms" | "worlds" | "types" | "charts" | "stats"
+    ) {
         return Ok(None);
     }
     // Unknown shapes/suffixes retain the inner router's behavior.
@@ -237,7 +335,11 @@ async fn translate(state: &AppState, request: &mut Request) -> Result<Option<Res
     let parts: Vec<_> = decoded.iter().map(String::as_str).collect();
     if matches!(
         parts.as_slice(),
-        ["creatures", "new"] | ["worlds", "new"] | ["types", "new"]
+        ["creatures", "new"]
+            | ["worlds", "new"]
+            | ["types", "new"]
+            | ["charts", "new"]
+            | ["stats", "new"]
     ) {
         let pretty = format!("/{}", parts.join("/"));
         if path != pretty {

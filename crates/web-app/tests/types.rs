@@ -410,7 +410,7 @@ async fn ordered_typing_distinguishes_unmodeled_typeless_and_three_slots_and_che
     }
     assert_eq!(
         serde_json::from_str::<serde_json::Value>(&h[0].after_json).unwrap()["snapshot_version"],
-        2
+        3
     );
     l.types
         .save_form_typing(&l.admin.token, id, 4, None, None)
@@ -861,6 +861,9 @@ async fn database_seals_require_exact_marker_two_sidecars_and_reject_late_or_orp
             .after_json,
     )
     .unwrap();
+    // Exercise the retained v2 projection's ordering seal, independently of v3.
+    full["snapshot_version"] = 2.into();
+    full["content"].as_object_mut().unwrap().remove("stats");
     full["content"]["revision"] = 2.into();
     full["content"]["typing"] =
         serde_json::json!({"assignments":[{"pin":pin(&t.id,1),"fields":t.fields}]});
@@ -897,12 +900,13 @@ async fn full_history_and_typing_fail_closed_for_missing_inconsistent_or_unknown
         .save_form_typing(&l.admin.token, id, 1, Some(vec![pin(&t.id, 1)]), None)
         .await
         .unwrap();
-    let baseline = l
-        .author
-        .history_entry(HistoryKind::Form, id, 2)
-        .await
-        .unwrap()
-        .after_json;
+    let baseline: String = sqlx::query_scalar(
+        "SELECT after_json FROM form_content_snapshots WHERE form_id=? AND revision=2",
+    )
+    .bind(id)
+    .fetch_one(&l.pool)
+    .await
+    .unwrap();
     sqlx::query("DROP TRIGGER form_content_update")
         .execute(&l.pool)
         .await
@@ -1791,12 +1795,14 @@ async fn all_affected_aggregates_fail_closed_without_full_seals_and_on_private_o
             "$.content.typing.assignments[0].pin.type_id",
         ),
     ] {
-        let baseline = l
-            .author
-            .history_entry(kind, id, revision)
-            .await
-            .unwrap()
-            .after_json;
+        let baseline: String = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
+            "SELECT after_json FROM {table} WHERE {key}=? AND revision=?"
+        )))
+        .bind(id)
+        .bind(revision)
+        .fetch_one(&l.pool)
+        .await
+        .unwrap();
         sqlx::query(sqlx::AssertSqlSafe(format!("DROP TRIGGER {trigger}")))
             .execute(&l.pool)
             .await
@@ -1875,12 +1881,13 @@ async fn deferred_sidecar_marker_fk_rejects_orphans_and_marker_one_even_without_
         .await
         .unwrap();
     let id = &s.default_form_id;
-    let old = l
-        .author
-        .history_entry(HistoryKind::Form, id, 1)
-        .await
-        .unwrap()
-        .after_json;
+    let old: String = sqlx::query_scalar(
+        "SELECT after_json FROM form_content_snapshots WHERE form_id=? AND revision=1",
+    )
+    .bind(id)
+    .fetch_one(&l.pool)
+    .await
+    .unwrap();
     let mut after: serde_json::Value = serde_json::from_str(&old).unwrap();
     after["content"]["revision"] = 2.into();
     let mut tx = persistence::begin_write(&l.pool).await.unwrap();
@@ -1893,6 +1900,10 @@ async fn deferred_sidecar_marker_fk_rejects_orphans_and_marker_one_even_without_
     assert_eq!(l.count("form_content_snapshots").await, 1);
     // Isolate the deferred constant-marker FK independently from its insert guard.
     sqlx::query("DROP TRIGGER form_content_guard")
+        .execute(&l.pool)
+        .await
+        .unwrap();
+    sqlx::query("DROP TRIGGER form_stat_guard")
         .execute(&l.pool)
         .await
         .unwrap();
@@ -2048,7 +2059,13 @@ async fn append_variant_snapshot(l: &Lab, head: &VariantRecord, snapshot: &Varia
         .unwrap();
     sqlx::query("INSERT INTO variant_content_snapshots(world_id,variant_id,revision,typing_defined,before_json,after_json) VALUES (?,?,?,0,?,?)")
         .bind(&head.world_id).bind(&head.id).bind(head.revision).bind(before).bind(after.to_string()).execute(&mut *tx).await.unwrap();
-    sqlx::query("INSERT INTO variant_revisions(world_id,variant_id,revision,previous_revision,audit_id,before_json,after_json,content_snapshot_version) VALUES (?,?,?,?,?,?,?,2)")
+    let authoritative_before: String = sqlx::query_scalar("SELECT after_json FROM variant_stat_snapshots WHERE world_id=? AND variant_id=? AND revision=?")
+        .bind(&head.world_id).bind(&head.id).bind(previous).fetch_one(&mut *tx).await.unwrap();
+    after["snapshot_version"] = 3.into();
+    after["content"]["stats"] = serde_json::json!({"roster":null,"assignments":null});
+    sqlx::query("INSERT INTO variant_stat_snapshots(world_id,variant_id,revision,stats_defined,before_json,after_json) VALUES (?,?,?,0,?,?)")
+        .bind(&head.world_id).bind(&head.id).bind(head.revision).bind(authoritative_before).bind(after.to_string()).execute(&mut *tx).await.unwrap();
+    sqlx::query("INSERT INTO variant_revisions(world_id,variant_id,revision,previous_revision,audit_id,before_json,after_json,content_snapshot_version,stat_snapshot_version) VALUES (?,?,?,?,?,?,?,2,3)")
         .bind(&head.world_id).bind(&head.id).bind(head.revision).bind(previous).bind(audit).bind(projection_before).bind(envelope(snapshot)).execute(&mut *tx).await.unwrap();
     tx.commit().await.unwrap();
     l.integrity().await;
@@ -2721,6 +2738,8 @@ async fn sidecar_before_tags_require_explicit_supported_integer_versions() {
             .unwrap()
             .after_json;
         let mut after: serde_json::Value = serde_json::from_str(&baseline).unwrap();
+        after["snapshot_version"] = 2.into();
+        after["content"].as_object_mut().unwrap().remove("stats");
         after["content"]["revision"] = (revision + 1).into();
         let mut tx = persistence::begin_write(&l.pool).await.unwrap();
         for bad in [

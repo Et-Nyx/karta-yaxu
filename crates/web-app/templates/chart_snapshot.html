@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block title %}Chart revision {{ view.entry.revision }} — Karta Yaxu{% endblock %}
+{% block content %}
+<a href="{{ url }}/history">← Chart history</a><h1>Chart revision {{ view.entry.revision }}</h1><p>{{ view.entry.actor_name }} · {{ view.entry.action }} · <time>{{ view.entry.occurred_at }}</time> (UTC)</p>{% match view.entry.reason %}{% when Some with (reason) %}<p>Reason: {{ reason }}</p>{% when None %}{% endmatch %}
+{% include "chart_matrix.html" %}<h2>Readable changes</h2>{% include "chart_changes.html" %}
+<details><summary>Full inert revision snapshot</summary><pre>{{ view.entry.after_json }}</pre></details>
+{% match view.entry.before_json %}{% when Some with (snapshot) %}<details><summary>Full inert before snapshot</summary><pre>{{ snapshot }}</pre></details>{% when None %}{% endmatch %}
+{% endblock %}

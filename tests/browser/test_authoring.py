@@ -135,9 +135,8 @@ class AuthoringSupport(BrowserFixture):
         self.follow(history_link)
         self.follow(f"Revision {revision}")
         if snapshot_version is None:
-            snapshot_version = 2 if history_link in (
-                "Form history", "Variant history", "World content history"
-            ) else 1
+            snapshot_version = (3 if history_link in ("Form history", "Variant history")
+                                else 2 if history_link == "World content history" else 1)
         return self.read_snapshot(snapshot_version)
 
     def read_snapshot(self, snapshot_version):
@@ -154,7 +153,7 @@ class AuthoringSupport(BrowserFixture):
             self.assertNotIn("owner_user_id", content)
             self.assertNotIn("collaborator_ids", content)
             self.assertNotIn("access_revision", content)
-        if snapshot_version == 2 and has_typing:
+        if snapshot_version in (2, 3) and has_typing:
             self.assertEqual(set(content["typing"]), {"assignments"})
             assignments = content["typing"]["assignments"]
             if assignments is not None:
@@ -163,6 +162,8 @@ class AuthoringSupport(BrowserFixture):
                     self.assertEqual(set(entry), {"pin", "fields"})
                     self.assertEqual(set(entry["pin"]), {"type_id", "version"})
                     self.assertEqual(set(entry["fields"]), {"slug", "display_name", "description"})
+        if snapshot_version == 3:
+            self.assertEqual(set(content["stats"]), {"roster", "assignments"})
         if snapshot_version == 1:
             self.assertNotIn("typing", content)
             if self.page.get_by_role("heading", name="Typing at this revision", exact=True).count():

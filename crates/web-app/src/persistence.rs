@@ -10,6 +10,9 @@ use sqlx::{
 use std::{str::FromStr, time::Duration};
 
 pub mod authoring;
+pub mod charts;
+pub mod stat_content;
+pub mod stats;
 pub mod types;
 
 static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations");
@@ -99,7 +102,7 @@ pub async fn schema_ready(pool: &SqlitePool) -> Result<bool, String> {
     .map_err(|error| error.to_string())?;
     if count == 0 {
         let application_tables: i64 = sqlx::query_scalar(
-            "SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name IN ('users', 'sessions', 'invites', 'species', 'species_versions', 'forms', 'form_versions', 'worlds', 'variants', 'world_revisions', 'variant_revisions', 'world_collaborators', 'world_access_revisions', 'audit_events', 'types', 'type_versions', 'world_types', 'world_type_versions', 'form_content_snapshots', 'variant_content_snapshots', 'world_content_snapshots', 'form_type_bindings', 'variant_type_bindings', 'type_version_sources', 'species_version_sources', 'form_version_sources')",
+            "SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name IN ('users', 'sessions', 'invites', 'species', 'species_versions', 'forms', 'form_versions', 'worlds', 'variants', 'world_revisions', 'variant_revisions', 'world_collaborators', 'world_access_revisions', 'audit_events', 'types', 'type_versions', 'world_types', 'world_type_versions', 'form_content_snapshots', 'variant_content_snapshots', 'world_content_snapshots', 'form_type_bindings', 'variant_type_bindings', 'type_version_sources', 'species_version_sources', 'form_version_sources', 'charts', 'chart_versions', 'chart_roster', 'chart_cells', 'chart_mapping', 'stat_definitions', 'stat_versions', 'stat_rosters', 'stat_roster_versions', 'stat_roster_entries', 'form_stat_snapshots', 'variant_stat_snapshots', 'form_stat_bindings', 'variant_stat_bindings')",
         ).fetch_one(pool).await.map_err(|error| error.to_string())?;
         if application_tables != 0 {
             return Err("Database has application tables without migration history; select a compatible database or investigate its history.".to_owned());
@@ -149,10 +152,26 @@ pub async fn schema_ready(pool: &SqlitePool) -> Result<bool, String> {
         "SELECT world_id, type_id, revision, audit_id, before_json, after_json FROM world_type_versions LIMIT 0",
         "SELECT form_id, revision, marker, typing_defined, before_json, after_json FROM form_content_snapshots LIMIT 0",
         "SELECT world_id, variant_id, revision, marker, typing_defined, before_json, after_json FROM variant_content_snapshots LIMIT 0",
+        "SELECT form_id, revision, stat_snapshot_version FROM form_versions LIMIT 0",
+        "SELECT world_id, variant_id, revision, stat_snapshot_version FROM variant_revisions LIMIT 0",
+        "SELECT form_id, revision, marker, stats_defined, before_json, after_json FROM form_stat_snapshots LIMIT 0",
+        "SELECT world_id, variant_id, revision, marker, stats_defined, roster_id, roster_version, before_json, after_json FROM variant_stat_snapshots LIMIT 0",
+        "SELECT form_id, revision, slot, scope, stat_id, stat_version, coefficient, scale FROM form_stat_bindings LIMIT 0",
+        "SELECT world_id, variant_id, revision, slot, scope, stat_id, stat_version, coefficient, scale FROM variant_stat_bindings LIMIT 0",
         "SELECT world_id, revision, marker, before_json, after_json FROM world_content_snapshots LIMIT 0",
         "SELECT form_id, revision, slot, type_id, type_version FROM form_type_bindings LIMIT 0",
         "SELECT world_id, variant_id, revision, slot, type_id, type_version FROM variant_type_bindings LIMIT 0",
         "SELECT object_kind, object_id, revision, endpoint_kind, external_id, source_url, retrieved_at, transformation_version FROM reference_provenance LIMIT 0",
+        "SELECT id, scope, world_id, slug, revision FROM charts LIMIT 0",
+        "SELECT chart_id, scope, revision, source_scope, source_chart_id, source_revision, slug, display_name, description, archived_at, previous_revision, audit_id, before_json, after_json FROM chart_versions LIMIT 0",
+        "SELECT chart_id, scope, revision, slot, type_id, type_version, shared_type_id, world_id FROM chart_roster LIMIT 0",
+        "SELECT chart_id, scope, revision, attacker_type_id, defender_type_id, numerator, denominator FROM chart_cells LIMIT 0",
+        "SELECT chart_id, scope, revision, source_scope, source_chart_id, source_revision, source_type_id, local_type_id FROM chart_mapping LIMIT 0",
+        "SELECT id, scope, world_id, slug, revision FROM stat_definitions LIMIT 0",
+        "SELECT scope, stat_id, revision, source_stat_id, source_revision, slug, display_name, description, archived_at, whole_only, minimum_coefficient, minimum_scale, maximum_coefficient, maximum_scale, audit_id, previous_revision, before_json, after_json FROM stat_versions LIMIT 0",
+        "SELECT world_id, id, revision FROM stat_rosters LIMIT 0",
+        "SELECT world_id, roster_id, revision, audit_id, previous_revision, before_json, after_json FROM stat_roster_versions LIMIT 0",
+        "SELECT world_id, roster_id, revision, slot, scope, stat_id, stat_version FROM stat_roster_entries LIMIT 0",
     ] {
         sqlx::query(query).execute(pool).await
             .map_err(|_| "Application schema does not match its migration history; investigate the database before proceeding.".to_owned())?;

@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Effectiveness charts — Karta Yaxu{% endblock %}
+{% block content %}
+<p class="eyebrow">Shared library</p><h1>Effectiveness charts</h1>
+<p>Independently versioned directed relationships between exact Type roster pins. Unknown is not Neutral; Types outside a chart are Not covered. These charts do not define multi-Type damage rules.</p>
+{% if can_edit %}<p><a class="button" href="/charts/new">Create shared chart</a></p>{% endif %}
+<div class="cards">{% for entry in charts %}<article class="card"><h2><a href="/charts/{{ crate::web::addresses::segment(entry.fields.slug) }}">{{ entry.fields.display_name }}</a></h2><p class="plain-text">{{ entry.fields.description }}</p><p>Revision {{ entry.revision }} · {{ entry.roster.len() }} Types · {{ entry.cells.len() }} known directed pairs</p></article>{% else %}<p>No shared charts yet. Empty rosters are valid drafts.</p>{% endfor %}</div>
+<p><a href="/worlds">Browse worlds</a> to view each world's independent local chart.</p>
+{% endblock %}

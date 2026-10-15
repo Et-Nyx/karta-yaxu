@@ -12,6 +12,7 @@
 <section class="panel"><h2>Ordered typing</h2>{% include "typing_summary.html" %}</section>
 <p><a href="/creatures/{{ species_segment }}/forms/{{ form_segment }}/history">Form history</a>{% if can_edit_library %} · <a href="/creatures/{{ species_segment }}/forms/{{ form_segment }}/edit">Edit shared form</a> · <a href="/creatures/{{ species_segment }}/forms/{{ form_segment }}/typing">Edit typing</a>{% endif %}</p>
 <h2>Use this version in a world</h2>
+<section class="panel"><h2>Exact base stats</h2><p><a href="/creatures/{{ species_segment }}/forms/{{ form_segment }}/stats">View or edit shared base stats</a></p><p>Shared definitions and optional values use exact pins. Unmodeled, Missing and explicit zero remain distinct.</p></section>
 <p>World owners and collaborators can create multiple independent variants with this concrete source pin. Each variant has its own effective values.</p>
 <ul>{% for choice in worlds %}{% let world = choice.world %}<li><a href="/worlds/{{ crate::web::addresses::segment(world.fields.slug) }}">{{ world.fields.display_name }}</a> · <code>{{ world.id }}</code>{% if choice.can_edit %} · <a href="/worlds/{{ crate::web::addresses::segment(world.fields.slug) }}/variants/new?form_id={{ form.id }}&amp;form_version={{ form.revision }}">Add form version {{ form.revision }} to this world</a>{% endif %}</li>{% else %}<li>No worlds yet. <a href="/worlds">Browse worlds</a>.</li>{% endfor %}</ul>
 {% endblock %}

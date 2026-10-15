@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} — Karta Yaxu{% endblock %}
+{% block content %}
+<a href="{{ url }}">← Current state</a> · <a href="{{ url }}/history">History list</a><h1>{{ title }}</h1>
+<nav aria-label="Historical pages">{% for link in links %}<a href="{{ link.url }}">{{ link.label }}</a>{% endfor %}</nav>
+{% for panel in panels %}<section class="panel"><h2>{{ panel.label }}</h2><p class="plain-text stat-state">{{ panel.text }}</p></section>{% endfor %}
+{% for entry in entries %}<article class="panel"><h2><a href="{{ url }}/history/{{ entry.revision }}">Revision {{ entry.revision }}</a></h2><p>{{ entry.actor_name }} · {{ entry.action }} · {{ entry.occurred_at }} UTC</p>{% match entry.reason %}{% when Some with (reason) %}<p>Reason: {{ reason }}</p>{% when None %}{% endmatch %}<details><summary>Exact immutable snapshots for revision {{ entry.revision }}</summary><h3>Before</h3>{% match entry.before_json %}{% when Some with (json) %}<pre>{{ json }}</pre>{% when None %}<p>No previous state (creation).</p>{% endmatch %}<h3>After</h3><pre>{{ entry.after_json }}</pre></details></article>{% else %}<p>No history at this cursor.</p>{% endfor %}
+{% match next %}{% when Some with (revision) %}<a href="{{ url }}/history?before={{ revision }}">Older revisions</a>{% when None %}{% endmatch %}
+{% endblock %}

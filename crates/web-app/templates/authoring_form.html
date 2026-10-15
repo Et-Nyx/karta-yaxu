@@ -27,6 +27,7 @@
 {% if !typing_comparisons.is_empty() %}<div class="comparison-grid">{% for comparison in typing_comparisons %}<section class="panel"><h2>{{ comparison.label }}</h2>{% let typing = comparison.typing %}{% include "typing_summary.html" %}</section>{% endfor %}</div>{% endif %}
 <section class="panel">
 <h2>{% if !error.is_empty() %}Your submitted draft{% else %}Your values{% endif %}</h2>
+{% for comparison in stat_comparisons %}<section class="panel"><h2>{{ comparison.label }}</h2><p class="plain-text">{{ comparison.text }}</p></section>{% endfor %}
 <form method="post" action="{{ action }}">
   <input type="hidden" name="csrf" value="{{ csrf }}">
   {% if !draft.expected_revision.is_empty() %}<input type="hidden" name="expected_revision" value="{{ draft.expected_revision }}"><p class="muted">Draft starting revision: {{ draft.expected_revision }}.</p>{% endif %}

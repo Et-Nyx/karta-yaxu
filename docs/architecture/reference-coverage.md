@@ -17,6 +17,12 @@ that the current application implements all of these concepts.
 - Shared/world-local Type definitions and exact ordered form/variant typing;
   compatible v1/v2 history and explicit unmodeled versus defined-empty state.
 - Cached Type/Charizard reference subset, source provenance and owned synthetic labs.
+- Independently versioned shared/local pairwise charts with exact fractions,
+  explicit source mappings/adoption, Unknown/neutral/no-effect distinctions and
+  canonical Type identity matching across metadata revisions.
+- Independent shared/local Stat definitions, explicit variable-length world
+  rosters, exact signed decimal base values and Missing/zero distinctions;
+  pinned constraints, explicit reconciliation/mapping and v3 creature snapshots.
 
 The original bundled creatures remain invented placeholders with retained ids.
 The cached PokeAPI projection now supplies Fire/Flying/Dragon and Charizard base/
@@ -27,8 +33,8 @@ Mega X typing. A general network importer or complete mechanics model is not pre
 | Domain | Acceptance scenario | Status |
 | --- | --- | --- |
 | Source contexts | Distinguish individual game version, version group and generation from Karta definition/edit versions | Planned |
-| Types | Ordered exact form/variant type pins; shared/world version independence | Implemented; effectiveness charts remain planned |
-| Stats | Describe supplied stats and modifiers without making Pokémon's stat vocabulary a universal engine constraint | Planned; stat semantics open |
+| Types | Ordered exact pins; shared/world independence; directed pairwise effectiveness | Implemented; synthetic chart fixtures; multi-Type composition remains planned |
+| Stats | Describe supplied stats and modifiers without making Pokémon's stat vocabulary a universal engine constraint | Definitions, rosters and signed decimal base values implemented; calculation/modifier mechanics planned |
 | Moves and learnsets | Keep method, level/order and source context; the same creature/move may have several learning records | Planned |
 | Movesets | Distinguish learned/learnable moves from configured active moves and runtime selection | Planned |
 | Abilities | Preserve available slots and hidden status, separate from a selected active ability; represent historical assignments | Planned |
@@ -70,6 +76,18 @@ Type versions, three-Type typing and world-exclusive Mist/Mistling. No fixture
 generation depends on a live network during use/tests; current canonical ids never
 reuse PokeAPI ids. See decision 0008 for the exact slice and history compatibility,
 and 0009 for atomic setup and development administrator bootstrap.
+`fixtures/charts.json` adds a synthetic shared chart and independent lab charts
+through complete setup, with explicit mappings and original Mist relationships.
+These factors are not source observations or claimed official Pokémon rules.
+Decision 0010 defines exact rational storage, canonical metadata-identity matching,
+independent chart history and explicit adoption. Packages/simulation must pin a
+chart revision and separately define stacking/rounding before calculating damage.
+
+`fixtures/stats.json` adds three shared Stats, seven independent local Stats,
+three-/four-entry lab rosters and new sample form/variants. Values and constraints
+are synthetic, not sourced Pokémon mechanics. Decision 0011 preserves exact
+definition/roster context and old history; formulas, modifiers and engine export
+remain separate work.
 
 ## Adapter and version rules
 

@@ -3,6 +3,8 @@ use serde::Deserialize;
 use std::collections::HashSet;
 
 pub mod authoring;
+pub mod charts;
+pub mod stats;
 pub mod types;
 
 pub const BUNDLED_FIXTURES: &str = include_str!("../../../fixtures/creatures.json");

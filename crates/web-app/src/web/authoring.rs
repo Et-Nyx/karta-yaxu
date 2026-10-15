@@ -357,6 +357,7 @@ pub(super) struct ContentPage {
     pub(super) target_label: &'static str,
     pub(super) type_comparisons: Vec<TypeComparison>,
     typing_comparisons: Vec<TypingComparison>,
+    stat_comparisons: Vec<StatComparison>,
     show_species_version: bool,
     pub(super) selected_source: String,
     comparisons: Vec<DefinitionComparison>,
@@ -372,6 +373,11 @@ pub(super) struct TypeComparison {
 struct TypingComparison {
     label: &'static str,
     typing: super::types::TypingSummary,
+}
+
+struct StatComparison {
+    label: &'static str,
+    text: String,
 }
 
 impl ContentPage {
@@ -396,6 +402,7 @@ impl ContentPage {
             target_label: "form",
             type_comparisons: Vec::new(),
             typing_comparisons: Vec::new(),
+            stat_comparisons: Vec::new(),
             show_species_version: false,
             selected_source,
             comparisons: Vec::new(),
@@ -1221,6 +1228,37 @@ async fn adoption_comparisons(
         .authoring
         .adoption_preview(world_id, id, target)
         .await?;
+    page.stat_comparisons.clear();
+    for (label, kind, object, revision) in [
+        (
+            "Old shared source base stats",
+            HistoryKind::Form,
+            preview.old_source.id.as_str(),
+            preview.old_source.revision,
+        ),
+        (
+            "Local base stats (kept on adoption)",
+            HistoryKind::Variant,
+            id,
+            preview.entry.revision,
+        ),
+        (
+            "New shared source base stats",
+            HistoryKind::Form,
+            preview.new_source.id.as_str(),
+            preview.new_source.revision,
+        ),
+    ] {
+        let history = state
+            .authoring
+            .history_entry(kind, object, revision)
+            .await?;
+        let snapshot = serde_json::from_str(&history.after_json).map_err(|_| Error::Unavailable)?;
+        page.stat_comparisons.push(StatComparison {
+            label,
+            text: super::stats::stats_text(&snapshot_stats(Some(&snapshot))?),
+        });
+    }
     page.context = format!(
         "{}. Review old source, your local effective values, and new source below. The editable draft starts with LOCAL values. Choose the name and description manually; adoption changes the baseline, not an automatic merge. A name change also regenerates the local slug.",
         variant_context(&preview.entry)
@@ -1252,6 +1290,7 @@ async fn adoption_comparisons(
         },
     ];
     page.context.push_str(" World typing stays local. Shared source types are comparison only; select exact world-local type versions separately in Edit typing. No name-based mapping is performed.");
+    page.context.push_str(" Base stats and their exact roster context also stay local. Use Review source base values on the variant's stats page for explicit mapped copying and atomic source-pin/value adoption.");
     Ok(preview.entry)
 }
 
@@ -1583,6 +1622,7 @@ struct SnapshotPage {
     changes: Vec<FieldChange>,
     typing_label: Option<String>,
     typing_pins: Vec<HistoryPin>,
+    stats_label: Option<String>,
 }
 
 struct FieldChange {
@@ -1657,6 +1697,18 @@ fn history_changes(kind: HistoryKind, entry: &HistoryEntry) -> Result<Vec<FieldC
                 after_pins: history_typing_pins(&new, Some(&after)),
             });
         }
+        let old_stats = snapshot_stats(before.as_ref())?;
+        let new_stats = snapshot_stats(Some(&after))?;
+        if old_stats != new_stats {
+            let (before, after) = super::stats::stats_diff(&old_stats, &new_stats);
+            changes.push(FieldChange {
+                label: "Exact base stats and roster context",
+                before,
+                after,
+                before_pins: Vec::new(),
+                after_pins: Vec::new(),
+            });
+        }
     }
     Ok(changes)
 }
@@ -1677,13 +1729,46 @@ fn snapshot_typing(snapshot: Option<&serde_json::Value>) -> Result<TypingState, 
         .and_then(serde_json::Value::as_i64)
     {
         Some(1) if !content.contains_key("typing") => Ok(TypingState::unmodeled()),
-        Some(2) => {
+        Some(2) | Some(3) => {
+            snapshot_stats(Some(snapshot))?;
             let value = content.get("typing").ok_or(Error::Unavailable)?;
             let object = value.as_object().ok_or(Error::Unavailable)?;
             if object.len() != 1 || !object.contains_key("assignments") {
                 return Err(Error::Unavailable);
             }
             serde_json::from_value(value.clone()).map_err(|_| Error::Unavailable)
+        }
+        _ => Err(Error::Unavailable),
+    }
+}
+
+// Persistence has already checked seals, scope and exact dependencies. Never
+// turn malformed/missing authoritative v3 state into a legacy Unmodeled state.
+pub(super) fn snapshot_stats(
+    snapshot: Option<&serde_json::Value>,
+) -> Result<game_data::stats::BaseStats, Error> {
+    use game_data::stats::BaseStats;
+    let Some(snapshot) = snapshot else {
+        return Ok(BaseStats::unmodeled());
+    };
+    let content = snapshot
+        .get("content")
+        .and_then(serde_json::Value::as_object)
+        .ok_or(Error::Unavailable)?;
+    match snapshot
+        .get("snapshot_version")
+        .and_then(serde_json::Value::as_i64)
+    {
+        Some(1 | 2) if !content.contains_key("stats") => Ok(BaseStats::unmodeled()),
+        Some(3) => {
+            let raw = content.get("stats").ok_or(Error::Unavailable)?;
+            let state: BaseStats =
+                serde_json::from_value(raw.clone()).map_err(|_| Error::Unavailable)?;
+            if serde_json::to_value(&state).map_err(|_| Error::Unavailable)? != *raw {
+                return Err(Error::Unavailable);
+            }
+            state.validate().map_err(|_| Error::Unavailable)?;
+            Ok(state)
         }
         _ => Err(Error::Unavailable),
     }
@@ -1863,6 +1948,11 @@ pub(super) async fn snapshot_response(
         changes: history_changes(kind, &entry)?,
         typing_label,
         typing_pins,
+        stats_label: if matches!(kind, HistoryKind::Form | HistoryKind::Variant) {
+            Some(super::stats::stats_text(&snapshot_stats(Some(&snapshot))?))
+        } else {
+            None
+        },
         entry,
     }))
 }

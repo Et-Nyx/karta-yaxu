@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}Chart history — Karta Yaxu{% endblock %}
+{% block content %}
+<a href="{{ url }}">← Current chart</a><h1>Chart history</h1><p>Public attributed content history, up to 50 revisions per page. Exact roster pins and directed cells are retained in each immutable snapshot.</p>
+{% for view in entries %}<article class="panel history-entry"><h2><a href="{{ url }}/history/{{ view.entry.revision }}">Revision {{ view.entry.revision }}</a> · {{ view.entry.action }}</h2><p>{{ view.entry.actor_name }} · <time>{{ view.entry.occurred_at }}</time> (UTC)</p>{% match view.entry.reason %}{% when Some with (reason) %}<p>Reason: {{ reason }}</p>{% when None %}<p>No reason supplied.</p>{% endmatch %}{% include "chart_changes.html" %}</article>{% else %}<p>No changes on this history page.</p>{% endfor %}
+{% match next %}{% when Some with (before) %}<p><a href="{{ url }}/history?before={{ before }}">Older changes</a></p>{% when None %}{% endmatch %}<p><a href="{{ url }}/history">Newest changes</a></p>
+{% endblock %}

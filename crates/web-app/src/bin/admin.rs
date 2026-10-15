@@ -348,13 +348,18 @@ fn authoring_error(error: Error) -> String {
 
 fn print_fixture_report(report: FixtureReport) {
     println!(
-        "Initialized {} shared Types, {} species, {} forms, {} worlds, {} world Types, {} variants; skipped {} matching objects.",
+        "Initialized {} shared Types, {} species, {} forms, {} worlds, {} world Types, {} variants; skipped {} matching objects. Initialized {} shared charts and {} world charts. Initialized {} shared Stats, {} world Stats and {} Stat rosters.",
         report.types_created,
         report.species_created,
         report.forms_created,
         report.worlds_created,
         report.world_types_created,
         report.variants_created,
-        report.skipped
+        report.skipped,
+        report.shared_charts_created,
+        report.world_charts_created,
+        report.shared_stats_created,
+        report.world_stats_created,
+        report.stat_rosters_created
     );
 }

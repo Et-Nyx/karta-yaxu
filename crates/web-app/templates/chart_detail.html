@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}{{ matrix.entry.fields.display_name }} — Chart — Karta Yaxu{% endblock %}
+{% block content %}
+{% match matrix.entry.world_id %}{% when Some with (world) %}<a href="/worlds/{{ world }}">← World</a><p class="eyebrow">Independent world chart</p>{% when None %}<a href="/charts">← Shared charts</a><p class="eyebrow">Shared chart</p>{% endmatch %}
+<h1>{{ matrix.entry.fields.display_name }}</h1>
+<p><a href="{{ url }}/history">Chart history</a>{% if can_edit %} · <a href="{{ url }}/edit">Edit chart definition</a> · <a href="{{ url }}/neutral">Fill remaining Unknown cells with neutral</a>{% endif %}</p>
+{% if can_edit %}<section><h2>Edit one attacking row</h2><ul>{% for row in matrix.rows %}<li><a href="{{ row.edit_url }}">Edit attacking row: {{ row.name }}</a></li>{% else %}<li>Add Types to the roster first.</li>{% endfor %}</ul></section>{% endif %}
+{% include "chart_matrix.html" %}
+{% match latest %}{% when Some with (latest) %}<section class="panel"><h2>Explicit source adoption</h2><p><a href="{{ source_url }}">Pinned shared chart snapshot</a>. Latest source revision: {{ latest.revision }}. Adoption does not change Types or variant pins.</p>{% if can_edit %}<form method="get" action="{{ url }}/adopt"><label for="target-version">New shared chart version</label><input id="target-version" name="target_version" inputmode="numeric" value="{{ latest.revision }}"><button type="submit">Choose mappings and policy</button></form>{% endif %}</section>{% when None %}{% endmatch %}
+{% if matrix.entry.world_id.is_none() %}<h2>Use this exact source in a world</h2><p>Choose local roster pins and mappings explicitly. A world has at most one chart; names never infer mappings.</p><ul>{% for choice in worlds %}<li><a href="/worlds/{{ crate::web::addresses::segment(choice.world.fields.slug) }}/charts">{{ choice.world.fields.display_name }} chart</a>{% if choice.can_edit %} · <a href="/worlds/{{ crate::web::addresses::segment(choice.world.fields.slug) }}/charts/new?source_pin={{ matrix.entry.id }}@{{ matrix.entry.revision }}">Create using shared revision {{ matrix.entry.revision }}</a>{% endif %}</li>{% else %}<li>No worlds yet.</li>{% endfor %}</ul>{% endif %}
+{% endblock %}

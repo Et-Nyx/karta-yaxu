@@ -1,6 +1,10 @@
 //! Trusted operator setup of all bundled fixtures in one write transaction.
 use super::{
     authoring::{Authoring, Error, invalid},
+    chart_fixtures::ChartFixtures,
+    charts::Charts,
+    stat_fixtures::StatFixtures,
+    stats::Stats,
     types::{FixtureReport, ReferenceFixtures, Types, WorldFixtures},
 };
 use crate::{
@@ -56,6 +60,8 @@ impl Fixtures {
         let catalog = Catalog::from_json(BUNDLED_FIXTURES).map_err(|e| invalid("fixtures", &e))?;
         let reference = ReferenceFixtures::load()?;
         let worlds = WorldFixtures::load(&reference)?;
+        let chart_fixtures = ChartFixtures::load()?;
+        let stat_fixtures = StatFixtures::load()?;
         let authoring = Authoring::new(self.accounts.clone());
         let types = Types::new(self.accounts.clone());
         let mut tx = store::begin_write(self.accounts.pool())
@@ -92,6 +98,12 @@ impl Fixtures {
         fixtures.species_created += catalog_report.species_created;
         fixtures.forms_created += catalog_report.forms_created;
         fixtures.skipped += catalog_report.species_skipped * 2;
+        chart_fixtures
+            .seed_in(&mut tx, &Charts::new(self.accounts.clone()), &mut fixtures)
+            .await?;
+        stat_fixtures
+            .seed_in(&mut tx, &Stats::new(self.accounts.clone()), &mut fixtures)
+            .await?;
         tx.commit().await.map_err(storage_error)?;
         Ok(SetupReport {
             fixtures,

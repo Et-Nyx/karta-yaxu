@@ -1,0 +1,87 @@
+{
+  "fixture_version": 1,
+  "charts": [
+    {
+      "id": "90f11300e76a4eafba390307cf61c5fb",
+      "world_id": null,
+      "fields": {"slug":"lab-effectiveness","display_name":"Lab Effectiveness","description":"Synthetic pairwise authoring example, not an official Pokemon effectiveness chart or an executable battle ruleset."},
+      "source": null,
+      "roster": [
+        {"type_id":"6b4c13114c374eb6891469592b1743de","version":1},
+        {"type_id":"2effa2714dbb46d3a00c9061bd6f659d","version":1},
+        {"type_id":"0b89bdbbf95b42f0b7e31c8b75667650","version":1}
+      ],
+      "cells": [
+        {"attacker_type_id":"6b4c13114c374eb6891469592b1743de","defender_type_id":"6b4c13114c374eb6891469592b1743de","factor":{"numerator":1,"denominator":2}},
+        {"attacker_type_id":"6b4c13114c374eb6891469592b1743de","defender_type_id":"2effa2714dbb46d3a00c9061bd6f659d","factor":{"numerator":1,"denominator":1}},
+        {"attacker_type_id":"6b4c13114c374eb6891469592b1743de","defender_type_id":"0b89bdbbf95b42f0b7e31c8b75667650","factor":{"numerator":1,"denominator":2}},
+        {"attacker_type_id":"2effa2714dbb46d3a00c9061bd6f659d","defender_type_id":"6b4c13114c374eb6891469592b1743de","factor":{"numerator":1,"denominator":1}},
+        {"attacker_type_id":"2effa2714dbb46d3a00c9061bd6f659d","defender_type_id":"2effa2714dbb46d3a00c9061bd6f659d","factor":{"numerator":1,"denominator":1}},
+        {"attacker_type_id":"2effa2714dbb46d3a00c9061bd6f659d","defender_type_id":"0b89bdbbf95b42f0b7e31c8b75667650","factor":{"numerator":1,"denominator":1}},
+        {"attacker_type_id":"0b89bdbbf95b42f0b7e31c8b75667650","defender_type_id":"6b4c13114c374eb6891469592b1743de","factor":{"numerator":1,"denominator":1}},
+        {"attacker_type_id":"0b89bdbbf95b42f0b7e31c8b75667650","defender_type_id":"2effa2714dbb46d3a00c9061bd6f659d","factor":{"numerator":1,"denominator":1}},
+        {"attacker_type_id":"0b89bdbbf95b42f0b7e31c8b75667650","defender_type_id":"0b89bdbbf95b42f0b7e31c8b75667650","factor":{"numerator":2,"denominator":1}}
+      ],
+      "mapping": []
+    },
+    {
+      "id": "fe0bb8c103c8492591f28c4c4bc79721",
+      "world_id": "da05ae68560e4534ae229ce6139494ae",
+      "fields": {"slug":"classiclab-chart","display_name":"ClassicLab Chart","description":"Synthetic independently versioned ClassicLab chart, with explicit mappings to shared Lab Effectiveness version 1. No multi-Type stacking or battle calculation."},
+      "source": {"chart_id":"90f11300e76a4eafba390307cf61c5fb","version":1},
+      "roster": [
+        {"type_id":"5dbc420575dd445aa89bab5d73df0ff0","version":1},
+        {"type_id":"cd84fa1b2771402f9b8867965fb164b1","version":1},
+        {"type_id":"04d6c4508dd642da9e414ce264302b5f","version":1}
+      ],
+      "cells": [
+        {"attacker_type_id":"5dbc420575dd445aa89bab5d73df0ff0","defender_type_id":"5dbc420575dd445aa89bab5d73df0ff0","factor":{"numerator":1,"denominator":2}},
+        {"attacker_type_id":"5dbc420575dd445aa89bab5d73df0ff0","defender_type_id":"cd84fa1b2771402f9b8867965fb164b1","factor":{"numerator":1,"denominator":1}},
+        {"attacker_type_id":"5dbc420575dd445aa89bab5d73df0ff0","defender_type_id":"04d6c4508dd642da9e414ce264302b5f","factor":{"numerator":1,"denominator":2}},
+        {"attacker_type_id":"cd84fa1b2771402f9b8867965fb164b1","defender_type_id":"5dbc420575dd445aa89bab5d73df0ff0","factor":{"numerator":1,"denominator":1}},
+        {"attacker_type_id":"cd84fa1b2771402f9b8867965fb164b1","defender_type_id":"cd84fa1b2771402f9b8867965fb164b1","factor":{"numerator":1,"denominator":1}},
+        {"attacker_type_id":"cd84fa1b2771402f9b8867965fb164b1","defender_type_id":"04d6c4508dd642da9e414ce264302b5f","factor":{"numerator":1,"denominator":1}},
+        {"attacker_type_id":"04d6c4508dd642da9e414ce264302b5f","defender_type_id":"5dbc420575dd445aa89bab5d73df0ff0","factor":{"numerator":1,"denominator":1}},
+        {"attacker_type_id":"04d6c4508dd642da9e414ce264302b5f","defender_type_id":"cd84fa1b2771402f9b8867965fb164b1","factor":{"numerator":1,"denominator":1}},
+        {"attacker_type_id":"04d6c4508dd642da9e414ce264302b5f","defender_type_id":"04d6c4508dd642da9e414ce264302b5f","factor":{"numerator":2,"denominator":1}}
+      ],
+      "mapping": [
+        {"source_type_id":"6b4c13114c374eb6891469592b1743de","local_type_id":"5dbc420575dd445aa89bab5d73df0ff0"},
+        {"source_type_id":"2effa2714dbb46d3a00c9061bd6f659d","local_type_id":"cd84fa1b2771402f9b8867965fb164b1"},
+        {"source_type_id":"0b89bdbbf95b42f0b7e31c8b75667650","local_type_id":"04d6c4508dd642da9e414ce264302b5f"}
+      ]
+    },
+    {
+      "id": "894a9df1d3334550b0ed24e5840b7b4b",
+      "world_id": "5d2d9dba132840f3acbaa5ed1e2b0b49",
+      "fields": {"slug":"variantlab-chart","display_name":"VariantLab Chart","description":"Synthetic VariantLab chart with deliberate local differences and world-exclusive Mist. Missing pairs are Unknown, not implicitly neutral. No battle calculation."},
+      "source": {"chart_id":"90f11300e76a4eafba390307cf61c5fb","version":1},
+      "roster": [
+        {"type_id":"138ea1a2c29c409c9f0cb1aa3f08ef5f","version":1},
+        {"type_id":"95d664fbfc5c406e9838a5ad7a7034ba","version":1},
+        {"type_id":"61d7316a183048b283947e630bef2761","version":1},
+        {"type_id":"e864180dbafa4bcdb8bc8e2aa2ef8e79","version":1}
+      ],
+      "cells": [
+        {"attacker_type_id":"138ea1a2c29c409c9f0cb1aa3f08ef5f","defender_type_id":"138ea1a2c29c409c9f0cb1aa3f08ef5f","factor":{"numerator":1,"denominator":2}},
+        {"attacker_type_id":"138ea1a2c29c409c9f0cb1aa3f08ef5f","defender_type_id":"95d664fbfc5c406e9838a5ad7a7034ba","factor":{"numerator":1,"denominator":1}},
+        {"attacker_type_id":"138ea1a2c29c409c9f0cb1aa3f08ef5f","defender_type_id":"61d7316a183048b283947e630bef2761","factor":{"numerator":1,"denominator":1}},
+        {"attacker_type_id":"138ea1a2c29c409c9f0cb1aa3f08ef5f","defender_type_id":"e864180dbafa4bcdb8bc8e2aa2ef8e79","factor":{"numerator":2,"denominator":1}},
+        {"attacker_type_id":"95d664fbfc5c406e9838a5ad7a7034ba","defender_type_id":"138ea1a2c29c409c9f0cb1aa3f08ef5f","factor":{"numerator":1,"denominator":1}},
+        {"attacker_type_id":"95d664fbfc5c406e9838a5ad7a7034ba","defender_type_id":"95d664fbfc5c406e9838a5ad7a7034ba","factor":{"numerator":1,"denominator":1}},
+        {"attacker_type_id":"95d664fbfc5c406e9838a5ad7a7034ba","defender_type_id":"61d7316a183048b283947e630bef2761","factor":{"numerator":1,"denominator":1}},
+        {"attacker_type_id":"61d7316a183048b283947e630bef2761","defender_type_id":"138ea1a2c29c409c9f0cb1aa3f08ef5f","factor":{"numerator":2,"denominator":1}},
+        {"attacker_type_id":"61d7316a183048b283947e630bef2761","defender_type_id":"95d664fbfc5c406e9838a5ad7a7034ba","factor":{"numerator":1,"denominator":1}},
+        {"attacker_type_id":"61d7316a183048b283947e630bef2761","defender_type_id":"61d7316a183048b283947e630bef2761","factor":{"numerator":2,"denominator":1}},
+        {"attacker_type_id":"e864180dbafa4bcdb8bc8e2aa2ef8e79","defender_type_id":"138ea1a2c29c409c9f0cb1aa3f08ef5f","factor":{"numerator":0,"denominator":1}},
+        {"attacker_type_id":"e864180dbafa4bcdb8bc8e2aa2ef8e79","defender_type_id":"95d664fbfc5c406e9838a5ad7a7034ba","factor":{"numerator":1,"denominator":2}},
+        {"attacker_type_id":"e864180dbafa4bcdb8bc8e2aa2ef8e79","defender_type_id":"e864180dbafa4bcdb8bc8e2aa2ef8e79","factor":{"numerator":1,"denominator":1}}
+      ],
+      "mapping": [
+        {"source_type_id":"6b4c13114c374eb6891469592b1743de","local_type_id":"138ea1a2c29c409c9f0cb1aa3f08ef5f"},
+        {"source_type_id":"2effa2714dbb46d3a00c9061bd6f659d","local_type_id":"95d664fbfc5c406e9838a5ad7a7034ba"},
+        {"source_type_id":"0b89bdbbf95b42f0b7e31c8b75667650","local_type_id":"61d7316a183048b283947e630bef2761"}
+      ]
+    }
+  ]
+}

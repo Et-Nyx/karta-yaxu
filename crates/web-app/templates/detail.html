@@ -14,5 +14,5 @@
 <ul>{% for view in forms %}{% let form = view.form %}<li><a href="/creatures/{{ crate::web::addresses::segment(creature.fields.slug) }}/forms/{{ crate::web::addresses::segment(form.fields.slug) }}">{{ form.fields.display_name }}</a>{% if form.is_default %} (default){% endif %} · <code>{{ form.id }}</code> — version {{ form.revision }}, species version {{ form.species_version }}{% let typing = view.typing %}{% include "typing_summary.html" %}{% if can_edit_library %}<a href="/creatures/{{ crate::web::addresses::segment(creature.fields.slug) }}/forms/{{ crate::web::addresses::segment(form.fields.slug) }}/typing">Edit typing for {{ form.fields.display_name }}</a>{% endif %}</li>{% else %}<li>No forms available.</li>{% endfor %}</ul>
 <h2>World availability</h2>
 <ul>{% for world in worlds %}<li><a href="/worlds/{{ crate::web::addresses::segment(world.fields.slug) }}">{{ world.fields.display_name }}</a> · <code>{{ world.id }}</code></li>{% else %}<li>No world has adopted a form of this species yet.</li>{% endfor %}</ul>
-<p class="muted">Stats and engine mechanics have not been defined.</p>
+<p>Each shared form has its own <a href="/forms/{{ creature.default_form_id }}/stats">exact base stats</a>. Battle formulas and derived mechanics remain undefined.</p>
 {% endblock %}

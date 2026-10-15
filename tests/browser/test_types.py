@@ -62,13 +62,16 @@ class TypesWorkflows(AuthoringSupport):
         return {"type_id": type_id, "version": version}
 
     def saved_typing(self, kind, object_id):
-        # Inspect authoritative complete snapshots, never the v1 projections.
-        table, key = ("form_content_snapshots", "form_id") if kind == "form" else (
-            "variant_content_snapshots", "variant_id")
+        # New creature revisions have authoritative v3 stat snapshots. The v2
+        # typing sidecar remains a compatibility projection, not full history.
+        table, key = ("form_stat_snapshots", "form_id") if kind == "form" else (
+            "variant_stat_snapshots", "variant_id")
         rows = self.sql(f"SELECT after_json FROM {table} WHERE {key} = ? ORDER BY revision DESC LIMIT 1",
                         (object_id,))
         self.assertEqual(len(rows), 1)
-        return json.loads(rows[0][0])["content"]
+        snapshot = json.loads(rows[0][0])
+        self.assertEqual(snapshot["snapshot_version"], 3)
+        return snapshot["content"]
 
     def add_type(self, world, name, source=""):
         if self.page.url != self.origin + world:
@@ -436,7 +439,10 @@ class TypesWorkflows(AuthoringSupport):
                   "species_versions", "form_versions", "world_revisions", "variant_revisions",
                   "type_versions", "world_type_versions", "world_access_revisions", "world_collaborators",
                   "form_content_snapshots", "variant_content_snapshots", "world_content_snapshots",
-                  "form_type_bindings", "variant_type_bindings", "audit_events", "reference_provenance")
+                  "form_type_bindings", "variant_type_bindings", "audit_events", "reference_provenance",
+                  "stat_definitions", "stat_versions", "stat_rosters", "stat_roster_versions",
+                  "stat_roster_entries", "form_stat_snapshots", "variant_stat_snapshots",
+                  "form_stat_bindings", "variant_stat_bindings")
         return {table: self.sql(f"SELECT count(*) FROM {table}")[0][0] for table in tables}
 
     def test_complete_seed_bootstraps_admin_for_first_sign_in_and_keeps_owner_edits(self):
@@ -447,8 +453,8 @@ class TypesWorkflows(AuthoringSupport):
         self.assertEqual(self.sql("SELECT count(*) FROM sessions"), [(0,)])
         self.assertEqual(self.sql("SELECT DISTINCT owner_user_id FROM worlds"), [(owner,)])
         self.assertEqual(self.sql("SELECT count(*) FROM species"), [(4,)])
-        self.assertEqual(self.sql("SELECT count(*) FROM forms"), [(5,)])
-        self.assertEqual(self.sql("SELECT count(*) FROM variants"), [(5,)])
+        self.assertEqual(self.sql("SELECT count(*) FROM forms"), [(6,)])
+        self.assertEqual(self.sql("SELECT count(*) FROM variants"), [(7,)])
         counts = self.content_counts()
         self.admin("seed-fixtures")
         self.assertEqual(self.content_counts(), counts)

@@ -1367,7 +1367,7 @@ async fn scoped_variants_exact_dependency_pins_and_explicit_adoption() {
     );
     assert_eq!(
         serde_json::from_str::<serde_json::Value>(&h.after_json).unwrap()["snapshot_version"],
-        2
+        3
     );
 }
 
@@ -2262,7 +2262,7 @@ async fn every_revision_table_rejects_null_predecessor_and_rolls_back() {
         (
             "form_versions",
             "UPDATE forms SET revision = 2 WHERE id = ?",
-            "INSERT INTO form_versions(form_id, species_id, species_version, revision, slug, display_name, description, is_default, archived_at, audit_id, previous_revision, before_json, after_json,content_snapshot_version) SELECT form_id, species_id, species_version, 2, slug, display_name, description, is_default, archived_at, ?2, NULL, ?3, ?4,2 FROM form_versions WHERE form_id = ?1 AND revision = 1",
+            "INSERT INTO form_versions(form_id, species_id, species_version, revision, slug, display_name, description, is_default, archived_at, audit_id, previous_revision, before_json, after_json,content_snapshot_version,stat_snapshot_version) SELECT form_id, species_id, species_version, 2, slug, display_name, description, is_default, archived_at, ?2, NULL, ?3, ?4,2,3 FROM form_versions WHERE form_id = ?1 AND revision = 1",
             s.default_form_id.as_str(),
             form.after_json,
             "revision",
@@ -2278,7 +2278,7 @@ async fn every_revision_table_rejects_null_predecessor_and_rolls_back() {
         (
             "variant_revisions",
             "UPDATE variants SET revision = 2 WHERE id = ?",
-            "INSERT INTO variant_revisions(world_id, variant_id, revision, audit_id, previous_revision, before_json, after_json,content_snapshot_version) SELECT world_id, variant_id, 2, ?2, NULL, ?3, ?4,2 FROM variant_revisions WHERE variant_id = ?1 AND revision = 1",
+            "INSERT INTO variant_revisions(world_id, variant_id, revision, audit_id, previous_revision, before_json, after_json,content_snapshot_version,stat_snapshot_version) SELECT world_id, variant_id, 2, ?2, NULL, ?3, ?4,2,3 FROM variant_revisions WHERE variant_id = ?1 AND revision = 1",
             v.id.as_str(),
             variant.after_json,
             "revision",
@@ -2295,6 +2295,17 @@ async fn every_revision_table_rejects_null_predecessor_and_rolls_back() {
     let audit_count = l.count("audit_events").await;
     for (table, update, insert, id, before, revision_key) in cases {
         let count = l.count(table).await;
+        let seal_tables = [
+            "form_content_snapshots",
+            "form_stat_snapshots",
+            "world_content_snapshots",
+            "variant_content_snapshots",
+            "variant_stat_snapshots",
+        ];
+        let mut seal_counts = Vec::new();
+        for seal_table in seal_tables {
+            seal_counts.push(l.count(seal_table).await);
+        }
         let mut after: serde_json::Value = serde_json::from_str(&before).unwrap();
         after["content"][revision_key] = 2.into();
         let mut tx = persistence::begin_write(&l.pool).await.unwrap();
@@ -2317,6 +2328,25 @@ async fn every_revision_table_rejects_null_predecessor_and_rolls_back() {
             _ => None,
         };
         if let Some(sql) = sidecar {
+            // The retained v2 sidecar chains its own projection bytes, never v3.
+            sqlx::query(sql)
+                .bind(id)
+                .bind(typing_projection(&before))
+                .bind(typing_projection(&after.to_string()))
+                .execute(&mut *tx)
+                .await
+                .unwrap();
+        }
+        let stat_sidecar = match table {
+            "form_versions" => Some(
+                "INSERT INTO form_stat_snapshots(form_id,revision,stats_defined,before_json,after_json) VALUES (?1,2,0,?2,?3)",
+            ),
+            "variant_revisions" => Some(
+                "INSERT INTO variant_stat_snapshots(world_id,variant_id,revision,stats_defined,before_json,after_json) SELECT world_id,variant_id,2,0,?2,?3 FROM variant_revisions WHERE variant_id=?1 AND revision=1",
+            ),
+            _ => None,
+        };
+        if let Some(sql) = stat_sidecar {
             sqlx::query(sql)
                 .bind(id)
                 .bind(&before)
@@ -2325,18 +2355,11 @@ async fn every_revision_table_rejects_null_predecessor_and_rolls_back() {
                 .await
                 .unwrap();
         }
-        let projection = |s: &str| {
-            let mut v: serde_json::Value = serde_json::from_str(s).unwrap();
-            v["snapshot_version"] = 1.into();
-            v["content"].as_object_mut().unwrap().remove("typing");
-            v["content"].as_object_mut().unwrap().remove("type_ids");
-            v.to_string()
-        };
         let error = sqlx::query(insert)
             .bind(id)
             .bind("00000000000000000000000000000001")
-            .bind(projection(&before))
-            .bind(projection(&after.to_string()))
+            .bind(metadata_projection(&before))
+            .bind(metadata_projection(&after.to_string()))
             .execute(&mut *tx)
             .await
             .unwrap_err();
@@ -2348,6 +2371,9 @@ async fn every_revision_table_rejects_null_predecessor_and_rolls_back() {
         tx.rollback().await.unwrap();
         assert_eq!(l.count(table).await, count);
         assert_eq!(l.count("audit_events").await, audit_count);
+        for (seal_table, expected) in seal_tables.into_iter().zip(seal_counts) {
+            assert_eq!(l.count(seal_table).await, expected);
+        }
     }
     assert_eq!(l.service.species_detail(&s.id).await.unwrap(), s);
     assert_eq!(
@@ -2491,7 +2517,8 @@ async fn pin_versions_must_exist_on_the_selected_species_and_form() {
     let mut tx = persistence::begin_write(&l.pool).await.unwrap();
     sqlx::query("INSERT INTO audit_events(id, actor_user_id, action) VALUES ('00000000000000000000000000000001', ?, 'edit')").bind(&l.admin.actor.user_id).execute(&mut *tx).await.unwrap();
     sqlx::query("INSERT INTO form_content_snapshots(form_id,revision,typing_defined,before_json,after_json) SELECT form_id,2,0,after_json,json_set(after_json,'$.content.revision',2,'$.content.species_version',2) FROM form_content_snapshots WHERE form_id=? AND revision=1").bind(&s.default_form_id).execute(&mut *tx).await.unwrap();
-    let error = sqlx::query("INSERT INTO form_versions(form_id, species_id, species_version, revision, slug, display_name, description, is_default, archived_at, audit_id, previous_revision, before_json, after_json,content_snapshot_version) SELECT form_id, species_id, 2, 2, slug, display_name, description, is_default, archived_at, '00000000000000000000000000000001', 1, after_json, after_json,2 FROM form_versions WHERE form_id = ? AND revision = 1").bind(&s.default_form_id).execute(&mut *tx).await.unwrap_err();
+    sqlx::query("INSERT INTO form_stat_snapshots(form_id,revision,stats_defined,before_json,after_json) SELECT form_id,2,0,after_json,json_set(after_json,'$.content.revision',2,'$.content.species_version',2) FROM form_stat_snapshots WHERE form_id=? AND revision=1").bind(&s.default_form_id).execute(&mut *tx).await.unwrap();
+    let error = sqlx::query("INSERT INTO form_versions(form_id, species_id, species_version, revision, slug, display_name, description, is_default, archived_at, audit_id, previous_revision, before_json, after_json,content_snapshot_version,stat_snapshot_version) SELECT form_id, species_id, 2, 2, slug, display_name, description, is_default, archived_at, '00000000000000000000000000000001', 1, after_json, json_set(after_json,'$.content.revision',2,'$.content.species_version',2),2,3 FROM form_versions WHERE form_id = ? AND revision = 1").bind(&s.default_form_id).execute(&mut *tx).await.unwrap_err();
     assert_eq!(
         error.as_database_error().unwrap().code().as_deref(),
         Some("787")
@@ -2513,6 +2540,22 @@ fn assert_snapshot_continuity(history: &[web_app::application::authoring::Histor
 }
 fn snapshot_content(json: &str) -> serde_json::Value {
     serde_json::from_str::<serde_json::Value>(json).unwrap()["content"].clone()
+}
+// The projection contracts are distinct from authoritative public history.
+fn metadata_projection(json: &str) -> String {
+    let mut v: serde_json::Value = serde_json::from_str(json).unwrap();
+    v["snapshot_version"] = 1.into();
+    for key in ["typing", "type_ids", "stats"] {
+        v["content"].as_object_mut().unwrap().remove(key);
+    }
+    v.to_string()
+}
+fn typing_projection(json: &str) -> String {
+    let mut v: serde_json::Value = serde_json::from_str(json).unwrap();
+    assert!(v["snapshot_version"] == 2 || v["snapshot_version"] == 3);
+    v["snapshot_version"] = 2.into();
+    v["content"].as_object_mut().unwrap().remove("stats");
+    v.to_string()
 }
 
 #[tokio::test]
@@ -2717,9 +2760,9 @@ async fn replace_history_snapshot(
 ) {
     let (table, key) = match kind {
         Some(HistoryKind::Species) => ("species_versions", "species_id"),
-        Some(HistoryKind::Form) => ("form_content_snapshots", "form_id"),
+        Some(HistoryKind::Form) => ("form_stat_snapshots", "form_id"),
         Some(HistoryKind::World) => ("world_content_snapshots", "world_id"),
-        Some(HistoryKind::Variant) => ("variant_content_snapshots", "variant_id"),
+        Some(HistoryKind::Variant) => ("variant_stat_snapshots", "variant_id"),
         Some(HistoryKind::Type) => ("type_versions", "type_id"),
         Some(HistoryKind::WorldType) => ("world_type_versions", "type_id"),
         None => ("world_access_revisions", "world_id"),
@@ -2787,13 +2830,10 @@ async fn history_rejects_valid_envelopes_with_invalid_per_aggregate_content() {
         .unwrap();
     for sql in [
         "DROP TRIGGER species_versions_update",
-        "DROP TRIGGER form_versions_update",
-        "DROP TRIGGER world_revisions_update",
-        "DROP TRIGGER variant_revisions_update",
         "DROP TRIGGER access_revisions_update",
-        "DROP TRIGGER form_content_update",
         "DROP TRIGGER world_content_update",
-        "DROP TRIGGER variant_content_update",
+        "DROP TRIGGER form_stat_update",
+        "DROP TRIGGER variant_stat_update",
     ] {
         sqlx::query(sql).execute(&l.pool).await.unwrap();
     }
@@ -2900,10 +2940,11 @@ async fn history_rejects_valid_envelopes_with_invalid_per_aggregate_content() {
             }
         }
         for content in cases {
-            let version = if matches!(kind, HistoryKind::Species) {
-                1
-            } else {
-                2
+            let version = match kind {
+                HistoryKind::Species => 1,
+                HistoryKind::World => 2,
+                HistoryKind::Form | HistoryKind::Variant => 3,
+                _ => unreachable!(),
             };
             let bad = serde_json::json!({"snapshot_version":version,"content":content}).to_string();
             replace_history_snapshot(&l, Some(kind), id, 1, false, &bad).await;
@@ -2986,10 +3027,11 @@ async fn history_rejects_valid_envelopes_with_invalid_per_aggregate_content() {
         for content in
             common_invalid_snapshot_contents(&snapshot_content(&baseline), "id", "revision")
         {
-            let version = if matches!(kind, HistoryKind::Species) {
-                1
-            } else {
-                2
+            let version = match kind {
+                HistoryKind::Species => 1,
+                HistoryKind::World => 2,
+                HistoryKind::Form | HistoryKind::Variant => 3,
+                _ => unreachable!(),
             };
             let bad = serde_json::json!({"snapshot_version":version,"content":content}).to_string();
             replace_history_snapshot(&l, Some(kind), id, 2, true, &bad).await;
@@ -3022,4 +3064,279 @@ async fn history_rejects_valid_envelopes_with_invalid_per_aggregate_content() {
             Error::Unavailable
         );
     }
+}
+
+#[tokio::test]
+async fn creature_history_and_edits_require_both_projection_and_authoritative_seals() {
+    use web_app::application::{stat_values::StatValues, types::Types};
+    for (kind, table, trigger) in [
+        (
+            HistoryKind::Form,
+            "form_content_snapshots",
+            "form_content_delete",
+        ),
+        (HistoryKind::Form, "form_stat_snapshots", "form_stat_delete"),
+        (
+            HistoryKind::Variant,
+            "variant_content_snapshots",
+            "variant_content_delete",
+        ),
+        (
+            HistoryKind::Variant,
+            "variant_stat_snapshots",
+            "variant_stat_delete",
+        ),
+    ] {
+        let l = Lab::new().await;
+        let s = l
+            .service
+            .create_species(&l.admin.token, fields("source"), None)
+            .await
+            .unwrap();
+        let w = l
+            .service
+            .create_world(&l.owner.token, fields("world"), None)
+            .await
+            .unwrap();
+        let v = l
+            .service
+            .create_variant(&l.owner.token, &w.id, 1, None, fields("local"), None)
+            .await
+            .unwrap();
+        let (id, key) = if matches!(kind, HistoryKind::Form) {
+            (&s.default_form_id, "form_id")
+        } else {
+            (&v.id, "variant_id")
+        };
+        // Simulate external corruption only on this temporary database. Insert
+        // guards stay intact; readers must not fall back to another projection.
+        let mut c = l.pool.acquire().await.unwrap();
+        sqlx::query(sqlx::AssertSqlSafe(format!("DROP TRIGGER {trigger}")))
+            .execute(&mut *c)
+            .await
+            .unwrap();
+        sqlx::query("PRAGMA foreign_keys=OFF")
+            .execute(&mut *c)
+            .await
+            .unwrap();
+        let removed = sqlx::query(sqlx::AssertSqlSafe(format!(
+            "DELETE FROM {table} WHERE {key}=? AND revision=1"
+        )))
+        .bind(id)
+        .execute(&mut *c)
+        .await
+        .unwrap();
+        assert_eq!(removed.rows_affected(), 1);
+        sqlx::query("PRAGMA foreign_keys=ON")
+            .execute(&mut *c)
+            .await
+            .unwrap();
+        drop(c);
+        let audit_count = l.count("audit_events").await;
+        assert_eq!(
+            l.service.history_entry(kind, id, 1).await.unwrap_err(),
+            Error::Unavailable
+        );
+        assert_eq!(
+            l.service.history(kind, id, None).await.unwrap_err(),
+            Error::Unavailable
+        );
+        let types = Types::new(l.accounts.clone());
+        let values = StatValues::new(l.accounts.clone());
+        if matches!(kind, HistoryKind::Form) {
+            assert_eq!(
+                l.service.form_version(id, 1).await.unwrap_err(),
+                Error::Unavailable
+            );
+            assert_eq!(
+                types.form_typing(id, None).await.unwrap_err(),
+                Error::Unavailable
+            );
+            assert_eq!(values.form(id).await.unwrap_err(), Error::Unavailable);
+            assert_eq!(
+                l.service
+                    .save_form(&l.admin.token, id, 1, edit(1, "must-fail"))
+                    .await
+                    .unwrap_err(),
+                Error::Unavailable
+            );
+            assert_eq!(l.service.form_detail(id).await.unwrap().revision, 1);
+        } else {
+            assert_eq!(
+                types.variant_typing(&w.id, id, None).await.unwrap_err(),
+                Error::Unavailable
+            );
+            assert_eq!(
+                values.variant(&w.id, id).await.unwrap_err(),
+                Error::Unavailable
+            );
+            assert_eq!(
+                l.service
+                    .save_variant(&l.owner.token, &w.id, id, edit(1, "must-fail"))
+                    .await
+                    .unwrap_err(),
+                Error::Unavailable
+            );
+            assert_eq!(
+                l.service.variant_detail(&w.id, id).await.unwrap().revision,
+                1
+            );
+        }
+        assert_eq!(l.count("audit_events").await, audit_count);
+        assert_eq!(l.count("form_versions").await, 1);
+        assert_eq!(l.count("variant_revisions").await, 1);
+    }
+}
+
+#[tokio::test]
+async fn one_creatures_legacy_v1_v2_and_new_v3_chains_preserve_actual_predecessor_bytes() {
+    use web_app::application::{
+        authoring::{FormRecord, SpeciesRecord},
+        stat_values::StatValues,
+        types::Types,
+    };
+    async fn migrate_through(pool: &SqlitePool, through: i64) {
+        let scripts = [
+            (1, "auth", include_str!("../migrations/0001_auth.sql")),
+            (
+                2,
+                "world authoring",
+                include_str!("../migrations/0002_world_authoring.sql"),
+            ),
+            (3, "types", include_str!("../migrations/0003_types.sql")),
+            (4, "charts", include_str!("../migrations/0004_charts.sql")),
+        ];
+        let migrations = scripts
+            .into_iter()
+            .filter(|(n, _, _)| *n <= through)
+            .map(|(n, name, sql)| {
+                sqlx::migrate::Migration::new(
+                    n,
+                    name.into(),
+                    sqlx::migrate::MigrationType::Simple,
+                    sql.into_sql_str(),
+                    false,
+                )
+            })
+            .collect();
+        sqlx::migrate::Migrator {
+            migrations: std::borrow::Cow::Owned(migrations),
+            ..sqlx::migrate::Migrator::DEFAULT
+        }
+        .run(pool)
+        .await
+        .unwrap();
+    }
+    fn metadata(row: &impl serde::Serialize) -> String {
+        serde_json::to_string_pretty(&serde_json::json!({"snapshot_version":1,"content":row}))
+            .unwrap()
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let pool = persistence::connect_for_migration(&format!(
+        "sqlite://{}/legacy-chain.db",
+        dir.path().display()
+    ))
+    .await
+    .unwrap();
+    migrate_through(&pool, 2).await;
+    let s = SpeciesRecord {
+        id: "11111111111111111111111111111111".into(),
+        fields: fields("legacy"),
+        revision: 1,
+        default_form_id: "22222222222222222222222222222222".into(),
+        archived_at: None,
+    };
+    let mut f = FormRecord {
+        id: s.default_form_id.clone(),
+        species_id: s.id.clone(),
+        species_version: 1,
+        fields: s.fields.clone(),
+        revision: 1,
+        is_default: true,
+        archived_at: None,
+    };
+    let v1 = metadata(&f);
+    let mut tx = persistence::begin_write(&pool).await.unwrap();
+    for n in 1..=2 {
+        sqlx::query("INSERT INTO audit_events(id,system_key,action) VALUES (?,'bundled-fixture-loader','create')").bind(format!("aa{n:030x}")).execute(&mut *tx).await.unwrap();
+    }
+    sqlx::query("INSERT INTO species(id,slug,display_name,description,revision,default_form_id) VALUES (?,?,?,?,1,?)").bind(&s.id).bind(&s.fields.slug).bind(&s.fields.display_name).bind(&s.fields.description).bind(&f.id).execute(&mut *tx).await.unwrap();
+    sqlx::query("INSERT INTO species_versions(species_id,revision,slug,display_name,description,default_form_id,audit_id,after_json) VALUES (?,1,?,?,?,?,'aa000000000000000000000000000001',?)").bind(&s.id).bind(&s.fields.slug).bind(&s.fields.display_name).bind(&s.fields.description).bind(&f.id).bind(metadata(&s)).execute(&mut *tx).await.unwrap();
+    sqlx::query("INSERT INTO forms(id,species_id,species_version,slug,display_name,description,revision,is_default) VALUES (?,?,1,?,?,?,1,1)").bind(&f.id).bind(&s.id).bind(&f.fields.slug).bind(&f.fields.display_name).bind(&f.fields.description).execute(&mut *tx).await.unwrap();
+    sqlx::query("INSERT INTO form_versions(form_id,species_id,species_version,revision,slug,display_name,description,is_default,audit_id,after_json) VALUES (?,?,1,1,?,?,?,1,'aa000000000000000000000000000002',?)").bind(&f.id).bind(&s.id).bind(&f.fields.slug).bind(&f.fields.display_name).bind(&f.fields.description).bind(&v1).execute(&mut *tx).await.unwrap();
+    tx.commit().await.unwrap();
+
+    // Append a genuine v2 revision while only migrations 0001–0004 exist. All
+    // original insert guards and FKs are exercised; no legacy row is rewritten.
+    migrate_through(&pool, 4).await;
+    f.revision = 2;
+    f.fields.description = "Legacy v2 metadata.".into();
+    let v1_projection = metadata(&f);
+    let mut full = serde_json::json!({"snapshot_version":2,"content":f});
+    full["content"]["typing"] = serde_json::json!({"assignments":[]});
+    let v2 = serde_json::to_string_pretty(&full).unwrap();
+    let mut tx = persistence::begin_write(&pool).await.unwrap();
+    sqlx::query("UPDATE forms SET revision=2,description=? WHERE id=?")
+        .bind(&f.fields.description)
+        .bind(&f.id)
+        .execute(&mut *tx)
+        .await
+        .unwrap();
+    sqlx::query("INSERT INTO audit_events(id,system_key,action) VALUES ('aa000000000000000000000000000003','bundled-fixture-loader','edit')").execute(&mut *tx).await.unwrap();
+    sqlx::query("INSERT INTO form_content_snapshots(form_id,revision,typing_defined,before_json,after_json) VALUES (?,2,1,?,?)").bind(&f.id).bind(&v1).bind(&v2).execute(&mut *tx).await.unwrap();
+    sqlx::query("INSERT INTO form_versions(form_id,species_id,species_version,revision,slug,display_name,description,is_default,audit_id,previous_revision,before_json,after_json,content_snapshot_version) VALUES (?,?,1,2,?,?,?,1,'aa000000000000000000000000000003',1,?,?,2)").bind(&f.id).bind(&s.id).bind(&f.fields.slug).bind(&f.fields.display_name).bind(&f.fields.description).bind(&v1).bind(&v1_projection).execute(&mut *tx).await.unwrap();
+    tx.commit().await.unwrap();
+
+    persistence::migrate(&pool).await.unwrap();
+    let accounts = Accounts::new(pool.clone(), 3600).unwrap();
+    let admin = user(&accounts, "Admin", Role::Administrator).await;
+    let author = Authoring::new(accounts.clone());
+    let types = Types::new(accounts.clone());
+    let stats = StatValues::new(accounts);
+    assert_eq!(
+        author
+            .history_entry(HistoryKind::Form, &f.id, 1)
+            .await
+            .unwrap()
+            .after_json,
+        v1
+    );
+    let legacy = author
+        .history_entry(HistoryKind::Form, &f.id, 2)
+        .await
+        .unwrap();
+    assert_eq!(legacy.after_json, v2);
+    assert_eq!(legacy.before_json.as_deref(), Some(v1.as_str()));
+    assert_eq!(
+        types.form_typing(&f.id, None).await.unwrap().assignments,
+        Some(vec![])
+    );
+    assert_eq!(
+        stats.form(&f.id).await.unwrap(),
+        game_data::stats::BaseStats::unmodeled()
+    );
+    author
+        .save_form(&admin.token, &f.id, 1, edit(2, "first-v3"))
+        .await
+        .unwrap();
+    types
+        .save_form_typing(&admin.token, &f.id, 3, None, None)
+        .await
+        .unwrap();
+    let history = author
+        .history(HistoryKind::Form, &f.id, None)
+        .await
+        .unwrap();
+    assert_snapshot_continuity(&history);
+    assert_eq!(history.iter().map(|entry| serde_json::from_str::<serde_json::Value>(&entry.after_json).unwrap()["snapshot_version"].as_i64().unwrap()).collect::<Vec<_>>(), vec![3,3,2,1]);
+    assert_eq!(history[2].after_json, v2);
+    assert_eq!(history[3].after_json, v1);
+    assert_eq!(history[1].before_json.as_deref(), Some(v2.as_str()));
+    let projections: (String, String, String) = sqlx::query_as("SELECT r.before_json,t.before_json,s.before_json FROM form_versions r JOIN form_content_snapshots t USING(form_id,revision) JOIN form_stat_snapshots s USING(form_id,revision) WHERE r.form_id=? AND r.revision=3").bind(&f.id).fetch_one(&pool).await.unwrap();
+    assert_eq!(projections, (v1_projection, v2.clone(), v2));
+    let issues = sqlx::query("PRAGMA foreign_key_check")
+        .fetch_all(&pool)
+        .await
+        .unwrap();
+    assert!(issues.is_empty());
 }

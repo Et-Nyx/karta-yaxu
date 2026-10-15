@@ -24,6 +24,11 @@ pub struct TypeAdoptionPreview {
 }
 #[derive(Clone, Debug, Default)]
 pub struct FixtureReport {
+    pub shared_stats_created: usize,
+    pub world_stats_created: usize,
+    pub stat_rosters_created: usize,
+    pub shared_charts_created: usize,
+    pub world_charts_created: usize,
     pub types_created: usize,
     pub species_created: usize,
     pub forms_created: usize,

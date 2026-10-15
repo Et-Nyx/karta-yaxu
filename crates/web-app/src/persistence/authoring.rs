@@ -541,8 +541,25 @@ pub(crate) async fn put_form(
 pub(crate) async fn put_form_typed(
     c: &mut SqliteConnection,
     row: &FormRecord,
+    r: Revision<'_>,
+    typing: Option<&crate::application::types::TypingState>,
+) -> Result<(), Error> {
+    put_form_content(c, row, r, typing, None).await
+}
+pub(crate) async fn put_form_stats(
+    c: &mut SqliteConnection,
+    row: &FormRecord,
+    r: Revision<'_>,
+    stats: &game_data::stats::BaseStats,
+) -> Result<(), Error> {
+    put_form_content(c, row, r, None, Some(stats)).await
+}
+async fn put_form_content(
+    c: &mut SqliteConnection,
+    row: &FormRecord,
     mut r: Revision<'_>,
     typing: Option<&crate::application::types::TypingState>,
+    stats: Option<&game_data::stats::BaseStats>,
 ) -> Result<(), Error> {
     let seal = super::types::prepare_content(
         c,
@@ -552,6 +569,7 @@ pub(crate) async fn put_form_typed(
         row.revision,
         &r.after,
         typing,
+        stats,
     )
     .await?;
     r.before = seal.projection_before.clone();
@@ -575,7 +593,7 @@ pub(crate) async fn put_form_typed(
         .map_err(content_write_error)?;
     let audit_id = audit(c, &r).await?;
     super::types::seal_content(c, HistoryKind::Form, &row.id, None, row.revision, &seal).await?;
-    sqlx::query("INSERT INTO form_versions(form_id, species_id, species_version, slug, display_name, description, revision, is_default, archived_at, audit_id, previous_revision, before_json, after_json, content_snapshot_version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 2)")
+    sqlx::query("INSERT INTO form_versions(form_id, species_id, species_version, slug, display_name, description, revision, is_default, archived_at, audit_id, previous_revision, before_json, after_json, content_snapshot_version, stat_snapshot_version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 2, 3)")
         .bind(&row.id).bind(&row.species_id).bind(row.species_version).bind(&row.fields.slug).bind(&row.fields.display_name).bind(&row.fields.description).bind(row.revision).bind(row.is_default).bind(row.archived_at).bind(audit_id).bind(previous(row.revision)).bind(r.before).bind(r.after).execute(c).await.map_err(storage_error)?;
     Ok(())
 }
@@ -599,6 +617,7 @@ pub(crate) async fn seal_world_revision(
         None,
         row.revision,
         &r.after,
+        None,
         None,
     )
     .await?;
@@ -643,8 +662,25 @@ pub(crate) async fn put_variant(
 pub(crate) async fn put_variant_typed(
     c: &mut SqliteConnection,
     row: &VariantRecord,
+    r: Revision<'_>,
+    typing: Option<&crate::application::types::TypingState>,
+) -> Result<(), Error> {
+    put_variant_content(c, row, r, typing, None).await
+}
+pub(crate) async fn put_variant_stats(
+    c: &mut SqliteConnection,
+    row: &VariantRecord,
+    r: Revision<'_>,
+    stats: &game_data::stats::BaseStats,
+) -> Result<(), Error> {
+    put_variant_content(c, row, r, None, Some(stats)).await
+}
+async fn put_variant_content(
+    c: &mut SqliteConnection,
+    row: &VariantRecord,
     mut r: Revision<'_>,
     typing: Option<&crate::application::types::TypingState>,
+    stats: Option<&game_data::stats::BaseStats>,
 ) -> Result<(), Error> {
     let seal = super::types::prepare_content(
         c,
@@ -654,6 +690,7 @@ pub(crate) async fn put_variant_typed(
         row.revision,
         &r.after,
         typing,
+        stats,
     )
     .await?;
     r.before = seal.projection_before.clone();
@@ -685,7 +722,7 @@ pub(crate) async fn put_variant_typed(
         &seal,
     )
     .await?;
-    sqlx::query("INSERT INTO variant_revisions(world_id, variant_id, revision, previous_revision, audit_id, before_json, after_json, content_snapshot_version) VALUES (?, ?, ?, ?, ?, ?, ?, 2)")
+    sqlx::query("INSERT INTO variant_revisions(world_id, variant_id, revision, previous_revision, audit_id, before_json, after_json, content_snapshot_version, stat_snapshot_version) VALUES (?, ?, ?, ?, ?, ?, ?, 2, 3)")
         .bind(&row.world_id).bind(&row.id).bind(row.revision).bind(previous(row.revision)).bind(audit_id).bind(r.before).bind(r.after).execute(c).await.map_err(storage_error)?;
     Ok(())
 }

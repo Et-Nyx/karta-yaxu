@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} — Karta Yaxu{% endblock %}
+{% block content %}
+<a href="{{ cancel }}">← Return</a><h1>{{ title }}</h1>
+{% if !notice.is_empty() %}<p class="notice" role="status">{{ notice }}</p>{% endif %}
+{% if !error.is_empty() %}<div role="alert" class="notice"><h2>Nothing was saved</h2><p>{{ error }}</p><ul>{% for (name, text) in errors %}<li><a href="#{{ name }}">{{ name }}: {{ text }}</a></li>{% endfor %}</ul></div>{% endif %}
+<nav aria-label="Stat workflows"><ul>{% for link in links %}<li><a href="{{ link.url }}">{{ link.label }}</a></li>{% endfor %}</ul></nav>
+{% for panel in panels %}<section class="panel stat-comparison"><h2>{{ panel.label }}</h2><p class="plain-text stat-state">{{ panel.text }}</p></section>{% endfor %}
+{% if editable %}
+<p class="muted">Each submission edits only this displayed page (at most 25 assignments). Save the current page before navigating if you changed any values, pins, mappings or reason. Clean pages navigate without saving. Off-page values are preserved from the verified saved state; no visited-page drafts travel as hidden inputs. Blank numeric values mean Missing, not zero. Source mappings apply only to this page, and further pages can be applied at the same pinned source version. Submissions are limited to 32 KiB; there is no fixed stat count.</p>
+<form method="post" action="{{ action }}" class="stat-editor">
+<input type="hidden" name="csrf" value="{{ csrf }}">{% for (name, value) in hidden %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+<input type="hidden" name="page_baseline" value="{{ baseline }}">{% if ready %}<input type="hidden" name="review_fingerprint" value="{{ review_fingerprint }}">{% endif %}
+{% for c in controls %}<div class="field"><label for="{{ c.name }}">{{ c.label }}</label>
+{% if c.kind == "select" %}<select id="{{ c.name }}" name="{{ c.name }}" aria-describedby="{{ c.name }}-help {{ c.name }}-error"{% if !c.error.is_empty() %} aria-invalid="true"{% endif %}>{% for choice in c.choices %}<option value="{{ choice.value }}"{% if choice.value == c.value %} selected{% endif %}>{{ choice.label }}</option>{% endfor %}</select>
+{% else if c.kind == "textarea" %}<textarea id="{{ c.name }}" name="{{ c.name }}" rows="4" aria-describedby="{{ c.name }}-help {{ c.name }}-error"{% if !c.error.is_empty() %} aria-invalid="true"{% endif %}>{{ c.value }}</textarea>
+{% else if c.kind == "checkbox" %}<input type="checkbox" id="{{ c.name }}" name="{{ c.name }}" value="yes"{% if c.value == "yes" %} checked{% endif %} aria-describedby="{{ c.name }}-help {{ c.name }}-error">
+{% else %}<input type="text" id="{{ c.name }}" name="{{ c.name }}" value="{{ c.value }}" aria-describedby="{{ c.name }}-help {{ c.name }}-error"{% if !c.error.is_empty() %} aria-invalid="true"{% endif %}>{% endif %}
+<p id="{{ c.name }}-help" class="muted">{{ c.help }}</p><p id="{{ c.name }}-error" class="field-error">{{ c.error }}</p></div>{% endfor %}
+{% if preview %}<button name="intent" value="preview">Preview stat changes</button>{% if ready %}<label for="confirm"><input id="confirm" type="checkbox" name="confirm" value="yes"> I reviewed the exact pins, proposed values, removals and version changes.</label><button name="intent" value="save">Confirm stat changes</button>{% endif %}{% else %}<button name="intent" value="save">Save stat changes</button>{% endif %}
+{% if !reviewed.is_empty() %}<p class="notice">Review the current saved state above before resubmitting this retained draft. Both creature and current roster revisions will be checked again.</p><button name="reviewed_revision" value="{{ reviewed }}">{% if preview %}Preview reviewed changes{% else %}Save reviewed changes{% endif %}</button>{% endif %}
+{% if !previous_page.is_empty() %}<button name="intent" value="{{ previous_page }}">Previous draft page</button>{% endif %}{% if !next_page.is_empty() %}<button name="intent" value="{{ next_page }}">Next draft page</button>{% endif %}
+<button name="intent" value="discard">Discard this page draft and load latest</button>
+</form>{% endif %}
+{% endblock %}

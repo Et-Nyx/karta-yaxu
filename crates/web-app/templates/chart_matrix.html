@@ -1,0 +1,13 @@
+<div class="chart-summary">
+<h3>{{ matrix.entry.fields.display_name }} — revision {{ matrix.entry.revision }}</h3>
+<p class="plain-text">{{ matrix.entry.fields.description }}</p>
+{% if matrix.provisional %}<p>Creation preview — no chart has been saved. The canonical identity and available name-based address will be allocated when you confirm.</p>{% endif %}
+<dl>{% if !matrix.provisional %}<dt>Canonical chart ID</dt><dd><code>{{ matrix.entry.id }}</code></dd><dt>Slug</dt><dd>{{ matrix.entry.fields.slug }}</dd>{% endif %}<dt>Source</dt><dd>{% match matrix.entry.source %}{% when Some with (pin) %}<a href="/charts/{{ pin.chart_id }}/history/{{ pin.version }}">{{ pin.chart_id }} · version {{ pin.version }}</a>{% when None %}No shared source{% endmatch %}</dd></dl>
+<h4>Ordered exact roster</h4><ol>{% for member in matrix.members %}<li><a href="{{ member.url }}">{{ member.name }} · version {{ member.version }}</a> · <code>{{ member.id }}</code></li>{% else %}<li>Empty roster — no covered pairs.</li>{% endfor %}</ol>
+{% if !matrix.entry.mapping.is_empty() %}<h4>Explicit source → local mappings</h4><ul>{% for mapping in matrix.entry.mapping %}<li><code>{{ mapping.source_type_id }}</code> → <code>{{ mapping.local_type_id }}</code></li>{% endfor %}</ul>{% endif %}
+<p>Attacker → defender. Unknown = not authored; 1× = Neutral; 0× = No effect. Outside-roster Types are Not covered. Reverse and diagonal pairs are independent.</p>
+{% if !matrix.members.is_empty() %}
+<div class="chart-table" tabindex="0" role="region" aria-label="Directed effectiveness matrix; scroll for more columns"><table><caption>{{ matrix.entry.fields.display_name }} — attacking rows, defending columns</caption><thead><tr><th scope="col">Attacker ↓ / Defender →</th>{% for member in matrix.members %}<th scope="col">{{ member.name }}</th>{% endfor %}</tr></thead><tbody>{% for row in matrix.rows %}<tr><th scope="row">{{ row.name }}</th>{% for pair in row.pairs %}<td>{{ pair.text }}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div>
+<div class="chart-pairs">{% for row in matrix.rows %}<section class="chart-pair-row"><h4>Attacker: {{ row.name }}</h4><dl>{% for pair in row.pairs %}<dt>Against {{ pair.defender }}</dt><dd>{{ pair.text }}</dd>{% endfor %}</dl></section>{% endfor %}</div>
+{% endif %}
+</div>

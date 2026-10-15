@@ -1,0 +1,7 @@
+{% for control in controls %}
+<div class="field"><label for="chart-{{ control.name }}">{{ control.label }}</label>
+{% if control.kind == "select" %}<select id="chart-{{ control.name }}" name="{{ control.name }}" aria-describedby="chart-{{ control.name }}-help chart-{{ control.name }}-error" {% if !control.error.is_empty() %}aria-invalid="true"{% endif %}>{% for choice in control.choices %}<option value="{{ choice.value }}" {% if choice.value == control.value %}selected{% endif %}>{{ choice.label }}</option>{% endfor %}</select>
+{% else if control.kind == "textarea" %}<textarea id="chart-{{ control.name }}" name="{{ control.name }}" rows="4" aria-describedby="chart-{{ control.name }}-help chart-{{ control.name }}-error" {% if !control.error.is_empty() %}aria-invalid="true"{% endif %}>{{ control.value }}</textarea>
+{% else %}<input id="chart-{{ control.name }}" name="{{ control.name }}" value="{{ control.value }}" {% if control.kind == "numeric" %}inputmode="numeric"{% endif %} aria-describedby="chart-{{ control.name }}-help chart-{{ control.name }}-error" {% if !control.error.is_empty() %}aria-invalid="true"{% endif %}>{% endif %}
+<p id="chart-{{ control.name }}-help" class="muted">{{ control.help }}</p><p id="chart-{{ control.name }}-error" class="field-error">{{ control.error }}</p></div>
+{% endfor %}
