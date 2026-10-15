@@ -1,0 +1,4 @@
+{
+  "source": {"endpoint_kind":"type","external_id":10,"source_url":"https://pokeapi.co/api/v2/type/10/","retrieved_at":"2026-10-15T02:11:12Z","transformation_version":1},
+  "projection": {"id":10,"name":"fire","english_name":"Fire"}
+}

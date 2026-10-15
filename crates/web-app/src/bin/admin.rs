@@ -5,7 +5,10 @@ use game_data::{BUNDLED_FIXTURES, Catalog};
 use std::{collections::BTreeMap, process::ExitCode};
 use web_app::{
     accounts::Accounts,
-    application::authoring::Authoring,
+    application::{
+        authoring::{Authoring, Error},
+        types::{FixtureReport, Types},
+    },
     auth::{Role, placeholder},
     config::Config,
     persistence,
@@ -17,6 +20,9 @@ Usage: admin <command> [options]
 Commands:
   migrate                 Create the database and apply pending migrations.
   seed-fixtures           Initialize bundled species/default forms; never overwrite edits.
+  seed-reference-fixtures  Initialize the cached Type/Charizard reference subset.
+  seed-world-fixtures --owner-user-id <id>
+                          Initialize two synthetic worlds owned by an existing account.
   invite-user             Pre-authorize an identity for first sign-in.
       --subject <name>      Required. Placeholder username, or provider subject.
       --role <role>         viewer | editor | administrator (default: viewer).
@@ -32,6 +38,10 @@ enum Command {
     Help,
     Migrate,
     SeedFixtures,
+    SeedReferenceFixtures,
+    SeedWorldFixtures {
+        owner_user_id: String,
+    },
     Invite {
         provider: String,
         subject: String,
@@ -88,6 +98,20 @@ async fn run() -> Result<(), String> {
                 "Initialized {} species and {} default forms; skipped {} existing species.",
                 report.species_created, report.forms_created, report.species_skipped
             );
+        }
+        Command::SeedReferenceFixtures => {
+            let report = Types::new(accounts.clone())
+                .seed_reference_fixtures()
+                .await
+                .map_err(authoring_error)?;
+            print_fixture_report(report);
+        }
+        Command::SeedWorldFixtures { owner_user_id } => {
+            let report = Types::new(accounts.clone())
+                .seed_world_fixtures(&owner_user_id)
+                .await
+                .map_err(authoring_error)?;
+            print_fixture_report(report);
         }
         Command::Invite {
             provider,
@@ -153,7 +177,10 @@ fn parse(args: &[String]) -> Result<Command, String> {
         return Ok(Command::Help);
     }
     let allowed: &[&str] = match name.as_str() {
-        "migrate" | "seed-fixtures" | "list-users" | "list-invites" => &[],
+        "migrate" | "seed-fixtures" | "seed-reference-fixtures" | "list-users" | "list-invites" => {
+            &[]
+        }
+        "seed-world-fixtures" => &["--owner-user-id"],
         "invite-user" => &["--subject", "--role", "--provider", "--note"],
         "disable-user" | "enable-user" => &["--id"],
         _ => return Err(format!("Unknown command.\n{USAGE}")),
@@ -182,17 +209,19 @@ fn parse(args: &[String]) -> Result<Command, String> {
     match name.as_str() {
         "migrate" => Ok(Command::Migrate),
         "seed-fixtures" => Ok(Command::SeedFixtures),
+        "seed-reference-fixtures" => Ok(Command::SeedReferenceFixtures),
+        "seed-world-fixtures" => {
+            let id = options
+                .remove("--owner-user-id")
+                .ok_or("Missing --owner-user-id")?;
+            validate_id(&id)?;
+            Ok(Command::SeedWorldFixtures { owner_user_id: id })
+        }
         "list-users" => Ok(Command::ListUsers),
         "list-invites" => Ok(Command::ListInvites),
         "disable-user" | "enable-user" => {
             let id = options.remove("--id").ok_or("Missing --id")?;
-            if id.len() != 32
-                || !id
-                    .bytes()
-                    .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
-            {
-                return Err("Use the 32-character immutable user id from list-users.".to_owned());
-            }
+            validate_id(&id)?;
             Ok(Command::SetDisabled {
                 id,
                 disabled: name == "disable-user",
@@ -244,4 +273,39 @@ fn parse(args: &[String]) -> Result<Command, String> {
         }
         _ => unreachable!(),
     }
+}
+
+fn validate_id(id: &str) -> Result<(), String> {
+    if id.len() != 32
+        || !id
+            .bytes()
+            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+    {
+        return Err("Use the 32-character immutable user id from list-users.".to_owned());
+    }
+    Ok(())
+}
+
+fn authoring_error(error: Error) -> String {
+    match error {
+        Error::Invalid(errors) => errors
+            .into_iter()
+            .map(|(field, message)| format!("{field}: {message}"))
+            .collect::<Vec<_>>()
+            .join("\n"),
+        error => error.to_string(),
+    }
+}
+
+fn print_fixture_report(report: FixtureReport) {
+    println!(
+        "Initialized {} shared Types, {} species, {} forms, {} worlds, {} world Types, {} variants; skipped {} matching objects.",
+        report.types_created,
+        report.species_created,
+        report.forms_created,
+        report.worlds_created,
+        report.world_types_created,
+        report.variants_created,
+        report.skipped
+    );
 }

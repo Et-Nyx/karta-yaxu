@@ -76,6 +76,8 @@ enum Object<'a> {
     LegacyForm(&'a str),
     World(&'a str),
     Variant(&'a str, &'a str),
+    Type(&'a str),
+    WorldType(&'a str, &'a str),
 }
 
 struct Address<'a> {
@@ -85,18 +87,29 @@ struct Address<'a> {
 
 fn classify<'a>(parts: &'a [&'a str]) -> Option<Address<'a>> {
     let (object, suffix) = match parts {
-        ["creatures", "new"] | ["worlds", "new"] => return None,
+        ["creatures", "new"] | ["worlds", "new"] | ["types", "new"] => return None,
+        ["types", value, suffix @ ..] if content_suffix(suffix) => (Object::Type(value), suffix),
         ["creatures", species, "forms", "new"] => (Object::Species(species), &parts[2..]),
-        ["creatures", species, "forms", form, suffix @ ..] if content_suffix(suffix) => {
+        ["creatures", species, "forms", form, suffix @ ..]
+            if content_suffix(suffix) || matches!(suffix, ["typing"]) =>
+        {
             (Object::Form(species, form), suffix)
         }
         ["creatures", species, suffix @ ..] if content_suffix(suffix) => {
             (Object::Species(species), suffix)
         }
-        ["forms", id, suffix @ ..] if content_suffix(suffix) => (Object::LegacyForm(id), suffix),
+        ["forms", id, suffix @ ..] if content_suffix(suffix) || matches!(suffix, ["typing"]) => {
+            (Object::LegacyForm(id), suffix)
+        }
+        ["worlds", world, "types", "new"] => (Object::World(world), &parts[2..]),
+        ["worlds", world, "types", value, suffix @ ..]
+            if content_suffix(suffix) || matches!(suffix, ["adopt"]) =>
+        {
+            (Object::WorldType(world, value), suffix)
+        }
         ["worlds", world, "variants", "new"] => (Object::World(world), &parts[2..]),
         ["worlds", world, "variants", variant, suffix @ ..]
-            if content_suffix(suffix) || matches!(suffix, ["adopt"]) =>
+            if content_suffix(suffix) || matches!(suffix, ["adopt"] | ["typing"]) =>
         {
             (Object::Variant(world, variant), suffix)
         }
@@ -112,6 +125,27 @@ fn classify<'a>(parts: &'a [&'a str]) -> Option<Address<'a>> {
 
 async fn resolve(state: &AppState, address: Address<'_>) -> Result<(String, String), Error> {
     let (pretty, inner) = match address.object {
+        Object::Type(value) => {
+            let row = state.types.resolve_type(key(value)?).await?;
+            (
+                format!("/types/{}", segment(&row.fields.slug)),
+                format!("/types/{}", row.id),
+            )
+        }
+        Object::WorldType(parent, value) => {
+            let (parent, row) = state
+                .types
+                .resolve_world_type(key(parent)?, key(value)?)
+                .await?;
+            (
+                format!(
+                    "/worlds/{}/types/{}",
+                    segment(&parent.fields.slug),
+                    segment(&row.fields.slug)
+                ),
+                format!("/worlds/{}/types/{}", parent.id, row.id),
+            )
+        }
         Object::Species(value) => {
             let row = state.authoring.resolve_species(key(value)?).await?;
             (
@@ -183,7 +217,7 @@ async fn translate(state: &AppState, request: &mut Request) -> Result<Option<Res
     let Some(root) = raw.first().and_then(|s| decode(s).ok()) else {
         return Ok(None);
     };
-    if !matches!(root.as_str(), "creatures" | "forms" | "worlds") {
+    if !matches!(root.as_str(), "creatures" | "forms" | "worlds" | "types") {
         return Ok(None);
     }
     // Unknown shapes/suffixes retain the inner router's behavior.
@@ -201,7 +235,10 @@ async fn translate(state: &AppState, request: &mut Request) -> Result<Option<Res
         }
     };
     let parts: Vec<_> = decoded.iter().map(String::as_str).collect();
-    if matches!(parts.as_slice(), ["creatures", "new"] | ["worlds", "new"]) {
+    if matches!(
+        parts.as_slice(),
+        ["creatures", "new"] | ["worlds", "new"] | ["types", "new"]
+    ) {
         let pretty = format!("/{}", parts.join("/"));
         if path != pretty {
             let query = request
@@ -251,7 +288,7 @@ pub(super) async fn adapt(
     let mut response = match translate(&state, &mut request).await {
         Ok(Some(response)) => response,
         Ok(None) => next.run(request).await,
-        Err(error) => authoring::read_error(error),
+        Err(error) => authoring::no_store(authoring::read_error(error)),
     };
     // Outer errors bypass Axum's GET method router, which normally strips HEAD bodies.
     if head {

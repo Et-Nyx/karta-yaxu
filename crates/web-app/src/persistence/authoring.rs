@@ -20,7 +20,7 @@ pub(crate) fn storage_error(error: sqlx::Error) -> Error {
     }
     Error::Unavailable
 }
-fn content_write_error(error: sqlx::Error) -> Error {
+pub(crate) fn content_write_error(error: sqlx::Error) -> Error {
     if error
         .as_database_error()
         .is_some_and(|e| e.is_unique_violation())
@@ -33,13 +33,13 @@ fn content_write_error(error: sqlx::Error) -> Error {
         storage_error(error)
     }
 }
-fn valid_id(id: &str) -> bool {
+pub(crate) fn valid_id(id: &str) -> bool {
     id.len() == 32
         && id
             .bytes()
             .all(|c| c.is_ascii_digit() || (b'a'..=b'f').contains(&c))
 }
-fn id(row: &SqliteRow, key: &str) -> Result<String, Error> {
+pub(crate) fn id(row: &SqliteRow, key: &str) -> Result<String, Error> {
     let id: String = row.try_get(key).map_err(storage_error)?;
     if valid_id(&id) {
         Ok(id)
@@ -47,7 +47,7 @@ fn id(row: &SqliteRow, key: &str) -> Result<String, Error> {
         Err(Error::Unavailable)
     }
 }
-fn revision(row: &SqliteRow, key: &str) -> Result<i64, Error> {
+pub(crate) fn revision(row: &SqliteRow, key: &str) -> Result<i64, Error> {
     let value = row.try_get(key).map_err(storage_error)?;
     if value > 0 {
         Ok(value)
@@ -55,7 +55,7 @@ fn revision(row: &SqliteRow, key: &str) -> Result<i64, Error> {
         Err(Error::Unavailable)
     }
 }
-fn fields(row: &SqliteRow) -> Result<ContentFields, Error> {
+pub(crate) fn fields(row: &SqliteRow) -> Result<ContentFields, Error> {
     let fields = ContentFields {
         slug: row.try_get("slug").map_err(storage_error)?,
         display_name: row.try_get("display_name").map_err(storage_error)?,
@@ -138,6 +138,8 @@ pub(crate) enum SlugScope<'a> {
     World,
     Form(&'a str),
     Variant(&'a str),
+    Type,
+    WorldType(&'a str),
 }
 
 pub(crate) async fn slug_exists(
@@ -147,6 +149,14 @@ pub(crate) async fn slug_exists(
     excluded_id: Option<&str>,
 ) -> Result<bool, Error> {
     let (sql, parent) = match scope {
+        SlugScope::Type => (
+            "SELECT EXISTS(SELECT 1 FROM types WHERE slug = ?1 AND id <> ?2)",
+            None,
+        ),
+        SlugScope::WorldType(id) => (
+            "SELECT EXISTS(SELECT 1 FROM world_types WHERE slug = ?1 AND id <> ?2 AND world_id = ?3)",
+            Some(id),
+        ),
         SlugScope::Species => (
             "SELECT EXISTS(SELECT 1 FROM species WHERE slug = ?1 AND id <> ?2)",
             None,
@@ -323,6 +333,15 @@ pub(crate) async fn form_version(
     key: &str,
     version: i64,
 ) -> Result<FormRecord, Error> {
+    let row = form_version_projection(c, key, version).await?;
+    super::types::full_content(c, HistoryKind::Form, key, None, version).await?;
+    Ok(row)
+}
+pub(crate) async fn form_version_projection(
+    c: &mut SqliteConnection,
+    key: &str,
+    version: i64,
+) -> Result<FormRecord, Error> {
     form_row(sqlx::query("SELECT form_id AS id, species_id, species_version, slug, display_name, description, revision, is_default, archived_at FROM form_versions WHERE form_id = ? AND revision = ?").bind(key).bind(version).fetch_optional(c).await.map_err(storage_error)?.ok_or(Error::NotFound)?)
 }
 pub(crate) async fn worlds(c: &mut SqliteConnection) -> Result<Vec<WorldRecord>, Error> {
@@ -450,11 +469,11 @@ pub(crate) async fn set_collaborator(
 
 /// Audit and snapshot values supplied by the use case; actor None is operator seeding only.
 pub(crate) struct Revision<'a> {
-    actor: Option<&'a str>,
-    action: &'a str,
-    reason: Option<&'a str>,
-    before: Option<String>,
-    after: String,
+    pub(crate) actor: Option<&'a str>,
+    pub(crate) action: &'a str,
+    pub(crate) reason: Option<&'a str>,
+    pub(crate) before: Option<String>,
+    pub(crate) after: String,
 }
 impl<'a> Revision<'a> {
     pub(crate) fn new(
@@ -473,13 +492,13 @@ impl<'a> Revision<'a> {
         }
     }
 }
-async fn audit(c: &mut SqliteConnection, r: &Revision<'_>) -> Result<String, Error> {
+pub(crate) async fn audit(c: &mut SqliteConnection, r: &Revision<'_>) -> Result<String, Error> {
     let id = app::new_id()?;
     sqlx::query("INSERT INTO audit_events(id, actor_user_id, system_key, action, reason) VALUES (?, ?, ?, ?, ?)")
         .bind(&id).bind(r.actor).bind(if r.actor.is_none() { Some("bundled-fixture-loader") } else { None }).bind(r.action).bind(r.reason).execute(c).await.map_err(storage_error)?;
     Ok(id)
 }
-fn previous(revision: i64) -> Option<i64> {
+pub(crate) fn previous(revision: i64) -> Option<i64> {
     if revision == 1 {
         None
     } else {
@@ -517,6 +536,25 @@ pub(crate) async fn put_form(
     row: &FormRecord,
     r: Revision<'_>,
 ) -> Result<(), Error> {
+    put_form_typed(c, row, r, None).await
+}
+pub(crate) async fn put_form_typed(
+    c: &mut SqliteConnection,
+    row: &FormRecord,
+    mut r: Revision<'_>,
+    typing: Option<&crate::application::types::TypingState>,
+) -> Result<(), Error> {
+    let seal = super::types::prepare_content(
+        c,
+        HistoryKind::Form,
+        &row.id,
+        None,
+        row.revision,
+        &r.after,
+        typing,
+    )
+    .await?;
+    r.before = seal.projection_before.clone();
     let sql = if row.revision == 1 {
         "INSERT INTO forms(id, species_id, species_version, slug, display_name, description, revision, is_default, archived_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)"
     } else {
@@ -536,7 +574,8 @@ pub(crate) async fn put_form(
         .await
         .map_err(content_write_error)?;
     let audit_id = audit(c, &r).await?;
-    sqlx::query("INSERT INTO form_versions(form_id, species_id, species_version, slug, display_name, description, revision, is_default, archived_at, audit_id, previous_revision, before_json, after_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+    super::types::seal_content(c, HistoryKind::Form, &row.id, None, row.revision, &seal).await?;
+    sqlx::query("INSERT INTO form_versions(form_id, species_id, species_version, slug, display_name, description, revision, is_default, archived_at, audit_id, previous_revision, before_json, after_json, content_snapshot_version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 2)")
         .bind(&row.id).bind(&row.species_id).bind(row.species_version).bind(&row.fields.slug).bind(&row.fields.display_name).bind(&row.fields.description).bind(row.revision).bind(row.is_default).bind(row.archived_at).bind(audit_id).bind(previous(row.revision)).bind(r.before).bind(r.after).execute(c).await.map_err(storage_error)?;
     Ok(())
 }
@@ -544,6 +583,36 @@ pub(crate) async fn put_world(
     c: &mut SqliteConnection,
     row: &WorldRecord,
     r: Revision<'_>,
+) -> Result<(), Error> {
+    put_world_head(c, row).await?;
+    seal_world_revision(c, row, r).await
+}
+pub(crate) async fn seal_world_revision(
+    c: &mut SqliteConnection,
+    row: &WorldRecord,
+    mut r: Revision<'_>,
+) -> Result<(), Error> {
+    let seal = super::types::prepare_content(
+        c,
+        HistoryKind::World,
+        &row.id,
+        None,
+        row.revision,
+        &r.after,
+        None,
+    )
+    .await?;
+    r.before = seal.projection_before.clone();
+    let audit_id = audit(c, &r).await?;
+    super::types::seal_content(c, HistoryKind::World, &row.id, None, row.revision, &seal).await?;
+    sqlx::query("INSERT INTO world_revisions(world_id, revision, previous_revision, audit_id, before_json, after_json, content_snapshot_version) VALUES (?, ?, ?, ?, ?, ?, 2)")
+        .bind(&row.id).bind(row.revision).bind(previous(row.revision)).bind(audit_id).bind(r.before).bind(r.after).execute(c).await.map_err(storage_error)?;
+    Ok(())
+}
+/// Stage a head with deferred revision/access FKs; fixtures seal only after all children.
+pub(crate) async fn put_world_head(
+    c: &mut SqliteConnection,
+    row: &WorldRecord,
 ) -> Result<(), Error> {
     let sql = if row.revision == 1 {
         "INSERT INTO worlds(id, owner_user_id, slug, display_name, description, revision, access_revision, archived_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)"
@@ -562,9 +631,6 @@ pub(crate) async fn put_world(
         .execute(&mut *c)
         .await
         .map_err(content_write_error)?;
-    let audit_id = audit(c, &r).await?;
-    sqlx::query("INSERT INTO world_revisions(world_id, revision, previous_revision, audit_id, before_json, after_json) VALUES (?, ?, ?, ?, ?, ?)")
-        .bind(&row.id).bind(row.revision).bind(previous(row.revision)).bind(audit_id).bind(r.before).bind(r.after).execute(c).await.map_err(storage_error)?;
     Ok(())
 }
 pub(crate) async fn put_variant(
@@ -572,6 +638,25 @@ pub(crate) async fn put_variant(
     row: &VariantRecord,
     r: Revision<'_>,
 ) -> Result<(), Error> {
+    put_variant_typed(c, row, r, None).await
+}
+pub(crate) async fn put_variant_typed(
+    c: &mut SqliteConnection,
+    row: &VariantRecord,
+    mut r: Revision<'_>,
+    typing: Option<&crate::application::types::TypingState>,
+) -> Result<(), Error> {
+    let seal = super::types::prepare_content(
+        c,
+        HistoryKind::Variant,
+        &row.id,
+        Some(&row.world_id),
+        row.revision,
+        &r.after,
+        typing,
+    )
+    .await?;
+    r.before = seal.projection_before.clone();
     let sql = if row.revision == 1 {
         "INSERT INTO variants(id, world_id, source_form_id, source_form_version, slug, display_name, description, revision, archived_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)"
     } else {
@@ -591,7 +676,16 @@ pub(crate) async fn put_variant(
         .await
         .map_err(content_write_error)?;
     let audit_id = audit(c, &r).await?;
-    sqlx::query("INSERT INTO variant_revisions(world_id, variant_id, revision, previous_revision, audit_id, before_json, after_json) VALUES (?, ?, ?, ?, ?, ?, ?)")
+    super::types::seal_content(
+        c,
+        HistoryKind::Variant,
+        &row.id,
+        Some(&row.world_id),
+        row.revision,
+        &seal,
+    )
+    .await?;
+    sqlx::query("INSERT INTO variant_revisions(world_id, variant_id, revision, previous_revision, audit_id, before_json, after_json, content_snapshot_version) VALUES (?, ?, ?, ?, ?, ?, ?, 2)")
         .bind(&row.world_id).bind(&row.id).bind(row.revision).bind(previous(row.revision)).bind(audit_id).bind(r.before).bind(r.after).execute(c).await.map_err(storage_error)?;
     Ok(())
 }
@@ -632,6 +726,8 @@ pub(crate) async fn history(
         HistoryKind::Form => ("form_versions", "form_id", "r.species_id"),
         HistoryKind::World => ("world_revisions", "world_id", "NULL"),
         HistoryKind::Variant => ("variant_revisions", "variant_id", "r.world_id"),
+        HistoryKind::Type => ("type_versions", "type_id", "NULL"),
+        HistoryKind::WorldType => ("world_type_versions", "type_id", "r.world_id"),
     };
     let sql = format!(
         "SELECT r.revision, r.previous_revision, COALESCE(u.display_name, a.system_key) AS actor_name, a.action, a.occurred_at, a.reason, r.before_json, r.after_json, {scope} AS scope_id FROM {table} r JOIN audit_events a ON a.id = r.audit_id LEFT JOIN users u ON u.id = a.actor_user_id WHERE r.{column} = ?1 AND (?2 IS NULL OR r.revision < ?2) AND (?3 IS NULL OR r.revision = ?3) ORDER BY r.revision DESC LIMIT 50"
@@ -640,16 +736,59 @@ pub(crate) async fn history(
         .bind(key)
         .bind(before)
         .bind(exact)
-        .fetch_all(c)
+        .fetch_all(&mut *c)
         .await
         .map_err(storage_error)?;
-    validate_history(rows, SnapshotKind::Public(kind), key)
+    let mut entries = validate_history(rows, SnapshotKind::Public(kind), key)?;
+    if matches!(
+        kind,
+        HistoryKind::Form | HistoryKind::Variant | HistoryKind::World
+    ) {
+        for entry in &mut entries {
+            let full = super::types::full_content(c, kind, key, None, entry.revision).await?;
+            entry.before_json = full.before;
+            entry.after_json = full.after;
+        }
+    }
+    if matches!(kind, HistoryKind::Type | HistoryKind::WorldType) {
+        for entry in &entries {
+            let after = if matches!(kind, HistoryKind::Type) {
+                super::types::type_after(c, key, entry.revision).await?
+            } else {
+                let value: serde_json::Value =
+                    serde_json::from_str(&entry.after_json).map_err(|_| Error::Unavailable)?;
+                let world = value["content"]["world_id"]
+                    .as_str()
+                    .ok_or(Error::Unavailable)?;
+                super::types::world_type_after(c, world, key, entry.revision).await?
+            };
+            if after != entry.after_json {
+                return Err(Error::Unavailable);
+            }
+            if let Some(previous) = entry.previous_revision {
+                let previous_after = if matches!(kind, HistoryKind::Type) {
+                    super::types::type_after(c, key, previous).await?
+                } else {
+                    let value: serde_json::Value =
+                        serde_json::from_str(&entry.after_json).map_err(|_| Error::Unavailable)?;
+                    let world = value["content"]["world_id"]
+                        .as_str()
+                        .ok_or(Error::Unavailable)?;
+                    super::types::world_type_after(c, world, key, previous).await?
+                };
+                if entry.before_json.as_deref() != Some(previous_after.as_str()) {
+                    return Err(Error::Unavailable);
+                }
+            }
+        }
+    }
+    Ok(entries)
 }
 pub(crate) async fn access_history(
     c: &mut SqliteConnection,
     key: &str,
 ) -> Result<Vec<HistoryEntry>, Error> {
-    let rows = sqlx::query("SELECT r.revision, r.previous_revision, u.display_name AS actor_name, a.action, a.occurred_at, a.reason, r.before_json, r.after_json, NULL AS scope_id FROM world_access_revisions r JOIN audit_events a ON a.id = r.audit_id JOIN users u ON u.id = a.actor_user_id WHERE r.world_id = ? ORDER BY r.revision DESC LIMIT 50").bind(key).fetch_all(c).await.map_err(storage_error)?;
+    let rows = sqlx::query("SELECT r.revision, r.previous_revision, COALESCE(u.display_name, a.system_key) AS actor_name, a.action, a.occurred_at, a.reason, r.before_json, r.after_json, NULL AS scope_id FROM world_access_revisions r JOIN audit_events a ON a.id = r.audit_id LEFT JOIN users u ON u.id = a.actor_user_id WHERE r.world_id = ? ORDER BY r.revision DESC LIMIT 50").bind(key).fetch_all(c).await.map_err(storage_error)?;
     validate_history(rows, SnapshotKind::Access, key)
 }
 fn validate_history(
@@ -684,7 +823,7 @@ fn validate_history(
 // These private v1 schemas describe stored history, independently of mutable DTOs.
 // Unknown fields are rejected, particularly access data in public world content.
 #[derive(Clone, Copy)]
-enum SnapshotKind {
+pub(crate) enum SnapshotKind {
     Public(HistoryKind),
     Access,
 }
@@ -781,7 +920,7 @@ fn snapshot_identity(id: &str, key: &str, revision: i64, expected: i64) -> bool 
 fn ordered_ids(ids: &[String]) -> bool {
     ids.iter().all(|id| valid_id(id)) && ids.windows(2).all(|pair| pair[0] < pair[1])
 }
-fn validate_snapshot(
+pub(crate) fn validate_snapshot(
     json: &str,
     kind: SnapshotKind,
     key: &str,
@@ -789,6 +928,19 @@ fn validate_snapshot(
     revision: i64,
 ) -> Result<(), Error> {
     let valid = match kind {
+        SnapshotKind::Public(HistoryKind::Type | HistoryKind::WorldType) => {
+            super::types::validate_type_snapshot(
+                json,
+                match kind {
+                    SnapshotKind::Public(k) => k,
+                    _ => unreachable!(),
+                },
+                key,
+                scope,
+                revision,
+            )?;
+            true
+        }
         SnapshotKind::Public(HistoryKind::Species) => {
             let row: SpeciesSnapshotV1 = decode_v1(json)?;
             let _ = row.archived_at.0;

@@ -638,8 +638,10 @@ async fn exhausted_candidate_search_is_a_name_error_and_leaves_no_partial_mutati
         .bind(&l.owner.actor.user_id).bind(&w.fields.description).execute(&mut *tx).await.unwrap();
     sqlx::query("WITH RECURSIVE numbers(n) AS (VALUES(1) UNION ALL SELECT n+1 FROM numbers WHERE n < 10000) INSERT INTO audit_events(id, actor_user_id, action) SELECT printf('%032x',100000+n), ?1, 'create' FROM numbers UNION ALL SELECT printf('%032x',200000+n), ?1, 'own' FROM numbers")
         .bind(&l.owner.actor.user_id).execute(&mut *tx).await.unwrap();
-    sqlx::query("WITH RECURSIVE numbers(n) AS (VALUES(1) UNION ALL SELECT n+1 FROM numbers WHERE n < 10000) INSERT INTO world_revisions(world_id, revision, audit_id, after_json) SELECT printf('%032x',n), 1, printf('%032x',100000+n), json_set(?1, '$.content.id', printf('%032x',n), '$.content.fields.display_name', 'crowded', '$.content.fields.slug', CASE n WHEN 1 THEN 'crowded' ELSE 'crowded-' || n END) FROM numbers")
-        .bind(world_json).execute(&mut *tx).await.unwrap();
+    sqlx::query("WITH RECURSIVE numbers(n) AS (VALUES(1) UNION ALL SELECT n+1 FROM numbers WHERE n < 10000) INSERT INTO world_content_snapshots(world_id, revision, after_json) SELECT printf('%032x',n), 1, json_set(?1, '$.content.id', printf('%032x',n), '$.content.fields.display_name', 'crowded', '$.content.fields.slug', CASE n WHEN 1 THEN 'crowded' ELSE 'crowded-' || n END) FROM numbers")
+        .bind(&world_json).execute(&mut *tx).await.unwrap();
+    sqlx::query("WITH RECURSIVE numbers(n) AS (VALUES(1) UNION ALL SELECT n+1 FROM numbers WHERE n < 10000) INSERT INTO world_revisions(world_id,revision,audit_id,after_json,content_snapshot_version) SELECT s.world_id,1,printf('%032x',100000+n),json_remove(json_set(s.after_json,'$.snapshot_version',1),'$.content.type_ids'),2 FROM numbers JOIN world_content_snapshots s ON s.world_id=printf('%032x',n)")
+        .execute(&mut *tx).await.unwrap();
     sqlx::query("WITH RECURSIVE numbers(n) AS (VALUES(1) UNION ALL SELECT n+1 FROM numbers WHERE n < 10000) INSERT INTO world_access_revisions(world_id, revision, audit_id, after_json) SELECT printf('%032x',n), 1, printf('%032x',200000+n), json_set(?1, '$.content.world_id', printf('%032x',n)) FROM numbers")
         .bind(access_json).execute(&mut *tx).await.unwrap();
     tx.commit().await.unwrap();
@@ -1365,7 +1367,7 @@ async fn scoped_variants_exact_dependency_pins_and_explicit_adoption() {
     );
     assert_eq!(
         serde_json::from_str::<serde_json::Value>(&h.after_json).unwrap()["snapshot_version"],
-        1
+        2
     );
 }
 
@@ -2260,7 +2262,7 @@ async fn every_revision_table_rejects_null_predecessor_and_rolls_back() {
         (
             "form_versions",
             "UPDATE forms SET revision = 2 WHERE id = ?",
-            "INSERT INTO form_versions(form_id, species_id, species_version, revision, slug, display_name, description, is_default, archived_at, audit_id, previous_revision, before_json, after_json) SELECT form_id, species_id, species_version, 2, slug, display_name, description, is_default, archived_at, ?2, NULL, ?3, ?4 FROM form_versions WHERE form_id = ?1 AND revision = 1",
+            "INSERT INTO form_versions(form_id, species_id, species_version, revision, slug, display_name, description, is_default, archived_at, audit_id, previous_revision, before_json, after_json,content_snapshot_version) SELECT form_id, species_id, species_version, 2, slug, display_name, description, is_default, archived_at, ?2, NULL, ?3, ?4,2 FROM form_versions WHERE form_id = ?1 AND revision = 1",
             s.default_form_id.as_str(),
             form.after_json,
             "revision",
@@ -2268,7 +2270,7 @@ async fn every_revision_table_rejects_null_predecessor_and_rolls_back() {
         (
             "world_revisions",
             "UPDATE worlds SET revision = 2 WHERE id = ?",
-            "INSERT INTO world_revisions(world_id, revision, audit_id, previous_revision, before_json, after_json) VALUES (?1, 2, ?2, NULL, ?3, ?4)",
+            "INSERT INTO world_revisions(world_id, revision, audit_id, previous_revision, before_json, after_json,content_snapshot_version) VALUES (?1, 2, ?2, NULL, ?3, ?4,2)",
             w.id.as_str(),
             world.after_json,
             "revision",
@@ -2276,7 +2278,7 @@ async fn every_revision_table_rejects_null_predecessor_and_rolls_back() {
         (
             "variant_revisions",
             "UPDATE variants SET revision = 2 WHERE id = ?",
-            "INSERT INTO variant_revisions(world_id, variant_id, revision, audit_id, previous_revision, before_json, after_json) SELECT world_id, variant_id, 2, ?2, NULL, ?3, ?4 FROM variant_revisions WHERE variant_id = ?1 AND revision = 1",
+            "INSERT INTO variant_revisions(world_id, variant_id, revision, audit_id, previous_revision, before_json, after_json,content_snapshot_version) SELECT world_id, variant_id, 2, ?2, NULL, ?3, ?4,2 FROM variant_revisions WHERE variant_id = ?1 AND revision = 1",
             v.id.as_str(),
             variant.after_json,
             "revision",
@@ -2302,11 +2304,39 @@ async fn every_revision_table_rejects_null_predecessor_and_rolls_back() {
             .await
             .unwrap();
         sqlx::query("INSERT INTO audit_events(id, actor_user_id, action) VALUES ('00000000000000000000000000000001', ?, 'edit')").bind(&l.admin.actor.user_id).execute(&mut *tx).await.unwrap();
+        let sidecar = match table {
+            "form_versions" => Some(
+                "INSERT INTO form_content_snapshots(form_id,revision,typing_defined,before_json,after_json) VALUES (?1,2,0,?2,?3)",
+            ),
+            "world_revisions" => Some(
+                "INSERT INTO world_content_snapshots(world_id,revision,before_json,after_json) VALUES (?1,2,?2,?3)",
+            ),
+            "variant_revisions" => Some(
+                "INSERT INTO variant_content_snapshots(world_id,variant_id,revision,typing_defined,before_json,after_json) SELECT world_id,variant_id,2,0,?2,?3 FROM variant_revisions WHERE variant_id=?1 AND revision=1",
+            ),
+            _ => None,
+        };
+        if let Some(sql) = sidecar {
+            sqlx::query(sql)
+                .bind(id)
+                .bind(&before)
+                .bind(after.to_string())
+                .execute(&mut *tx)
+                .await
+                .unwrap();
+        }
+        let projection = |s: &str| {
+            let mut v: serde_json::Value = serde_json::from_str(s).unwrap();
+            v["snapshot_version"] = 1.into();
+            v["content"].as_object_mut().unwrap().remove("typing");
+            v["content"].as_object_mut().unwrap().remove("type_ids");
+            v.to_string()
+        };
         let error = sqlx::query(insert)
             .bind(id)
             .bind("00000000000000000000000000000001")
-            .bind(&before)
-            .bind(after.to_string())
+            .bind(projection(&before))
+            .bind(projection(&after.to_string()))
             .execute(&mut *tx)
             .await
             .unwrap_err();
@@ -2460,7 +2490,8 @@ async fn pin_versions_must_exist_on_the_selected_species_and_form() {
     }
     let mut tx = persistence::begin_write(&l.pool).await.unwrap();
     sqlx::query("INSERT INTO audit_events(id, actor_user_id, action) VALUES ('00000000000000000000000000000001', ?, 'edit')").bind(&l.admin.actor.user_id).execute(&mut *tx).await.unwrap();
-    let error = sqlx::query("INSERT INTO form_versions(form_id, species_id, species_version, revision, slug, display_name, description, is_default, archived_at, audit_id, previous_revision, before_json, after_json) SELECT form_id, species_id, 2, 2, slug, display_name, description, is_default, archived_at, '00000000000000000000000000000001', 1, after_json, after_json FROM form_versions WHERE form_id = ? AND revision = 1").bind(&s.default_form_id).execute(&mut *tx).await.unwrap_err();
+    sqlx::query("INSERT INTO form_content_snapshots(form_id,revision,typing_defined,before_json,after_json) SELECT form_id,2,0,after_json,json_set(after_json,'$.content.revision',2,'$.content.species_version',2) FROM form_content_snapshots WHERE form_id=? AND revision=1").bind(&s.default_form_id).execute(&mut *tx).await.unwrap();
+    let error = sqlx::query("INSERT INTO form_versions(form_id, species_id, species_version, revision, slug, display_name, description, is_default, archived_at, audit_id, previous_revision, before_json, after_json,content_snapshot_version) SELECT form_id, species_id, 2, 2, slug, display_name, description, is_default, archived_at, '00000000000000000000000000000001', 1, after_json, after_json,2 FROM form_versions WHERE form_id = ? AND revision = 1").bind(&s.default_form_id).execute(&mut *tx).await.unwrap_err();
     assert_eq!(
         error.as_database_error().unwrap().code().as_deref(),
         Some("787")
@@ -2686,9 +2717,11 @@ async fn replace_history_snapshot(
 ) {
     let (table, key) = match kind {
         Some(HistoryKind::Species) => ("species_versions", "species_id"),
-        Some(HistoryKind::Form) => ("form_versions", "form_id"),
-        Some(HistoryKind::World) => ("world_revisions", "world_id"),
-        Some(HistoryKind::Variant) => ("variant_revisions", "variant_id"),
+        Some(HistoryKind::Form) => ("form_content_snapshots", "form_id"),
+        Some(HistoryKind::World) => ("world_content_snapshots", "world_id"),
+        Some(HistoryKind::Variant) => ("variant_content_snapshots", "variant_id"),
+        Some(HistoryKind::Type) => ("type_versions", "type_id"),
+        Some(HistoryKind::WorldType) => ("world_type_versions", "type_id"),
         None => ("world_access_revisions", "world_id"),
     };
     let column = if before { "before_json" } else { "after_json" };
@@ -2758,6 +2791,9 @@ async fn history_rejects_valid_envelopes_with_invalid_per_aggregate_content() {
         "DROP TRIGGER world_revisions_update",
         "DROP TRIGGER variant_revisions_update",
         "DROP TRIGGER access_revisions_update",
+        "DROP TRIGGER form_content_update",
+        "DROP TRIGGER world_content_update",
+        "DROP TRIGGER variant_content_update",
     ] {
         sqlx::query(sql).execute(&l.pool).await.unwrap();
     }
@@ -2791,6 +2827,9 @@ async fn history_rejects_valid_envelopes_with_invalid_per_aggregate_content() {
         bad["archived_at"] = "not a timestamp".into();
         cases.push(bad);
         match kind {
+            HistoryKind::Type | HistoryKind::WorldType => {
+                unreachable!("this test covers the pre-Type aggregates")
+            }
             HistoryKind::Species => {
                 for value in ["bad", "00000000000000000000000000000001"] {
                     let mut bad = content.clone();
@@ -2861,7 +2900,12 @@ async fn history_rejects_valid_envelopes_with_invalid_per_aggregate_content() {
             }
         }
         for content in cases {
-            let bad = serde_json::json!({"snapshot_version":1,"content":content}).to_string();
+            let version = if matches!(kind, HistoryKind::Species) {
+                1
+            } else {
+                2
+            };
+            let bad = serde_json::json!({"snapshot_version":version,"content":content}).to_string();
             replace_history_snapshot(&l, Some(kind), id, 1, false, &bad).await;
             assert_eq!(
                 l.service.history_entry(kind, id, 1).await.unwrap_err(),
@@ -2942,7 +2986,12 @@ async fn history_rejects_valid_envelopes_with_invalid_per_aggregate_content() {
         for content in
             common_invalid_snapshot_contents(&snapshot_content(&baseline), "id", "revision")
         {
-            let bad = serde_json::json!({"snapshot_version":1,"content":content}).to_string();
+            let version = if matches!(kind, HistoryKind::Species) {
+                1
+            } else {
+                2
+            };
+            let bad = serde_json::json!({"snapshot_version":version,"content":content}).to_string();
             replace_history_snapshot(&l, Some(kind), id, 2, true, &bad).await;
             assert_eq!(
                 l.service.history_entry(kind, id, 2).await.unwrap_err(),

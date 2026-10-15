@@ -1,0 +1,4 @@
+{
+  "source": {"endpoint_kind":"type","external_id":16,"source_url":"https://pokeapi.co/api/v2/type/16/","retrieved_at":"2026-10-15T02:11:12Z","transformation_version":1},
+  "projection": {"id":16,"name":"dragon","english_name":"Dragon"}
+}

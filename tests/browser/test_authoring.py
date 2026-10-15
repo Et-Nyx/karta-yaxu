@@ -14,13 +14,7 @@ from playwright.sync_api import expect
 from support import BrowserFixture
 
 
-class AuthoringWorkflows(BrowserFixture):
-    def setUp(self):
-        super().setUp()
-        for subject, role in (("librarian", "administrator"),
-                              ("collaborator", "editor"), ("outsider", "editor")):
-            self.admin("invite-user", "--subject", subject, "--role", role)
-
+class AuthoringSupport(BrowserFixture):
     def link(self, name):
         return self.page.get_by_role("link", name=name, exact=True)
 
@@ -54,10 +48,12 @@ class AuthoringWorkflows(BrowserFixture):
     def submit(self, name, status=303, destination=None):
         button = self.page.get_by_role("button", name=name, exact=True)
         action = button.locator("xpath=ancestor::form").get_attribute("action")
-        if action.startswith(("/creatures/", "/forms/", "/worlds/")):
-            self.assertRegex(action, r"^/(?:creatures|forms|worlds)/(?:new|[0-9a-f]{32})(?:/|$)")
+        if action.startswith(("/creatures/", "/forms/", "/worlds/", "/types/")):
+            self.assertRegex(action, r"^/(?:creatures|forms|worlds|types)/(?:new|[0-9a-f]{32})(?:/|$)")
             if "/variants/" in action:
                 self.assertRegex(action, r"/variants/(?:new|[0-9a-f]{32})(?:/|$)")
+            if "/types/" in action:
+                self.assertRegex(action, r"/types/(?:new|[0-9a-f]{32})(?:/|$)")
         self.tab_to(button)
         with self.page.expect_navigation(wait_until="load") as navigation:
             with self.page.expect_response(
@@ -66,7 +62,7 @@ class AuthoringWorkflows(BrowserFixture):
             ) as submission:
                 self.page.keyboard.press("Enter")
         self.assertEqual(submission.value.status, status)
-        if status == 303 and re.match(r"^/(?:creatures|forms|worlds)/", action):
+        if status == 303 and re.match(r"^/(?:creatures|forms|worlds|types)/", action):
             # Mutations target IDs, then 303 -> legacy GET 307 -> readable GET.
             legacy = navigation.value.request.redirected_from
             self.assertIsNotNone(legacy)
@@ -89,7 +85,10 @@ class AuthoringWorkflows(BrowserFixture):
         return self.page.url.removeprefix(self.origin)
 
     def select_source(self, value):
-        select = self.page.get_by_label("Source form and version", exact=True)
+        self.select("Source form and version", value)
+
+    def select(self, label, value):
+        select = self.page.get_by_label(label, exact=True)
         values = select.locator("option").evaluate_all("options => options.map(option => option.value)")
         self.assertIn(value, values)
         self.tab_to(select)
@@ -132,16 +131,52 @@ class AuthoringWorkflows(BrowserFixture):
         self.assertRegex(value, r"^[0-9a-f]{32}$")
         return value
 
-    def snapshot(self, history_link, revision):
+    def snapshot(self, history_link, revision, snapshot_version=None):
         self.follow(history_link)
         self.follow(f"Revision {revision}")
+        if snapshot_version is None:
+            snapshot_version = 2 if history_link in (
+                "Form history", "Variant history", "World content history"
+            ) else 1
+        return self.read_snapshot(snapshot_version)
+
+    def read_snapshot(self, snapshot_version):
         after = self.page.locator("section").filter(
             has=self.page.get_by_role("heading", name="After", exact=True)
         ).locator("pre")
         result = json.loads(after.inner_text())
-        self.assertEqual(result["snapshot_version"], 1)
+        self.assertEqual(result["snapshot_version"], snapshot_version)
+        content = result["content"]
+        has_typing = "species_id" in content or "world_id" in content
+        if snapshot_version == 2 and not has_typing:
+            for key in ("variant_ids", "type_ids"):
+                self.assertEqual(content[key], sorted(set(content[key])))
+            self.assertNotIn("owner_user_id", content)
+            self.assertNotIn("collaborator_ids", content)
+            self.assertNotIn("access_revision", content)
+        if snapshot_version == 2 and has_typing:
+            self.assertEqual(set(content["typing"]), {"assignments"})
+            assignments = content["typing"]["assignments"]
+            if assignments is not None:
+                self.assertIsInstance(assignments, list)
+                for entry in assignments:
+                    self.assertEqual(set(entry), {"pin", "fields"})
+                    self.assertEqual(set(entry["pin"]), {"type_id", "version"})
+                    self.assertEqual(set(entry["fields"]), {"slug", "display_name", "description"})
+        if snapshot_version == 1:
+            self.assertNotIn("typing", content)
+            if self.page.get_by_role("heading", name="Typing at this revision", exact=True).count():
+                expect(self.page.get_by_role("main")).to_contain_text("Typing not modeled")
         self.assert_no_horizontal_overflow()
-        return result["content"]
+        return content
+
+
+class AuthoringWorkflows(AuthoringSupport):
+    def setUp(self):
+        super().setUp()
+        for subject, role in (("librarian", "administrator"),
+                              ("collaborator", "editor"), ("outsider", "editor")):
+            self.admin("invite-user", "--subject", subject, "--role", role)
 
     def test_multiple_variants_and_world_scoped_permissions(self):
         self.sign_in()

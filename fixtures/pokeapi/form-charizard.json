@@ -1,0 +1,4 @@
+{
+  "source": {"endpoint_kind":"pokemon-form","external_id":6,"source_url":"https://pokeapi.co/api/v2/pokemon-form/6/","retrieved_at":"2026-10-15T02:11:12Z","transformation_version":1},
+  "projection": {"id":6,"name":"charizard","form_name":"","is_default":true,"is_battle_only":false,"is_mega":false,"pokemon_url":"https://pokeapi.co/api/v2/pokemon/6/","types":[{"slot":1,"type_url":"https://pokeapi.co/api/v2/type/10/"},{"slot":2,"type_url":"https://pokeapi.co/api/v2/type/3/"}]}
+}

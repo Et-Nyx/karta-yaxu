@@ -4,6 +4,7 @@ use crate::application::authoring::{
     AccessState, Edit, Error, HistoryEntry, HistoryKind, SourcePin, VariantRecord,
 };
 use game_data::authoring::ContentFields;
+use game_data::types::TypingState;
 use std::collections::BTreeMap;
 
 const FORM_LIMIT: usize = 32 * 1024;
@@ -56,7 +57,7 @@ pub(super) fn finish(result: Result<Response, Error>) -> Response {
     result.unwrap_or_else(read_error)
 }
 
-fn error_status(error: &Error) -> StatusCode {
+pub(super) fn error_status(error: &Error) -> StatusCode {
     match error {
         Error::Unauthorized => StatusCode::UNAUTHORIZED,
         Error::Forbidden => StatusCode::FORBIDDEN,
@@ -67,7 +68,7 @@ fn error_status(error: &Error) -> StatusCode {
     }
 }
 
-fn error_text(error: &Error) -> &'static str {
+pub(super) fn error_text(error: &Error) -> &'static str {
     match error {
         Error::Unauthorized => {
             "Your session is no longer active. Sign in, then return to this draft to try again."
@@ -96,24 +97,24 @@ pub(super) fn read_error(error: Error) -> Response {
     )
 }
 
-fn no_store(mut response: Response) -> Response {
+pub(super) fn no_store(mut response: Response) -> Response {
     response
         .headers_mut()
         .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
     response
 }
 
-fn session(headers: &HeaderMap) -> Option<String> {
+pub(super) fn session(headers: &HeaderMap) -> Option<String> {
     cookie_value(headers, SESSION_COOKIE)
 }
 
-async fn library_permission(state: &AppState, headers: &HeaderMap) -> Result<(), Error> {
+pub(super) async fn library_permission(state: &AppState, headers: &HeaderMap) -> Result<(), Error> {
     let token = session(headers);
     let caps = state.authoring.capabilities(token.as_deref(), None).await?;
     permission(caps.authenticated, caps.can_edit_library)
 }
 
-async fn world_permission(
+pub(super) async fn world_permission(
     state: &AppState,
     headers: &HeaderMap,
     id: Option<&str>,
@@ -140,11 +141,11 @@ fn permission(authenticated: bool, allowed: bool) -> Result<(), Error> {
     }
 }
 
-fn invalid(field: &str, text: &str) -> Error {
+pub(super) fn invalid(field: &str, text: &str) -> Error {
     Error::Invalid(BTreeMap::from([(field.to_owned(), text.to_owned())]))
 }
 
-fn positive(value: &str, field: &str) -> Result<i64, Error> {
+pub(super) fn positive(value: &str, field: &str) -> Result<i64, Error> {
     value.parse::<i64>().ok().filter(|n| *n > 0).ok_or_else(|| {
         invalid(
             field,
@@ -157,24 +158,31 @@ fn positive(value: &str, field: &str) -> Result<i64, Error> {
 // Strings preserve malformed numeric input so field errors can return the whole draft.
 #[derive(Default, Deserialize)]
 #[serde(default)]
-struct ContentForm {
-    csrf: String,
+pub(super) struct ContentForm {
+    pub(super) csrf: String,
     slug: String,
-    display_name: String,
-    description: String,
+    pub(super) display_name: String,
+    pub(super) description: String,
     reason: String,
-    expected_revision: String,
+    pub(super) expected_revision: String,
     reviewed_revision: String,
-    expected_world_revision: String,
+    pub(super) expected_world_revision: String,
     species_version: String,
-    source_pin: Option<String>,
+    pub(super) source_pin: Option<String>,
     form_id: String,
     form_version: String,
-    target_version: String,
+    pub(super) target_version: String,
 }
 
 impl ContentForm {
-    fn fields(&self) -> ContentFields {
+    pub(super) fn for_world_revision(revision: i64) -> Self {
+        Self {
+            expected_world_revision: revision.to_string(),
+            ..Self::default()
+        }
+    }
+
+    pub(super) fn fields(&self) -> ContentFields {
         ContentFields {
             slug: self.slug.clone(),
             display_name: self.display_name.clone(),
@@ -182,7 +190,7 @@ impl ContentForm {
         }
     }
 
-    fn with_fields(fields: &ContentFields, revision: i64) -> Self {
+    pub(super) fn with_fields(fields: &ContentFields, revision: i64) -> Self {
         Self {
             slug: fields.slug.clone(),
             display_name: fields.display_name.clone(),
@@ -192,7 +200,7 @@ impl ContentForm {
         }
     }
 
-    fn reason(&self) -> Option<&str> {
+    pub(super) fn reason(&self) -> Option<&str> {
         if self.reason.is_empty() {
             None
         } else {
@@ -200,7 +208,7 @@ impl ContentForm {
         }
     }
 
-    fn edit(&self) -> Result<Edit, Error> {
+    pub(super) fn edit(&self) -> Result<Edit, Error> {
         let revision = if self.reviewed_revision.is_empty() {
             &self.expected_revision
         } else {
@@ -213,7 +221,7 @@ impl ContentForm {
         })
     }
 
-    fn world_revision(&self) -> Result<i64, Error> {
+    pub(super) fn world_revision(&self) -> Result<i64, Error> {
         positive(
             if self.reviewed_revision.is_empty() {
                 &self.expected_world_revision
@@ -256,7 +264,7 @@ impl ContentForm {
         }
     }
 
-    fn source_value(&self) -> String {
+    pub(super) fn source_value(&self) -> String {
         self.source_pin.clone().unwrap_or_else(|| {
             if self.form_id.is_empty() && self.form_version.is_empty() {
                 String::new()
@@ -267,14 +275,18 @@ impl ContentForm {
     }
 }
 
-fn submit_token(state: &AppState, headers: &HeaderMap, csrf: &str) -> Result<String, Error> {
+pub(super) fn submit_token(
+    state: &AppState,
+    headers: &HeaderMap,
+    csrf: &str,
+) -> Result<String, Error> {
     if !origin_ok(headers, &state.public_origin) || !csrf_matches(headers, csrf) {
         return Err(Error::Forbidden);
     }
     Ok(session(headers).unwrap_or_default())
 }
 
-fn parse_content(
+pub(super) fn parse_content(
     form: Result<Form<ContentForm>, FormRejection>,
 ) -> Result<ContentForm, FormRejection> {
     form.map(|Form(mut form)| {
@@ -291,7 +303,7 @@ fn parse_content(
     })
 }
 
-fn authoring_form_error(error: FormRejection) -> Response {
+pub(super) fn authoring_form_error(error: FormRejection) -> Response {
     no_store(if error.status() == StatusCode::PAYLOAD_TOO_LARGE {
         message(
             StatusCode::PAYLOAD_TOO_LARGE,
@@ -307,15 +319,15 @@ fn authoring_form_error(error: FormRejection) -> Response {
     })
 }
 
-struct SavedState {
-    fields: ContentFields,
-    revision: i64,
-    context: String,
+pub(super) struct SavedState {
+    pub(super) fields: ContentFields,
+    pub(super) revision: i64,
+    pub(super) context: String,
 }
 
-struct SourceChoice {
-    value: String,
-    label: String,
+pub(super) struct SourceChoice {
+    pub(super) value: String,
+    pub(super) label: String,
 }
 
 struct DefinitionComparison {
@@ -326,29 +338,44 @@ struct DefinitionComparison {
 
 #[derive(Template)]
 #[template(path = "authoring_form.html")]
-struct ContentPage {
+pub(super) struct ContentPage {
     title: String,
     action: String,
     cancel: String,
-    context: String,
-    draft: ContentForm,
+    pub(super) context: String,
+    pub(super) draft: ContentForm,
     csrf: String,
     error: String,
     error_title: &'static str,
     errors: BTreeMap<String, String>,
-    current: Option<SavedState>,
+    pub(super) current: Option<SavedState>,
     reviewed_revision: String,
-    choices: Vec<SourceChoice>,
-    choose_source: bool,
+    pub(super) choices: Vec<SourceChoice>,
+    pub(super) choose_source: bool,
+    pub(super) source_label: &'static str,
+    pub(super) source_help: &'static str,
+    pub(super) target_label: &'static str,
+    pub(super) type_comparisons: Vec<TypeComparison>,
+    typing_comparisons: Vec<TypingComparison>,
     show_species_version: bool,
-    selected_source: String,
+    pub(super) selected_source: String,
     comparisons: Vec<DefinitionComparison>,
-    button: String,
-    blocked_reason: String,
+    pub(super) button: String,
+    pub(super) blocked_reason: String,
+}
+
+pub(super) struct TypeComparison {
+    pub(super) label: &'static str,
+    pub(super) entry: game_data::types::TypeRecord,
+}
+
+struct TypingComparison {
+    label: &'static str,
+    typing: super::types::TypingSummary,
 }
 
 impl ContentPage {
-    fn new(title: &str, action: String, cancel: String, draft: ContentForm) -> Self {
+    pub(super) fn new(title: &str, action: String, cancel: String, draft: ContentForm) -> Self {
         let selected_source = draft.source_value();
         Self {
             title: title.to_owned(),
@@ -364,6 +391,11 @@ impl ContentPage {
             reviewed_revision: String::new(),
             choices: Vec::new(),
             choose_source: false,
+            source_label: "Source form and version",
+            source_help: "Each option pins a concrete form ID and version. Selection chooses the baseline only; the fields below are your effective local values. Use a shared-form link on the world page to start with a copy of source fields. Later library edits do not change this variant.",
+            target_label: "form",
+            type_comparisons: Vec::new(),
+            typing_comparisons: Vec::new(),
             show_species_version: false,
             selected_source,
             comparisons: Vec::new(),
@@ -411,7 +443,7 @@ impl ContentPage {
         }
     }
 
-    fn conflict(&mut self, fields: ContentFields, revision: i64, context: String) {
+    pub(super) fn conflict(&mut self, fields: ContentFields, revision: i64, context: String) {
         self.current = Some(SavedState {
             fields,
             revision,
@@ -429,7 +461,7 @@ impl ContentPage {
     }
 }
 
-fn content_response(
+pub(super) fn content_response(
     state: &AppState,
     headers: &HeaderMap,
     mut page: ContentPage,
@@ -451,7 +483,7 @@ fn content_response(
     response
 }
 
-fn draft_response(
+pub(super) fn draft_response(
     state: &AppState,
     headers: &HeaderMap,
     mut page: ContentPage,
@@ -573,8 +605,9 @@ struct FormPage {
     form: FormRecord,
     species: SpeciesRecord,
     current_species: SpeciesRecord,
-    worlds: Vec<WorldRecord>,
+    worlds: Vec<super::types::WorldUse>,
     can_edit_library: bool,
+    typing: super::types::TypingSummary,
 }
 
 async fn form_detail(
@@ -589,12 +622,16 @@ async fn form_detail(
             .authoring
             .species_version(&form.species_id, form.species_version)
             .await?;
-        let worlds = state.authoring.worlds().await?;
+        let worlds = super::types::world_uses(&state, &headers).await?;
         let caps = state
             .authoring
             .capabilities(session(&headers).as_deref(), None)
             .await?;
         Ok(render(FormPage {
+            typing: super::types::TypingSummary::new(
+                state.types.form_typing(&id, None).await?,
+                None,
+            ),
             form,
             species,
             current_species,
@@ -778,6 +815,7 @@ struct WorldPage {
     forms: Vec<FormRecord>,
     can_edit_world: bool,
     can_manage_access: bool,
+    types: Vec<game_data::types::WorldTypeRecord>,
 }
 
 async fn all_forms(state: &AppState) -> Result<Vec<FormRecord>, Error> {
@@ -802,6 +840,7 @@ async fn world_detail(
             .capabilities(session(&headers).as_deref(), Some(&id))
             .await?;
         Ok(render(WorldPage {
+            types: state.types.world_types(&id).await?,
             world,
             variants,
             forms,
@@ -1041,6 +1080,7 @@ struct VariantPage {
     source: Option<FormRecord>,
     latest: Option<FormRecord>,
     can_edit_world: bool,
+    typing: super::types::TypingSummary,
 }
 
 async fn variant_detail(
@@ -1069,6 +1109,10 @@ async fn variant_detail(
             .capabilities(session(&headers).as_deref(), Some(&world_id))
             .await?;
         Ok(render(VariantPage {
+            typing: super::types::TypingSummary::new(
+                state.types.variant_typing(&world_id, &id, None).await?,
+                Some(&world_id),
+            ),
             variant,
             world,
             source,
@@ -1193,6 +1237,21 @@ async fn adoption_comparisons(
             species: preview.new_species,
         },
     ];
+    page.typing_comparisons = vec![
+        TypingComparison {
+            label: "Old shared source typing",
+            typing: super::types::TypingSummary::new(preview.old_typing, None),
+        },
+        TypingComparison {
+            label: "Local world typing (kept on adoption)",
+            typing: super::types::TypingSummary::new(preview.local_typing, Some(world_id)),
+        },
+        TypingComparison {
+            label: "New shared source typing",
+            typing: super::types::TypingSummary::new(preview.new_typing, None),
+        },
+    ];
+    page.context.push_str(" World typing stays local. Shared source types are comparison only; select exact world-local type versions separately in Edit typing. No name-based mapping is performed.");
     Ok(preview.entry)
 }
 
@@ -1499,7 +1558,7 @@ async fn access_submit(
 
 #[derive(Default, Deserialize)]
 #[serde(default)]
-struct HistoryQuery {
+pub(super) struct HistoryQuery {
     before: String,
 }
 
@@ -1522,12 +1581,21 @@ struct SnapshotPage {
     history_url: String,
     entry: HistoryEntry,
     changes: Vec<FieldChange>,
+    typing_label: Option<String>,
+    typing_pins: Vec<HistoryPin>,
 }
 
 struct FieldChange {
     label: &'static str,
     before: String,
     after: String,
+    before_pins: Vec<HistoryPin>,
+    after_pins: Vec<HistoryPin>,
+}
+
+struct HistoryPin {
+    label: String,
+    url: Option<String>,
 }
 
 struct HistoryView {
@@ -1535,7 +1603,7 @@ struct HistoryView {
     changes: Vec<FieldChange>,
 }
 
-fn history_changes(entry: &HistoryEntry) -> Result<Vec<FieldChange>, Error> {
+fn history_changes(kind: HistoryKind, entry: &HistoryEntry) -> Result<Vec<FieldChange>, Error> {
     let after: serde_json::Value =
         serde_json::from_str(&entry.after_json).map_err(|_| Error::Unavailable)?;
     let before: Option<serde_json::Value> = entry
@@ -1554,21 +1622,124 @@ fn history_changes(entry: &HistoryEntry) -> Result<Vec<FieldChange>, Error> {
         ("Pinned species version", "/content/species_version"),
         ("Shared form source", "/content/source"),
         ("World variant membership", "/content/variant_ids"),
+        ("World type membership", "/content/type_ids"),
     ] {
         let old = before.as_ref().and_then(|value| value.pointer(path));
         let new = after.pointer(path);
         if old != new {
+            let label = if path == "/content/source" && matches!(kind, HistoryKind::WorldType) {
+                "Shared type source"
+            } else {
+                label
+            };
             changes.push(FieldChange {
                 label,
-                before: history_value(old),
-                after: history_value(new),
+                before: if path == "/content/type_ids" && old.is_none() && before.is_some() {
+                    "Type membership not recorded in snapshot v1".into()
+                } else {
+                    history_value(old, label)
+                },
+                after: history_value(new, label),
+                before_pins: Vec::new(),
+                after_pins: Vec::new(),
+            });
+        }
+    }
+    if matches!(kind, HistoryKind::Form | HistoryKind::Variant) {
+        let old = snapshot_typing(before.as_ref())?;
+        let new = snapshot_typing(Some(&after))?;
+        if old != new {
+            changes.push(FieldChange {
+                label: "Ordered typing",
+                before: typing_history_value(&old),
+                after: typing_history_value(&new),
+                before_pins: history_typing_pins(&old, before.as_ref()),
+                after_pins: history_typing_pins(&new, Some(&after)),
             });
         }
     }
     Ok(changes)
 }
 
-fn history_value(value: Option<&serde_json::Value>) -> String {
+// Backend history reads validate the complete snapshot and exact immutable bindings.
+// Decode the shared DTO here rather than inventing a second JSON shape. Only v1
+// absence is compatible with v2 {"assignments": null}; malformed v2 is an error.
+fn snapshot_typing(snapshot: Option<&serde_json::Value>) -> Result<TypingState, Error> {
+    let Some(snapshot) = snapshot else {
+        return Ok(TypingState::unmodeled());
+    };
+    let content = snapshot
+        .get("content")
+        .and_then(serde_json::Value::as_object)
+        .ok_or(Error::Unavailable)?;
+    match snapshot
+        .get("snapshot_version")
+        .and_then(serde_json::Value::as_i64)
+    {
+        Some(1) if !content.contains_key("typing") => Ok(TypingState::unmodeled()),
+        Some(2) => {
+            let value = content.get("typing").ok_or(Error::Unavailable)?;
+            let object = value.as_object().ok_or(Error::Unavailable)?;
+            if object.len() != 1 || !object.contains_key("assignments") {
+                return Err(Error::Unavailable);
+            }
+            serde_json::from_value(value.clone()).map_err(|_| Error::Unavailable)
+        }
+        _ => Err(Error::Unavailable),
+    }
+}
+
+fn history_typing_pins(
+    typing: &TypingState,
+    snapshot: Option<&serde_json::Value>,
+) -> Vec<HistoryPin> {
+    let world = snapshot
+        .and_then(|snapshot| snapshot.pointer("/content/world_id"))
+        .and_then(serde_json::Value::as_str);
+    typing
+        .assignments
+        .as_deref()
+        .unwrap_or_default()
+        .iter()
+        .map(|assignment| {
+            let id = &assignment.pin.type_id;
+            let version = assignment.pin.version;
+            HistoryPin {
+                label: format!(
+                    "{} · {id} · exact version {version}",
+                    assignment.fields.display_name
+                ),
+                url: Some(match world {
+                    Some(world) => format!("/worlds/{world}/types/{id}/history/{version}"),
+                    None => format!("/types/{id}/history/{version}"),
+                }),
+            }
+        })
+        .collect()
+}
+
+fn typing_history_value(typing: &TypingState) -> String {
+    match typing.assignments.as_deref() {
+        None => "Typing not modeled".into(),
+        Some([]) => "Defined — intentionally typeless".into(),
+        Some(assignments) => assignments
+            .iter()
+            .enumerate()
+            .map(|(index, assignment)| {
+                format!(
+                    "{}. {} · {} · exact version {}",
+                    index + 1,
+                    assignment.fields.display_name,
+                    assignment.pin.type_id,
+                    assignment.pin.version,
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("\n"),
+    }
+}
+
+fn history_value(value: Option<&serde_json::Value>, label: &str) -> String {
     use serde_json::Value;
     match value {
         None => "Not present (initial creation)".into(),
@@ -1582,8 +1753,13 @@ fn history_value(value: Option<&serde_json::Value>) -> String {
                 .collect::<Vec<_>>()
                 .join(", ");
             format!(
-                "{} variants: {}{}",
+                "{} {}: {}{}",
                 ids.len(),
+                if label == "World type membership" {
+                    "types"
+                } else {
+                    "variants"
+                },
                 visible,
                 if ids.len() > 12 {
                     " … see the full snapshot for all IDs"
@@ -1593,8 +1769,14 @@ fn history_value(value: Option<&serde_json::Value>) -> String {
             )
         }
         Some(Value::Object(pin)) => format!(
-            "Form {} · version {}",
-            pin.get("form_id")
+            "{} {} · version {}",
+            if pin.contains_key("type_id") {
+                "Type"
+            } else {
+                "Form"
+            },
+            pin.get("type_id")
+                .or_else(|| pin.get("form_id"))
                 .and_then(Value::as_str)
                 .unwrap_or("unknown"),
             pin.get("version").map(Value::to_string).unwrap_or_default()
@@ -1609,10 +1791,12 @@ fn history_label(kind: HistoryKind) -> &'static str {
         HistoryKind::Form => "Shared form",
         HistoryKind::World => "World",
         HistoryKind::Variant => "World variant",
+        HistoryKind::Type => "Shared type",
+        HistoryKind::WorldType => "World type",
     }
 }
 
-async fn history_response(
+pub(super) async fn history_response(
     state: &AppState,
     kind: HistoryKind,
     id: String,
@@ -1634,24 +1818,22 @@ async fn history_response(
         None
     };
     let history_url = format!("{detail_url}/history");
-    let entries = entries
-        .into_iter()
-        .map(|entry| {
-            let changes = history_changes(&entry)?;
-            Ok(HistoryView { entry, changes })
-        })
-        .collect::<Result<Vec<_>, Error>>()?;
+    let mut views = Vec::new();
+    for entry in entries {
+        let changes = history_changes(kind, &entry)?;
+        views.push(HistoryView { entry, changes });
+    }
     Ok(render(HistoryPage {
         object_id: id,
         object_label: history_label(kind),
         detail_url,
         history_url,
-        entries,
+        entries: views,
         next_before,
     }))
 }
 
-async fn snapshot_response(
+pub(super) async fn snapshot_response(
     state: &AppState,
     kind: HistoryKind,
     id: String,
@@ -1662,11 +1844,25 @@ async fn snapshot_response(
         .authoring
         .history_entry(kind, &id, positive(&revision, "revision")?)
         .await?;
+    let snapshot: serde_json::Value =
+        serde_json::from_str(&entry.after_json).map_err(|_| Error::Unavailable)?;
+    let typing = if matches!(kind, HistoryKind::Form | HistoryKind::Variant) {
+        Some(snapshot_typing(Some(&snapshot))?)
+    } else {
+        None
+    };
+    let typing_label = typing.as_ref().map(typing_history_value);
+    let typing_pins = typing
+        .as_ref()
+        .map(|typing| history_typing_pins(typing, Some(&snapshot)))
+        .unwrap_or_default();
     Ok(render(SnapshotPage {
         object_id: id,
         object_label: history_label(kind),
         history_url,
-        changes: history_changes(&entry)?,
+        changes: history_changes(kind, &entry)?,
+        typing_label,
+        typing_pins,
         entry,
     }))
 }
@@ -1789,6 +1985,58 @@ mod tests {
     use axum::body::{Body, to_bytes};
     use tempfile::TempDir;
     use tower::ServiceExt;
+
+    #[test]
+    fn history_typing_preserves_v1_meaning_and_rejects_noncontract_v2_shapes() {
+        let v1 = serde_json::json!({"snapshot_version": 1, "content": {}});
+        let v2 = serde_json::json!({"snapshot_version": 2, "content": {"typing": TypingState::unmodeled()}});
+        assert_eq!(snapshot_typing(Some(&v1)), Ok(TypingState::unmodeled()));
+        assert_eq!(snapshot_typing(Some(&v2)), Ok(TypingState::unmodeled()));
+        let entry = HistoryEntry {
+            revision: 2,
+            previous_revision: Some(1),
+            actor_name: "Editor".into(),
+            action: "edit".into(),
+            occurred_at: "2026-10-14T00:00:00Z".into(),
+            reason: None,
+            before_json: Some(v1.to_string()),
+            after_json: v2.to_string(),
+        };
+        assert!(
+            history_changes(HistoryKind::Form, &entry)
+                .unwrap()
+                .is_empty()
+        );
+
+        let defined = TypingState {
+            assignments: Some(Vec::new()),
+        };
+        let v2_defined = serde_json::json!({"snapshot_version": 2, "content": {"typing": defined}});
+        assert_eq!(snapshot_typing(Some(&v2_defined)), Ok(defined.clone()));
+        assert_eq!(
+            typing_history_value(&defined),
+            "Defined — intentionally typeless"
+        );
+        assert_ne!(defined, TypingState::unmodeled());
+
+        for invalid in [
+            serde_json::json!({"snapshot_version": 2, "content": {}}),
+            serde_json::json!({"snapshot_version": 2, "content": {"typing": null}}),
+            serde_json::json!({"snapshot_version": 2, "content": {"typing": []}}),
+            serde_json::json!({"snapshot_version": 2, "content": {"typing": {}}}),
+            serde_json::json!({"snapshot_version": 2, "content": {"typing": {"assignments": null, "extra": false}}}),
+            serde_json::json!({"snapshot_version": 2, "content": {"typing": {"assignments": [{"type_id": "00000000000000000000000000000001", "version": 1}]}}}),
+            serde_json::json!({"snapshot_version": 2, "content": {"typing": {"assignments": [{"pin": {"type_id": "00000000000000000000000000000001", "version": 1}}]}}}),
+            serde_json::json!({"snapshot_version": 1, "content": {"typing": {"assignments": null}}}),
+            serde_json::json!({"snapshot_version": 3, "content": {"typing": {"assignments": null}}}),
+        ] {
+            assert_eq!(
+                snapshot_typing(Some(&invalid)),
+                Err(Error::Unavailable),
+                "unexpected acceptance: {invalid}"
+            );
+        }
+    }
 
     struct TestSite {
         state: AppState,

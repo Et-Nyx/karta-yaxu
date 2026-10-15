@@ -23,6 +23,8 @@ WORK_ROOT = Path(__file__).resolve().parents[2] / "target" / "browser-tests"
 
 class BrowserFixture:
     """Lifecycle and inspection helpers, deliberately without discoverable tests."""
+    seed_reference = False
+
     @classmethod
     def setUpClass(cls):
         playwright = sync_playwright().start()
@@ -44,6 +46,8 @@ class BrowserFixture:
         )
         self.admin("migrate")
         self.admin("seed-fixtures")
+        if self.seed_reference:
+            self.admin("seed-reference-fixtures")
         self.admin("invite-user", "--subject", "alice", "--role", "editor")
         with socket.socket() as reservation:
             reservation.bind(("127.0.0.1", 0))
@@ -79,10 +83,10 @@ class BrowserFixture:
         self.initial_status = response.status
         return context, page
 
-    def admin(self, *args):
-        subprocess.run(
+    def admin(self, *args, check=True):
+        return subprocess.run(
             [str(BIN_DIR / "admin"), *args], env=self.env, cwd=self.work.name,
-            check=True, capture_output=True, timeout=30,
+            check=check, capture_output=True, timeout=30,
         )
 
     def stop_server(self):

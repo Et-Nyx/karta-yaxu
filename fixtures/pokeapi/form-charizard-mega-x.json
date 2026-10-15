@@ -1,0 +1,4 @@
+{
+  "source": {"endpoint_kind":"pokemon-form","external_id":10134,"source_url":"https://pokeapi.co/api/v2/pokemon-form/10134/","retrieved_at":"2026-10-15T02:11:12Z","transformation_version":1},
+  "projection": {"id":10134,"name":"charizard-mega-x","english_name":"Mega Charizard X","form_name":"mega-x","is_default":true,"is_battle_only":true,"is_mega":true,"pokemon_url":"https://pokeapi.co/api/v2/pokemon/10034/","types":[{"slot":1,"type_url":"https://pokeapi.co/api/v2/type/10/"},{"slot":2,"type_url":"https://pokeapi.co/api/v2/type/16/"}]}
+}

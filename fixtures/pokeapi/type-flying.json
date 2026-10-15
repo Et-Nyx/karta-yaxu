@@ -1,0 +1,4 @@
+{
+  "source": {"endpoint_kind":"type","external_id":3,"source_url":"https://pokeapi.co/api/v2/type/3/","retrieved_at":"2026-10-15T02:11:12Z","transformation_version":1},
+  "projection": {"id":3,"name":"flying","english_name":"Flying"}
+}

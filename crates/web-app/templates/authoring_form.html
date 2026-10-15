@@ -23,6 +23,8 @@
   <dl><dt>Canonical form ID and pinned version</dt><dd><code>{{ comparison.form.id }}</code> · {{ comparison.form.revision }}</dd><dt>Canonical species ID and pinned version</dt><dd><code>{{ comparison.species.id }}</code> · {{ comparison.form.species_version }}</dd><dt>Species name at pin</dt><dd>{{ comparison.species.fields.display_name }}</dd><dt>Slug</dt><dd>{{ comparison.form.fields.slug }}</dd><dt>Display name</dt><dd>{{ comparison.form.fields.display_name }}</dd><dt>Description</dt><dd class="plain-text">{{ comparison.form.fields.description }}</dd></dl>
 </section>
 {% endfor %}</div>{% endif %}
+{% if !type_comparisons.is_empty() %}<div class="comparison-grid">{% for comparison in type_comparisons %}<section class="panel"><h2>{{ comparison.label }}</h2><dl><dt>Canonical type ID and pinned version</dt><dd><a href="/types/{{ comparison.entry.id }}"><code>{{ comparison.entry.id }}</code></a> · version {{ comparison.entry.revision }}</dd><dt>Name at pin</dt><dd>{{ comparison.entry.fields.display_name }}</dd><dt>Slug at pin</dt><dd>{{ comparison.entry.fields.slug }}</dd><dt>Description at pin</dt><dd class="plain-text">{{ comparison.entry.fields.description }}</dd></dl></section>{% endfor %}</div><p>Existing variant type pins stay frozen. Adoption changes this local type's baseline and creates a new local version.</p>{% endif %}
+{% if !typing_comparisons.is_empty() %}<div class="comparison-grid">{% for comparison in typing_comparisons %}<section class="panel"><h2>{{ comparison.label }}</h2>{% let typing = comparison.typing %}{% include "typing_summary.html" %}</section>{% endfor %}</div>{% endif %}
 <section class="panel">
 <h2>{% if !error.is_empty() %}Your submitted draft{% else %}Your values{% endif %}</h2>
 <form method="post" action="{{ action }}">
@@ -34,16 +36,16 @@
   <div class="field"><label for="species-version">Pinned species version</label><input id="species-version" name="species_version" inputmode="numeric" value="{{ draft.species_version }}" required aria-describedby="species-version-help species-version-error" {% if !self.field_error("species_version").is_empty() %}aria-invalid="true"{% endif %}><p id="species-version-help" class="muted">An exact immutable species version, in positive whole-number versions. No latest version is inferred.</p><p id="species-version-error" class="field-error">{{ self.field_error("species_version") }}</p></div>
   {% endif %}
   {% if choose_source %}
-  <div class="field"><label for="source-pin">Source form and version</label>
-    <select id="source-pin" name="source_pin" aria-describedby="source-help source-error">
+   <div class="field"><label for="source-pin">{{ source_label }}</label>
+     <select id="source-pin" name="source_pin" aria-describedby="source-help source-error" {% if !self.field_error("source_pin").is_empty() || !self.field_error("source").is_empty() %}aria-invalid="true"{% endif %}>
       <option value="" {% if selected_source.is_empty() %}selected{% endif %}>World-exclusive (no shared source)</option>
       {% for choice in choices %}<option value="{{ choice.value }}" {% if choice.value == selected_source %}selected{% endif %}>{{ choice.label }}</option>{% endfor %}
     </select>
-    <p id="source-help" class="muted">Each option pins a concrete form ID and version. Selection chooses the baseline only; the fields below are your effective local values. Use a shared-form link on the world page to start with a copy of source fields. Later library edits do not change this variant.</p>
+     <p id="source-help" class="muted">{{ source_help }}</p>
     <p id="source-error" class="field-error">{{ self.field_error("source_pin") }} {{ self.field_error("source") }} {{ self.field_error("form_id") }} {{ self.field_error("form_version") }}</p>
   </div>
   {% endif %}
-  {% if !draft.target_version.is_empty() %}<input type="hidden" name="target_version" value="{{ draft.target_version }}"><p>Reviewed target form version: {{ draft.target_version }}.</p><p class="field-error">{{ self.field_error("target_version") }}</p>{% endif %}
+   {% if !draft.target_version.is_empty() %}<input type="hidden" name="target_version" value="{{ draft.target_version }}"><p>Reviewed target {{ target_label }} version: {{ draft.target_version }}.</p><p class="field-error">{{ self.field_error("target_version") }}</p>{% endif %}
   {% include "authoring_fields.html" %}
   {% if !reviewed_revision.is_empty() && blocked_reason.is_empty() %}<p class="notice">Review the current saved state above and all draft fields. The button below explicitly resubmits against revision {{ reviewed_revision }}; your original starting revision is retained until you choose it.</p>{% endif %}
   {% if !blocked_reason.is_empty() %}<p class="notice" role="status">{{ blocked_reason }}</p>{% endif %}

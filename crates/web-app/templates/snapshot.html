@@ -5,7 +5,8 @@
 <p>{{ entry.action }} · {{ entry.actor_name }} · <time>{{ entry.occurred_at }}</time> (UTC)</p>
 {% match entry.reason %}{% when Some with (reason) %}<p>Reason: {{ reason }}</p>{% when None %}{% endmatch %}
 <p class="notice">Immutable revision snapshots, displayed as escaped plain text. They do not execute HTML or scripts.</p>
-<section class="panel"><h2>Field changes</h2>{% for change in changes %}<article class="field-change"><h3>{{ change.label }}</h3><dl><dt>Before</dt><dd class="plain-text">{{ change.before }}</dd><dt>After</dt><dd class="plain-text">{{ change.after }}</dd></dl></article>{% else %}<p>No displayed content fields changed in this revision.</p>{% endfor %}</section>
+{% match typing_label %}{% when Some with (label) %}<section class="panel"><h2>Typing at this revision</h2>{% if typing_pins.is_empty() %}<p>{{ label }}</p>{% else %}<ol>{% for pin in typing_pins %}<li>{% match pin.url %}{% when Some with (url) %}<a href="{{ url }}">{{ pin.label }}</a>{% when None %}{{ pin.label }}{% endmatch %}</li>{% endfor %}</ol>{% endif %}</section>{% when None %}{% endmatch %}
+<section class="panel"><h2>Field changes</h2>{% for change in changes %}<article class="field-change"><h3>{{ change.label }}</h3>{% include "history_change.html" %}</article>{% else %}<p>No displayed content fields changed in this revision.</p>{% endfor %}</section>
 <section class="panel"><h2>Before</h2>{% match entry.before_json %}{% when Some with (json) %}<pre>{{ json }}</pre>{% when None %}<p>No previous snapshot (initial creation).</p>{% endmatch %}</section>
 <section class="panel"><h2>After</h2><pre>{{ entry.after_json }}</pre></section>
 {% endblock %}

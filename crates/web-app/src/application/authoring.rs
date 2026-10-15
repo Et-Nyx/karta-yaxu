@@ -104,6 +104,8 @@ pub enum HistoryKind {
     Form,
     World,
     Variant,
+    Type,
+    WorldType,
 }
 #[derive(Clone, Debug, sqlx::FromRow)]
 pub struct HistoryEntry {
@@ -134,6 +136,9 @@ pub struct AdoptionPreview {
     pub new_source: FormRecord,
     pub old_species: SpeciesRecord,
     pub new_species: SpeciesRecord,
+    pub old_typing: super::types::TypingState,
+    pub new_typing: super::types::TypingState,
+    pub local_typing: super::types::TypingState,
 }
 #[derive(Clone, Debug, Default)]
 pub struct SeedReport {
@@ -147,17 +152,17 @@ pub struct Authoring {
     accounts: Accounts,
 }
 
-fn invalid(field: &str, message: &str) -> Error {
+pub(crate) fn invalid(field: &str, message: &str) -> Error {
     Error::Invalid(FieldErrors::from([(field.into(), message.into())]))
 }
-fn missing_reference(error: Error, field: &str) -> Error {
+pub(crate) fn missing_reference(error: Error, field: &str) -> Error {
     if error == Error::NotFound {
         invalid(field, "Choose an existing exact definition version.")
     } else {
         error
     }
 }
-fn fields_and_reason(
+pub(crate) fn fields_and_reason(
     fields: &ContentFields,
     reason: Option<&str>,
 ) -> Result<(ContentFields, Option<String>), Error> {
@@ -178,13 +183,13 @@ fn fields_and_reason(
         reason_result.map_err(Error::Invalid)?,
     ))
 }
-fn next(revision: i64) -> Result<i64, Error> {
+pub(crate) fn next(revision: i64) -> Result<i64, Error> {
     revision.checked_add(1).ok_or(Error::Unavailable)
 }
 
 /// Called within the same BEGIN IMMEDIATE transaction as the authorized mutation.
 /// Unchanged normalized names retain even legacy and collision-suffixed slugs.
-async fn allocate_slug(
+pub(crate) async fn allocate_slug(
     c: &mut SqliteConnection,
     scope: store::SlugScope<'_>,
     fields: &mut ContentFields,
@@ -209,7 +214,7 @@ async fn allocate_slug(
         "Too many records share this address. Choose a different name.",
     ))
 }
-fn expected(actual: i64, expected: i64) -> Result<(), Error> {
+pub(crate) fn expected(actual: i64, expected: i64) -> Result<(), Error> {
     if actual == expected {
         Ok(())
     } else {
@@ -226,7 +231,7 @@ fn require_eligible(actor: &Actor) -> Result<(), Error> {
         Err(Error::Forbidden)
     }
 }
-fn require_admin(actor: &Actor) -> Result<(), Error> {
+pub(crate) fn require_admin(actor: &Actor) -> Result<(), Error> {
     if actor.role == Role::Administrator {
         Ok(())
     } else {
@@ -238,18 +243,24 @@ pub(crate) fn new_id() -> Result<String, Error> {
     getrandom::fill(&mut bytes).map_err(|_| Error::Unavailable)?;
     Ok(hex::encode(bytes))
 }
-fn snapshot(value: &impl Serialize) -> Result<String, Error> {
+pub(crate) fn snapshot(value: &impl Serialize) -> Result<String, Error> {
     serde_json::to_string(&serde_json::json!({"snapshot_version": 1, "content": value}))
         .map_err(|_| Error::Unavailable)
 }
 // Public world snapshots deliberately exclude ownership, access revision and grants.
-async fn world_snapshot(c: &mut SqliteConnection, world: &WorldRecord) -> Result<String, Error> {
+pub(crate) async fn world_snapshot(
+    c: &mut SqliteConnection,
+    world: &WorldRecord,
+) -> Result<String, Error> {
     let ids = store::variant_ids(c, &world.id).await?;
     snapshot(
         &serde_json::json!({"id":world.id,"fields":world.fields,"revision":world.revision,"archived_at":world.archived_at,"variant_ids":ids}),
     )
 }
-async fn access_snapshot(c: &mut SqliteConnection, world: &WorldRecord) -> Result<String, Error> {
+pub(crate) async fn access_snapshot(
+    c: &mut SqliteConnection,
+    world: &WorldRecord,
+) -> Result<String, Error> {
     let ids = store::collaborator_ids(c, &world.id).await?;
     snapshot(
         &serde_json::json!({"world_id":world.id,"owner_user_id":world.owner_user_id,"access_revision":world.access_revision,"collaborator_ids":ids}),
@@ -325,19 +336,23 @@ impl Authoring {
         tx.commit().await.map_err(store::storage_error)?;
         Ok((world, variant))
     }
-    async fn write(&self) -> Result<Transaction<'static, Sqlite>, Error> {
+    pub(crate) async fn write(&self) -> Result<Transaction<'static, Sqlite>, Error> {
         persistence::begin_write(self.accounts.pool())
             .await
             .map_err(store::storage_error)
     }
-    async fn actor(&self, c: &mut SqliteConnection, token: &str) -> Result<Actor, Error> {
+    pub(crate) async fn actor(
+        &self,
+        c: &mut SqliteConnection,
+        token: &str,
+    ) -> Result<Actor, Error> {
         self.accounts
             .authenticate_in_transaction(c, token)
             .await
             .map_err(|_| Error::Unavailable)?
             .ok_or(Error::Unauthorized)
     }
-    async fn world_actor(
+    pub(crate) async fn world_actor(
         &self,
         c: &mut SqliteConnection,
         actor: &Actor,
@@ -973,6 +988,15 @@ impl Authoring {
         let new_species =
             store::species_version(&mut tx, &new_source.species_id, new_source.species_version)
                 .await?;
+        let old_typing =
+            crate::persistence::types::form_typing(&mut tx, &old_source.id, old_source.revision)
+                .await?;
+        let new_typing =
+            crate::persistence::types::form_typing(&mut tx, &new_source.id, new_source.revision)
+                .await?;
+        let local_typing =
+            crate::persistence::types::variant_typing(&mut tx, world_id, id, entry.revision)
+                .await?;
         tx.commit().await.map_err(store::storage_error)?;
         Ok(AdoptionPreview {
             entry,
@@ -980,6 +1004,9 @@ impl Authoring {
             new_source,
             old_species,
             new_species,
+            old_typing,
+            new_typing,
+            local_typing,
         })
     }
     pub async fn access(&self, token: &str, world_id: &str) -> Result<AccessState, Error> {

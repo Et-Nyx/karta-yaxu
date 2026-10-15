@@ -4,6 +4,9 @@
 mod addresses;
 mod authoring;
 mod login_limit;
+mod types;
+#[cfg(test)]
+mod types_tests;
 
 use crate::{
     accounts::Accounts,
@@ -31,6 +34,7 @@ const AUTH_FORM_LIMIT: usize = 4096;
 #[derive(Clone)]
 pub struct AppState {
     authoring: Authoring,
+    types: crate::application::types::Types,
     accounts: Accounts,
     provider: Option<Arc<dyn IdentityProvider>>,
     public_origin: String,
@@ -47,6 +51,7 @@ impl AppState {
     ) -> Self {
         Self {
             authoring: Authoring::new(accounts.clone()),
+            types: crate::application::types::Types::new(accounts.clone()),
             accounts,
             provider,
             public_origin,
@@ -59,6 +64,7 @@ impl AppState {
 pub fn router(state: AppState) -> Router {
     let inner = Router::new()
         .merge(authoring::routes())
+        .merge(types::routes())
         .route("/", get(home))
         .route("/creatures", get(creatures))
         .route("/creatures/{id}", get(detail))
@@ -120,9 +126,14 @@ struct Creatures {
 #[template(path = "detail.html")]
 struct Detail {
     creature: SpeciesRecord,
-    forms: Vec<FormRecord>,
+    forms: Vec<FormOverview>,
     worlds: Vec<WorldRecord>,
     can_edit_library: bool,
+}
+
+struct FormOverview {
+    form: FormRecord,
+    typing: types::TypingSummary,
 }
 
 #[derive(Template)]
@@ -244,7 +255,12 @@ async fn detail(
 ) -> Response {
     let result = async {
         let creature = state.authoring.species_detail(&id).await?;
-        let forms = state.authoring.forms(&id).await?;
+        let mut forms = Vec::new();
+        for form in state.authoring.forms(&id).await? {
+            let typing =
+                types::TypingSummary::new(state.types.form_typing(&form.id, None).await?, None);
+            forms.push(FormOverview { form, typing });
+        }
         let worlds = state.authoring.availability(&id).await?;
         let capabilities = state
             .authoring

@@ -10,6 +10,7 @@ use sqlx::{
 use std::{str::FromStr, time::Duration};
 
 pub mod authoring;
+pub mod types;
 
 static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations");
 
@@ -98,7 +99,7 @@ pub async fn schema_ready(pool: &SqlitePool) -> Result<bool, String> {
     .map_err(|error| error.to_string())?;
     if count == 0 {
         let application_tables: i64 = sqlx::query_scalar(
-            "SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name IN ('users', 'sessions', 'invites', 'species', 'species_versions', 'forms', 'form_versions', 'worlds', 'variants', 'world_revisions', 'variant_revisions', 'world_collaborators', 'world_access_revisions', 'audit_events')",
+            "SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name IN ('users', 'sessions', 'invites', 'species', 'species_versions', 'forms', 'form_versions', 'worlds', 'variants', 'world_revisions', 'variant_revisions', 'world_collaborators', 'world_access_revisions', 'audit_events', 'types', 'type_versions', 'world_types', 'world_type_versions', 'form_content_snapshots', 'variant_content_snapshots', 'world_content_snapshots', 'form_type_bindings', 'variant_type_bindings', 'type_version_sources', 'species_version_sources', 'form_version_sources')",
         ).fetch_one(pool).await.map_err(|error| error.to_string())?;
         if application_tables != 0 {
             return Err("Database has application tables without migration history; select a compatible database or investigate its history.".to_owned());
@@ -134,14 +135,24 @@ pub async fn schema_ready(pool: &SqlitePool) -> Result<bool, String> {
         "SELECT id, slug, display_name, description, revision, default_form_id, archived_at FROM species LIMIT 0",
         "SELECT species_id, revision, slug, display_name, description, default_form_id, archived_at, audit_id, previous_revision, before_json, after_json FROM species_versions LIMIT 0",
         "SELECT id, species_id, species_version, slug, display_name, description, revision, is_default, archived_at FROM forms LIMIT 0",
-        "SELECT form_id, species_id, species_version, revision, slug, display_name, description, is_default, archived_at, audit_id, previous_revision, before_json, after_json FROM form_versions LIMIT 0",
+        "SELECT form_id, species_id, species_version, revision, slug, display_name, description, is_default, archived_at, audit_id, previous_revision, before_json, after_json, content_snapshot_version FROM form_versions LIMIT 0",
         "SELECT id, owner_user_id, slug, display_name, description, revision, access_revision, archived_at FROM worlds LIMIT 0",
-        "SELECT world_id, revision, previous_revision, audit_id, before_json, after_json FROM world_revisions LIMIT 0",
+        "SELECT world_id, revision, previous_revision, audit_id, before_json, after_json, content_snapshot_version FROM world_revisions LIMIT 0",
         "SELECT id, world_id, source_form_id, source_form_version, slug, display_name, description, revision, archived_at FROM variants LIMIT 0",
-        "SELECT world_id, variant_id, revision, previous_revision, audit_id, before_json, after_json FROM variant_revisions LIMIT 0",
+        "SELECT world_id, variant_id, revision, previous_revision, audit_id, before_json, after_json, content_snapshot_version FROM variant_revisions LIMIT 0",
         "SELECT world_id, user_id FROM world_collaborators LIMIT 0",
         "SELECT world_id, revision, previous_revision, audit_id, before_json, after_json FROM world_access_revisions LIMIT 0",
         "SELECT id, actor_user_id, system_key, occurred_at, action, reason FROM audit_events LIMIT 0",
+        "SELECT id, revision, slug, display_name, description, archived_at FROM types LIMIT 0",
+        "SELECT type_id, revision, audit_id, previous_revision, before_json, after_json FROM type_versions LIMIT 0",
+        "SELECT world_id, id, revision, source_type_id, source_type_version FROM world_types LIMIT 0",
+        "SELECT world_id, type_id, revision, audit_id, before_json, after_json FROM world_type_versions LIMIT 0",
+        "SELECT form_id, revision, marker, typing_defined, before_json, after_json FROM form_content_snapshots LIMIT 0",
+        "SELECT world_id, variant_id, revision, marker, typing_defined, before_json, after_json FROM variant_content_snapshots LIMIT 0",
+        "SELECT world_id, revision, marker, before_json, after_json FROM world_content_snapshots LIMIT 0",
+        "SELECT form_id, revision, slot, type_id, type_version FROM form_type_bindings LIMIT 0",
+        "SELECT world_id, variant_id, revision, slot, type_id, type_version FROM variant_type_bindings LIMIT 0",
+        "SELECT object_kind, object_id, revision, endpoint_kind, external_id, source_url, retrieved_at, transformation_version FROM reference_provenance LIMIT 0",
     ] {
         sqlx::query(query).execute(pool).await
             .map_err(|_| "Application schema does not match its migration history; investigate the database before proceeding.".to_owned())?;

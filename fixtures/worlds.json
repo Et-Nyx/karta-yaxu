@@ -1,0 +1,33 @@
+{
+  "fixture_version": 1,
+  "worlds": [
+    {
+      "id":"da05ae68560e4534ae229ce6139494ae",
+      "fields":{"slug":"classiclab","display_name":"ClassicLab","description":"Synthetic fixture lab, not an official edition or player save. Cached reference metadata and explicit local typing only; battle behavior is unsupported."},
+      "types":[
+        {"id":"5dbc420575dd445aa89bab5d73df0ff0","world_id":"da05ae68560e4534ae229ce6139494ae","source":{"type_id":"6b4c13114c374eb6891469592b1743de","version":1},"fields":{"slug":"fire","display_name":"Fire","description":"ClassicLab local Fire metadata, pinned to cached shared version 1. No effectiveness behavior."},"revision":1,"archived_at":null},
+        {"id":"cd84fa1b2771402f9b8867965fb164b1","world_id":"da05ae68560e4534ae229ce6139494ae","source":{"type_id":"2effa2714dbb46d3a00c9061bd6f659d","version":1},"fields":{"slug":"flying","display_name":"Flying","description":"ClassicLab local Flying metadata, pinned to cached shared version 1. No effectiveness behavior."},"revision":1,"archived_at":null},
+        {"id":"04d6c4508dd642da9e414ce264302b5f","world_id":"da05ae68560e4534ae229ce6139494ae","source":{"type_id":"0b89bdbbf95b42f0b7e31c8b75667650","version":1},"fields":{"slug":"dragon","display_name":"Dragon","description":"ClassicLab local Dragon metadata, pinned to cached shared version 1. No effectiveness behavior."},"revision":1,"archived_at":null}
+      ],
+      "variants":[
+        {"record":{"id":"3df3f58dcbee43ecb1ba4c35bbc8384f","world_id":"da05ae68560e4534ae229ce6139494ae","source":{"form_id":"45c1900ed0a04324adb4f7a2ffd50bd8","version":1},"fields":{"slug":"charizard","display_name":"Charizard","description":"Synthetic ClassicLab base-form variant with explicit local Fire/Flying pins."},"revision":1,"archived_at":null},"typing":[{"type_id":"5dbc420575dd445aa89bab5d73df0ff0","version":1},{"type_id":"cd84fa1b2771402f9b8867965fb164b1","version":1}]},
+        {"record":{"id":"9bd6cf93f21740c9b3626ce52ca619b9","world_id":"da05ae68560e4534ae229ce6139494ae","source":{"form_id":"d4dfc82fd1bb40dbb8ee52947696f24f","version":1},"fields":{"slug":"mega-charizard-x","display_name":"Mega Charizard X","description":"Synthetic ClassicLab Mega X variant. Source battle-only flags do not implement transformations."},"revision":1,"archived_at":null},"typing":[{"type_id":"5dbc420575dd445aa89bab5d73df0ff0","version":1},{"type_id":"04d6c4508dd642da9e414ce264302b5f","version":1}]}
+      ]
+    },
+    {
+      "id":"5d2d9dba132840f3acbaa5ed1e2b0b49",
+      "fields":{"slug":"variantlab","display_name":"VariantLab","description":"Synthetic fixture lab for independent variants and more than two ordered Types. Not an official edition or player save; metadata and typing only."},
+      "types":[
+        {"id":"138ea1a2c29c409c9f0cb1aa3f08ef5f","world_id":"5d2d9dba132840f3acbaa5ed1e2b0b49","source":{"type_id":"6b4c13114c374eb6891469592b1743de","version":1},"fields":{"slug":"fire","display_name":"Fire","description":"VariantLab local Fire metadata, pinned to cached shared version 1."},"revision":1,"archived_at":null},
+        {"id":"95d664fbfc5c406e9838a5ad7a7034ba","world_id":"5d2d9dba132840f3acbaa5ed1e2b0b49","source":{"type_id":"2effa2714dbb46d3a00c9061bd6f659d","version":1},"fields":{"slug":"flying","display_name":"Flying","description":"VariantLab local Flying metadata, pinned to cached shared version 1."},"revision":1,"archived_at":null},
+        {"id":"61d7316a183048b283947e630bef2761","world_id":"5d2d9dba132840f3acbaa5ed1e2b0b49","source":{"type_id":"0b89bdbbf95b42f0b7e31c8b75667650","version":1},"fields":{"slug":"dragon","display_name":"Dragon","description":"VariantLab local Dragon metadata, pinned to cached shared version 1."},"revision":1,"archived_at":null},
+        {"id":"e864180dbafa4bcdb8bc8e2aa2ef8e79","world_id":"5d2d9dba132840f3acbaa5ed1e2b0b49","source":null,"fields":{"slug":"mist","display_name":"Mist","description":"Original synthetic world-exclusive Type. Metadata only, without an effectiveness chart."},"revision":1,"archived_at":null}
+      ],
+      "variants":[
+        {"record":{"id":"7ed34425989e4fb5ae6301c8b210df4e","world_id":"5d2d9dba132840f3acbaa5ed1e2b0b49","source":{"form_id":"45c1900ed0a04324adb4f7a2ffd50bd8","version":1},"fields":{"slug":"charizard-triad","display_name":"Charizard Triad","description":"Synthetic three-Type variant of the cached base form. Demonstrates no Pokemon two-Type hard cap."},"revision":1,"archived_at":null},"typing":[{"type_id":"138ea1a2c29c409c9f0cb1aa3f08ef5f","version":1},{"type_id":"95d664fbfc5c406e9838a5ad7a7034ba","version":1},{"type_id":"61d7316a183048b283947e630bef2761","version":1}]},
+        {"record":{"id":"9227e158cfa64d338e2af9ba67b5d555","world_id":"5d2d9dba132840f3acbaa5ed1e2b0b49","source":{"form_id":"45c1900ed0a04324adb4f7a2ffd50bd8","version":1},"fields":{"slug":"charizard-mist","display_name":"Charizard Mist","description":"Second independent variant of the same base form, using local Mist then Fire."},"revision":1,"archived_at":null},"typing":[{"type_id":"e864180dbafa4bcdb8bc8e2aa2ef8e79","version":1},{"type_id":"138ea1a2c29c409c9f0cb1aa3f08ef5f","version":1}]},
+        {"record":{"id":"9d56baee41e54a5fa90afd1dae817385","world_id":"5d2d9dba132840f3acbaa5ed1e2b0b49","source":null,"fields":{"slug":"mistling","display_name":"Mistling","description":"Original synthetic world-exclusive entry with one explicit Mist pin. No imported species or battle behavior."},"revision":1,"archived_at":null},"typing":[{"type_id":"e864180dbafa4bcdb8bc8e2aa2ef8e79","version":1}]}
+      ]
+    }
+  ]
+}

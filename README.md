@@ -3,7 +3,9 @@
 A creature collector design wiki and future Battle Lab, built with Rust and
 server-rendered HTML. The local app authors a versioned shared species/form library
 and independently owned game worlds, with scoped collaboration, multiple local
-variants, explicit source adoption, and attributed history.
+variants, versioned Types and ordered typing, explicit source adoption, and
+attributed history. Explicit fixture commands provide sample authoring worlds,
+not an executable game.
 
 ## Run locally
 
@@ -74,8 +76,8 @@ Cookies are `HttpOnly` and `SameSite=Strict`; `Secure` is off only for local HTT
 | --- | --- |
 | Browse library, worlds and content history | Public local preview |
 | Create a world | Editor or administrator; creator becomes its owner |
-| Create/edit shared species and forms | Administrator |
-| Edit a world or its variants | Owner or collaborator with editor/administrator eligibility |
+| Create/edit shared species, forms and Types | Administrator |
+| Edit a world, its variants or local Types | Owner or collaborator with editor/administrator eligibility |
 | Grant/revoke collaboration and inspect access history | World owner |
 
 Administrator status does not bypass another world's ownership. Accounts remain
@@ -99,6 +101,71 @@ is a future explicit operation; it is not silently performed by account disablin
    complete before/after snapshots. Public world snapshots omit access details.
 6. The owner can manage collaborators using their immutable account ids. Access
    history is private and has a separate revision counter from content.
+
+### Types and ordered typing
+
+Use **Types** to author shared definitions. World owners/collaborators add exact
+shared Type versions to their world or create a world-exclusive Type. Both library
+and local Type edits create immutable versions. Updates do not automatically
+retarget world sources or form/variant assignments; adoption and reassignment are
+explicit, separate actions.
+
+Shared forms select ordered shared Type versions. World variants select ordered
+**same-world** local Type versions. Follow **Edit typing**, choose the displayed
+slot count *before editing* (the GET reloads saved values), then choose the typing
+state and native slot dropdowns:
+
+- **Unmodeled**: this definition does not describe its typing yet.
+- **Defined** with no selections: intentionally typeless.
+- **Defined** with selections: exact pins, in displayed order; blank slots are
+  skipped and duplicate Type identities are rejected.
+
+The 32-slot software work bound is not Pokémon's two-type rule. Metadata edits
+preserve exact typing state and pins. Shared-form adoption shows old/new source
+typing but retains local world typing; it never maps by name or picks arbitrary
+matching local Types. Type descriptions are inert metadata: effectiveness charts,
+damage and transformation execution are not implemented.
+
+### World fixtures
+
+The cached reference subset contains **Fire, Flying, Dragon**, one shared Charizard
+species and its base/Mega X forms with ordered typing. These are explicitly marked
+temporary Pokémon placeholders, not a complete mechanics dataset. Source caches
+under `fixtures/pokeapi/` retain endpoint kind, external id/URL, UTC retrieval time
+and transformation version. Internal ids are independent of external ids.
+
+To load just the shared reference subset:
+
+```bash
+cargo run -p web-app --bin admin -- seed-reference-fixtures
+```
+
+To add the two synthetic worlds, first sign in once as the account that should own
+them (an invite alone is not an account). Copy its immutable id from `/account` or
+`admin list-users`. From another terminal, inside `nix develop`, using the same
+`KARTA_DATABASE_URL` as the server:
+
+```bash
+cargo run -p web-app --bin admin -- list-users
+cargo run -p web-app --bin admin -- seed-world-fixtures --owner-user-id <immutable-user-id>
+```
+
+This also initializes the reference prerequisites atomically if missing. It
+creates no accounts and requires an existing enabled editor/administrator owner.
+Open **Worlds** to explore:
+
+| World | Examples |
+| --- | --- |
+| **ClassicLab** (`/worlds/classiclab`) | Charizard Fire/Flying and Mega X Fire/Dragon |
+| **VariantLab** (`/worlds/variantlab`) | Independent same-source Charizard variants, a three-Type variant, and world-exclusive Mist/Mistling |
+
+The complete batch contains 3 shared Types, 1 species, 2 forms, 2 worlds, 7 local
+Types and 5 variants. Creation history is attributed to `bundled-fixture-loader`,
+including owner-only initial access history. Reruns skip 20 matching objects and
+preserve later edits, typing and collaborator changes. A different owner, collisions,
+drift or partial baselines reject the whole batch; existing worlds are never
+repaired or overwritten. These synthetic labs are not official Pokémon editions,
+player saves, encounter legality, battle transformations or engine packages.
 
 Forms preserve submitted values after validation/authorization/storage failures.
 Stale edits return **409**, display the newer record, and require **Save reviewed
@@ -163,14 +230,24 @@ cargo run -p web-app --bin admin -- migrate
 cargo run -p web-app --bin admin -- seed-fixtures
 ```
 
-Migration `0002_world_authoring.sql` adds typed content/version/access tables and
-preserves existing auth records. New binaries require both migrations; older
-binaries reject the newer schema. Migrations do not initialize content. The
+Migration `0002_world_authoring.sql` adds typed content/version/access tables;
+`0003_types.sql` adds Type versions, exact ordered bindings, provenance and full
+snapshot sidecars. New binaries require all three migrations; older binaries reject
+the newer schema. Migrations do not initialize content or alter existing auth
+records. The
 explicit fixture command preserves existing canonical creature ids as species
 ids, creates default-form ids once, and attributes initial history to the named
 `bundled-fixture-loader` system actor. It creates no login account. Matching seed
 baselines are skipped after edits; drift/collisions roll back the entire seed batch.
 An empty uninitialized library is supported.
+
+The Types upgrade preserves old JSON bytes and immutable versions. Old form,
+variant and world revisions retain their v1 meaning, including unmodeled typing.
+New affected revisions have v2 full snapshots, linked to existing v1 metadata
+projections and the same audit event. Missing/inconsistent full snapshots fail
+closed rather than silently falling back. History reads both versions, including
+v1-before/v2-after transitions. Species, Type and private access snapshots use their
+own v1 schemas. Do not edit old migrations or add retrospective typing to history.
 
 ## Available workflows
 
@@ -182,6 +259,10 @@ An empty uninitialized library is supported.
   shared form creation/detail; form detail paths support `/edit`.
 - `/worlds`, `/worlds/new`, `/worlds/{world-slug}`: world catalog and creation/detail.
 - `/worlds/{world-slug}/variants/{variant-slug}`: local detail, `/edit` and `/adopt`.
+- `/types`, `/types/new`, `/types/{type-slug}`: shared Type catalog, creation and detail.
+- `/worlds/{world-slug}/types/new`, `/worlds/{world-slug}/types/{type-slug}`:
+  world-local Types; detail supports `/edit`, `/adopt` and history.
+- Shared form and world variant detail paths support `/typing` for ordered assignments.
 - Content detail URLs have `/history` and `/history/{revision}` views; lists are
   bounded to 50 changes per page.
 - `/worlds/{world-slug}/access`: owner-only collaboration and private access history.
@@ -192,6 +273,9 @@ An empty uninitialized library is supported.
 - `cargo run -p web-app --bin admin -- <command>`: operator CLI:
   - `migrate` — apply pending migrations (deliberate; never automatic).
   - `seed-fixtures` — initialize bundled species/forms without overwriting edits.
+  - `seed-reference-fixtures` — load the cached Type/Charizard subset.
+  - `seed-world-fixtures --owner-user-id <immutable-user-id>` — load the complete
+    synthetic lab worlds and reference prerequisites with explicit ownership.
   - `invite-user --subject <name> [--role <viewer|editor|administrator>] [--provider <id>] [--note <text>]` (default role: viewer).
   - `list-users`, `list-invites`.
   - `disable-user --id <immutable-user-id>`, `enable-user --id <immutable-user-id>`.
@@ -242,6 +326,9 @@ Authoring tests additionally cover direct-use-case scope/role checks, exact vers
 references, immutable history, typed snapshot validation, rollback after late
 revision/audit faults, initialization baselines, explicit adoption, no-ops and
 concurrent permission revocation. Migration 1→2 preserves existing sessions.
+Types tests cover populated 2→3 upgrades with byte-preserved history, exact pins,
+same-world scope, ordered/empty/unmodeled typing, sealed snapshots/bindings, late
+fault rollback, fixture provenance/ownership/idempotence, and SQLite integrity.
 URL tests additionally cover scoped addresses, rename/reuse, reserved/ID-shaped
 slugs, query-preserving redirects, HEAD behavior, unchanged mutation targets and
 source-version display independent of current address coordinates. Automatic slug
@@ -262,7 +349,7 @@ is needed. First use may download Nix packages and Rust build dependencies;
 browser requests during the tests are restricted to the local test server.
 
 The runner builds current native web/admin binaries with `--locked`, then runs
-24 keyboard-driven tests at desktop (1280px) and narrow (320px) widths. It
+36 keyboard-driven tests at desktop (1280px) and narrow (320px) widths. It
 uses fresh test-owned databases, servers on available loopback ports, and browser
 contexts, independent of your running app or `KARTA_*` configuration. Those
 processes and databases are cleaned up after each test. Custom `CARGO_TARGET_DIR`
@@ -279,6 +366,9 @@ ID-bound drafts after slug reuse. Assertions check focused controls are in view
 outline, and that pages have no
 horizontal overflow. Navigation and typing use only keyboard events; locators
 inspect state rather than clicking/focusing/filling controls.
+The Types workflows also exercise native ordered dropdowns, 32 displayed slots,
+Type version/adoption independence, typing conflicts and revoked grants, and the
+two owned fixture labs without external fetching.
 
 Failures save screenshots in a unique ignored `target/browser-tests/run-*`
 directory. Screenshots can be opened from Windows for diagnosis. No traces,
@@ -310,6 +400,9 @@ failure page's retry button is keyboard-accessible.
   - `src/persistence/authoring.rs`: typed rows/queries and strict snapshot readers.
   - `src/web/authoring.rs`: native authoring/history forms and error rendering.
   - `src/web/addresses.rs`: pre-routing readable GET/HEAD addresses and ID compatibility.
+  - `src/application/types.rs` + `src/persistence/types.rs`: versioned Type policy,
+    exact typing, compatible full snapshots, cached reference/world initialization.
+  - `src/web/types.rs`: native Type, adoption and ordered-typing forms.
   - `src/bin/admin.rs`: migration and invite operator CLI.
 - `crates/tools`: fixture validator.
 - `tests/browser`: Python `unittest` + Playwright for isolated real-browser
@@ -321,14 +414,15 @@ failure page's retry button is keyboard-accessible.
 
 ## Next milestones and boundaries
 
-The world-aware foundation currently authors name and description, with automatic
-slugs. Types,
-stats, moves/learnsets, items, abilities, natures, evolution/transformation rules,
+The world-aware foundation authors name/description with automatic slugs, Type
+definitions and exact ordered typing. Type effectiveness charts, stats,
+moves/learnsets, items, abilities, natures, evolution/transformation rules,
 maps/encounters, PokeAPI adapters and engine exports follow in separate domain
 slices. The reference benchmark is documented in
 `docs/architecture/reference-coverage.md`; Pokémon-specific limits belong to
-versioned rulesets, not universal database constraints. No actual Pokémon content
-or complete mechanics model has been imported. World edit revisions are not yet
+versioned rulesets, not universal database constraints. Only a small cached Pokémon
+metadata/typing subset is supplied; a general import/update-preview adapter and
+complete mechanics model remain future work. World edit revisions are not yet
 immutable complete-world packages. Archive/revert and ownership transfer/recovery
 also require explicit future workflows. See decision `0006-world-aware-authoring`.
 

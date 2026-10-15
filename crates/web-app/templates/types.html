@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Types — Karta Yaxu{% endblock %}
+{% block content %}
+<p class="eyebrow">Shared library</p><h1>Types</h1>
+<p>Versioned names and descriptions. Forms select ordered, exact shared type versions; worlds have independent local type definitions.</p>
+<p class="notice">Development placeholder content — not approved game content. Effectiveness and battle mechanics are not modeled here.</p>
+{% if can_edit_library %}<p><a class="button" href="/types/new">Create shared type</a></p>{% endif %}
+<div class="cards">{% for entry in types %}<article class="card"><h2><a href="/types/{{ crate::web::addresses::segment(entry.fields.slug) }}">{{ entry.fields.display_name }}</a></h2><p class="plain-text">{{ entry.fields.description }}</p><p>Version {{ entry.revision }} · <code>{{ entry.id }}</code></p></article>{% else %}<p>No shared types yet.</p>{% endfor %}</div>
+{% endblock %}

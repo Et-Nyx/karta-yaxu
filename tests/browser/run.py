@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Build current native binaries and run isolated headless keyboard workflows."""
 
+import argparse
 import json
 import os
 from pathlib import Path
@@ -36,8 +37,16 @@ class ScreenshotResult(unittest.TextTestResult):
         self.capture_failure(test)
         super().addError(test, error)
 
+    def addSubTest(self, test, subtest, error):
+        if error is not None:
+            self.capture_failure(test)
+        super().addSubTest(test, subtest, error)
+
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("tests", nargs="*", help="Optional unittest names, e.g. test_types.DesktopTypesTests")
+    args = parser.parse_args()
     # Keep runs headless/bounded and avoid protocol logs containing session data.
     for key in ("PWDEBUG", "DEBUG"):
         os.environ.pop(key, None)
@@ -65,9 +74,10 @@ def main():
     artifact_root = ROOT / "target" / "browser-tests"
     artifact_root.mkdir(parents=True, exist_ok=True)
     artifacts = Path(tempfile.mkdtemp(prefix="run-", dir=artifact_root))
-    suite = unittest.defaultTestLoader.discover(
-        start_dir=str(Path(__file__).parent), pattern="test_*.py"
-    )
+    suite = (unittest.defaultTestLoader.loadTestsFromNames(args.tests) if args.tests else
+             unittest.defaultTestLoader.discover(
+                 start_dir=str(Path(__file__).parent), pattern="test_*.py"
+             ))
     if suite.countTestCases() == 0:
         raise SystemExit("No browser tests were discovered")
     result = unittest.TextTestRunner(

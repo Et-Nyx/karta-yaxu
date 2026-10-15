@@ -14,16 +14,20 @@ that the current application implements all of these concepts.
 - Explicit adoption of newer form versions, with old/local/new comparison.
 - Transactional versions, snapshots and audit; optimistic concurrency; public
   content history and private access history; keyboard authoring at two widths.
+- Shared/world-local Type definitions and exact ordered form/variant typing;
+  compatible v1/v2 history and explicit unmodeled versus defined-empty state.
+- Cached Type/Charizard reference subset, source provenance and owned synthetic labs.
 
-The bundled creatures remain invented placeholders. No PokeAPI import has been
-performed by this milestone. The existing canonical ids are retained.
+The original bundled creatures remain invented placeholders with retained ids.
+The cached PokeAPI projection now supplies Fire/Flying/Dragon and Charizard base/
+Mega X typing. A general network importer or complete mechanics model is not present.
 
 ## Reference scenarios to add incrementally
 
 | Domain | Acceptance scenario | Status |
 | --- | --- | --- |
 | Source contexts | Distinguish individual game version, version group and generation from Karta definition/edit versions | Planned |
-| Types | Ordered form type slots and versioned effectiveness; historical type changes do not alter adopted worlds | Planned |
+| Types | Ordered exact form/variant type pins; shared/world version independence | Implemented; effectiveness charts remain planned |
 | Stats | Describe supplied stats and modifiers without making Pokémon's stat vocabulary a universal engine constraint | Planned; stat semantics open |
 | Moves and learnsets | Keep method, level/order and source context; the same creature/move may have several learning records | Planned |
 | Movesets | Distinguish learned/learnable moves from configured active moves and runtime selection | Planned |
@@ -32,7 +36,7 @@ performed by this milestone. The existing canonical ids are retained.
 | Items | Distinguish item definitions, machine mappings, transformation requirements and wild held-item rarity | Planned |
 | Descriptions | Language/game-qualified source text, normalized for display but inert; preserve source provenance | Planned; plain-text authored paragraphs implemented |
 | Evolutions | Branches, conjunctions/alternatives, form restrictions and typed conditions bind explicit world entries | Planned |
-| Transformations | Regional/persistent forms differ from Mega/Gigantamax activation and reversion; do not fold battle transformations into evolution | Planned |
+| Transformations | Regional/persistent forms differ from Mega/Gigantamax activation and reversion; do not fold battle transformations into evolution | Planned; Mega X name/type reference only, no activation or reversion |
 | Cosmetic forms | Multiple appearances may share a mechanical reference definition | Planned |
 | Locations | Region/location/area relationships; actual playable map geometry needs a separate model | Planned |
 | Encounters | Edition, method, conditions, levels and chances; resolve mutually exclusive conditions rather than summing unrelated rows | Planned |
@@ -57,6 +61,13 @@ Create two synthetic worlds and two same-source variants in one of them. The
 synthetic worlds are test configurations, not claims of exact official-game
 availability. Distinguish source observations, curated additions, and unsupported
 or unknown executable semantics.
+
+Implemented subset: `fixtures/reference-types.json`, `fixtures/pokeapi/` and
+`fixtures/worlds.json`, initialized by explicit reference/world commands. ClassicLab
+and VariantLab have a real chosen owner, independent same-source entries, local
+Type versions, three-Type typing and world-exclusive Mist/Mistling. No fixture
+generation depends on a live network during use/tests; current canonical ids never
+reuse PokeAPI ids. See decision 0008 for the exact slice and history compatibility.
 
 ## Adapter and version rules
 
@@ -98,5 +109,6 @@ items, locations and encounters. Representative read-only samples included:
 - https://pokeapi.co/api/v2/move/tackle/
 - https://pokeapi.co/api/v2/type/steel/
 
-These are source references, not recorded fixture baselines. Capture and validate
-actual local fixtures when their adapter/domain slices are implemented.
+The cached Type/Charizard projections now record the relevant baselines and retrieval
+metadata locally. Other URLs above remain planning references, not fixture baselines;
+capture and validate those slices when implemented.

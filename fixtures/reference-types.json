@@ -1,0 +1,13 @@
+{
+  "fixture_version": 1,
+  "types": [
+    {"record":{"id":"6b4c13114c374eb6891469592b1743de","fields":{"slug":"fire","display_name":"Fire","description":"PokeAPI placeholder Type. Metadata only; no effectiveness chart or executable battle behavior."},"revision":1,"archived_at":null},"source_file":"type-fire.json"},
+    {"record":{"id":"2effa2714dbb46d3a00c9061bd6f659d","fields":{"slug":"flying","display_name":"Flying","description":"PokeAPI placeholder Type. Metadata only; no effectiveness chart or executable battle behavior."},"revision":1,"archived_at":null},"source_file":"type-flying.json"},
+    {"record":{"id":"0b89bdbbf95b42f0b7e31c8b75667650","fields":{"slug":"dragon","display_name":"Dragon","description":"PokeAPI placeholder Type. Metadata only; no effectiveness chart or executable battle behavior."},"revision":1,"archived_at":null},"source_file":"type-dragon.json"}
+  ],
+  "species": {"record":{"id":"77756539fdd648fc9aa5cbf69d6e04c5","fields":{"slug":"charizard","display_name":"Charizard","description":"PokeAPI placeholder species. This small reference models names, forms and ordered typing only; no stats, moves, evolution or battle behavior."},"revision":1,"default_form_id":"45c1900ed0a04324adb4f7a2ffd50bd8","archived_at":null},"source_file":"species-charizard.json"},
+  "forms": [
+    {"record":{"id":"45c1900ed0a04324adb4f7a2ffd50bd8","species_id":"77756539fdd648fc9aa5cbf69d6e04c5","species_version":1,"fields":{"slug":"charizard","display_name":"Charizard","description":"PokeAPI placeholder base form with Fire then Flying typing. Metadata and typing only; no executable battle behavior."},"revision":1,"is_default":true,"archived_at":null},"typing":[{"type_id":"6b4c13114c374eb6891469592b1743de","version":1},{"type_id":"2effa2714dbb46d3a00c9061bd6f659d","version":1}],"source_file":"form-charizard.json"},
+    {"record":{"id":"d4dfc82fd1bb40dbb8ee52947696f24f","species_id":"77756539fdd648fc9aa5cbf69d6e04c5","species_version":1,"fields":{"slug":"mega-charizard-x","display_name":"Mega Charizard X","description":"PokeAPI placeholder Mega X form with Fire then Dragon typing. Battle-only in the source; transformation triggers, held items, abilities and battle behavior are unsupported metadata, not executable mechanics."},"revision":1,"is_default":false,"archived_at":null},"typing":[{"type_id":"6b4c13114c374eb6891469592b1743de","version":1},{"type_id":"0b89bdbbf95b42f0b7e31c8b75667650","version":1}],"source_file":"form-charizard-mega-x.json"}
+  ]
+}

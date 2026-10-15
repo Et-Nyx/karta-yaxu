@@ -1,0 +1,4 @@
+{
+  "source": {"endpoint_kind":"pokemon-species","external_id":6,"source_url":"https://pokeapi.co/api/v2/pokemon-species/6/","retrieved_at":"2026-10-15T02:11:12Z","transformation_version":1},
+  "projection": {"id":6,"name":"charizard","english_name":"Charizard","varieties":[{"is_default":true,"pokemon_url":"https://pokeapi.co/api/v2/pokemon/6/"},{"is_default":false,"pokemon_url":"https://pokeapi.co/api/v2/pokemon/10034/"}]}
+}

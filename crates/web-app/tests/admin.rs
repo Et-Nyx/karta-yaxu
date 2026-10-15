@@ -20,6 +20,18 @@ fn invalid_commands_and_help_have_no_database_side_effects() {
         vec!["unknown"],
         vec!["migrate", "extra"],
         vec!["seed-fixtures", "--subject", "alice"],
+        vec!["seed-reference-fixtures", "extra"],
+        vec!["seed-world-fixtures"],
+        vec!["seed-world-fixtures", "--owner-user-id"],
+        vec!["seed-world-fixtures", "--owner-user-id", "invalid"],
+        vec!["seed-world-fixtures", "--owner", "alice"],
+        vec![
+            "seed-world-fixtures",
+            "--owner-user-id",
+            "00000000000000000000000000000000",
+            "--owner-user-id",
+            "11111111111111111111111111111111",
+        ],
         vec!["invite-user", "--subject", "--role", "administrator"],
         vec!["invite-user", "--subject", "alice", "--provider"],
         vec!["invite-user", "--subject", "alice", "--role"],
@@ -55,6 +67,145 @@ fn invalid_commands_and_help_have_no_database_side_effects() {
         !parent.exists(),
         "initialization must require a migrated database"
     );
+    assert!(!admin(&["seed-reference-fixtures"], &url).status.success());
+    assert!(
+        !admin(
+            &[
+                "seed-world-fixtures",
+                "--owner-user-id",
+                "00000000000000000000000000000000"
+            ],
+            &url
+        )
+        .status
+        .success()
+    );
+    assert!(!parent.exists());
+}
+
+#[tokio::test]
+async fn reference_and_world_cli_fixtures_require_real_owner_and_preserve_reruns() {
+    use web_app::{
+        application::{
+            authoring::{Authoring, Edit},
+            types::Types,
+        },
+        auth::Role,
+    };
+    let dir = tempfile::tempdir().unwrap();
+    let url = format!("sqlite://{}/fixtures.db", dir.path().display());
+    assert!(admin(&["migrate"], &url).status.success());
+    let pool = persistence::connect(&url).await.unwrap();
+    let accounts = Accounts::new(pool.clone(), 3600).unwrap();
+    let mut actors = Vec::new();
+    for (name, role) in [
+        ("owner", Role::Editor),
+        ("viewer", Role::Viewer),
+        ("other", Role::Administrator),
+    ] {
+        accounts.invite("test", name, role, None).await.unwrap();
+        actors.push(
+            accounts
+                .sign_in(Subject {
+                    provider: "test".into(),
+                    provider_subject: name.into(),
+                    display_name: name.into(),
+                })
+                .await
+                .unwrap(),
+        );
+    }
+    for id in [
+        "00000000000000000000000000000000",
+        actors[1].user_id.as_str(),
+    ] {
+        let result = admin(&["seed-world-fixtures", "--owner-user-id", id], &url);
+        assert!(!result.status.success());
+        assert!(
+            String::from_utf8(result.stderr)
+                .unwrap()
+                .contains("existing enabled editor or administrator")
+        );
+    }
+    let count: i64 = sqlx::query_scalar("SELECT count(*) FROM types")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(
+        count, 0,
+        "invalid owner must not create reference prerequisites"
+    );
+    assert!(admin(&["seed-reference-fixtures"], &url).status.success());
+    let result = admin(
+        &["seed-world-fixtures", "--owner-user-id", &actors[0].user_id],
+        &url,
+    );
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    assert!(
+        String::from_utf8(result.stdout)
+            .unwrap()
+            .contains("2 worlds, 7 world Types, 5 variants")
+    );
+    let (token, _) = accounts.start_session(&actors[0].user_id).await.unwrap();
+    let service = Authoring::new(accounts.clone());
+    let world = service.worlds().await.unwrap().remove(0);
+    let access = service.access(&token, &world.id).await.unwrap();
+    assert_eq!(access.history[0].actor_name, "bundled-fixture-loader");
+    let mut fields = world.fields.clone();
+    fields.display_name = "Owner's edited lab".into();
+    let changed = service
+        .save_world(
+            &token,
+            &world.id,
+            Edit {
+                expected_revision: 1,
+                fields,
+                reason: Some("Keep this change".into()),
+            },
+        )
+        .await
+        .unwrap();
+    let audit_count: i64 = sqlx::query_scalar("SELECT count(*) FROM audit_events")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    let result = admin(
+        &["seed-world-fixtures", "--owner-user-id", &actors[0].user_id],
+        &url,
+    );
+    assert!(result.status.success());
+    assert!(
+        String::from_utf8(result.stdout)
+            .unwrap()
+            .contains("skipped 20 matching objects")
+    );
+    assert_eq!(service.world_detail(&world.id).await.unwrap(), changed);
+    assert!(
+        !admin(
+            &["seed-world-fixtures", "--owner-user-id", &actors[2].user_id],
+            &url
+        )
+        .status
+        .success()
+    );
+    assert_eq!(
+        sqlx::query_scalar::<_, i64>("SELECT count(*) FROM audit_events")
+            .fetch_one(&pool)
+            .await
+            .unwrap(),
+        audit_count
+    );
+    assert_eq!(
+        accounts.users().await.unwrap().len(),
+        3,
+        "fixtures must never create accounts"
+    );
+    assert_eq!(Types::new(accounts.clone()).types().await.unwrap().len(), 3);
+    pool.close().await;
 }
 
 #[tokio::test]
