@@ -6,6 +6,7 @@ fn admin(args: &[&str], url: &str) -> Output {
         .args(args)
         .env("KARTA_DATABASE_URL", url)
         .env("KARTA_SESSION_TTL_SECONDS", "3600")
+        .env_remove("KARTA_DEV_AUTH")
         .output()
         .unwrap()
 }
@@ -20,6 +21,26 @@ fn invalid_commands_and_help_have_no_database_side_effects() {
         vec!["unknown"],
         vec!["migrate", "extra"],
         vec!["seed-fixtures", "--subject", "alice"],
+        vec!["seed-fixtures", "--admin-subject"],
+        vec!["seed-fixtures", "--admin-subject", ""],
+        vec!["seed-fixtures", "--admin-subject", "invalid user"],
+        vec![
+            "seed-fixtures",
+            "--admin-subject",
+            "alice",
+            "--admin-subject",
+            "bob",
+        ],
+        vec!["seed-fixtures", "--owner-user-id", "invalid"],
+        vec!["seed-fixtures", "--owner-user-id"],
+        vec![
+            "seed-fixtures",
+            "--owner-user-id",
+            "00000000000000000000000000000000",
+            "--admin-subject",
+            "admin",
+        ],
+        vec!["seed-creature-fixtures", "--admin-subject", "admin"],
         vec!["seed-reference-fixtures", "extra"],
         vec!["seed-world-fixtures"],
         vec!["seed-world-fixtures", "--owner-user-id"],
@@ -48,7 +69,11 @@ fn invalid_commands_and_help_have_no_database_side_effects() {
             "invalid command created database directory"
         );
     }
-    for args in [vec!["--help"], vec!["invite-user", "--help"]] {
+    for args in [
+        vec!["--help"],
+        vec!["invite-user", "--help"],
+        vec!["seed-fixtures", "--help"],
+    ] {
         let result = Command::new(env!("CARGO_BIN_EXE_admin"))
             .args(args)
             .env("KARTA_DATABASE_URL", &url)
@@ -213,14 +238,14 @@ async fn explicit_initialization_is_idempotent_and_does_not_create_accounts() {
     let dir = tempfile::tempdir().unwrap();
     let url = format!("sqlite://{}/content.db", dir.path().display());
     assert!(admin(&["migrate"], &url).status.success());
-    let first = admin(&["seed-fixtures"], &url);
+    let first = admin(&["seed-creature-fixtures"], &url);
     assert!(first.status.success());
     assert!(
         String::from_utf8(first.stdout)
             .unwrap()
             .contains("Initialized 3 species and 3 default forms")
     );
-    let second = admin(&["seed-fixtures"], &url);
+    let second = admin(&["seed-creature-fixtures"], &url);
     assert!(second.status.success());
     assert!(
         String::from_utf8(second.stdout)

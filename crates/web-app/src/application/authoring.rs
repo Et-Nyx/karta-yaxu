@@ -1164,6 +1164,17 @@ impl Authoring {
     }
     /// Trusted local operator only. Compare immutable initial baselines, never live edits.
     pub async fn seed_catalog(&self, catalog: &Catalog) -> Result<SeedReport, Error> {
+        let mut tx = self.write().await?;
+        let report = self.seed_catalog_in(&mut tx, catalog).await?;
+        tx.commit().await.map_err(store::storage_error)?;
+        Ok(report)
+    }
+
+    pub(super) async fn seed_catalog_in(
+        &self,
+        c: &mut SqliteConnection,
+        catalog: &Catalog,
+    ) -> Result<SeedReport, Error> {
         // Catalog construction validates IDs and uniqueness; validate authoring text too.
         let mut rows = Vec::new();
         for creature in catalog.creatures() {
@@ -1181,12 +1192,11 @@ impl Authoring {
             }
             rows.push((creature.id(), fields));
         }
-        let mut tx = self.write().await?;
         let mut report = SeedReport::default();
         for (id, fields) in rows {
-            if store::species_exists(&mut tx, id).await? {
-                let baseline = store::species_version(&mut tx, id, 1).await?;
-                let form = store::form_version(&mut tx, &baseline.default_form_id, 1).await?;
+            if store::species_exists(c, id).await? {
+                let baseline = store::species_version(c, id, 1).await?;
+                let form = store::form_version(c, &baseline.default_form_id, 1).await?;
                 if baseline.fields != fields
                     || baseline.archived_at.is_some()
                     || form.fields != fields
@@ -1194,7 +1204,7 @@ impl Authoring {
                     || form.species_id != id
                     || form.species_version != 1
                     || form.archived_at.is_some()
-                    || !store::fixture_baseline(&mut tx, id, &form.id).await?
+                    || !store::fixture_baseline(c, id, &form.id).await?
                 {
                     return Err(invalid(
                         "catalog",
@@ -1203,19 +1213,18 @@ impl Authoring {
                 }
                 report.species_skipped += 1;
             } else {
-                if store::initial_slug_exists(&mut tx, &fields.slug).await? {
+                if store::initial_slug_exists(c, &fields.slug).await? {
                     return Err(invalid(
                         "catalog",
                         "A fixture slug has a different initial species identity.",
                     ));
                 }
-                self.insert_species(&mut tx, id.into(), fields.clone(), fields, None, None)
+                self.insert_species(c, id.into(), fields.clone(), fields, None, None)
                     .await?;
                 report.species_created += 1;
                 report.forms_created += 1;
             }
         }
-        tx.commit().await.map_err(store::storage_error)?;
         Ok(report)
     }
 }

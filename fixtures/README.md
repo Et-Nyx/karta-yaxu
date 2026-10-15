@@ -9,10 +9,20 @@ when changing names or slugs. The JSON format is internal, not an engine export.
 
 Validation: `cargo run -p tools -- validate-fixtures`.
 
-After deliberate migration, `cargo run -p web-app --bin admin -- seed-fixtures`
-initializes the SQLite shared library. Existing creature IDs become species IDs;
-default forms receive separate IDs. Initial versions are attributed to the named
-fixture loader, without creating a user account. Reruns preserve designer edits and
+After deliberate migration, `KARTA_DEV_AUTH=1 cargo run -p web-app --bin admin -- seed-fixtures`
+initializes all bundled creatures, Types and lab worlds atomically. With no users
+at all, it also creates the development administrator `admin` (customizable with
+`--admin-subject`) and records a consumed invitation; sign in normally afterward.
+A matching pending administrator invite is consumed; a lower-role invite rejects
+the setup. All account/invitation/content/audit writes share one transaction.
+Existing fixture worlds keep their eligible owner; otherwise a sole enabled admin
+is selected. Use `--owner-user-id` for an explicit eligible owner. The two options
+are mutually exclusive. Setup never promotes/enables users or transfers worlds.
+See decision `0009-complete-fixture-bootstrap.md` for the owner-resolution contract.
+
+For the old creature-only scope, use `admin seed-creature-fixtures`. Existing
+creature IDs become species IDs; default forms receive separate IDs. Content
+versions are attributed to the named fixture loader. Reruns preserve designer edits and
 validate creation baselines; they are not a fixture-overwrite/import mechanism.
 Normal browsing reads SQLite rather than this JSON file.
 
@@ -27,8 +37,8 @@ as the library's species-default flag; internal identities are allocated separat
 
 `admin seed-world-fixtures --owner-user-id <immutable-user-id>` initializes the
 reference prerequisites plus ClassicLab/VariantLab in one atomic batch. The owner
-must already be an enabled editor/administrator account. No synthetic accounts are
-created. Initial snapshots include all children and ordered pins; reruns check
+must already be an enabled editor/administrator account. Targeted seed commands
+create no accounts. Initial snapshots include all children and ordered pins; reruns check
 creation baselines, skip matching objects and never restore over user edits.
 Different ownership, drift, incomplete batches or collisions are errors.
 

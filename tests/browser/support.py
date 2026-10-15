@@ -45,7 +45,9 @@ class BrowserFixture:
             KARTA_SESSION_TTL_SECONDS="3600",
         )
         self.admin("migrate")
-        self.admin("seed-fixtures")
+        # Most workflows deliberately start without worlds/accounts; the complete
+        # seed-fixtures bootstrap is covered explicitly by the Types workflows.
+        self.admin("seed-creature-fixtures")
         if self.seed_reference:
             self.admin("seed-reference-fixtures")
         self.admin("invite-user", "--subject", "alice", "--role", "editor")

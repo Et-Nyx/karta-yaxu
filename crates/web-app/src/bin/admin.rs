@@ -7,6 +7,7 @@ use web_app::{
     accounts::Accounts,
     application::{
         authoring::{Authoring, Error},
+        fixtures::{Fixtures, SeedOptions},
         types::{FixtureReport, Types},
     },
     auth::{Role, placeholder},
@@ -19,7 +20,11 @@ Usage: admin <command> [options]
 
 Commands:
   migrate                 Create the database and apply pending migrations.
-  seed-fixtures           Initialize bundled species/default forms; never overwrite edits.
+  seed-fixtures           Initialize all bundled content atomically; never overwrite edits.
+      --owner-user-id <id>  Existing eligible owner; otherwise retain fixture owner/sole admin.
+      --admin-subject <name> Bootstrap username if no users exist (default: admin).
+                           Bootstrap requires KARTA_DEV_AUTH=1; options are mutually exclusive.
+  seed-creature-fixtures  Initialize only the original species/default forms.
   seed-reference-fixtures  Initialize the cached Type/Charizard reference subset.
   seed-world-fixtures --owner-user-id <id>
                           Initialize two synthetic worlds owned by an existing account.
@@ -37,7 +42,11 @@ Commands:
 enum Command {
     Help,
     Migrate,
-    SeedFixtures,
+    SeedFixtures {
+        owner_user_id: Option<String>,
+        admin_subject: Option<String>,
+    },
+    SeedCreatureFixtures,
     SeedReferenceFixtures,
     SeedWorldFixtures {
         owner_user_id: String,
@@ -88,7 +97,27 @@ async fn run() -> Result<(), String> {
             persistence::migrate(&pool).await?;
             println!("Migrations applied.");
         }
-        Command::SeedFixtures => {
+        Command::SeedFixtures {
+            owner_user_id,
+            admin_subject,
+        } => {
+            let report = Fixtures::new(accounts.clone())
+                .seed(SeedOptions {
+                    owner_user_id: owner_user_id.as_deref(),
+                    admin_subject: admin_subject.as_deref(),
+                    dev_auth: config.dev_auth,
+                })
+                .await
+                .map_err(authoring_error)?;
+            print_fixture_report(report.fixtures);
+            println!("Sample-world owner: {}", report.owner_user_id);
+            if let Some(subject) = report.bootstrap_subject {
+                println!(
+                    "Created development administrator. Sign in as {subject} with KARTA_DEV_AUTH=1."
+                );
+            }
+        }
+        Command::SeedCreatureFixtures => {
             let catalog = Catalog::from_json(BUNDLED_FIXTURES)?;
             let report = Authoring::new(accounts.clone())
                 .seed_catalog(&catalog)
@@ -177,9 +206,12 @@ fn parse(args: &[String]) -> Result<Command, String> {
         return Ok(Command::Help);
     }
     let allowed: &[&str] = match name.as_str() {
-        "migrate" | "seed-fixtures" | "seed-reference-fixtures" | "list-users" | "list-invites" => {
-            &[]
-        }
+        "migrate"
+        | "seed-creature-fixtures"
+        | "seed-reference-fixtures"
+        | "list-users"
+        | "list-invites" => &[],
+        "seed-fixtures" => &["--owner-user-id", "--admin-subject"],
         "seed-world-fixtures" => &["--owner-user-id"],
         "invite-user" => &["--subject", "--role", "--provider", "--note"],
         "disable-user" | "enable-user" => &["--id"],
@@ -208,7 +240,24 @@ fn parse(args: &[String]) -> Result<Command, String> {
     }
     match name.as_str() {
         "migrate" => Ok(Command::Migrate),
-        "seed-fixtures" => Ok(Command::SeedFixtures),
+        "seed-fixtures" => {
+            let owner_user_id = options.remove("--owner-user-id");
+            let admin_subject = options
+                .remove("--admin-subject")
+                .map(|raw| placeholder::normalize(&raw).map_err(|e| e.to_string()))
+                .transpose()?;
+            if owner_user_id.is_some() && admin_subject.is_some() {
+                return Err("Choose --owner-user-id or --admin-subject, not both.".into());
+            }
+            if let Some(id) = &owner_user_id {
+                validate_id(id)?;
+            }
+            Ok(Command::SeedFixtures {
+                owner_user_id,
+                admin_subject,
+            })
+        }
+        "seed-creature-fixtures" => Ok(Command::SeedCreatureFixtures),
         "seed-reference-fixtures" => Ok(Command::SeedReferenceFixtures),
         "seed-world-fixtures" => {
             let id = options

@@ -63,11 +63,13 @@ availability. Distinguish source observations, curated additions, and unsupporte
 or unknown executable semantics.
 
 Implemented subset: `fixtures/reference-types.json`, `fixtures/pokeapi/` and
-`fixtures/worlds.json`, initialized by explicit reference/world commands. ClassicLab
-and VariantLab have a real chosen owner, independent same-source entries, local
+`fixtures/worlds.json`, initialized by complete `admin seed-fixtures` setup or
+targeted reference/world commands. ClassicLab and VariantLab have a retained,
+explicitly chosen or bootstrapped development owner, independent same-source entries, local
 Type versions, three-Type typing and world-exclusive Mist/Mistling. No fixture
 generation depends on a live network during use/tests; current canonical ids never
-reuse PokeAPI ids. See decision 0008 for the exact slice and history compatibility.
+reuse PokeAPI ids. See decision 0008 for the exact slice and history compatibility,
+and 0009 for atomic setup and development administrator bootstrap.
 
 ## Adapter and version rules
 

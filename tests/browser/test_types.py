@@ -1,4 +1,4 @@
-"""ADR 0008 workflows: native dropdowns, exact history and owned fixture labs.
+"""ADR 0008/0009 workflows: exact typing, owned labs and complete dev bootstrap.
 
 Only page.keyboard changes browser state. SQL inspects the disposable database,
 except the explicitly marked selector fault injection; target saves always POST
@@ -438,6 +438,48 @@ class TypesWorkflows(AuthoringSupport):
                   "form_content_snapshots", "variant_content_snapshots", "world_content_snapshots",
                   "form_type_bindings", "variant_type_bindings", "audit_events", "reference_provenance")
         return {table: self.sql(f"SELECT count(*) FROM {table}")[0][0] for table in tables}
+
+    def test_complete_seed_bootstraps_admin_for_first_sign_in_and_keeps_owner_edits(self):
+        self.assertEqual(self.sql("SELECT count(*) FROM users"), [(0,)])
+        self.admin("seed-fixtures")
+        owner = self.user_id("admin")
+        self.assertEqual(self.sql("SELECT role, is_disabled FROM users"), [("administrator", 0)])
+        self.assertEqual(self.sql("SELECT count(*) FROM sessions"), [(0,)])
+        self.assertEqual(self.sql("SELECT DISTINCT owner_user_id FROM worlds"), [(owner,)])
+        self.assertEqual(self.sql("SELECT count(*) FROM species"), [(4,)])
+        self.assertEqual(self.sql("SELECT count(*) FROM forms"), [(5,)])
+        self.assertEqual(self.sql("SELECT count(*) FROM variants"), [(5,)])
+        counts = self.content_counts()
+        self.admin("seed-fixtures")
+        self.assertEqual(self.content_counts(), counts)
+
+        self.sign_in("admin")
+        self.assertEqual(self.user_id("admin"), owner)
+        self.follow("Types")
+        for name in ("Fire", "Flying", "Dragon"):
+            expect(self.link(name)).to_be_visible()
+        expect(self.link("Create shared type")).to_be_visible()
+        self.follow("Worlds")
+        expect(self.link("VariantLab")).to_be_visible()
+        self.follow("ClassicLab")
+        self.follow("Manage collaborators")
+        expect(self.saved_value("Immutable owner user ID")).to_have_text(owner)
+        self.follow("← Return to world")
+        self.follow("Edit world")
+        self.enter("Description", "Keep the bootstrap owner's authored lab description.")
+        self.submit("Save changes", destination="/worlds/classiclab")
+        counts = self.content_counts()
+        sessions = self.sql("SELECT * FROM sessions")
+        self.admin("seed-fixtures")
+        self.assertEqual(self.content_counts(), counts)
+        self.assertEqual(self.sql("SELECT * FROM sessions"), sessions)
+        self.follow("Worlds")
+        self.follow("ClassicLab")
+        expect(self.page.get_by_role("main")).to_contain_text(
+            "Keep the bootstrap owner's authored lab description.")
+        self.follow_path("/worlds/classiclab/variants/charizard")
+        self.assert_typing(["Fire", "Flying"])
+        self.assertEqual(self.sql("PRAGMA foreign_key_check"), [])
 
     def test_owned_world_fixture_labs_are_explicit_idempotent_and_cached(self):
         before = self.content_counts()

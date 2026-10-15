@@ -14,13 +14,26 @@ Requires Nix with flakes enabled on Linux. From the project root:
 ```bash
 nix develop
 cargo run -p web-app --bin admin -- migrate
-cargo run -p web-app --bin admin -- seed-fixtures
-KARTA_DEV_AUTH=1 cargo run -p web-app --bin admin -- invite-user --subject alice --role administrator
-KARTA_DEV_AUTH=1 cargo run -p web-app --bin admin -- invite-user --subject bob --role editor
+KARTA_DEV_AUTH=1 cargo run -p web-app --bin admin -- seed-fixtures
 KARTA_DEV_AUTH=1 cargo run -p web-app
 ```
 
-Then open **http://127.0.0.1:3000** and sign in at `/login` as `alice`.
+On a fresh database, setup creates the development administrator **`admin`** and
+all bundled content in one transaction. Open **http://127.0.0.1:3000** and sign in
+at `/login` as `admin`; no prior browser sign-in or manual invitation is needed.
+To choose a different bootstrap username, use this instead of the seed command:
+
+```bash
+KARTA_DEV_AUTH=1 cargo run -p web-app --bin admin -- seed-fixtures --admin-subject alice
+```
+
+Open **Types** (`/types`) for Fire/Flying/Dragon and **Worlds** (`/worlds`) for
+ClassicLab/VariantLab. Setup prints the sample-world owner and, when created, the
+bootstrap sign-in name. Existing databases keep their fixture owner or use the
+sole enabled administrator; ambiguous ownership needs `--owner-user-id`.
+The server reads the database and does not automatically load fixture files.
+See [World fixtures](#world-fixtures) for ownership, targeted commands and reruns.
+
 Stop with Ctrl+C. SIGINT and SIGTERM trigger graceful shutdown. The first build
 needs network access for pinned packages and crates; normal use and tests do not
 fetch external content.
@@ -30,8 +43,12 @@ fetch external content.
 Authentication is a **development placeholder and is not secure**. It uses no
 passwords: anyone who can reach the server can sign in as any invited user. It is
 disabled unless `KARTA_DEV_AUTH=1` is set, and it must not be exposed beyond local
-development. Accounts are invite-only: an operator invites a subject before first
-sign-in, and the account is created on that first sign-in.
+development. Other accounts are invite-only: an operator invites a subject before
+first sign-in, and the account is created on that first sign-in. The explicit
+`seed-fixtures` development bootstrap is the exception: with no users at all and
+development authentication enabled, it creates an administrator and records a
+consumed invitation. It creates no session; sign in normally. A matching pending
+administrator invitation is consumed; a lower-role invitation causes an error.
 
 The code keeps authentication behind an application-layer identity-provider port.
 A future Polycentric identity provider implements this port and adds its own
@@ -86,10 +103,13 @@ Users can find their immutable user id on `/account` and share it with the owner
 Disabling an owner preserves ownership and history. Ownership transfer/recovery
 is a future explicit operation; it is not silently performed by account disabling.
 
-1. Sign in as `alice`, open **Creatures**, and edit/create shared species or forms.
+1. Sign in as your administrator (`admin` after default bootstrap), open
+   **Creatures**, and edit/create shared species or forms.
    A new species automatically creates its default form. Every successful change
    adds an immutable definition version and audit event in the same transaction.
-2. Sign in as `bob`, open **Worlds → Create world**. Add variants from a concrete
+2. To try a separate editor, run `cargo run -p web-app --bin admin -- invite-user
+   --subject bob --role editor`, then sign in as `bob` and open **Worlds → Create
+   world**. Add variants from a concrete
    shared form/version, or choose world-exclusive content. Multiple variants may
    use the same form/version; local slugs distinguish them within the world.
 3. Edit a variant's effective name/description without changing the library or
@@ -134,15 +154,37 @@ temporary Pokémon placeholders, not a complete mechanics dataset. Source caches
 under `fixtures/pokeapi/` retain endpoint kind, external id/URL, UTC retrieval time
 and transformation version. Internal ids are independent of external ids.
 
-To load just the shared reference subset:
+The normal `seed-fixtures` command loads **all** bundled content atomically:
+4 species, 5 forms, 3 shared Types, 2 worlds, 7 local Types and 5 variants. Any
+bootstrap account, invitation changes, ownership, versions and audit entries
+commit together; an error leaves none of that invocation's writes. No external
+data is fetched.
+
+Ownership is resolved inside the write transaction:
+
+1. `--owner-user-id <id>` selects an existing enabled editor/administrator and
+   must match any existing fixture-world ownership.
+2. Otherwise, complete existing fixture worlds keep their common eligible owner.
+3. With no users at all, `KARTA_DEV_AUTH=1` enables bootstrap of `admin` (or
+   `--admin-subject <name>`). Disabled accounts also count as existing users.
+4. Otherwise, the sole enabled administrator owns the new labs. With zero or
+   multiple candidates, pass an explicit owner id from `admin list-users`.
+
+`--owner-user-id` and `--admin-subject` are mutually exclusive. The latter only
+names a potential bootstrap account; once users exist, normal ownership resolution
+applies. Setup never promotes/enables accounts or transfers worlds.
+
+For smaller, targeted setup batches, use:
 
 ```bash
+cargo run -p web-app --bin admin -- seed-creature-fixtures
 cargo run -p web-app --bin admin -- seed-reference-fixtures
 ```
 
-To add the two synthetic worlds, first sign in once as the account that should own
-them (an invite alone is not an account). Copy its immutable id from `/account` or
-`admin list-users`. From another terminal, inside `nix develop`, using the same
+The targeted `seed-world-fixtures` command still requires an existing eligible
+owner and initializes the reference prerequisites if missing. It creates no
+accounts. Copy the owner's immutable id from `/account` or `admin list-users`.
+Run inside `nix develop`, using the same
 `KARTA_DATABASE_URL` as the server:
 
 ```bash
@@ -150,8 +192,6 @@ cargo run -p web-app --bin admin -- list-users
 cargo run -p web-app --bin admin -- seed-world-fixtures --owner-user-id <immutable-user-id>
 ```
 
-This also initializes the reference prerequisites atomically if missing. It
-creates no accounts and requires an existing enabled editor/administrator owner.
 Open **Worlds** to explore:
 
 | World | Examples |
@@ -159,10 +199,10 @@ Open **Worlds** to explore:
 | **ClassicLab** (`/worlds/classiclab`) | Charizard Fire/Flying and Mega X Fire/Dragon |
 | **VariantLab** (`/worlds/variantlab`) | Independent same-source Charizard variants, a three-Type variant, and world-exclusive Mist/Mistling |
 
-The complete batch contains 3 shared Types, 1 species, 2 forms, 2 worlds, 7 local
-Types and 5 variants. Creation history is attributed to `bundled-fixture-loader`,
-including owner-only initial access history. Reruns skip 20 matching objects and
-preserve later edits, typing and collaborator changes. A different owner, collisions,
+Creation history is attributed to `bundled-fixture-loader`, including owner-only
+initial access history. Complete setup reruns skip 26 matching content objects;
+targeted world reruns skip 20. Both preserve later edits, typing, sessions and
+collaborator changes. A different owner, collisions,
 drift or partial baselines reject the whole batch; existing worlds are never
 repaired or overwritten. These synthetic labs are not official Pokémon editions,
 player saves, encounter legality, battle transformations or engine packages.
@@ -227,7 +267,7 @@ backup filename). Migrate/initialize deliberately, then restart the new binary:
 ```bash
 sqlite3 -cmd ".timeout 5000" data/karta.db ".backup 'data/karta-before-authoring.db'"
 cargo run -p web-app --bin admin -- migrate
-cargo run -p web-app --bin admin -- seed-fixtures
+KARTA_DEV_AUTH=1 cargo run -p web-app --bin admin -- seed-fixtures
 ```
 
 Migration `0002_world_authoring.sql` adds typed content/version/access tables;
@@ -237,7 +277,8 @@ the newer schema. Migrations do not initialize content or alter existing auth
 records. The
 explicit fixture command preserves existing canonical creature ids as species
 ids, creates default-form ids once, and attributes initial history to the named
-`bundled-fixture-loader` system actor. It creates no login account. Matching seed
+`bundled-fixture-loader` system actor. Complete setup may bootstrap the first
+development administrator; targeted seeds create no accounts. Matching seed
 baselines are skipped after edits; drift/collisions roll back the entire seed batch.
 An empty uninitialized library is supported.
 
@@ -272,7 +313,9 @@ own v1 schemas. Do not edit old migrations or add retrospective typing to histor
   custom fixtures; errors exit nonzero. Custom files are checked, not imported.
 - `cargo run -p web-app --bin admin -- <command>`: operator CLI:
   - `migrate` — apply pending migrations (deliberate; never automatic).
-  - `seed-fixtures` — initialize bundled species/forms without overwriting edits.
+  - `seed-fixtures [--owner-user-id <id> | --admin-subject <name>]` — initialize
+    all bundled content atomically, with development admin bootstrap if no users exist.
+  - `seed-creature-fixtures` — initialize only the original species/default forms.
   - `seed-reference-fixtures` — load the cached Type/Charizard subset.
   - `seed-world-fixtures --owner-user-id <immutable-user-id>` — load the complete
     synthetic lab worlds and reference prerequisites with explicit ownership.
@@ -329,6 +372,9 @@ concurrent permission revocation. Migration 1→2 preserves existing sessions.
 Types tests cover populated 2→3 upgrades with byte-preserved history, exact pins,
 same-world scope, ordered/empty/unmodeled typing, sealed snapshots/bindings, late
 fault rollback, fixture provenance/ownership/idempotence, and SQLite integrity.
+Complete setup tests cover gated bootstrap, invitation handling, owner selection,
+concurrent initialization, partial baselines, and late rollback of accounts plus
+all content. Rerun checks preserve edits, grants, pins, archives and sessions.
 URL tests additionally cover scoped addresses, rename/reuse, reserved/ID-shaped
 slugs, query-preserving redirects, HEAD behavior, unchanged mutation targets and
 source-version display independent of current address coordinates. Automatic slug
@@ -349,7 +395,7 @@ is needed. First use may download Nix packages and Rust build dependencies;
 browser requests during the tests are restricted to the local test server.
 
 The runner builds current native web/admin binaries with `--locked`, then runs
-36 keyboard-driven tests at desktop (1280px) and narrow (320px) widths. It
+38 keyboard-driven tests at desktop (1280px) and narrow (320px) widths. It
 uses fresh test-owned databases, servers on available loopback ports, and browser
 contexts, independent of your running app or `KARTA_*` configuration. Those
 processes and databases are cleaned up after each test. Custom `CARGO_TARGET_DIR`
@@ -368,7 +414,8 @@ horizontal overflow. Navigation and typing use only keyboard events; locators
 inspect state rather than clicking/focusing/filling controls.
 The Types workflows also exercise native ordered dropdowns, 32 displayed slots,
 Type version/adoption independence, typing conflicts and revoked grants, and the
-two owned fixture labs without external fetching.
+two owned fixture labs without external fetching, plus the complete seed command,
+the bootstrap administrator's first sign-in and preservation of its later edits.
 
 Failures save screenshots in a unique ignored `target/browser-tests/run-*`
 directory. Screenshots can be opened from Windows for diagnosis. No traces,

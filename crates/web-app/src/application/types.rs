@@ -438,7 +438,7 @@ const REFERENCE_FIXTURES: &str = include_str!("../../../../fixtures/reference-ty
 const WORLD_FIXTURES: &str = include_str!("../../../../fixtures/worlds.json");
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-struct ReferenceFixtures {
+pub(super) struct ReferenceFixtures {
     fixture_version: i64,
     types: Vec<ReferenceType>,
     species: ReferenceSpecies,
@@ -465,7 +465,7 @@ struct ReferenceForm {
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-struct WorldFixtures {
+pub(super) struct WorldFixtures {
     fixture_version: i64,
     worlds: Vec<FixtureWorld>,
 }
@@ -526,7 +526,7 @@ fn fixture_id(ids: &mut HashSet<String>, id: &str) -> Result<(), Error> {
     }
 }
 impl ReferenceFixtures {
-    fn load() -> Result<Self, Error> {
+    pub(super) fn load() -> Result<Self, Error> {
         let value: Self = serde_json::from_str(REFERENCE_FIXTURES).map_err(|_| fixture_error())?;
         if value.fixture_version != 1 || value.types.is_empty() || value.forms.is_empty() {
             return Err(fixture_error());
@@ -601,7 +601,7 @@ impl ReferenceFixtures {
     }
 }
 impl WorldFixtures {
-    fn load(reference: &ReferenceFixtures) -> Result<Self, Error> {
+    pub(super) fn load(reference: &ReferenceFixtures) -> Result<Self, Error> {
         let value: Self = serde_json::from_str(WORLD_FIXTURES).map_err(|_| fixture_error())?;
         if value.fixture_version != 1 || value.worlds.is_empty() {
             return Err(fixture_error());
@@ -644,6 +644,30 @@ impl WorldFixtures {
         }
         Ok(value)
     }
+
+    pub(super) async fn existing_owner(
+        &self,
+        c: &mut sqlx::SqliteConnection,
+    ) -> Result<Option<String>, Error> {
+        let mut owner = None;
+        let mut present = 0;
+        for fixture in &self.worlds {
+            if store::identity_exists(c, &fixture.id).await? {
+                let world = content::world(c, &fixture.id)
+                    .await
+                    .map_err(|_| fixture_error())?;
+                if owner.as_ref().is_some_and(|id| id != &world.owner_user_id) {
+                    return Err(fixture_error());
+                }
+                owner = Some(world.owner_user_id);
+                present += 1;
+            }
+        }
+        if present > 0 && present != self.worlds.len() {
+            return Err(fixture_error());
+        }
+        Ok(owner)
+    }
 }
 impl Types {
     /// Trusted local operator only. No runtime network requests or synthetic accounts.
@@ -661,7 +685,21 @@ impl Types {
         let reference = ReferenceFixtures::load()?;
         let worlds = WorldFixtures::load(&reference)?;
         let mut tx = self.authoring.write().await?;
-        let owner = crate::persistence::user_by_id(&mut *tx, owner_user_id)
+        let report = self
+            .seed_world_fixtures_in(&mut tx, &reference, &worlds, owner_user_id)
+            .await?;
+        tx.commit().await.map_err(content::storage_error)?;
+        Ok(report)
+    }
+
+    pub(super) async fn seed_world_fixtures_in(
+        &self,
+        c: &mut sqlx::SqliteConnection,
+        reference: &ReferenceFixtures,
+        worlds: &WorldFixtures,
+        owner_user_id: &str,
+    ) -> Result<FixtureReport, Error> {
+        let owner = crate::persistence::user_by_id(&mut *c, owner_user_id)
             .await
             .map_err(content::storage_error)?
             .ok_or_else(|| {
@@ -682,29 +720,15 @@ impl Types {
             ));
         }
         let mut report = FixtureReport::default();
-        let mut existing_worlds = 0;
+        worlds.existing_owner(c).await?;
+        self.seed_reference_in(c, reference, &mut report).await?;
         for fixture in &worlds.worlds {
-            if store::identity_exists(&mut tx, &fixture.id).await? {
-                existing_worlds += 1;
-            }
-        }
-        if existing_worlds > 0 && existing_worlds != worlds.worlds.len() {
-            return Err(fixture_error());
-        }
-        self.seed_reference_in(&mut tx, &reference, &mut report)
-            .await?;
-        for fixture in &worlds.worlds {
-            if store::identity_exists(&mut tx, &fixture.id).await? {
-                self.check_world_baseline(&mut tx, fixture, owner_user_id)
-                    .await?;
+            if store::identity_exists(c, &fixture.id).await? {
+                self.check_world_baseline(c, fixture, owner_user_id).await?;
                 report.skipped += 1 + fixture.types.len() + fixture.variants.len();
             } else {
-                if store::initial_fixture_slug_exists(
-                    &mut tx,
-                    HistoryKind::World,
-                    &fixture.fields.slug,
-                )
-                .await?
+                if store::initial_fixture_slug_exists(c, HistoryKind::World, &fixture.fields.slug)
+                    .await?
                 {
                     return Err(fixture_error());
                 }
@@ -715,7 +739,7 @@ impl Types {
                     .map(|t| &t.id)
                     .chain(fixture.variants.iter().map(|v| &v.record.id))
                 {
-                    if store::identity_exists(&mut tx, id).await? {
+                    if store::identity_exists(c, id).await? {
                         return Err(fixture_error());
                     }
                 }
@@ -727,10 +751,10 @@ impl Types {
                     access_revision: 1,
                     archived_at: None,
                 };
-                content::put_world_head(&mut tx, &world).await?;
+                content::put_world_head(c, &world).await?;
                 for row in &fixture.types {
                     store::put_world_type(
-                        &mut tx,
+                        c,
                         row,
                         content::Revision::new(None, "create", None, None, author::snapshot(row)?),
                     )
@@ -738,9 +762,9 @@ impl Types {
                     report.world_types_created += 1;
                 }
                 for v in &fixture.variants {
-                    let typing = fixture_typing(&mut tx, Some(&world.id), v.typing.clone()).await?;
+                    let typing = fixture_typing(c, Some(&world.id), v.typing.clone()).await?;
                     content::put_variant_typed(
-                        &mut tx,
+                        c,
                         &v.record,
                         content::Revision::new(
                             None,
@@ -754,16 +778,16 @@ impl Types {
                     .await?;
                     report.variants_created += 1;
                 }
-                let after = author::world_snapshot(&mut tx, &world).await?;
+                let after = author::world_snapshot(c, &world).await?;
                 content::seal_world_revision(
-                    &mut tx,
+                    c,
                     &world,
                     content::Revision::new(None, "create", None, None, after),
                 )
                 .await?;
-                let access = author::access_snapshot(&mut tx, &world).await?;
+                let access = author::access_snapshot(c, &world).await?;
                 content::put_access_revision(
-                    &mut tx,
+                    c,
                     &world,
                     content::Revision::new(None, "own", None, None, access),
                 )
@@ -771,7 +795,6 @@ impl Types {
                 report.worlds_created += 1;
             }
         }
-        tx.commit().await.map_err(content::storage_error)?;
         Ok(report)
     }
     async fn seed_reference_in(

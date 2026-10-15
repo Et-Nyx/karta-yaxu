@@ -4,7 +4,7 @@
 //! are runtime-checked (no compile-time offline metadata is required).
 
 use sqlx::{
-    Executor, FromRow, Sqlite, SqlitePool,
+    Executor, FromRow, Sqlite, SqliteConnection, SqlitePool,
     sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteSynchronous},
 };
 use std::{str::FromStr, time::Duration};
@@ -389,6 +389,23 @@ pub async fn list_users(pool: &SqlitePool) -> Result<Vec<UserRow>, sqlx::Error> 
          FROM users ORDER BY display_name",
     )
     .fetch_all(pool)
+    .await
+}
+
+pub(crate) async fn users_exist(c: &mut SqliteConnection) -> Result<bool, sqlx::Error> {
+    sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM users)")
+        .fetch_one(c)
+        .await
+}
+
+pub(crate) async fn enabled_administrator_ids(
+    c: &mut SqliteConnection,
+) -> Result<Vec<String>, sqlx::Error> {
+    // Two rows suffice to distinguish a sole candidate from ambiguous ownership.
+    sqlx::query_scalar(
+        "SELECT id FROM users WHERE role = 'administrator' AND is_disabled = 0 ORDER BY id LIMIT 2",
+    )
+    .fetch_all(c)
     .await
 }
 

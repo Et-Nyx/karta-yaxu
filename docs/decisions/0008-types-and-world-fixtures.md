@@ -1,5 +1,9 @@
 # 0008 — Versioned Types, ordered typing and owned world fixtures
 
+Decision [0009](0009-complete-fixture-bootstrap.md) supersedes the no-bootstrap
+restriction for complete development setup. The targeted commands below retain
+their original existing-owner/no-account-creation behavior.
+
 ## Context
 
 The maintainer approved the next small gameplay-data slice: Types and ordered

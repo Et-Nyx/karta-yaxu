@@ -235,6 +235,59 @@ impl Accounts {
             .await
             .map_err(operator_storage_error)
     }
+
+    /// Trusted fixture setup only; the caller owns the encompassing write transaction.
+    /// This explicit local-development exception never creates a session or recovers
+    /// privileges when any account (including a disabled account) already exists.
+    pub(crate) async fn bootstrap_fixture_admin(
+        c: &mut sqlx::SqliteConnection,
+        subject: &str,
+        dev_auth: bool,
+    ) -> Result<String, String> {
+        if !dev_auth {
+            return Err("The empty database needs a development administrator. Enable KARTA_DEV_AUTH=1 to bootstrap it, or create an eligible account and pass --owner-user-id.".into());
+        }
+        if store::users_exist(c)
+            .await
+            .map_err(operator_storage_error)?
+        {
+            return Err("Administrator bootstrap requires an empty users table.".into());
+        }
+        let subject = crate::auth::placeholder::normalize(subject).map_err(|e| e.to_string())?;
+        let provider = crate::auth::placeholder::PROVIDER_ID;
+        let now = unix_now().map_err(|e| e.to_string())?;
+        let invite_id = match store::pending_invite(&mut *c, provider, &subject)
+            .await
+            .map_err(operator_storage_error)?
+        {
+            Some(invite) if invite.role == Role::Administrator.as_str() => invite.id,
+            Some(_) => return Err("The bootstrap subject has a pending non-administrator invitation. Choose another --admin-subject; setup does not change invitation roles.".into()),
+            None => {
+                let id = random_hex(16).map_err(|_| "randomness unavailable".to_owned())?;
+                store::insert_invite(
+                    &mut *c, &id, provider, &subject, Role::Administrator.as_str(),
+                    Some("Development fixture administrator bootstrap"), now,
+                ).await.map_err(operator_storage_error)?;
+                id
+            }
+        };
+        let user_id = random_hex(16).map_err(|_| "randomness unavailable".to_owned())?;
+        store::insert_user(
+            &mut *c,
+            &user_id,
+            provider,
+            &subject,
+            &subject,
+            Role::Administrator.as_str(),
+            now,
+        )
+        .await
+        .map_err(operator_storage_error)?;
+        store::consume_invite(&mut *c, &invite_id, &user_id, now)
+            .await
+            .map_err(operator_storage_error)?;
+        Ok(user_id)
+    }
 }
 
 fn actor_from(user: UserRow) -> Option<Actor> {
