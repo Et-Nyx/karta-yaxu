@@ -24,6 +24,12 @@ pub struct TypeAdoptionPreview {
 }
 #[derive(Clone, Debug, Default)]
 pub struct FixtureReport {
+    pub move_attributes_created: usize,
+    pub shared_moves_created: usize,
+    pub world_moves_created: usize,
+    pub rulesets_created: usize,
+    pub learnsets_created: usize,
+    pub movesets_created: usize,
     pub shared_stats_created: usize,
     pub world_stats_created: usize,
     pub stat_rosters_created: usize,

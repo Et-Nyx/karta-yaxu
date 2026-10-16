@@ -3,6 +3,9 @@ use super::{
     authoring::{Authoring, Error, invalid},
     chart_fixtures::ChartFixtures,
     charts::Charts,
+    learning::Learning,
+    move_fixtures::MoveFixtures,
+    moves::Moves,
     stat_fixtures::StatFixtures,
     stats::Stats,
     types::{FixtureReport, ReferenceFixtures, Types, WorldFixtures},
@@ -62,6 +65,7 @@ impl Fixtures {
         let worlds = WorldFixtures::load(&reference)?;
         let chart_fixtures = ChartFixtures::load()?;
         let stat_fixtures = StatFixtures::load()?;
+        let move_fixtures = MoveFixtures::load()?;
         let authoring = Authoring::new(self.accounts.clone());
         let types = Types::new(self.accounts.clone());
         let mut tx = store::begin_write(self.accounts.pool())
@@ -103,6 +107,14 @@ impl Fixtures {
             .await?;
         stat_fixtures
             .seed_in(&mut tx, &Stats::new(self.accounts.clone()), &mut fixtures)
+            .await?;
+        move_fixtures
+            .seed_in(
+                &mut tx,
+                &Moves::new(self.accounts.clone()),
+                &Learning::new(self.accounts.clone()),
+                &mut fixtures,
+            )
             .await?;
         tx.commit().await.map_err(storage_error)?;
         Ok(SetupReport {

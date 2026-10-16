@@ -80,6 +80,13 @@ fn historical_stats_suffix(parts: &[&str]) -> bool {
     matches!(parts,["history",revision,"stats"] if !revision.is_empty())
 }
 
+fn learnset_suffix(parts: &[&str]) -> bool {
+    matches!(
+        parts,
+        ["learnset"] | ["learnset", "edit"] | ["learnset", "adopt"] | ["learnset", "history"]
+    ) || matches!(parts, ["learnset", "history", revision] if !revision.is_empty())
+}
+
 enum Object<'a> {
     Species(&'a str),
     Form(&'a str, &'a str),
@@ -92,6 +99,11 @@ enum Object<'a> {
     WorldChart(&'a str, &'a str),
     Stat(&'a str),
     WorldStat(&'a str, &'a str),
+    MoveAttribute(&'a str),
+    WorldMoveAttribute(&'a str, &'a str),
+    Move(&'a str),
+    WorldMove(&'a str, &'a str),
+    Moveset(&'a str, &'a str, &'a str),
 }
 
 struct Address<'a> {
@@ -105,8 +117,46 @@ fn classify<'a>(parts: &'a [&'a str]) -> Option<Address<'a>> {
         | ["worlds", "new"]
         | ["types", "new"]
         | ["charts", "new"]
-        | ["stats", "new"] => {
+        | ["stats", "new"]
+        | ["moves", "new"]
+        | ["move-attributes", "new"] => {
             return None;
+        }
+        ["moves", value, suffix @ ..] if content_suffix(suffix) => (Object::Move(value), suffix),
+        ["move-attributes", value, suffix @ ..] if content_suffix(suffix) => {
+            (Object::MoveAttribute(value), suffix)
+        }
+        ["worlds", world, "moves"]
+        | ["worlds", world, "moves", "new"]
+        | ["worlds", world, "move-attributes"]
+        | ["worlds", world, "move-attributes", "new"] => (Object::World(world), &parts[2..]),
+        ["worlds", world, "ruleset", suffix @ ..] if content_suffix(suffix) => {
+            (Object::World(world), &parts[2..])
+        }
+        ["worlds", world, "moves", value, suffix @ ..]
+            if content_suffix(suffix) || matches!(suffix, ["adopt"]) =>
+        {
+            (Object::WorldMove(world, value), suffix)
+        }
+        ["worlds", world, "move-attributes", value, suffix @ ..]
+            if content_suffix(suffix) || matches!(suffix, ["adopt"]) =>
+        {
+            (Object::WorldMoveAttribute(world, value), suffix)
+        }
+        ["worlds", world, "variants", variant, "movesets"]
+        | ["worlds", world, "variants", variant, "movesets", "new"] => {
+            (Object::Variant(world, variant), &parts[4..])
+        }
+        [
+            "worlds",
+            world,
+            "variants",
+            variant,
+            "movesets",
+            preset,
+            suffix @ ..,
+        ] if content_suffix(suffix) || matches!(suffix, ["validation"]) => {
+            (Object::Moveset(world, variant, preset), suffix)
         }
         ["stats", value, suffix @ ..] if content_suffix(suffix) => (Object::Stat(value), suffix),
         ["worlds", world, "stats"] | ["worlds", world, "stats", "new"] => {
@@ -134,6 +184,7 @@ fn classify<'a>(parts: &'a [&'a str]) -> Option<Address<'a>> {
         ["creatures", species, "forms", form, suffix @ ..]
             if content_suffix(suffix)
                 || historical_stats_suffix(suffix)
+                || learnset_suffix(suffix)
                 || matches!(suffix, ["typing"] | ["stats"]) =>
         {
             (Object::Form(species, form), suffix)
@@ -144,6 +195,7 @@ fn classify<'a>(parts: &'a [&'a str]) -> Option<Address<'a>> {
         ["forms", id, suffix @ ..]
             if content_suffix(suffix)
                 || historical_stats_suffix(suffix)
+                || learnset_suffix(suffix)
                 || matches!(suffix, ["typing"] | ["stats"]) =>
         {
             (Object::LegacyForm(id), suffix)
@@ -158,6 +210,7 @@ fn classify<'a>(parts: &'a [&'a str]) -> Option<Address<'a>> {
         ["worlds", world, "variants", variant, suffix @ ..]
             if content_suffix(suffix)
                 || historical_stats_suffix(suffix)
+                || learnset_suffix(suffix)
                 || matches!(
                     suffix,
                     ["adopt"]
@@ -181,6 +234,72 @@ fn classify<'a>(parts: &'a [&'a str]) -> Option<Address<'a>> {
 
 async fn resolve(state: &AppState, address: Address<'_>) -> Result<(String, String), Error> {
     let (pretty, inner) = match address.object {
+        Object::MoveAttribute(value) => {
+            let row = state.moves.resolve_attribute(None, key(value)?).await?;
+            (
+                format!("/move-attributes/{}", segment(&row.fields.slug)),
+                format!("/move-attributes/{}", row.id),
+            )
+        }
+        Object::Move(value) => {
+            let row = state.moves.resolve_move(None, key(value)?).await?;
+            (
+                format!("/moves/{}", segment(&row.fields.slug)),
+                format!("/moves/{}", row.id),
+            )
+        }
+        Object::WorldMoveAttribute(parent, value) => {
+            let parent = state.authoring.resolve_world(key(parent)?).await?;
+            let row = state
+                .moves
+                .resolve_attribute(Some(&parent.id), key(value)?)
+                .await?;
+            (
+                format!(
+                    "/worlds/{}/move-attributes/{}",
+                    segment(&parent.fields.slug),
+                    segment(&row.fields.slug)
+                ),
+                format!("/worlds/{}/move-attributes/{}", parent.id, row.id),
+            )
+        }
+        Object::WorldMove(parent, value) => {
+            let parent = state.authoring.resolve_world(key(parent)?).await?;
+            let row = state
+                .moves
+                .resolve_move(Some(&parent.id), key(value)?)
+                .await?;
+            (
+                format!(
+                    "/worlds/{}/moves/{}",
+                    segment(&parent.fields.slug),
+                    segment(&row.fields.slug)
+                ),
+                format!("/worlds/{}/moves/{}", parent.id, row.id),
+            )
+        }
+        Object::Moveset(parent, variant, preset) => {
+            let (parent, variant) = state
+                .authoring
+                .resolve_variant(key(parent)?, key(variant)?)
+                .await?;
+            let preset = state
+                .learning
+                .resolve_preset(&parent.id, &variant.id, key(preset)?)
+                .await?;
+            (
+                format!(
+                    "/worlds/{}/variants/{}/movesets/{}",
+                    segment(&parent.fields.slug),
+                    segment(&variant.fields.slug),
+                    segment(&preset.fields.slug)
+                ),
+                format!(
+                    "/worlds/{}/variants/{}/movesets/{}",
+                    parent.id, variant.id, preset.id
+                ),
+            )
+        }
         Object::Stat(value) => {
             let row = state.stats.resolve_shared(key(value)?).await?;
             (
@@ -314,7 +433,14 @@ async fn translate(state: &AppState, request: &mut Request) -> Result<Option<Res
     };
     if !matches!(
         root.as_str(),
-        "creatures" | "forms" | "worlds" | "types" | "charts" | "stats"
+        "creatures"
+            | "forms"
+            | "worlds"
+            | "types"
+            | "charts"
+            | "stats"
+            | "moves"
+            | "move-attributes"
     ) {
         return Ok(None);
     }
@@ -340,6 +466,8 @@ async fn translate(state: &AppState, request: &mut Request) -> Result<Option<Res
             | ["types", "new"]
             | ["charts", "new"]
             | ["stats", "new"]
+            | ["moves", "new"]
+            | ["move-attributes", "new"]
     ) {
         let pretty = format!("/{}", parts.join("/"));
         if path != pretty {

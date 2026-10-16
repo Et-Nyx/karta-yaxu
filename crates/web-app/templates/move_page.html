@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} — Karta Yaxu{% endblock %}
+{% block content %}
+<a href="{{ cancel }}">← Return</a><h1>{{ title }}</h1>
+{% if !notice.is_empty() %}<p class="notice" role="status">{{ notice }}</p>{% endif %}
+{% if !error.is_empty() %}<div role="alert" class="notice"><h2>Nothing was saved</h2><p>{{ error }}</p><ul>{% for (name, text) in errors %}<li><a href="#{{ name }}">{{ name }}: {{ text }}</a></li>{% endfor %}</ul></div>{% endif %}
+<nav aria-label="Move workflows"><ul>{% for link in links %}<li><a href="{{ link.url }}">{{ link.label }}</a></li>{% endfor %}</ul></nav>
+{% for panel in panels %}<section class="panel stat-comparison"><h2>{{ panel.label }}</h2><p class="plain-text stat-state">{{ panel.text }}</p></section>{% endfor %}
+{% if !validation_action.is_empty() %}<form method="get" action="{{ validation_action }}"><div class="field"><label for="ruleset_revision">Ruleset revision for authoring validation</label><input type="text" id="ruleset_revision" name="ruleset_revision" value="{{ validation_revision }}" aria-describedby="validation-help"><p id="validation-help" class="muted">Exact revision of this same world's singleton ruleset. The report identifies every exact input and validator policy. No object pins or values are changed.</p></div><button>Validate against exact ruleset</button></form>{% endif %}
+{% if editable %}
+<p class="muted">One bounded operation per save, using verified saved state. Catalog and state pages show at most 25 entries. Save before navigating a dirty page, or explicitly discard its draft. Off-page saved entries are preserved; visited drafts do not accumulate hidden inputs. Unknown, NotApplicable, Known zero, absent entries and Unmodeled are distinct. Exact dependency pins never advance automatically. All changes require preview and confirmation. Authoring validation is not combat readiness.</p>
+<form method="post" action="{{ action }}" class="stat-editor">
+<input type="hidden" name="csrf" value="{{ csrf }}">{% for (name, value) in hidden %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+<input type="hidden" name="page_baseline" value="{{ baseline }}">{% if ready %}<input type="hidden" name="review_fingerprint" value="{{ review_fingerprint }}">{% endif %}
+{% for c in controls %}<div class="field"><label for="{{ c.name }}">{{ c.label }}</label>
+{% if c.kind == "select" %}<select id="{{ c.name }}" name="{{ c.name }}" aria-describedby="{{ c.name }}-help {{ c.name }}-error"{% if !c.error.is_empty() %} aria-invalid="true"{% endif %}>{% for choice in c.choices %}<option value="{{ choice.value }}"{% if choice.value == c.value %} selected{% endif %}>{{ choice.label }}</option>{% endfor %}</select>
+{% else if c.kind == "textarea" %}<textarea id="{{ c.name }}" name="{{ c.name }}" rows="4" aria-describedby="{{ c.name }}-help {{ c.name }}-error"{% if !c.error.is_empty() %} aria-invalid="true"{% endif %}>{{ c.value }}</textarea>
+{% else if c.kind == "checkbox" %}<input type="checkbox" id="{{ c.name }}" name="{{ c.name }}" value="yes"{% if c.value == "yes" %} checked{% endif %} aria-describedby="{{ c.name }}-help {{ c.name }}-error">
+{% else %}<input type="text" id="{{ c.name }}" name="{{ c.name }}" value="{{ c.value }}" aria-describedby="{{ c.name }}-help {{ c.name }}-error"{% if !c.error.is_empty() %} aria-invalid="true"{% endif %}>{% endif %}
+<p id="{{ c.name }}-help" class="muted">{{ c.help }}</p><p id="{{ c.name }}-error" class="field-error">{{ c.error }}</p></div>{% endfor %}
+{% if text_scoped %}<button name="load_text" value="yes">Load selected text field</button>{% endif %}
+<button name="intent" value="preview">Preview changes</button>{% if ready %}<label for="confirm"><input id="confirm" type="checkbox" name="confirm" value="yes"> I reviewed the exact pins, proposed values, removals and version changes.</label><button name="intent" value="save">Confirm changes</button>{% endif %}
+{% if !reviewed.is_empty() %}<p class="notice">Compare the current saved state above with this retained draft. Reviewing rebases this one operation onto that exact revision; another conflict requires another review.</p><button name="reviewed_revision" value="{{ reviewed }}">Preview reviewed changes</button>{% endif %}
+{% if !previous_page.is_empty() %}<button name="intent" value="{{ previous_page }}">Previous draft page</button>{% endif %}{% if !next_page.is_empty() %}<button name="intent" value="{{ next_page }}">Next draft page</button>{% endif %}
+<button name="intent" value="discard">Discard this page draft and load latest</button>
+</form>{% endif %}
+{% endblock %}

@@ -197,6 +197,10 @@ class BrowserFixture:
         if expected_status == 303:
             expect(self.page).to_have_url(self.origin + "/account")
             expect(self.page.get_by_role("heading", name=username, exact=True)).to_be_visible()
+            # The redirected document can expose its heading before its stylesheet
+            # finishes loading. Check reflow only after document-level load, as
+            # authoring navigation does, rather than measuring transient plain HTML.
+            self.page.wait_for_load_state("load")
             self.assert_no_horizontal_overflow()
 
     def sign_in(self, username="alice"):

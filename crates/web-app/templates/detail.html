@@ -15,4 +15,5 @@
 <h2>World availability</h2>
 <ul>{% for world in worlds %}<li><a href="/worlds/{{ crate::web::addresses::segment(world.fields.slug) }}">{{ world.fields.display_name }}</a> · <code>{{ world.id }}</code></li>{% else %}<li>No world has adopted a form of this species yet.</li>{% endfor %}</ul>
 <p>Each shared form has its own <a href="/forms/{{ creature.default_form_id }}/stats">exact base stats</a>. Battle formulas and derived mechanics remain undefined.</p>
+<p>The default form also has an independently versioned <a href="/forms/{{ creature.default_form_id }}/learnset">shared learnset</a>. Select other forms above for their separate availability records.</p>
 {% endblock %}

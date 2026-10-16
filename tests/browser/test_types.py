@@ -442,7 +442,12 @@ class TypesWorkflows(AuthoringSupport):
                   "form_type_bindings", "variant_type_bindings", "audit_events", "reference_provenance",
                   "stat_definitions", "stat_versions", "stat_rosters", "stat_roster_versions",
                   "stat_roster_entries", "form_stat_snapshots", "variant_stat_snapshots",
-                  "form_stat_bindings", "variant_stat_bindings")
+                  "form_stat_bindings", "variant_stat_bindings",
+                  "move_attribute_definitions", "move_attribute_versions", "moves", "move_versions",
+                  "move_attribute_bindings", "move_attribute_mappings", "world_rulesets",
+                  "world_ruleset_versions", "ruleset_attribute_expectations", "learnsets",
+                  "learnset_versions", "learnset_records", "learnset_move_mappings",
+                  "moveset_presets", "moveset_preset_versions", "moveset_preset_entries")
         return {table: self.sql(f"SELECT count(*) FROM {table}")[0][0] for table in tables}
 
     def test_complete_seed_bootstraps_admin_for_first_sign_in_and_keeps_owner_edits(self):

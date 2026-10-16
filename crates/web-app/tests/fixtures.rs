@@ -1,4 +1,4 @@
-//! End-to-end atomic operator setup, including additive synthetic stat examples.
+//! End-to-end atomic operator setup, including independent synthetic design examples.
 use std::{
     collections::BTreeMap,
     process::{Command, Output, Stdio},
@@ -84,7 +84,7 @@ impl Lab {
             ("worlds", 2),
             ("world_types", 7),
             ("variants", 7),
-            ("audit_events", 48),
+            ("audit_events", 69),
             ("charts", 3),
             ("chart_versions", 3),
             ("chart_roster", 10),
@@ -97,6 +97,22 @@ impl Lab {
             ("stat_roster_entries", 7),
             ("form_stat_bindings", 3),
             ("variant_stat_bindings", 7),
+            ("move_attribute_definitions", 6),
+            ("move_attribute_versions", 6),
+            ("moves", 6),
+            ("move_versions", 6),
+            ("move_attribute_bindings", 12),
+            ("move_attribute_mappings", 8),
+            ("world_rulesets", 2),
+            ("world_ruleset_versions", 2),
+            ("ruleset_attribute_expectations", 4),
+            ("learnsets", 3),
+            ("learnset_versions", 3),
+            ("learnset_records", 9),
+            ("learnset_move_mappings", 4),
+            ("moveset_presets", 4),
+            ("moveset_preset_versions", 4),
+            ("moveset_preset_entries", 8),
         ] {
             assert_eq!(self.count(table).await, expected, "{table}");
         }
@@ -106,7 +122,7 @@ impl Lab {
         .fetch_one(&self.pool)
         .await
         .unwrap();
-        assert_eq!(attributed, 48);
+        assert_eq!(attributed, 69);
         self.integrity().await;
     }
 
@@ -210,6 +226,7 @@ async fn default_bootstrap_first_sign_in_and_repeated_cli_share_one_account() {
     );
     assert!(output.contains("Sign in as admin"));
     assert!(output.contains("Initialized 3 shared Stats, 7 world Stats and 2 Stat rosters."));
+    assert!(output.contains("Initialized 6 move attributes, 2 shared moves, 4 world moves, 2 rulesets, 3 learnsets and 4 moveset presets."));
     l.baseline().await;
     let users = l.accounts.users().await.unwrap();
     assert_eq!(users.len(), 1);
@@ -241,7 +258,7 @@ async fn default_bootstrap_first_sign_in_and_repeated_cli_share_one_account() {
 
     // Even before first sign-in, another invocation must not bootstrap again.
     let before = l.snapshot().await;
-    assert!(l.seed().contains("skipped 44 matching objects"));
+    assert!(l.seed().contains("skipped 65 matching objects"));
     assert_eq!(l.snapshot().await, before);
     let actor = l.sign_in(" ADMIN ").await;
     assert_eq!(actor.user_id, user.id);
@@ -254,7 +271,7 @@ async fn default_bootstrap_first_sign_in_and_repeated_cli_share_one_account() {
     let (token, _) = l.accounts.start_session(&actor.user_id).await.unwrap();
     let before = l.snapshot().await;
     let output = success(l.run(&["seed-fixtures"], None));
-    assert!(output.contains("skipped 44 matching objects"));
+    assert!(output.contains("skipped 65 matching objects"));
     assert!(!output.contains("Created development administrator"));
     assert_eq!(l.snapshot().await, before);
     assert_eq!(l.accounts.authenticate(&token).await.unwrap(), Some(actor));
@@ -482,7 +499,7 @@ async fn editor_owned_worlds_retain_owner_despite_new_admins_and_reject_transfer
         assert_eq!(world.owner_user_id, owner.user_id);
     }
     let before = l.snapshot().await;
-    assert!(l.seed().contains("skipped 44 matching objects"));
+    assert!(l.seed().contains("skipped 65 matching objects"));
     assert_eq!(l.snapshot().await, before);
     l.reject_unchanged(
         &["seed-fixtures", "--owner-user-id", &first.user_id],
@@ -621,7 +638,7 @@ async fn complete_rerun_preserves_edits_pins_archives_grants_audit_and_live_and_
         .await
         .unwrap();
     let before = l.snapshot().await;
-    assert!(l.seed().contains("skipped 44 matching objects"));
+    assert!(l.seed().contains("skipped 65 matching objects"));
     assert_eq!(l.snapshot().await, before);
     assert_eq!(
         author.variant_detail(&world.id, &variant.id).await.unwrap(),
@@ -758,7 +775,7 @@ async fn complete_setup_chart_baselines_preserve_later_local_factors_and_exact_t
         .await
         .unwrap();
     let before = l.snapshot().await;
-    assert!(l.seed().contains("skipped 44 matching objects"));
+    assert!(l.seed().contains("skipped 65 matching objects"));
     assert_eq!(l.snapshot().await, before);
     assert_eq!(charts.world_chart(world).await.unwrap().unwrap(), changed);
     assert_eq!(changed.roster, chart.roster);
@@ -1014,7 +1031,7 @@ async fn concurrent_complete_cli_invocations_commit_one_bootstrap_and_one_conten
     assert_eq!(
         outputs
             .iter()
-            .filter(|o| o.contains("skipped 44 matching objects"))
+            .filter(|o| o.contains("skipped 65 matching objects"))
             .count(),
         1
     );
@@ -1046,6 +1063,11 @@ async fn targeted_commands_keep_their_scopes_and_complete_setup_accepts_original
             ("sessions", 0),
             ("stat_definitions", 0),
             ("stat_rosters", 0),
+            ("move_attribute_definitions", 0),
+            ("moves", 0),
+            ("world_rulesets", 0),
+            ("learnsets", 0),
+            ("moveset_presets", 0),
         ] {
             assert_eq!(l.count(table).await, count, "{command}: {table}");
         }
@@ -1080,6 +1102,11 @@ async fn targeted_commands_keep_their_scopes_and_complete_setup_accepts_original
         ("variants", 5),
         ("stat_definitions", 0),
         ("stat_rosters", 0),
+        ("move_attribute_definitions", 0),
+        ("moves", 0),
+        ("world_rulesets", 0),
+        ("learnsets", 0),
+        ("moveset_presets", 0),
     ] {
         assert_eq!(l.count(table).await, count, "{table}");
     }
@@ -1311,7 +1338,7 @@ async fn synthetic_samples_have_exact_v3_creation_values_and_additive_world_memb
     assert!(exclusive.source.is_none());
     assert_eq!(stats.definitions(None).await.unwrap().len(), 3);
     let before = l.snapshot().await;
-    assert!(l.seed().contains("skipped 44 matching objects"));
+    assert!(l.seed().contains("skipped 65 matching objects"));
     assert_eq!(l.snapshot().await, before);
     l.integrity().await;
 }
@@ -1415,7 +1442,7 @@ async fn complete_rerun_preserves_all_new_stat_roster_form_and_variant_edits_and
         .await
         .unwrap();
     let before = l.snapshot().await;
-    assert!(l.seed().contains("skipped 44 matching objects"));
+    assert!(l.seed().contains("skipped 65 matching objects"));
     assert_eq!(l.snapshot().await, before);
     assert_eq!(stats.world_roster(VARIANT).await.unwrap().unwrap(), roster2);
     assert_eq!(
@@ -1480,6 +1507,32 @@ async fn partial_stat_batch_and_existing_custom_roster_are_rejected_without_repa
     use web_app::application::stats::Stats;
     let l = Lab::new().await;
     l.seed();
+    for id in [
+        "46a00000000040008000000000000003",
+        "46a00000000040008000000000000004",
+    ] {
+        remove_fixture_rows(
+            &l,
+            id,
+            &[
+                ("moveset_preset_entries", "preset_id"),
+                ("moveset_preset_versions", "preset_id"),
+                ("moveset_presets", "id"),
+            ],
+        )
+        .await;
+    }
+    remove_fixture_rows(
+        &l,
+        "44a00000000040008000000000000003",
+        &[
+            ("learnset_records", "learnset_id"),
+            ("learnset_move_mappings", "learnset_id"),
+            ("learnset_versions", "learnset_id"),
+            ("learnsets", "id"),
+        ],
+    )
+    .await;
     remove_fixture_rows(
         &l,
         VARIANT_SAMPLE,
@@ -1547,4 +1600,721 @@ async fn wrong_stat_creation_values_and_fixture_attribution_reject_atomic_reruns
         l.integrity().await;
         l.reject_unchanged(&["seed-fixtures"], Some("1")).await;
     }
+}
+
+const SHARED_PROBE: &str = "42a00000000040008000000000000001";
+const CLASSIC_PROBE: &str = "42b00000000040008000000000000001";
+const SHARED_LEARNSET: &str = "44a00000000040008000000000000001";
+const FINAL_PRESET: &str = "46a00000000040008000000000000004";
+
+#[tokio::test]
+async fn synthetic_moves_learning_and_presets_have_exact_independent_contexts_and_policy_one_reports()
+ {
+    use game_data::{moves::NumericValue, rulesets::RepeatPolicy};
+    use web_app::application::{
+        fixtures::{Fixtures, SeedOptions},
+        learning::Learning,
+        moves::Moves,
+    };
+    let l = Lab::new().await;
+    let setup = Fixtures::new(l.accounts.clone())
+        .seed(SeedOptions {
+            dev_auth: true,
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+    let report = setup.fixtures;
+    assert_eq!(
+        (
+            report.move_attributes_created,
+            report.shared_moves_created,
+            report.world_moves_created,
+            report.rulesets_created,
+            report.learnsets_created,
+            report.movesets_created
+        ),
+        (6, 2, 4, 2, 3, 4)
+    );
+    assert_eq!(report.skipped, 0);
+    l.baseline().await;
+    let moves = Moves::new(l.accounts.clone());
+    let learning = Learning::new(l.accounts.clone());
+    let shared = moves.detail(None, SHARED_PROBE).await.unwrap();
+    assert_eq!(
+        shared.attributes.as_ref().unwrap()[0].value,
+        NumericValue::Known("0".parse().unwrap())
+    );
+    assert_eq!(
+        shared.attributes.as_ref().unwrap()[1].value,
+        NumericValue::Unknown
+    );
+    let veil = moves
+        .detail(None, "42a00000000040008000000000000002")
+        .await
+        .unwrap();
+    assert_eq!(
+        veil.attributes.as_ref().unwrap()[0].value,
+        NumericValue::NotApplicable
+    );
+    let source = learning.learnset(None, STATS_FORM).await.unwrap().unwrap();
+    assert_eq!(source.id, SHARED_LEARNSET);
+    let source_records = source.records.as_ref().unwrap();
+    assert_eq!(source_records.len(), 3);
+    assert_eq!(source_records[0].move_record, source_records[1].move_record);
+    assert_ne!(source_records[0].id, source_records[1].id);
+    assert_eq!(source_records[0].method, None);
+    assert_eq!(source_records[0].context, None);
+    assert_eq!(source_records[0].threshold, NumericValue::Unknown);
+    assert_eq!(
+        source_records[1].threshold,
+        NumericValue::Known("0".parse().unwrap())
+    );
+    assert_eq!(source_records[2].threshold, NumericValue::NotApplicable);
+    for (world, variant, roster, chart, policy, cap, contradiction, incomplete) in [
+        (
+            CLASSIC,
+            CLASSIC_SAMPLE,
+            "31d00000000040008000000000000001",
+            "fe0bb8c103c8492591f28c4c4bc79721",
+            RepeatPolicy::Forbid,
+            Some(2),
+            "46a00000000040008000000000000001",
+            "46a00000000040008000000000000002",
+        ),
+        (
+            VARIANT,
+            VARIANT_SAMPLE,
+            "31d00000000040008000000000000002",
+            "894a9df1d3334550b0ed24e5840b7b4b",
+            RepeatPolicy::Allow,
+            None,
+            "46a00000000040008000000000000003",
+            FINAL_PRESET,
+        ),
+    ] {
+        let rules = moves.ruleset(world).await.unwrap().unwrap();
+        assert_eq!(rules.revision, 1);
+        assert_eq!(rules.repeat_policy, policy);
+        assert_eq!(rules.max_moves, cap);
+        assert_eq!(rules.stat_roster.as_ref().unwrap().roster_id, roster);
+        assert_eq!(rules.stat_roster.as_ref().unwrap().version, 1);
+        assert_eq!(rules.chart.as_ref().unwrap().chart_id, chart);
+        assert_eq!(rules.chart.as_ref().unwrap().version, 1);
+        let set = learning
+            .learnset(Some(world), variant)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(set.source, Some(source.pin()));
+        assert_eq!(set.mappings.len(), 2);
+        let records = set.records.as_ref().unwrap();
+        assert_eq!(records.len(), 3);
+        for (local, shared) in records.iter().zip(source_records) {
+            assert_eq!(local.id, shared.id);
+            assert_eq!(local.method, shared.method);
+            assert_eq!(local.context, shared.context);
+            assert_eq!(local.threshold, shared.threshold);
+            assert_eq!(local.move_record.world_id.as_deref(), Some(world));
+            assert_eq!(local.move_record.source, Some(shared.move_record.pin()));
+            assert!(
+                local
+                    .move_record
+                    .attributes
+                    .as_ref()
+                    .unwrap()
+                    .iter()
+                    .all(|a| a.definition.world_id.as_deref() == Some(world)
+                        && a.definition.revision == 1)
+            );
+        }
+        assert_eq!(records[0].move_record, records[1].move_record);
+        assert_eq!(learning.presets(world, variant).await.unwrap().len(), 2);
+        let bad = learning
+            .validation(world, variant, contradiction, Some(1))
+            .await
+            .unwrap();
+        assert!(!bad.contradictions.is_empty());
+        let draft = learning
+            .validation(world, variant, incomplete, Some(1))
+            .await
+            .unwrap();
+        assert!(draft.contradictions.is_empty());
+        assert!(!draft.incomplete.is_empty());
+        for (id, report) in [(contradiction, bad), (incomplete, draft)] {
+            assert_eq!(report.validator_version, 1);
+            assert!(report.inputs.iter().all(|p| p.version == 1));
+            assert!(!report.not_evaluated.is_empty());
+            assert_eq!(
+                learning
+                    .validation(world, variant, id, Some(1))
+                    .await
+                    .unwrap(),
+                report
+            );
+            let preset = learning.preset(world, variant, id).await.unwrap();
+            assert_eq!(preset.learnset, set.pin());
+            assert_eq!(preset.ruleset, rules.pin());
+            assert_eq!(preset.validator_version, 1);
+            let history = learning
+                .preset_history(world, variant, id, None)
+                .await
+                .unwrap();
+            assert_eq!(history.len(), 1);
+            assert_eq!(history[0].actor_name, "bundled-fixture-loader");
+            assert_eq!(history[0].action, "create");
+        }
+    }
+    let author = Authoring::new(l.accounts.clone());
+    assert_eq!(author.form_detail(STATS_FORM).await.unwrap().revision, 1);
+    for (world, variant) in [(CLASSIC, CLASSIC_SAMPLE), (VARIANT, VARIANT_SAMPLE)] {
+        assert_eq!(
+            author
+                .variant_detail(world, variant)
+                .await
+                .unwrap()
+                .revision,
+            1
+        );
+        assert_eq!(author.world_detail(world).await.unwrap().revision, 2);
+    }
+}
+
+#[tokio::test]
+async fn very_last_moveset_entry_and_seal_failures_roll_back_bootstrap_and_every_fixture_group() {
+    for trigger in [
+        "CREATE TRIGGER final_move_fault BEFORE INSERT ON moveset_preset_entries WHEN NEW.preset_id='46a00000000040008000000000000004' AND NEW.slot=3 BEGIN SELECT RAISE(ABORT,'last preset entry'); END",
+        "CREATE TRIGGER final_move_fault BEFORE INSERT ON moveset_preset_versions WHEN NEW.preset_id='46a00000000040008000000000000004' BEGIN SELECT RAISE(ABORT,'last preset seal'); END",
+    ] {
+        for pending in [false, true] {
+            let l = Lab::new().await;
+            if pending {
+                l.accounts
+                    .invite(
+                        "placeholder",
+                        "admin",
+                        Role::Administrator,
+                        Some("Remain pending after failure"),
+                    )
+                    .await
+                    .unwrap();
+            }
+            sqlx::query(trigger).execute(&l.pool).await.unwrap();
+            l.reject_unchanged(&["seed-fixtures"], Some("1")).await;
+            for table in [
+                "users",
+                "species",
+                "forms",
+                "variants",
+                "worlds",
+                "charts",
+                "stat_definitions",
+                "stat_rosters",
+                "move_attribute_definitions",
+                "moves",
+                "world_rulesets",
+                "learnsets",
+                "moveset_presets",
+                "audit_events",
+            ] {
+                assert_eq!(l.count(table).await, 0, "{table}");
+            }
+            assert_eq!(l.count("invites").await, i64::from(pending));
+            sqlx::query("DROP TRIGGER final_move_fault")
+                .execute(&l.pool)
+                .await
+                .unwrap();
+            l.seed();
+            l.baseline().await;
+        }
+    }
+}
+
+#[tokio::test]
+async fn move_batch_partial_baselines_and_custom_singletons_reject_the_whole_invocation() {
+    use game_data::rulesets::RepeatPolicy;
+    use web_app::application::{
+        fixtures::{Fixtures, SeedOptions},
+        learning::{Learning, LearnsetEdit},
+        moves::{Moves, RulesetEdit},
+    };
+    let l = Lab::new().await;
+    l.seed();
+    remove_fixture_rows(
+        &l,
+        FINAL_PRESET,
+        &[
+            ("moveset_preset_entries", "preset_id"),
+            ("moveset_preset_versions", "preset_id"),
+            ("moveset_presets", "id"),
+        ],
+    )
+    .await;
+    l.reject_unchanged(&["seed-fixtures"], Some("1")).await;
+    // Stop complete setup before any new objects, retaining the real old 44-object
+    // batch through a successful outer commit in this test-owned database.
+    for custom_ruleset in [true, false] {
+        let l = Lab::new().await;
+        // Reuse the legacy projection copier below rather than committing part
+        // of the production setup transaction, which must remain indivisible.
+        let source = Lab::new().await;
+        source.seed();
+        copy_legacy_fixture_tables(&source.pool, &l.pool).await;
+        let admin = l.sign_in("admin").await;
+        let (token, _) = l.accounts.start_session(&admin.user_id).await.unwrap();
+        if custom_ruleset {
+            Moves::new(l.accounts.clone())
+                .save_ruleset(
+                    &token,
+                    CLASSIC,
+                    RulesetEdit {
+                        expected_revision: 0,
+                        fields: test_fields("Custom rules"),
+                        expectations: None,
+                        stat_roster: None,
+                        chart: None,
+                        max_moves: None,
+                        repeat_policy: RepeatPolicy::Unspecified,
+                        notes: String::new(),
+                        reason: None,
+                    },
+                )
+                .await
+                .unwrap();
+        } else {
+            Learning::new(l.accounts.clone())
+                .save_learnset(
+                    &token,
+                    Some(CLASSIC),
+                    CLASSIC_SAMPLE,
+                    LearnsetEdit {
+                        expected_revision: 0,
+                        records: None,
+                        reason: None,
+                    },
+                )
+                .await
+                .unwrap();
+        }
+        let before = l.snapshot().await;
+        assert!(
+            Fixtures::new(l.accounts.clone())
+                .seed(SeedOptions {
+                    dev_auth: true,
+                    ..Default::default()
+                })
+                .await
+                .is_err()
+        );
+        assert_eq!(l.snapshot().await, before);
+        assert_eq!(l.count("moves").await, 0);
+    }
+}
+
+fn test_fields(name: &str) -> game_data::authoring::ContentFields {
+    game_data::authoring::ContentFields {
+        slug: String::new(),
+        display_name: name.into(),
+        description: "Synthetic test-owned authoring change.".into(),
+    }
+}
+
+/// Copy only pre-ADR0012 tables and columns into a test-owned compatible schema.
+/// Trigger removal is test provisioning, restored before commit and integrity checks.
+async fn copy_legacy_fixture_tables(source: &SqlitePool, target: &SqlitePool) {
+    let tables:Vec<String>=sqlx::query_scalar("SELECT name FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT IN ('_sqlx_migrations','move_attribute_definitions','move_attribute_versions','moves','move_versions','move_attribute_bindings','move_attribute_mappings','world_rulesets','world_ruleset_versions','ruleset_attribute_expectations','learnsets','learnset_versions','learnset_records','learnset_move_mappings','moveset_presets','moveset_preset_versions','moveset_preset_entries') ORDER BY name")
+        .fetch_all(target).await.unwrap();
+    let mut tx = persistence::begin_write(target).await.unwrap();
+    sqlx::query("PRAGMA defer_foreign_keys=ON")
+        .execute(&mut *tx)
+        .await
+        .unwrap();
+    let triggers: Vec<(String, String)> =
+        sqlx::query_as("SELECT name,sql FROM sqlite_schema WHERE type='trigger'")
+            .fetch_all(&mut *tx)
+            .await
+            .unwrap();
+    for (name, _) in &triggers {
+        sqlx::query(AssertSqlSafe(format!("DROP TRIGGER \"{name}\"")))
+            .execute(&mut *tx)
+            .await
+            .unwrap();
+    }
+    for table in tables {
+        let columns: Vec<String> =
+            sqlx::query_scalar("SELECT name FROM pragma_table_info(?) ORDER BY cid")
+                .bind(&table)
+                .fetch_all(&mut *tx)
+                .await
+                .unwrap();
+        let projection = columns
+            .iter()
+            .map(|c| format!("quote(\"{c}\")"))
+            .collect::<Vec<_>>()
+            .join(",");
+        let filter = if table == "audit_events" {
+            "WHERE id NOT IN (SELECT audit_id FROM move_attribute_versions UNION ALL SELECT audit_id FROM move_versions UNION ALL SELECT audit_id FROM world_ruleset_versions UNION ALL SELECT audit_id FROM learnset_versions UNION ALL SELECT audit_id FROM moveset_preset_versions)"
+        } else {
+            ""
+        };
+        let rows: Vec<String> = sqlx::query_scalar(AssertSqlSafe(format!(
+            "SELECT json_array({projection}) FROM \"{table}\" {filter}"
+        )))
+        .fetch_all(source)
+        .await
+        .unwrap();
+        let columns = columns
+            .iter()
+            .map(|c| format!("\"{c}\""))
+            .collect::<Vec<_>>()
+            .join(",");
+        for row in rows {
+            let literals: Vec<String> = serde_json::from_str(&row).unwrap();
+            sqlx::query(AssertSqlSafe(format!(
+                "INSERT INTO \"{table}\"({columns}) VALUES ({})",
+                literals.join(",")
+            )))
+            .execute(&mut *tx)
+            .await
+            .unwrap();
+        }
+    }
+    for (_, sql) in triggers {
+        sqlx::query(AssertSqlSafe(sql))
+            .execute(&mut *tx)
+            .await
+            .unwrap();
+    }
+    tx.commit().await.unwrap();
+}
+
+#[tokio::test]
+async fn later_move_definition_ruleset_learnset_and_preset_edits_survive_complete_reruns() {
+    use game_data::moves::NumericValue;
+    use web_app::application::{
+        learning::{Learning, LearnsetEdit, MovesetEdit},
+        moves::{AttributeEdit, AttributeValueInput, MoveEdit, Moves, RulesetEdit},
+    };
+    let l = Lab::new().await;
+    l.seed();
+    let admin = l.sign_in("admin").await;
+    let (token, _) = l.accounts.start_session(&admin.user_id).await.unwrap();
+    let moves = Moves::new(l.accounts.clone());
+    let learning = Learning::new(l.accounts.clone());
+    let original_report = learning
+        .validation(VARIANT, VARIANT_SAMPLE, FINAL_PRESET, Some(1))
+        .await
+        .unwrap();
+    let definition = moves
+        .attribute(Some(CLASSIC), "41b00000000040008000000000000001")
+        .await
+        .unwrap();
+    let mut constraints = definition.constraints.clone();
+    constraints.maximum = Some("50".parse().unwrap());
+    moves
+        .save_attribute(
+            &token,
+            Some(CLASSIC),
+            &definition.id,
+            AttributeEdit {
+                expected_revision: 1,
+                fields: definition.fields.clone(),
+                unit: "edited design units".into(),
+                constraints,
+                reason: Some("Keep authored definition".into()),
+            },
+        )
+        .await
+        .unwrap();
+    let shared = moves.detail(None, SHARED_PROBE).await.unwrap();
+    let mut fields = shared.fields.clone();
+    fields.display_name = "Authored shared Probe".into();
+    moves
+        .save(
+            &token,
+            None,
+            &shared.id,
+            MoveEdit {
+                expected_revision: 1,
+                fields,
+                attributes: None,
+                reason: None,
+            },
+        )
+        .await
+        .unwrap();
+    let local = moves.detail(Some(CLASSIC), CLASSIC_PROBE).await.unwrap();
+    let values = local
+        .attributes
+        .as_ref()
+        .unwrap()
+        .iter()
+        .enumerate()
+        .map(|(i, a)| AttributeValueInput {
+            attribute: a.definition.pin(),
+            value: if i == 1 {
+                NumericValue::Known("0.5".parse().unwrap())
+            } else {
+                a.value.clone()
+            },
+        })
+        .collect();
+    moves
+        .save(
+            &token,
+            Some(CLASSIC),
+            &local.id,
+            MoveEdit {
+                expected_revision: 1,
+                fields: local.fields.clone(),
+                attributes: Some(values),
+                reason: None,
+            },
+        )
+        .await
+        .unwrap();
+    let rules = moves.ruleset(VARIANT).await.unwrap().unwrap();
+    moves
+        .save_ruleset(
+            &token,
+            VARIANT,
+            RulesetEdit {
+                expected_revision: 1,
+                fields: rules.fields.clone(),
+                expectations: None,
+                stat_roster: rules.stat_roster.clone(),
+                chart: rules.chart.clone(),
+                max_moves: Some(7),
+                repeat_policy: rules.repeat_policy,
+                notes: "Later authored policy".into(),
+                reason: None,
+            },
+        )
+        .await
+        .unwrap();
+    let set = learning
+        .learnset(Some(VARIANT), VARIANT_SAMPLE)
+        .await
+        .unwrap()
+        .unwrap();
+    let new_set = learning
+        .save_learnset(
+            &token,
+            Some(VARIANT),
+            VARIANT_SAMPLE,
+            LearnsetEdit {
+                expected_revision: 1,
+                records: Some(vec![]),
+                reason: None,
+            },
+        )
+        .await
+        .unwrap();
+    assert_ne!(set.pin(), new_set.pin());
+    learning
+        .save_learnset(
+            &token,
+            None,
+            STATS_FORM,
+            LearnsetEdit {
+                expected_revision: 1,
+                records: None,
+                reason: Some("Keep later shared learning draft".into()),
+            },
+        )
+        .await
+        .unwrap();
+    let preset = learning
+        .preset(VARIANT, VARIANT_SAMPLE, FINAL_PRESET)
+        .await
+        .unwrap();
+    let mut fields = preset.fields.clone();
+    fields.display_name = "Authored repeat exploration".into();
+    let saved = learning
+        .save_preset(
+            &token,
+            VARIANT,
+            VARIANT_SAMPLE,
+            &preset.id,
+            MovesetEdit {
+                expected_revision: 1,
+                fields,
+                learnset: preset.learnset.clone(),
+                ruleset: preset.ruleset.clone(),
+                entries: vec![],
+                reason: Some("Keep preset draft".into()),
+            },
+        )
+        .await
+        .unwrap();
+    assert_eq!(saved.learnset, set.pin());
+    assert_eq!(saved.ruleset, rules.pin());
+    assert_eq!(
+        learning
+            .validation(VARIANT, VARIANT_SAMPLE, FINAL_PRESET, Some(1))
+            .await
+            .unwrap(),
+        original_report
+    );
+    let before = l.snapshot().await;
+    assert!(l.seed().contains("skipped 65 matching objects"));
+    assert_eq!(l.snapshot().await, before);
+    assert_eq!(
+        learning
+            .validation(VARIANT, VARIANT_SAMPLE, FINAL_PRESET, Some(1))
+            .await
+            .unwrap(),
+        original_report
+    );
+    l.integrity().await;
+}
+
+#[tokio::test]
+async fn coherent_wrong_move_creation_baselines_and_creation_actor_drift_are_rejected() {
+    use web_app::application::learning::Learning;
+    for forged_actor in [false, true] {
+        let l = Lab::new().await;
+        l.seed();
+        let admin = l.sign_in("admin").await;
+        let mut tx = persistence::begin_write(&l.pool).await.unwrap();
+        let triggers:Vec<(String,String)>=sqlx::query_as("SELECT name,sql FROM sqlite_schema WHERE type='trigger' AND upper(sql) LIKE '%BEFORE UPDATE%'").fetch_all(&mut *tx).await.unwrap();
+        for (name, _) in &triggers {
+            sqlx::query(AssertSqlSafe(format!("DROP TRIGGER \"{name}\"")))
+                .execute(&mut *tx)
+                .await
+                .unwrap();
+        }
+        if forged_actor {
+            sqlx::query("UPDATE audit_events SET actor_user_id=?,system_key=NULL WHERE id=(SELECT audit_id FROM learnset_versions WHERE learnset_id=? AND revision=1)").bind(admin.user_id).bind(SHARED_LEARNSET).execute(&mut *tx).await.unwrap();
+        } else {
+            sqlx::query("UPDATE moveset_preset_versions SET description='Coherent but not the immutable fixture baseline.',after_json=json_set(after_json,'$.content.fields.description','Coherent but not the immutable fixture baseline.') WHERE preset_id=? AND revision=1").bind(FINAL_PRESET).execute(&mut *tx).await.unwrap();
+        }
+        for (_, sql) in triggers {
+            sqlx::query(AssertSqlSafe(sql))
+                .execute(&mut *tx)
+                .await
+                .unwrap();
+        }
+        tx.commit().await.unwrap();
+        l.integrity().await;
+        // These are readable, internally coherent histories; rejection must come
+        // from strict fixture creation-baseline/actor checks rather than repair.
+        let learning = Learning::new(l.accounts.clone());
+        if forged_actor {
+            learning
+                .learnset_version(None, SHARED_LEARNSET, 1)
+                .await
+                .unwrap();
+        } else {
+            learning
+                .preset(VARIANT, VARIANT_SAMPLE, FINAL_PRESET)
+                .await
+                .unwrap();
+        }
+        l.reject_unchanged(&["seed-fixtures"], Some("1")).await;
+    }
+}
+
+#[tokio::test]
+async fn populated_0006_upgrade_and_explicit_new_batch_preserve_every_existing_table_value() {
+    use sqlx::SqlSafeStr;
+    let dir = tempfile::tempdir().unwrap();
+    let url = format!("sqlite://{}/upgrade.db", dir.path().display());
+    let pool = persistence::connect_for_migration(&url).await.unwrap();
+    let scripts = [
+        (1, "auth", include_str!("../migrations/0001_auth.sql")),
+        (
+            2,
+            "world authoring",
+            include_str!("../migrations/0002_world_authoring.sql"),
+        ),
+        (3, "types", include_str!("../migrations/0003_types.sql")),
+        (4, "charts", include_str!("../migrations/0004_charts.sql")),
+        (5, "stats", include_str!("../migrations/0005_stats.sql")),
+        (
+            6,
+            "stat content",
+            include_str!("../migrations/0006_stat_content.sql"),
+        ),
+    ];
+    let migrations = scripts
+        .into_iter()
+        .map(|(version, name, sql)| {
+            sqlx::migrate::Migration::new(
+                version,
+                name.into(),
+                sqlx::migrate::MigrationType::Simple,
+                sql.into_sql_str(),
+                false,
+            )
+        })
+        .collect();
+    sqlx::migrate::Migrator {
+        migrations: std::borrow::Cow::Owned(migrations),
+        ..sqlx::migrate::Migrator::DEFAULT
+    }
+    .run(&pool)
+    .await
+    .unwrap();
+    let l = Lab {
+        accounts: Accounts::new(pool.clone(), 3600).unwrap(),
+        pool,
+        url,
+        _dir: dir,
+    };
+    let source = Lab::new().await;
+    source.seed();
+    let owner = source.sign_in("admin").await;
+    let (token, _) = source.accounts.start_session(&owner.user_id).await.unwrap();
+    let (revoked, _) = source.accounts.start_session(&owner.user_id).await.unwrap();
+    source.accounts.sign_out(&revoked).await.unwrap();
+    source
+        .accounts
+        .invite("placeholder", "pending-editor", Role::Editor, None)
+        .await
+        .unwrap();
+    copy_legacy_fixture_tables(&source.pool, &l.pool).await;
+    assert_eq!(l.count("audit_events").await, 48);
+    assert_eq!(l.count("forms").await, 6);
+    assert_eq!(l.count("variants").await, 7);
+    let mut old = l.snapshot().await;
+    let migrations = old.remove("_sqlx_migrations").unwrap();
+    assert!(!persistence::schema_ready(&l.pool).await.unwrap());
+    persistence::migrate(&l.pool).await.unwrap();
+    assert!(persistence::schema_ready(&l.pool).await.unwrap());
+    let migrated = l.snapshot().await;
+    for row in migrations {
+        assert!(migrated["_sqlx_migrations"].contains(&row));
+    }
+    for (table, rows) in &old {
+        assert_eq!(&migrated[table], rows, "migration changed {table}");
+    }
+    for table in [
+        "move_attribute_definitions",
+        "moves",
+        "world_rulesets",
+        "learnsets",
+        "moveset_presets",
+    ] {
+        assert_eq!(l.count(table).await, 0, "migration seeded {table}");
+    }
+    assert_eq!(l.accounts.authenticate(&token).await.unwrap(), Some(owner));
+    assert!(l.accounts.authenticate(&revoked).await.unwrap().is_none());
+    let output = l.seed();
+    assert!(output.contains("skipped 44 matching objects"));
+    assert!(output.contains("Initialized 6 move attributes, 2 shared moves, 4 world moves, 2 rulesets, 3 learnsets and 4 moveset presets."));
+    let seeded = l.snapshot().await;
+    for (table, rows) in old {
+        if table == "audit_events" {
+            for row in rows {
+                assert!(seeded[&table].contains(&row));
+            }
+        } else {
+            assert_eq!(seeded[&table], rows, "explicit move setup changed {table}");
+        }
+    }
+    l.baseline().await;
+    let before = l.snapshot().await;
+    assert!(l.seed().contains("skipped 65 matching objects"));
+    assert_eq!(l.snapshot().await, before);
 }

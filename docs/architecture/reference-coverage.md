@@ -23,6 +23,25 @@ that the current application implements all of these concepts.
 - Independent shared/local Stat definitions, explicit variable-length world
   rosters, exact signed decimal base values and Missing/zero distinctions;
   pinned constraints, explicit reconciliation/mapping and v3 creature snapshots.
+- Independent shared/local numeric move-attribute definitions with descriptive
+  units and exact constraints, distinct from creature Stats; Moves own exact
+  attribute revisions and Known/Unknown/NotApplicable values. Unmodeled, empty,
+  absent and known-zero inputs remain distinct; no fixed attribute vocabulary/count.
+- Explicit injective attribute/Move source mappings, keep-local or previewed
+  whole-collection replacement, and independent source pins without retargeting.
+- One independent learnset per shared form/local variant, ordered stable scoped
+  acquisition IDs and multiple records for the same Move. Optional method/context/
+  condition prose is inert; numeric thresholds are not implicitly levels.
+- Multiple named variant presets with ordered acquisition selections and exact
+  same-owner learnset/same-world ruleset pins. Repeated selections are data;
+  forbid-repeat diagnostics compare canonical Move identity.
+- Independently versioned world ruleset configuration with exact local attribute
+  expectations, optional roster/chart context, optional maximum, unspecified/allow/
+   forbid repeat policy and inert notes. Deterministic versioned authoring reports
+  identify exact inputs, contradictions, incomplete inputs and checks not evaluated.
+  Well-formed diagnostic drafts are saveable; structurally invalid references,
+  malformed numbers and intrinsic constraint violations are errors. These reports
+  do not evaluate executable eligibility or combat readiness.
 
 The original bundled creatures remain invented placeholders with retained ids.
 The cached PokeAPI projection now supplies Fire/Flying/Dragon and Charizard base/
@@ -35,8 +54,9 @@ Mega X typing. A general network importer or complete mechanics model is not pre
 | Source contexts | Distinguish individual game version, version group and generation from Karta definition/edit versions | Planned |
 | Types | Ordered exact pins; shared/world independence; directed pairwise effectiveness | Implemented; synthetic chart fixtures; multi-Type composition remains planned |
 | Stats | Describe supplied stats and modifiers without making Pokémon's stat vocabulary a universal engine constraint | Definitions, rosters and signed decimal base values implemented; calculation/modifier mechanics planned |
-| Moves and learnsets | Keep method, level/order and source context; the same creature/move may have several learning records | Planned |
-| Movesets | Distinguish learned/learnable moves from configured active moves and runtime selection | Planned |
+| Moves and learnsets | Extensible move-owned numeric values; preserve multiple ordered acquisition records, descriptive method/context/condition and explicit threshold states | Shared/local Moves, attributes and independent learnsets implemented; source-edition-qualified learning and executable acquisition eligibility remain planned |
+| Movesets | Distinguish authored acquisition records, named configured presets and runtime repertoire/selection | Multiple independently versioned variant presets and exact-context policy-1/2 reports with explicit revalidation implemented; individual learned repertoires and runtime selection remain planned |
+| World ruleset configuration | Pin exact expectations and roster/chart context; author maximum/repeat policies without universal Pokémon limits | Configuration and authoring diagnostics implemented; formulas, effects, conditions and battle execution remain planned |
 | Abilities | Preserve available slots and hidden status, separate from a selected active ability; represent historical assignments | Planned |
 | Natures | Reference increased/decreased stats and modifiers, separately from final stat calculation/rounding | Planned |
 | Items | Distinguish item definitions, machine mappings, transformation requirements and wild held-item rarity | Planned |
@@ -88,6 +108,29 @@ three-/four-entry lab rosters and new sample form/variants. Values and constrain
 are synthetic, not sourced Pokémon mechanics. Decision 0011 preserves exact
 definition/roster context and old history; formulas, modifiers and engine export
 remain separate work.
+
+`fixtures/moves.json` adds invented **Impact/Precision** move attributes, **Probe/
+Veil**, independent local copies, two lab rulesets, three learnsets and four named
+presets. This batch reuses StatsSample's existing form/variant identities and adds
+no creature or world revisions. The original 44-object creation baseline and all
+old bytes remain unchanged; complete setup totals 65 objects/69 initial audit
+events. Unknown, NotApplicable, zero, repeated acquisitions, contradictory drafts
+and incomplete inputs are examples, not claims of official Pokémon mechanics.
+ClassicLab's maximum-two/forbid policy and VariantLab's unspecified maximum/allow
+policy are authored configurations, not universal rules.
+
+Decision [0012](../decisions/0012-moves-learning-and-world-rulesets.md) keeps these
+histories separate: form versions do not capture learnsets, variant versions do
+not capture presets, and world revisions do not capture rulesets. There is no new
+creature v4 projection. Dependencies stay on exact saved revisions until explicit
+adoption/reconciliation; new selections require unarchived definitions, while
+retained exact archived pins permit unrelated edits. No general sourced-learning
+edition/generation model, level-up semantics, condition execution or combat
+readiness claim is supplied by these authored records.
+
+The [pinned product roadmap](roadmap.md) preserves all deferred directions,
+including derived formulas/modifiers, source contexts/imports, recovery, engine
+packages and deterministic simulation.
 
 ## Adapter and version rules
 

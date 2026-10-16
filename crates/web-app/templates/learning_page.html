@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} · Karta Yaxu{% endblock %}
+{% block content %}
+<h1>{{ title }}</h1>
+<p>Independent versioned learning data. Acquisition text is descriptive and is never executed. Validation is not combat readiness.</p>
+{% if !error.is_empty() %}<div role="alert"><p>{{ error }}</p>{% for (field, text) in errors %}<p>{{ field }}: {{ text }}</p>{% endfor %}</div>{% endif %}
+{% if !notice.is_empty() %}<p role="status">{{ notice }}</p>{% endif %}
+{% for panel in panels %}<section><h2>{{ panel.title }}</h2><ul>{% for line in panel.lines %}<li>{{ line }}</li>{% endfor %}</ul></section>{% endfor %}
+{% if editable %}
+<form method="post" action="{{ action }}" class="stat-editor">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  {% for (name, value) in hidden %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+  <input type="hidden" name="baseline" value="{{ baseline }}">
+  {% for c in controls %}
+  {# HTML maxlength counts UTF-16 units. These transport guards allow the full
+     2000/500 Unicode-scalar domain limits, including non-BMP text; the server
+     enforces the scalar limits and retains over-limit drafts without truncation. #}
+  <div class="field">
+    <label for="learning-{{ c.name }}">{{ c.label }}</label>
+    {% if c.kind == "textarea" %}<textarea id="learning-{{ c.name }}" name="{{ c.name }}"{% if c.name == "text" %} maxlength="4000"{% endif %} aria-invalid="{% if c.error.is_empty() %}false{% else %}true{% endif %}" aria-describedby="help-{{ c.name }} error-{{ c.name }}">{{ c.value }}</textarea>
+    {% else if c.kind == "select" %}<select id="learning-{{ c.name }}" name="{{ c.name }}" aria-invalid="{% if c.error.is_empty() %}false{% else %}true{% endif %}" aria-describedby="help-{{ c.name }} error-{{ c.name }}">{% for choice in c.choices %}<option value="{{ choice.value }}"{% if choice.value == c.value %} selected{% endif %}>{{ choice.label }}</option>{% endfor %}</select>
+    {% else %}<input id="learning-{{ c.name }}" name="{{ c.name }}" value="{{ c.value }}"{% if c.name == "reason" %} maxlength="1000"{% endif %} list="choices-{{ c.name }}" aria-invalid="{% if c.error.is_empty() %}false{% else %}true{% endif %}" aria-describedby="help-{{ c.name }} error-{{ c.name }}"><datalist id="choices-{{ c.name }}">{% for choice in c.choices %}<option value="{{ choice.value }}">{{ choice.label }}</option>{% endfor %}</datalist>{% endif %}
+    <p id="help-{{ c.name }}" class="muted">{{ c.help }}</p><p id="error-{{ c.name }}" class="field-error">{{ c.error }}</p>
+    {% if c.name == "next_text_field" %}<button type="submit" name="load_text" value="yes">Load selected text field</button>{% endif %}
+  </div>
+  {% endfor %}
+  {% if !record_buttons.is_empty() %}<fieldset><legend>Load a saved acquisition from this page</legend><p>Save changes before loading a different acquisition, or discard and reload.</p>{% for button in record_buttons %}<button type="submit" name="load_record" value="{{ button.url }}">{{ button.label }}</button>{% endfor %}</fieldset>{% endif %}
+  {% if !reviewed.is_empty() %}<button type="submit" name="reviewed_revision" value="{{ reviewed }}">Preview reviewed changes against revision {{ reviewed }}</button>{% else %}<button type="submit" name="intent" value="preview">Preview learning changes</button>{% endif %}
+  {% if preview %}<input type="hidden" name="review_fingerprint" value="{{ fingerprint }}"><div class="field"><label><input type="checkbox" name="confirm" value="yes"> I reviewed the exact pins, records, mappings and proposed changes.</label></div><button type="submit" name="intent" value="save">Confirm learning changes</button>{% endif %}
+  <p>Save before leaving a dirty page, or discard and reload. No off-page draft values are carried between pages.</p>
+  {% if previous %}<button type="submit" name="intent" value="previous">Previous draft page</button>{% endif %}
+  {% if next %}<button type="submit" name="intent" value="next">Next draft page</button>{% endif %}
+  <a href="{{ action }}">Discard draft and reload</a> · <a href="{{ cancel }}">Cancel editing</a>
+</form>
+{% endif %}
+<nav aria-label="Learning navigation"><ul>{% for link in links %}<li><a href="{{ link.url }}">{{ link.label }}</a></li>{% endfor %}</ul></nav>
+{% endblock %}

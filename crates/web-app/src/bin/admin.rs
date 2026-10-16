@@ -348,7 +348,7 @@ fn authoring_error(error: Error) -> String {
 
 fn print_fixture_report(report: FixtureReport) {
     println!(
-        "Initialized {} shared Types, {} species, {} forms, {} worlds, {} world Types, {} variants; skipped {} matching objects. Initialized {} shared charts and {} world charts. Initialized {} shared Stats, {} world Stats and {} Stat rosters.",
+        "Initialized {} shared Types, {} species, {} forms, {} worlds, {} world Types, {} variants; skipped {} matching objects. Initialized {} shared charts and {} world charts. Initialized {} shared Stats, {} world Stats and {} Stat rosters. Initialized {} move attributes, {} shared moves, {} world moves, {} rulesets, {} learnsets and {} moveset presets.",
         report.types_created,
         report.species_created,
         report.forms_created,
@@ -360,6 +360,12 @@ fn print_fixture_report(report: FixtureReport) {
         report.world_charts_created,
         report.shared_stats_created,
         report.world_stats_created,
-        report.stat_rosters_created
+        report.stat_rosters_created,
+        report.move_attributes_created,
+        report.shared_moves_created,
+        report.world_moves_created,
+        report.rulesets_created,
+        report.learnsets_created,
+        report.movesets_created
     );
 }

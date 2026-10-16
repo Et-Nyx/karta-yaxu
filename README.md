@@ -3,9 +3,11 @@
 A creature collector design wiki and future Battle Lab, built with Rust and
 server-rendered HTML. The local app authors a versioned shared species/form library
 and independently owned game worlds, with scoped collaboration, multiple local
-variants, versioned Types, ordered typing, effectiveness charts and independent stats, explicit source adoption, and
-attributed history. Explicit fixture commands provide sample authoring worlds,
-not an executable game.
+variants, versioned Types, ordered typing, effectiveness charts, independent Stats,
+designer-defined move attributes and Moves, world ruleset configuration, learnsets
+and named moveset presets. Exact pins, explicit source adoption and attributed
+history keep these contexts independent. Explicit fixture commands provide sample
+authoring worlds, not an executable game.
 
 ## Run locally
 
@@ -33,7 +35,11 @@ each world has a **View or create world chart** link to its independent chart.
 **Stats** (`/stats`) provides independent numeric definitions; each world has a
 **World stat roster** and **World stat definitions** link. Complete setup includes
 three-stat ClassicLab and four-stat VariantLab examples, plus StatsSample under
-Emberling and a new sample variant in each lab.
+Emberling and a sample variant in each lab. **Moves** (`/moves`) and **Move
+attributes** (`/move-attributes`) provide shared definitions; each world has local
+catalogs and its own **Ruleset**. The StatsSample owners also have independent
+learnsets and two named presets per variant, illustrating incomplete and
+contradictory drafts. See [Moves, learning and presets](#moves-learning-and-presets).
 Setup prints the sample-world owner and, when created, the
 bootstrap sign-in name. Existing databases keep their fixture owner or use the
 sole enabled administrator; ambiguous ownership needs `--owner-user-id`.
@@ -99,8 +105,8 @@ Cookies are `HttpOnly` and `SameSite=Strict`; `Secure` is off only for local HTT
 | --- | --- |
 | Browse library, worlds and content history | Public local preview |
 | Create a world | Editor or administrator; creator becomes its owner |
-| Create/edit shared species, forms, Types, charts and Stats | Administrator |
-| Edit a world, its variants, local Types, chart, Stats or stat roster | Owner or collaborator with editor/administrator eligibility |
+| Create/edit shared species, forms, Types, charts, Stats, move attributes, Moves and form learnsets | Administrator |
+| Edit a world, its variants, local Types, chart, Stats/stat roster, move attributes/Moves, ruleset, variant learnsets or presets | Owner or collaborator with editor/administrator eligibility |
 | Grant/revoke collaboration and inspect access history | World owner |
 
 Administrator status does not bypass another world's ownership. Accounts remain
@@ -245,6 +251,106 @@ identity-based changes and pageable historical definitions/values/constraints.
 These are authored base values, not derived-stat formulas, level scaling, modifiers
 or damage execution. See decision `0011-independent-stats-and-world-rosters.md`.
 
+### Moves, learning and presets
+
+Move attributes are independent numeric definitions, separate from creature Stats.
+Designers choose their names, descriptive units, exact signed decimal constraints
+and count; Power, Accuracy and a particular attribute count are not built-in rules.
+Shared and world-local definitions have their own histories and optional exact
+shared-source pins. Moves own values against exact same-scope attribute revisions:
+**Known**, **Unknown** and **NotApplicable** are explicit states. An unmodeled
+collection, a defined-empty collection, an absent attribute and known zero all
+have different meanings. Numeric precision/range rules are the same exact decimal
+rules used for Stats; malformed numbers and intrinsic constraint violations are errors.
+
+1. Open **Move attributes** or a world's local catalog, create a definition, then
+   open **Moves** to create a shared or local Move and author its attribute values.
+   New selections require unarchived definitions/Moves. Retained exact archived
+   pins remain usable for unrelated edits and historical reads; no dependency is
+   silently advanced or replaced.
+2. For source adoption, review **old source / local / new source / proposed** and
+   choose keep-local or explicit source application. Move copying uses injective
+   shared-to-local attribute mappings; learnset copying uses injective Move mappings.
+   Each source and local identity maps at most once, and mapped local objects must
+   explicitly name the matching shared source. Names and duplicate provenance never
+   choose a mapping. Applying a source collection is a **whole-collection
+   replacement**, with removed local and unmapped source entries shown in preview;
+   Unknown, NotApplicable and unmodeled states are preserved rather than guessed.
+3. Open a world's **Ruleset** to configure exact local attribute expectations,
+   required/optional and NotApplicable policies, additional numeric restrictions,
+   and optional exact Stat-roster/chart context. The optional positive moveset
+   maximum and repeat policy (**unspecified / allow / forbid**) are authored data;
+   there is no four-move default. Interaction/environment notes are inert text.
+   Configuration does not backfill object values or execute formulas.
+4. Open a shared form's or local variant's **Learnset**. Each owner has at most one
+   independently versioned learnset. Ordered acquisition records have stable IDs
+   scoped to that learnset, exact same-scope Move pins, optional method/context/
+   condition prose and a Known/Unknown/NotApplicable numeric threshold. Multiple
+   records may reference the same Move/revision. Prose is inert; a threshold is not
+   implicitly a level. A local learnset's optional shared-learnset source pin is
+   independent of the variant's form-source pin. Source copying retains every
+   acquisition separately, including repeated Moves.
+5. Open a variant's **Moveset presets** and create multiple named drafts. Each
+   preset pins an exact learnset revision belonging to that same variant and an
+   exact same-world ruleset revision. Ordered entries select acquisition-record
+   IDs within the pinned learnset, not Move IDs. Repeated entries are representable;
+   forbid-repeat diagnostics compare canonical Move identity even across different
+   acquisition IDs or Move metadata revisions. There is no default preset or
+   runtime-individual/learned-repertoire model.
+6. Preview a preset or open **Validation**. Deterministic authoring reports identify
+   the saved **validator policy**, exact input revisions, **contradictions**, **incomplete**
+   inputs and **not_evaluated** checks. Required Unknown/absent values are incomplete;
+   required NotApplicable and violated known restrictions contradict configuration.
+   Well-formed incomplete or contradictory drafts can be saved. Broken references,
+   wrong scope/owner, malformed numbers and intrinsic definition violations cannot.
+   Reports are **not combat readiness**: acquisition eligibility, conditions,
+   effects, formulas and battle results are not evaluated. Historical reports use
+   stored exact dependencies and the identified policy, never current heads.
+7. Reconcile a preset explicitly by selecting new learnset/ruleset pins and reviewing
+   the selected acquisition IDs. Definition, source, creature or ruleset edits do
+   not retarget existing presets. Review and confirm the intended new context.
+
+New presets and ad-hoc Move/configuration reports use **policy 2**. Impossible
+Required Known ranges are configuration contradictions even with Unknown values or
+an empty selection: intrinsic and additional bounds must intersect, including
+whole-number feasibility. No configured maximum means no cap; unspecified repeat
+policy is not evaluated. Structurally valid contradictory drafts remain saveable.
+
+Existing presets retain **policy 1** on ordinary edits, with their original report
+semantics and historical bytes. In the preset editor, explicitly choose
+**Validation policy → Revalidate using current policy 2**, preview and confirm to
+create an attributed policy-2 revision. Changing the choice invalidates a previous
+confirmation. Old revisions and fixture creation baselines stay on policy 1.
+Unknown future policies remain explicitly unsupported. See
+[ADR0013](docs/decisions/0013-authoring-validation-policy-and-archive-selection.md).
+
+These native editors paginate collections and bound operations to at most 25
+displayed entries. Save before dirty navigation or explicitly discard the draft;
+off-page saved entries are retained. Long prose uses **one text field per
+operation**: `text_field` identifies the loaded field, `text` is its textarea,
+and `next_text_field` plus `load_text` selects and loads another field *before*
+editing. Save or explicitly discard dirty text before switching. Other text values
+stay saved rather than travelling in hidden fields. This supports the domain's
+Unicode limits within the 32 KiB form limit without hidden-field duplication or
+silent truncation.
+Acquisition method/context/condition and ruleset Description/Notes use this loaded
+field workflow. New rulesets save their required Description first; Notes can then
+be loaded and edited separately. Notes allow 2000 UTF-8 bytes, descriptions allow
+2000 characters, and descriptive move-attribute units allow 100 UTF-8 bytes.
+
+Previews require explicit confirmation bound to a digest of the reviewed
+inputs/proposal; changed inputs require a fresh preview. Expected revisions are
+checked before submitted dependencies. Validation, storage, conflict and **403**
+authorization failures retain raw drafts. GET/HEAD pages use readable scoped
+addresses; mutation POSTs remain canonical-ID-bound across rename/reuse.
+
+Move attributes, Moves, rulesets, learnsets and presets have separate attributed
+histories. Form versions do not capture learnsets, variant versions do not capture
+presets, and world revisions do not capture rulesets. There is **no creature v4
+snapshot**: existing v1/v2/v3 bytes and membership semantics remain intact. See
+[ADR0012](docs/decisions/0012-moves-learning-and-world-rulesets.md) and the
+[pinned roadmap](docs/architecture/roadmap.md) for the delivered boundary and deferred work.
+
 ### World fixtures
 
 The cached reference subset contains **Fire, Flying, Dragon**, one shared Charizard
@@ -255,7 +361,9 @@ and transformation version. Internal ids are independent of external ids.
 
 The normal `seed-fixtures` command loads **all** bundled content atomically:
 4 species, 6 forms, 3 shared Types, 2 worlds, 7 local Types, 7 variants,
-1 shared chart, 2 world charts, 3 shared Stats, 7 world Stats and 2 stat rosters. Any
+1 shared chart, 2 world charts, 3 shared Stats, 7 world Stats, 2 stat rosters,
+6 move attributes, 2 shared Moves, 4 local Moves, 2 rulesets, 3 learnsets and
+4 named presets: **65 content objects and 69 initial audit events**. Any
 bootstrap account, invitation changes, ownership, versions and audit entries
 commit together; an error leaves none of that invocation's writes. No external
 data is fetched.
@@ -300,9 +408,10 @@ Open **Worlds** to explore:
 | **VariantLab** (`/worlds/variantlab`) | Independent same-source Charizard variants, a three-Type variant, and world-exclusive Mist/Mistling |
 
 Creation history is attributed to `bundled-fixture-loader`, including owner-only
-initial access history. Complete setup reruns skip **29** matching content objects;
-targeted world reruns skip 20. Both preserve later edits, typing, chart factors, sessions and
-collaborator changes. A different owner, collisions,
+initial access history. Complete setup reruns skip **65** matching content objects;
+targeted world reruns skip 20 and create no charts, Stats, move/learning objects or
+rulesets. Reruns preserve later edits, exact pins, typing, chart factors, sessions and
+collaborator changes. A different owner, conflicting custom singleton, collisions,
 drift or partial baselines reject the whole batch; existing worlds are never
 repaired or overwritten. These synthetic labs are not official Pokémon editions,
 player saves, encounter legality, battle transformations or engine packages.
@@ -375,7 +484,9 @@ Migration `0002_world_authoring.sql` adds typed content/version/access tables;
 snapshot sidecars. `0004_charts.sql` adds independent chart versions and typed
 roster/cell/mapping seals. `0005_stats.sql` adds independent Stat/roster revisions;
 `0006_stat_content.sql` adds exact base-value bindings and authoritative v3 creature
-snapshots. New binaries require all six migrations; older binaries reject
+snapshots. `0007_moves_rulesets.sql` adds typed move-attribute, Move and world-ruleset
+versions; `0008_learning.sql` adds independent learnset/preset versions and exact
+acquisition bindings. New binaries require all eight migrations; older binaries reject
 the newer schema. Migrations do not initialize content or alter existing auth
 records. The
 explicit fixture command preserves existing canonical creature ids as species
@@ -398,7 +509,8 @@ World snapshots keep their existing Type/variant membership meaning; chart histo
 uses its own strict v1 schema and does not advance world revisions. The migration
 creates no charts. Explicit complete setup adds the synthetic chart baselines to
 existing labs without rewriting old history. Targeted creature/reference/world
-seed commands retain their earlier scopes and do not initialize charts or Stats. Back up,
+seed commands retain their earlier scopes and do not initialize charts, Stats,
+move attributes, Moves, rulesets, learnsets or presets. Back up,
 stop the old binary, migrate, run complete setup and start the rebuilt server.
 
 The Stats upgrade preserves existing v1/v2 bytes and treats their stats as
@@ -408,7 +520,17 @@ missing or inconsistent required seals fail closed. World history keeps its v1/v
 Type/variant membership meaning; definitions and stat rosters have independent v1
 histories. Migration does not seed values. Explicit complete setup adds new sample
 forms/variants, advancing lab membership without modifying original creature
-baselines. Complete reruns skip **44 objects** and preserve later edits.
+baselines. That retained Stats-era baseline contains **44 objects**.
+
+The Moves/learning upgrade preserves those 44 creation baselines, all existing
+creature v1/v2/v3 history, accounts, sessions and world membership. Migrations 0007/
+0008 create schema only; neither migration nor server startup seeds content.
+Explicit complete setup adds **21 independent objects**, using the existing
+StatsSample form/variant owners without advancing their or their worlds' revisions.
+It adds 21 audit events to the previous 48. Complete reruns skip **65 objects** and
+preserve later authored data. Partial new batches, wrong creation actors/baselines
+and conflicting custom rulesets or owner learnsets reject the whole invocation;
+even a last-preset entry/seal failure rolls back all groups and bootstrap changes.
 
 ## Available workflows
 
@@ -437,6 +559,20 @@ baselines. Complete reruns skip **44 objects** and preserve later edits.
 - Shared form and variant detail paths support `/stats`; variants also support
   `/stats/reconcile` and `/stats/source`. Form/variant history revisions expose
   `/stats` for pageable before/after exact historical values.
+- `/move-attributes`, `/moves`: shared catalogs, with `/new` and `/{slug}` details.
+  Details support `/edit`, `/history` and `/history/{revision}`.
+- `/worlds/{world-slug}/move-attributes` and `/worlds/{world-slug}/moves`: local
+  catalogs; `/new` and `/{slug}` details support editing, history and `/adopt`.
+- `/worlds/{world-slug}/ruleset`: independent singleton configuration, with `/edit`,
+  `/history` and `/history/{revision}`.
+- `/forms/{id}/learnset`: durable ID entry point redirecting to the readable shared
+  form address, e.g. `/creatures/emberling/forms/statssample/learnset`; supports
+  `/edit`, `/history` and `/history/{revision}`.
+- `/worlds/{world-slug}/variants/{variant-slug}/learnset`: local learnset, with
+  `/edit`, `/adopt`, `/history` and `/history/{revision}`.
+- `/worlds/{world-slug}/variants/{variant-slug}/movesets`: named preset list, with
+  `/new`, `/{preset-slug}`, `/{preset-slug}/edit`, `/{preset-slug}/history`,
+  `/{preset-slug}/history/{revision}` and `/{preset-slug}/validation`.
 - Content detail URLs have `/history` and `/history/{revision}` views; lists are
   bounded to 50 changes per page.
 - `/worlds/{world-slug}/access`: owner-only collaboration and private access history.
@@ -447,7 +583,8 @@ baselines. Complete reruns skip **44 objects** and preserve later edits.
 - `cargo run -p web-app --bin admin -- <command>`: operator CLI:
   - `migrate` — apply pending migrations (deliberate; never automatic).
   - `seed-fixtures [--owner-user-id <id> | --admin-subject <name>]` — initialize
-    all bundled content (including charts) atomically, with development admin bootstrap if no users exist.
+    all bundled content, including charts, Stats and the Moves/learning examples,
+    atomically, with development admin bootstrap if no users exist.
   - `seed-creature-fixtures` — initialize only the original species/default forms.
   - `seed-reference-fixtures` — load the cached Type/Charizard subset.
   - `seed-world-fixtures --owner-user-id <immutable-user-id>` — load the complete
@@ -516,6 +653,13 @@ URL tests additionally cover scoped addresses, rename/reuse, reserved/ID-shaped
 slugs, query-preserving redirects, HEAD behavior, unchanged mutation targets and
 source-version display independent of current address coordinates. Automatic slug
 allocation is checked under concurrent writes and preserves immutable IDs.
+Moves/learning tests cover numeric states and intrinsic constraints, exact scope/
+owner/dependency pins, repeated acquisitions and preset selections, policy-1
+compatibility and policy-2 diagnostics/revalidation, impossible range intersections,
+explicit whole-collection source replacement, counted archived-selection retention,
+separate histories, immutable seals and populated 0006 upgrades. Complete-fixture
+checks preserve all old table values and auth data, reject partial/custom/wrong
+baselines, preserve later edits and roll back even at the final preset entry/seal.
 
 ### Headless keyboard browser tests (WSL/Linux)
 
@@ -532,7 +676,8 @@ is needed. First use may download Nix packages and Rust build dependencies;
 browser requests during the tests are restricted to the local test server.
 
 The runner builds current native web/admin binaries with `--locked`, then runs
-58 keyboard-driven tests at desktop (1280px) and narrow (320px) widths. It
+72 keyboard-driven tests (58 earlier workflows, 6 Moves and 8 learning/preset
+workflows) at desktop (1280px) and narrow (320px) widths. It
 uses fresh test-owned databases, servers on available loopback ports, and browser
 contexts, independent of your running app or `KARTA_*` configuration. Those
 processes and databases are cleaned up after each test. Custom `CARGO_TARGET_DIR`
@@ -556,6 +701,10 @@ the bootstrap administrator's first sign-in and preservation of its later edits.
 Chart workflows cover responsive matrix/pair browsing, explicit mapping/creation
 and adoption previews, row errors/conflicts, neutral fill, history, canonical
 metadata identity and revoked collaboration without retargeting creature pins.
+Moves/learning workflows cover native paginated editors, bounded one-field prose
+loading, Unknown/NotApplicable/zero, source replacement previews, ruleset/preset
+diagnostics, exact-context reconciliation, retained authorization/conflict drafts
+and independent history.
 
 Failures save screenshots in a unique ignored `target/browser-tests/run-*`
 directory. Screenshots can be opened from Windows for diagnosis. No traces,
@@ -575,7 +724,8 @@ failure page's retry button is keyboard-accessible.
 
 ## Structure and dependency purposes
 
-- `crates/game-data`: typed fixture records and catalog validation.
+- `crates/game-data`: typed fixture records, domain invariants and pure authoring
+  validation; `moves.rs`, `rulesets.rs` and `learning.rs` model the ADR0012 aggregates.
   `deunicode` supplies deterministic name-to-ASCII transliteration for automatic
   slugs; its version is pinned and existing addresses are not recomputed on reads.
 - `crates/web-app`: catalog use cases, the identity-provider port, accounts and
@@ -593,7 +743,14 @@ failure page's retry button is keyboard-accessible.
   - `src/application/charts.rs` + `src/persistence/charts.rs`: exact pairwise charts,
     independent revisions, source mappings, scoped edits and sealed snapshots.
   - `src/web/charts.rs`: responsive matrix browsing, row editing and explicit previews.
-  - `src/application/fixtures.rs` + `chart_fixtures.rs`: complete atomic development setup.
+  - `src/application/moves.rs` + `src/persistence/moves.rs`: independent numeric
+    move attributes, Moves, world rulesets and their exact typed revision seals.
+  - `src/application/learning.rs` + `src/persistence/learning.rs`: independent
+    learnsets, named presets, source adoption and exact historical validation.
+  - `src/web/moves.rs` + `src/web/learning.rs`: native bounded editors, explicit
+    previews/confirmations, configuration/learning histories and report rendering.
+  - `src/application/fixtures.rs` + `chart_fixtures.rs`, `stat_fixtures.rs` and
+    `move_fixtures.rs`: complete atomic development setup.
   - `src/bin/admin.rs`: migration and invite operator CLI.
 - `crates/tools`: fixture validator.
 - `tests/browser`: Python `unittest` + Playwright for isolated real-browser
@@ -605,12 +762,14 @@ failure page's retry button is keyboard-accessible.
 
 ## Next milestones and boundaries
 
-The world-aware foundation authors name/description with automatic slugs, Type
-definitions, exact ordered typing, independently versioned pairwise charts, and
-independent Stats, explicit world rosters and signed decimal base values.
-Derived-stat formulas/modifiers, moves/learnsets, items, abilities, natures, evolution/transformation rules,
-maps/encounters, PokeAPI adapters and engine exports follow in separate domain
-slices. The reference benchmark is documented in
+The delivered foundation includes automatic names/addresses, Type definitions and
+exact typing, independent pairwise charts, Stats/rosters/base values, move attributes
+and Moves, ruleset configuration, independent learnsets and named presets with
+exact-context authoring reports. The [pinned product roadmap](docs/architecture/roadmap.md)
+retains the follow-up directions: derived-stat formulas/modifiers, authoring recovery,
+validated engine packages, items/abilities/natures, evolution/transformation rules,
+maps/encounters, source contexts/import adapters and deterministic Battle Lab slices.
+The reference benchmark is documented in
 `docs/architecture/reference-coverage.md`; Pokémon-specific limits belong to
 versioned rulesets, not universal database constraints. Only a small cached Pokémon
 metadata/typing subset is supplied; a general import/update-preview adapter and

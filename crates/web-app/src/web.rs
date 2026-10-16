@@ -6,7 +6,13 @@ mod authoring;
 mod charts;
 #[cfg(test)]
 mod charts_tests;
+mod learning;
+#[cfg(test)]
+mod learning_tests;
 mod login_limit;
+mod moves;
+#[cfg(test)]
+mod moves_tests;
 mod stats;
 #[cfg(test)]
 mod stats_tests;
@@ -44,6 +50,8 @@ pub struct AppState {
     charts: crate::application::charts::Charts,
     stats: crate::application::stats::Stats,
     stat_values: crate::application::stat_values::StatValues,
+    moves: crate::application::moves::Moves,
+    learning: crate::application::learning::Learning,
     accounts: Accounts,
     provider: Option<Arc<dyn IdentityProvider>>,
     public_origin: String,
@@ -64,6 +72,8 @@ impl AppState {
             charts: crate::application::charts::Charts::new(accounts.clone()),
             stats: crate::application::stats::Stats::new(accounts.clone()),
             stat_values: crate::application::stat_values::StatValues::new(accounts.clone()),
+            moves: crate::application::moves::Moves::new(accounts.clone()),
+            learning: crate::application::learning::Learning::new(accounts.clone()),
             accounts,
             provider,
             public_origin,
@@ -79,6 +89,8 @@ pub fn router(state: AppState) -> Router {
         .merge(types::routes())
         .merge(charts::routes())
         .merge(stats::routes())
+        .merge(moves::routes())
+        .merge(learning::routes())
         .route("/", get(home))
         .route("/creatures", get(creatures))
         .route("/creatures/{id}", get(detail))

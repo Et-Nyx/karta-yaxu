@@ -11,6 +11,8 @@ use std::{str::FromStr, time::Duration};
 
 pub mod authoring;
 pub mod charts;
+pub mod learning;
+pub mod moves;
 pub mod stat_content;
 pub mod stats;
 pub mod types;
@@ -102,7 +104,7 @@ pub async fn schema_ready(pool: &SqlitePool) -> Result<bool, String> {
     .map_err(|error| error.to_string())?;
     if count == 0 {
         let application_tables: i64 = sqlx::query_scalar(
-            "SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name IN ('users', 'sessions', 'invites', 'species', 'species_versions', 'forms', 'form_versions', 'worlds', 'variants', 'world_revisions', 'variant_revisions', 'world_collaborators', 'world_access_revisions', 'audit_events', 'types', 'type_versions', 'world_types', 'world_type_versions', 'form_content_snapshots', 'variant_content_snapshots', 'world_content_snapshots', 'form_type_bindings', 'variant_type_bindings', 'type_version_sources', 'species_version_sources', 'form_version_sources', 'charts', 'chart_versions', 'chart_roster', 'chart_cells', 'chart_mapping', 'stat_definitions', 'stat_versions', 'stat_rosters', 'stat_roster_versions', 'stat_roster_entries', 'form_stat_snapshots', 'variant_stat_snapshots', 'form_stat_bindings', 'variant_stat_bindings')",
+            "SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name IN ('users', 'sessions', 'invites', 'species', 'species_versions', 'forms', 'form_versions', 'worlds', 'variants', 'world_revisions', 'variant_revisions', 'world_collaborators', 'world_access_revisions', 'audit_events', 'types', 'type_versions', 'world_types', 'world_type_versions', 'form_content_snapshots', 'variant_content_snapshots', 'world_content_snapshots', 'form_type_bindings', 'variant_type_bindings', 'type_version_sources', 'species_version_sources', 'form_version_sources', 'charts', 'chart_versions', 'chart_roster', 'chart_cells', 'chart_mapping', 'stat_definitions', 'stat_versions', 'stat_rosters', 'stat_roster_versions', 'stat_roster_entries', 'form_stat_snapshots', 'variant_stat_snapshots', 'form_stat_bindings', 'variant_stat_bindings', 'move_attribute_definitions', 'move_attribute_versions', 'moves', 'move_versions', 'move_attribute_bindings', 'move_attribute_mappings', 'world_rulesets', 'world_ruleset_versions', 'ruleset_attribute_expectations', 'learnsets', 'learnset_versions', 'learnset_records', 'learnset_move_mappings', 'moveset_presets', 'moveset_preset_versions', 'moveset_preset_entries')",
         ).fetch_one(pool).await.map_err(|error| error.to_string())?;
         if application_tables != 0 {
             return Err("Database has application tables without migration history; select a compatible database or investigate its history.".to_owned());
@@ -172,6 +174,22 @@ pub async fn schema_ready(pool: &SqlitePool) -> Result<bool, String> {
         "SELECT world_id, id, revision FROM stat_rosters LIMIT 0",
         "SELECT world_id, roster_id, revision, audit_id, previous_revision, before_json, after_json FROM stat_roster_versions LIMIT 0",
         "SELECT world_id, roster_id, revision, slot, scope, stat_id, stat_version FROM stat_roster_entries LIMIT 0",
+        "SELECT id, scope, world_id, slug, revision FROM move_attribute_definitions LIMIT 0",
+        "SELECT scope, attribute_id, revision, source_attribute_id, source_revision, slug, display_name, description, unit, archived_at, whole_only, minimum_coefficient, minimum_scale, maximum_coefficient, maximum_scale, audit_id, previous_revision, before_json, after_json FROM move_attribute_versions LIMIT 0",
+        "SELECT id, scope, world_id, slug, revision FROM moves LIMIT 0",
+        "SELECT scope, move_id, revision, source_move_id, source_revision, slug, display_name, description, archived_at, attributes_defined, audit_id, previous_revision, before_json, after_json FROM move_versions LIMIT 0",
+        "SELECT scope, move_id, revision, slot, attribute_id, attribute_version, state, coefficient, scale FROM move_attribute_bindings LIMIT 0",
+        "SELECT scope, move_id, revision, slot, shared_attribute_id, local_attribute_id, local_attribute_version FROM move_attribute_mappings LIMIT 0",
+        "SELECT world_id, id, revision FROM world_rulesets LIMIT 0",
+        "SELECT world_id, ruleset_id, revision, slug, display_name, description, expectations_defined, roster_id, roster_version, chart_id, chart_version, max_moves, repeat_policy, notes, audit_id, previous_revision, before_json, after_json FROM world_ruleset_versions LIMIT 0",
+        "SELECT world_id, ruleset_id, revision, slot, attribute_id, attribute_version, required, allow_not_applicable, whole_only, minimum_coefficient, minimum_scale, maximum_coefficient, maximum_scale FROM ruleset_attribute_expectations LIMIT 0",
+        "SELECT scope, id, world_id, form_id, variant_id, revision FROM learnsets LIMIT 0",
+        "SELECT scope, learnset_id, revision, variant_id, source_learnset_id, source_revision, records_defined, audit_id, previous_revision, before_json, after_json FROM learnset_versions LIMIT 0",
+        "SELECT scope, learnset_id, revision, slot, record_id, move_id, move_version, method, context, condition, threshold_state, coefficient, scale FROM learnset_records LIMIT 0",
+        "SELECT scope, learnset_id, revision, slot, shared_move_id, shared_move_version, local_move_id, local_move_version FROM learnset_move_mappings LIMIT 0",
+        "SELECT world_id, variant_id, id, slug, revision FROM moveset_presets LIMIT 0",
+        "SELECT world_id, variant_id, preset_id, revision, slug, display_name, description, archived_at, learnset_id, learnset_version, ruleset_id, ruleset_version, validator_version, audit_id, previous_revision, before_json, after_json FROM moveset_preset_versions LIMIT 0",
+        "SELECT world_id, variant_id, preset_id, revision, slot, learnset_id, learnset_version, record_id FROM moveset_preset_entries LIMIT 0",
     ] {
         sqlx::query(query).execute(pool).await
             .map_err(|_| "Application schema does not match its migration history; investigate the database before proceeding.".to_owned())?;

@@ -4,6 +4,9 @@ use std::collections::HashSet;
 
 pub mod authoring;
 pub mod charts;
+pub mod learning;
+pub mod moves;
+pub mod rulesets;
 pub mod stats;
 pub mod types;
 
