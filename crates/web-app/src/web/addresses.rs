@@ -113,9 +113,9 @@ struct Address<'a> {
 
 fn classify<'a>(parts: &'a [&'a str]) -> Option<Address<'a>> {
     let (object, suffix) = match parts {
-        ["worlds", world, "inspection"] | ["worlds", world, "inspection", "where-used"] => {
-            (Object::World(world), &parts[2..])
-        }
+        ["worlds", world, "inspection"]
+        | ["worlds", world, "inspection", "where-used"]
+        | ["worlds", world, "export"] => (Object::World(world), &parts[2..]),
         ["creatures", "new"]
         | ["worlds", "new"]
         | ["types", "new"]

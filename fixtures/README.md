@@ -143,6 +143,47 @@ Inspection and optional ad-hoc policy-2 comparisons write nothing; these example
 demonstrate authoring diagnostics/dependencies, not combat or export readiness.
 See [ADR0014](../docs/decisions/0014-world-inspection-and-dependency-visibility.md).
 
+## Frozen design-package examples
+
+First frozen design-package export reuses the same ClassicLab/VariantLab content;
+it adds **no fixture objects, migrations or content/history changes**. Complete
+setup stays at **65 objects/69 initial audit events**, preserving saved policy-1
+preset baselines. The internal fixture manifests above are not package wire files.
+
+Sign in as the lab's enabled owner or collaborator with editor/administrator
+eligibility, follow **Export package** or open `/worlds/classiclab/export` or
+`/worlds/variantlab/export`, then **Preview package**, review/check confirmation and
+**Confirm and download**. GET/HEAD is an authorized entry page; creation and
+download use native CSRF-protected, immutable-ID-bound POSTs. Global administrator
+status does not bypass world ownership/collaboration. Confirmation recaptures,
+permission is rechecked before release and changed inputs require fresh review.
+
+Packages select current unarchived active local definitions/variants/chart,
+configured roster/ruleset and learnsets/unarchived presets of active variants,
+then include full exact dependencies, including required archived/older revisions.
+Identity-only owners/default forms have explicit capture-time bindings. Archived
+variants' children are not independent active roots; source-form membership does
+not implicitly add its learnset. Repeated acquisitions and preset selections stay
+ordered. Unknown, NotApplicable, Missing, zero and defined-empty remain distinct.
+The synthetic contradictory/incomplete drafts are permitted: current diagnostics
+use policy 2, while saved presets keep policy 1/2. Neither diagnostic counts nor
+structural acceptance establish combat readiness or engine gameplay acceptance.
+
+Downloaded `karta-design-package` v1 JSON has a deterministic manifest/content
+envelope and dedicated content SHA-256, never an inspection fingerprint. It has no
+private account/access/audit data or generation timestamp, and is not retained on
+the server. The final bytes pass the shared offline reader intended for engine
+integration; no engine is integrated yet. Validate a saved download inside
+`nix develop` with `cargo run -p tools -- validate-package path/to/package.json`,
+or `cargo run -p tools -- validate-package - < path/to/package.json` (omitting `-`
+also reads stdin). The CLI validates packages only; it does not create or import
+them. Required read failures, invalid/unsupported data and budget gaps prevent
+export rather than producing partial packages. Capture shares inspection's bounded
+cooperative limits, with a 32 MiB package input/output cap and two export jobs held
+through validation/serialization/render. See the [workflow and limits](../README.md#frozen-design-packages),
+[v1 wire protocol](../docs/architecture/design-package-v1.md) and
+[ADR0015](../docs/decisions/0015-first-frozen-design-package.md).
+
 ## Type/reference and world fixtures
 
 `admin seed-reference-fixtures` initializes the cached Fire/Flying/Dragon Types
@@ -168,4 +209,5 @@ multi-Type damage and transformation execution remain unimplemented.
 Reference coverage is tracked in `docs/architecture/reference-coverage.md`. Further
 source fixtures/adapters follow their domain slices; normal tests never fetch PokeAPI.
 The [pinned roadmap](../docs/architecture/roadmap.md) retains deferred formulas,
-source-edition models, imports, engine packages and simulation directions.
+source-edition models, imports, engine integration/further package workflows and
+simulation directions.

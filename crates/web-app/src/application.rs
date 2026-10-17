@@ -3,6 +3,7 @@ use game_data::{Catalog, Creature};
 pub mod authoring;
 mod chart_fixtures;
 pub mod charts;
+pub mod export;
 pub mod fixtures;
 pub mod inspection;
 pub mod learning;

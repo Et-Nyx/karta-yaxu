@@ -6,6 +6,9 @@ mod authoring;
 mod charts;
 #[cfg(test)]
 mod charts_tests;
+mod export;
+#[cfg(test)]
+mod export_tests;
 mod inspection;
 #[cfg(test)]
 mod inspection_tests;
@@ -56,6 +59,7 @@ pub struct AppState {
     moves: crate::application::moves::Moves,
     learning: crate::application::learning::Learning,
     inspection: crate::application::inspection::WorldInspection,
+    export: crate::application::export::WorldExport,
     accounts: Accounts,
     provider: Option<Arc<dyn IdentityProvider>>,
     public_origin: String,
@@ -79,6 +83,7 @@ impl AppState {
             moves: crate::application::moves::Moves::new(accounts.clone()),
             learning: crate::application::learning::Learning::new(accounts.clone()),
             inspection: crate::application::inspection::WorldInspection::new(accounts.clone()),
+            export: crate::application::export::WorldExport::new(accounts.clone()),
             accounts,
             provider,
             public_origin,
@@ -97,6 +102,7 @@ pub fn router(state: AppState) -> Router {
         .merge(moves::routes())
         .merge(learning::routes())
         .merge(inspection::routes())
+        .merge(export::routes())
         .route("/", get(home))
         .route("/creatures", get(creatures))
         .route("/creatures/{id}", get(detail))

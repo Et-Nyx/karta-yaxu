@@ -9,8 +9,8 @@ Shared species/forms, independently owned world variants, scoped collaboration,
 explicit source adoption, immutable attributed history, exact typing, independent
 effectiveness charts, independent Stats, ordered world stat rosters and signed
 decimal base values. Independent Moves, learning/presets and read-only world
-inspection now extend this authoring foundation. Pokémon is a temporary reference
-stress fixture.
+inspection and frozen design-package export now extend this authoring foundation.
+Pokémon is a temporary reference stress fixture.
 
 ## Delivered: Moves, Learnsets and Movesets
 
@@ -57,14 +57,44 @@ or fixture objects were added; the 65-object/69-audit setup baseline is preserve
 See [ADR0014](../decisions/0014-world-inspection-and-dependency-visibility.md) and
 [README](../../README.md#world-inspection-and-where-used) for contracts and limits.
 
-## Next proposal: First Frozen Package Export
+## Delivered: First Frozen Design Package
 
-This is **not implemented or promised**. Agree the engine/importer contract,
-export permissions and explicit package root selection before designing a first
-bounded package. Inspection's transient public dependency graph and fingerprint
-are useful authoring foundations, not a frozen package, manifest, export schema
-or engine acceptance result. The proposal still needs deterministic self-contained
-content, schema/ruleset IDs, checksums, importer validation and atomic publication.
+`karta-design-package` v1 freezes the active world catalog and required exact
+dependencies, including older/archived revisions and explicit capture-time bindings
+for identity-only owners/default forms. Roots include current unarchived local
+definitions/variants/chart, configured roster/ruleset, and learnsets/unarchived
+presets of active variants. Membership never imports excluded catalog entries.
+
+Enabled editor/administrator owners and collaborators use authorized native
+`/worlds/{world}/export` GET/HEAD entry → CSRF-protected ID-bound POST preview →
+reviewed-digest confirmation/download. There is no global administrator bypass.
+Confirmation recaptures and permission is rechecked before release; changed inputs
+require fresh confirmation. One world-first read transaction supplies complete
+public content; no content changes, cached artifacts or export audit schema are added.
+
+The manifest/content envelope has deterministic canonical JSON and a dedicated
+SHA-256 content domain, independent of inspection fingerprints. The actual shared
+offline Rust reader validates final bytes, full declared closure, exact embedded
+equality and supported schema/policies before attachment release. Private data and
+generation timestamps are excluded. Well-formed Unknown/incomplete/contradictory
+drafts remain exportable: current diagnostics use policy 2, saved presets keep 1/2,
+and structural acceptance is not combat readiness. `tools validate-package [path|-]`
+validates offline (stdin by default); there is no CLI package creation.
+
+Capture retains inspection's bounded cooperative defaults, plus a 32 MiB package
+input/output limit and two export slots through validation/serialization/render.
+No migrations or fixture objects are introduced; setup remains 65 objects/69 initial
+audit events. See [ADR0015](../decisions/0015-first-frozen-design-package.md),
+[the v1 protocol](design-package-v1.md) and
+[the workflow](../../README.md#frozen-design-packages).
+
+## Proposed next direction: engine integration and a minimal executable contract
+
+The shared reader is intended for engine integration; no engine currently consumes
+this package. Agree a minimal executable rules/content contract and verify actual
+engine acceptance before making gameplay claims. Formulas, effects, acquisition
+eligibility, scripts and battle execution remain future work. This is a proposed
+direction for maintainer discussion, not a newly approved next milestone.
 
 ## Pinned follow-up directions
 
@@ -75,9 +105,10 @@ content, schema/ruleset IDs, checksums, importer validation and atomic publicati
    scoped where-used and incomplete/context-difference reports; cross-world
    comparisons, explicit archive, attributed revert-as-new-revision and ownership
    recovery remain deferred.
-3. **Immutable world packages and engine export:** exact dependency closure,
-   deterministic content, schema/ruleset IDs, manifest/checksums, real shared/engine
-   importer validation and atomic publication. Export permissions remain open.
+3. **Engine integration and further package workflows:** build on delivered frozen
+   design packages/shared-reader validation and owner/collaborator export policy;
+   actual engine integration, gameplay acceptance, package migration, signatures,
+   retained/atomic publication and selective roots remain deferred.
 4. **Evolution, transformations and cosmetic relationships:** explicit world-entry
    targets, branches and typed conditions; persistent progression, reversible
    battle changes and shared-mechanics appearances remain distinct.
@@ -97,8 +128,7 @@ content, schema/ruleset IDs, checksums, importer validation and atomic publicati
    first, browser PvE next, then server-authoritative turn-based PvP. Pin content,
    rules and RNG; bound execution. Introduce trusted Lua only for concrete needs.
 
-Recommended path: delivered moves/availability/presets and inspection → propose
-First Frozen Package Export with its contracts settled → a minimal executable
-ruleset and CLI battle → browser PvE. This is adjustable by the maintainer;
-completing every reference domain is not a prerequisite to a first bounded export
-or simulation.
+Possible path for discussion: delivered moves/availability/presets, inspection and
+first frozen design packages → engine integration/minimal executable contract →
+CLI battle and replay → browser PvE. Ordering remains a maintainer decision;
+completing every reference domain is not a prerequisite to bounded simulation.

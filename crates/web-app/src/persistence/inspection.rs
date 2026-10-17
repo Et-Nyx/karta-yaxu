@@ -226,6 +226,86 @@ pub(crate) async fn capture_pooled_world(
     capture_until(&mut c, world, limits, deadline, true, || async {}).await
 }
 
+/// Authorized ADR0015 active-catalog capture. The caller owns admission and must
+/// recheck permission before releasing a download. Only public content leaves
+/// this read transaction; package validation/serialization happen afterwards.
+pub(crate) async fn capture_pooled_package(
+    c: PoolConnection<Sqlite>,
+    world: AddressKey,
+    limits: InspectionLimits,
+    deadline: Instant,
+    accounts: &crate::accounts::Accounts,
+    token: &str,
+) -> Result<game_data::package::PackageContent, Error> {
+    capture_package_until(c, world, limits, deadline, accounts, token, || async {}).await
+}
+
+// As with inspection, a generic rendezvous tests the first-read boundary without
+// installing a production hook. The owned lease is discarded even if cancelled
+// while waiting for the worker or removing its progress handler.
+async fn capture_package_until<F, Fut>(
+    mut c: PoolConnection<Sqlite>,
+    world: AddressKey,
+    limits: InspectionLimits,
+    deadline: Instant,
+    accounts: &crate::accounts::Accounts,
+    token: &str,
+    after_first_read: F,
+) -> Result<game_data::package::PackageContent, Error>
+where
+    F: FnOnce() -> Fut,
+    Fut: std::future::Future<Output = ()>,
+{
+    c.close_on_drop();
+    let guard = SqliteDeadline::install(&mut c, deadline, true).await?;
+    let result = async {
+        let mut tx = timeout_at(deadline, c.begin())
+            .await
+            .map_err(|_| Error::Unavailable)?
+            .map_err(content::storage_error)?;
+        let result = timeout_at(deadline, async {
+            // Resolving the world is deliberately the first read, before session
+            // and collaborator queries, to pin permission and content together.
+            let anchor = content::resolve_world(&mut tx, world).await?;
+            after_first_read().await;
+            let actor = accounts
+                .authenticate_in_transaction(&mut tx, token)
+                .await
+                .map_err(|_| Error::Unavailable)?
+                .ok_or(Error::Unauthorized)?;
+            crate::application::authoring::Authoring::new(accounts.clone())
+                .world_actor(&mut tx, &actor, &anchor, false)
+                .await?;
+            if anchor.archived_at.is_some() {
+                return Err(Error::Forbidden);
+            }
+            let public = PublicWorldContent {
+                id: anchor.id,
+                fields: anchor.fields,
+                revision: anchor.revision,
+                archived_at: anchor.archived_at,
+            };
+            let mut capture = Capture::new(public, limits, deadline);
+            capture.package(&mut tx).await
+        })
+        .await
+        .map_err(|_| Error::Unavailable)
+        .and_then(|result| result);
+        // Keep the callback armed until any cancelled sqlite3_step has drained,
+        // then remove it before rollback, including authorization/error exits.
+        guard.remove(&mut tx).await?;
+        tx.rollback().await.map_err(content::storage_error)?;
+        result
+    }
+    .await;
+    // Also covers begin failures. Removal is idempotent.
+    guard.remove(&mut c).await?;
+    if guard.expired() {
+        return Err(Error::Unavailable);
+    }
+    result
+}
+
 struct DeadlineState {
     deadline: Instant,
     active: AtomicBool,
@@ -402,28 +482,7 @@ where
         revision: anchor.revision,
         archived_at: anchor.archived_at,
     };
-    let mut capture = Capture {
-        result: CapturedWorld {
-            contract_version: 1,
-            world: public,
-            roots: BTreeMap::new(),
-            nodes: BTreeMap::new(),
-            edges: vec![],
-            heads: BTreeMap::new(),
-            absences: vec![],
-            gaps: vec![],
-        },
-        limits,
-        deadline,
-        bytes: 0,
-        children: 0,
-        preflight: BTreeMap::new(),
-        plans: BTreeMap::new(),
-        input_refs: BTreeMap::new(),
-        verified: BTreeMap::new(),
-        legacy_companions: BTreeMap::new(),
-        current: BTreeMap::new(),
-    };
+    let mut capture = Capture::new(public, limits, deadline);
     let anchor = capture.result.world_key();
     capture.result.nodes.insert(
         anchor.clone(),
@@ -464,6 +523,239 @@ where
 }
 
 impl Capture {
+    fn new(world: PublicWorldContent, limits: InspectionLimits, deadline: Instant) -> Self {
+        Self {
+            result: CapturedWorld {
+                contract_version: 1,
+                world,
+                roots: BTreeMap::new(),
+                nodes: BTreeMap::new(),
+                edges: vec![],
+                heads: BTreeMap::new(),
+                absences: vec![],
+                gaps: vec![],
+            },
+            limits,
+            deadline,
+            bytes: 0,
+            children: 0,
+            preflight: BTreeMap::new(),
+            plans: BTreeMap::new(),
+            input_refs: BTreeMap::new(),
+            verified: BTreeMap::new(),
+            legacy_companions: BTreeMap::new(),
+            current: BTreeMap::new(),
+        }
+    }
+
+    /// Selected roots and package references only: neither the full inspection
+    /// inventory nor its derived graph enters this content closure.
+    async fn package(
+        &mut self,
+        c: &mut SqliteConnection,
+    ) -> Result<game_data::package::PackageContent, Error> {
+        use game_data::package::{self, IdentityBinding, PackageContent, PackageRecord};
+        self.limits.max_roots = self.limits.max_roots.min(package::MAX_ROOTS);
+        self.limits.max_nodes = self.limits.max_nodes.min(package::MAX_RECORDS);
+        self.limits.max_edges = self.limits.max_edges.min(package::MAX_OCCURRENCES);
+        if self.limits.max_roots == 0 || self.limits.max_nodes == 0 {
+            return Err(Error::Unavailable);
+        }
+        let roots = self.package_roots(c).await?;
+        self.result.roots = roots
+            .iter()
+            .cloned()
+            .map(|k| (k, RootRole::Active))
+            .collect();
+        let mut pending = roots.clone();
+        let mut bindings = BTreeMap::new();
+        let mut occurrences = roots.len();
+        while let Some(k) = pending.pop_first() {
+            if self.result.nodes.contains_key(&k) {
+                continue;
+            }
+            if self.result.nodes.len() >= self.limits.max_nodes {
+                return Err(Error::Unavailable);
+            }
+            let row = self.package_checked(c, &k).await?;
+            if roots.contains(&k) && row.archived_at().is_some() {
+                return Err(Error::Unavailable);
+            }
+            let refs = package::references(&row).map_err(|_| Error::Unavailable)?;
+            occurrences = occurrences
+                .checked_add(refs.exact.len())
+                .and_then(|n| n.checked_add(refs.identities.len()))
+                .ok_or(Error::Unavailable)?;
+            if occurrences > self.limits.max_edges {
+                return Err(Error::Unavailable);
+            }
+            pending.extend(refs.exact);
+            for identity in refs.identities {
+                let binding_count = bindings.len();
+                if let std::collections::btree_map::Entry::Vacant(entry) = bindings.entry(identity)
+                {
+                    if binding_count >= self.limits.max_nodes {
+                        return Err(Error::Unavailable);
+                    }
+                    let head = self.package_current(c, entry.key()).await?;
+                    pending.insert(head.clone());
+                    entry.insert(head);
+                }
+            }
+            self.result.nodes.insert(k, row);
+            // Bound queued unique keys as well as materialized records. Cycles
+            // and duplicate occurrences remain legal and are counted above.
+            pending.retain(|k| !self.result.nodes.contains_key(k));
+            if pending.len()
+                > self
+                    .limits
+                    .max_nodes
+                    .saturating_sub(self.result.nodes.len())
+            {
+                return Err(Error::Unavailable);
+            }
+        }
+        if Instant::now() >= self.deadline || !self.result.gaps.is_empty() {
+            return Err(Error::Unavailable);
+        }
+        Ok(PackageContent {
+            schema_version: package::SCHEMA_VERSION,
+            root_policy: package::ROOT_POLICY.into(),
+            world: self.result.world_key(),
+            roots: roots.into_iter().collect(),
+            records: std::mem::take(&mut self.result.nodes)
+                .into_iter()
+                .map(|(key, payload)| PackageRecord { key, payload })
+                .collect(),
+            bindings: bindings
+                .into_iter()
+                .map(|(identity, target)| IdentityBinding { identity, target })
+                .collect(),
+        })
+    }
+
+    async fn package_roots(
+        &mut self,
+        c: &mut SqliteConnection,
+    ) -> Result<BTreeSet<DomainNodeKey>, Error> {
+        let w = self.result.world.id.clone();
+        let mut roots = BTreeSet::from([self.result.world_key()]);
+        for kind in [
+            DomainKind::Type,
+            DomainKind::Stat,
+            DomainKind::MoveAttribute,
+            DomainKind::Move,
+            DomainKind::Variant,
+            DomainKind::Chart,
+            DomainKind::StatRoster,
+            DomainKind::Ruleset,
+            DomainKind::Learnset,
+            DomainKind::Preset,
+        ] {
+            let t = table(&key(kind, Some(&w), "", 1));
+            let scope = if t.scope == "scope" {
+                "(h.scope=?1 OR h.world_id=?1)"
+            } else {
+                "h.world_id=?1"
+            };
+            // Most aggregates keep archive state on the current immutable
+            // version. NOT EXISTS intentionally retains missing version rows:
+            // checked capture must reject them rather than silently omit roots.
+            let active = match kind {
+                DomainKind::Type | DomainKind::Variant => "h.archived_at IS NULL".into(),
+                DomainKind::StatRoster | DomainKind::Ruleset | DomainKind::Learnset => "1=1".into(),
+                _ => format!(
+                    "NOT EXISTS(SELECT 1 FROM {} v WHERE v.{}=h.id AND v.{}=h.{} AND v.revision=h.revision AND v.archived_at IS NOT NULL)",
+                    t.versions, t.id, t.scope, t.scope
+                ),
+            };
+            let owner = if matches!(kind, DomainKind::Learnset | DomainKind::Preset) {
+                "AND EXISTS(SELECT 1 FROM variants owner WHERE owner.world_id=?1 AND owner.id=h.variant_id AND owner.archived_at IS NULL)"
+            } else {
+                ""
+            };
+            let remaining = self.limits.max_roots.saturating_sub(roots.len());
+            let sql = format!(
+                "SELECT h.id,h.revision FROM {} h WHERE {scope} AND {active} {owner} ORDER BY h.id LIMIT ?2",
+                t.head
+            );
+            let rows: Vec<(String, i64)> = sqlx::query_as(sqlx::AssertSqlSafe(sql))
+                .bind(&w)
+                .bind(i64::try_from(remaining.saturating_add(1)).unwrap_or(i64::MAX))
+                .fetch_all(&mut *c)
+                .await
+                .map_err(|_| Error::Unavailable)?;
+            if rows.len() > remaining
+                || (matches!(
+                    kind,
+                    DomainKind::Chart | DomainKind::StatRoster | DomainKind::Ruleset
+                ) && rows.len() > 1)
+            {
+                return Err(Error::Unavailable);
+            }
+            for (id, revision) in rows {
+                if !content::valid_id(&id) || revision < 1 {
+                    return Err(Error::Unavailable);
+                }
+                roots.insert(key(kind, Some(&w), &id, revision));
+            }
+        }
+        Ok(roots)
+    }
+
+    async fn package_current(
+        &mut self,
+        c: &mut SqliteConnection,
+        identity: &DomainIdentity,
+    ) -> Result<DomainNodeKey, Error> {
+        if let Some(head) = self.current.get(identity) {
+            return Ok(head.clone());
+        }
+        let mut head = key(identity.kind, identity.world_id.as_deref(), &identity.id, 1);
+        let t = table(&head);
+        head.revision = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
+            "SELECT revision FROM {} WHERE id=?1 AND {}=?2",
+            t.head, t.scope
+        )))
+        .bind(&head.id)
+        .bind(head.world_id.as_deref().unwrap_or(""))
+        .fetch_optional(&mut *c)
+        .await
+        .map_err(|_| Error::Unavailable)?
+        .ok_or(Error::Unavailable)?;
+        // Resolve the mutable head, never MAX(version). Its full checked read
+        // (including companions) is cached internally; only the bound key enters
+        // the package closure, not any unrelated current verification input.
+        self.package_checked(c, &head).await?;
+        Ok(head)
+    }
+
+    async fn package_checked(
+        &mut self,
+        c: &mut SqliteConnection,
+        k: &DomainNodeKey,
+    ) -> Result<InspectionPayload, Error> {
+        self.prepare(c, k).await.map_err(|_| Error::Unavailable)?;
+        let row = self.checked(c, k).await.map_err(|_| Error::Unavailable)?;
+        let head = self
+            .current
+            .get(&k.identity())
+            .cloned()
+            .ok_or(Error::Unavailable)?;
+        let current = self
+            .checked(c, &head)
+            .await
+            .map_err(|_| Error::Unavailable)?;
+        if game_data::package::payload_key(&row) != *k
+            || game_data::package::payload_key(&current) != head
+            || !self.result.gaps.is_empty()
+            || Instant::now() >= self.deadline
+        {
+            return Err(Error::Unavailable);
+        }
+        Ok(row)
+    }
+
     async fn run(&mut self, c: &mut SqliteConnection) -> Result<(), Error> {
         let world = self.result.world_key();
         if self.limits.max_roots == 0 || self.limits.max_nodes == 0 {
@@ -2080,6 +2372,247 @@ mod tests {
             display_name: name.into(),
             description: "Synchronized WAL inspection test.".into(),
         }
+    }
+
+    async fn package_user(accounts: &Accounts, name: &str, role: Role) -> (String, String) {
+        accounts.invite("test", name, role, None).await.unwrap();
+        let user = accounts
+            .sign_in(Subject {
+                provider: "test".into(),
+                provider_subject: name.into(),
+                display_name: name.into(),
+            })
+            .await
+            .unwrap();
+        let (token, _) = accounts.start_session(&user.user_id).await.unwrap();
+        (user.user_id, token)
+    }
+
+    #[tokio::test]
+    async fn package_first_read_pins_content_session_and_collaborator_permission() {
+        let dir = tempfile::tempdir().unwrap();
+        let pool = super::super::connect_for_migration(&format!(
+            "sqlite://{}/package-race.db",
+            dir.path().display()
+        ))
+        .await
+        .unwrap();
+        super::super::migrate(&pool).await.unwrap();
+        let accounts = Accounts::new(pool.clone(), 3600).unwrap();
+        let (_, owner) = package_user(&accounts, "owner", Role::Administrator).await;
+        let (designer_id, designer) = package_user(&accounts, "designer", Role::Editor).await;
+        let (_, outsider) = package_user(&accounts, "outsider", Role::Administrator).await;
+        let author = Authoring::new(accounts.clone());
+        let world = author
+            .create_world(&owner, fields("Package race"), None)
+            .await
+            .unwrap();
+        author
+            .grant_collaborator(&owner, &world.id, 1, &designer_id, None)
+            .await
+            .unwrap();
+        let deadline = || Instant::now() + Duration::from_secs(10);
+        let baseline = capture_pooled_package(
+            pool.acquire().await.unwrap(),
+            AddressKey::Id(world.id.clone()),
+            InspectionLimits::default(),
+            deadline(),
+            &accounts,
+            &designer,
+        )
+        .await
+        .unwrap();
+        assert_eq!(baseline.roots, vec![baseline.world.clone()]);
+        assert_eq!(
+            capture_pooled_package(
+                pool.acquire().await.unwrap(),
+                AddressKey::Id(world.id.clone()),
+                InspectionLimits::default(),
+                deadline(),
+                &accounts,
+                &outsider,
+            )
+            .await,
+            Err(Error::Forbidden),
+            "an unrelated administrator has no export bypass"
+        );
+        let (started, first_read) = tokio::sync::oneshot::channel();
+        let (committed, writer_done) = tokio::sync::oneshot::channel();
+        let mut lease = pool.acquire().await.unwrap();
+        sqlx::query("PRAGMA query_only=ON")
+            .execute(&mut *lease)
+            .await
+            .unwrap();
+        let reader = capture_package_until(
+            lease,
+            AddressKey::Id(world.id.clone()),
+            InspectionLimits::default(),
+            deadline(),
+            &accounts,
+            &designer,
+            || async move {
+                started.send(()).unwrap();
+                writer_done.await.unwrap();
+            },
+        );
+        let writer = async {
+            first_read.await.unwrap();
+            author
+                .revoke_collaborator(&owner, &world.id, 2, &designer_id, None)
+                .await
+                .unwrap();
+            Moves::new(accounts.clone())
+                .create(
+                    &owner,
+                    Some(&world.id),
+                    NewMove {
+                        fields: fields("Committed after anchor"),
+                        source: None,
+                        attributes: None,
+                        reason: None,
+                    },
+                )
+                .await
+                .unwrap();
+            // Both eligibility and the collaborator query must still see the
+            // snapshot established by the world read, not either new state.
+            accounts.sign_out(&designer).await.unwrap();
+            committed.send(()).unwrap();
+        };
+        let (captured, ()) = tokio::join!(reader, writer);
+        assert_eq!(captured.unwrap(), baseline);
+        assert_eq!(
+            capture_pooled_package(
+                pool.acquire().await.unwrap(),
+                AddressKey::Id(world.id.clone()),
+                InspectionLimits::default(),
+                deadline(),
+                &accounts,
+                &designer,
+            )
+            .await,
+            Err(Error::Unauthorized)
+        );
+        let (new_designer, _) = accounts.start_session(&designer_id).await.unwrap();
+        assert_eq!(
+            capture_pooled_package(
+                pool.acquire().await.unwrap(),
+                AddressKey::Id(world.id.clone()),
+                InspectionLimits::default(),
+                deadline(),
+                &accounts,
+                &new_designer,
+            )
+            .await,
+            Err(Error::Forbidden)
+        );
+        let after = capture_pooled_package(
+            pool.acquire().await.unwrap(),
+            AddressKey::Id(world.id.clone()),
+            InspectionLimits::default(),
+            deadline(),
+            &accounts,
+            &owner,
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            after.world, baseline.world,
+            "independent Move does not revise the world"
+        );
+        assert_eq!(after.roots.len(), baseline.roots.len() + 1);
+        game_data::package::Package::build(after).unwrap();
+        let tiny = InspectionLimits {
+            max_roots: 1,
+            ..InspectionLimits::default()
+        };
+        assert_eq!(
+            capture_pooled_package(
+                pool.acquire().await.unwrap(),
+                AddressKey::Id(world.id),
+                tiny,
+                deadline(),
+                &accounts,
+                &owner,
+            )
+            .await,
+            Err(Error::Unavailable),
+            "a budget gap is never a diagnostic draft or truncated package"
+        );
+    }
+
+    #[tokio::test]
+    async fn cancelled_package_capture_discards_lease_and_does_not_poison_next_reader() {
+        let dir = tempfile::tempdir().unwrap();
+        let url = format!("sqlite://{}/package-cancel.db", dir.path().display());
+        let setup = super::super::connect_for_migration(&url).await.unwrap();
+        super::super::migrate(&setup).await.unwrap();
+        setup.close().await;
+        // A single slot makes reuse/discard observable: TEMP state would survive
+        // if the cancelled capture's connection escaped back into the pool.
+        let pool = sqlx::sqlite::SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect(&url)
+            .await
+            .unwrap();
+        let accounts = Accounts::new(pool.clone(), 3600).unwrap();
+        let (_, token) = package_user(&accounts, "owner", Role::Administrator).await;
+        let world = Authoring::new(accounts.clone())
+            .create_world(&token, fields("Cancelled package"), None)
+            .await
+            .unwrap();
+        let mut c = pool.acquire().await.unwrap();
+        sqlx::query("CREATE TEMP TABLE cancelled_package_lease(id INTEGER)")
+            .execute(&mut *c)
+            .await
+            .unwrap();
+        let (started, first_read) = tokio::sync::oneshot::channel();
+        let mut capture = Box::pin(capture_package_until(
+            c,
+            AddressKey::Id(world.id.clone()),
+            InspectionLimits::default(),
+            Instant::now() + Duration::from_secs(10),
+            &accounts,
+            &token,
+            || async move {
+                started.send(()).unwrap();
+                std::future::pending::<()>().await;
+            },
+        ));
+        tokio::select! {
+            result = &mut capture => panic!("capture unexpectedly finished: {result:?}"),
+            result = first_read => result.unwrap(),
+        }
+        // Drop the owned future itself, not just a Pin<&mut _> wrapper.
+        drop(capture);
+        let mut next = tokio::time::timeout(Duration::from_secs(5), pool.acquire())
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(!next.is_in_transaction());
+        assert_eq!(
+            sqlx::query_scalar::<_, i64>(
+                "SELECT count(*) FROM sqlite_temp_master WHERE name='cancelled_package_lease'"
+            )
+            .fetch_one(&mut *next)
+            .await
+            .unwrap(),
+            0,
+            "the cancelled owned connection was closed"
+        );
+        assert_eq!(sqlx::query_scalar::<_, i64>("WITH RECURSIVE n(x) AS (VALUES(0) UNION ALL SELECT x+1 FROM n WHERE x<10000) SELECT max(x) FROM n").fetch_one(&mut *next).await.unwrap(), 10000);
+        drop(next);
+        let captured = capture_pooled_package(
+            pool.acquire().await.unwrap(),
+            AddressKey::Id(world.id),
+            InspectionLimits::default(),
+            Instant::now() + Duration::from_secs(10),
+            &accounts,
+            &token,
+        )
+        .await
+        .unwrap();
+        assert_eq!(captured.roots, vec![captured.world.clone()]);
     }
 
     #[tokio::test]

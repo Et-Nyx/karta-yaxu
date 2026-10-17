@@ -62,6 +62,21 @@ that the current application implements all of these concepts.
   is not usage; learnset acquisition context is not actual preset selection. Neither
   global/all-history usage nor safe deletion, combat readiness or export readiness
   is established by this transient dependency graph.
+- Frozen `karta-design-package` v1 export for enabled editor/administrator owners
+  and collaborators of an active world, without global administrator bypass.
+  Authorized native entry/POST preview/CSRF confirmation downloads recapture and
+  recheck permission, requiring fresh confirmation after changed inputs.
+- Active-catalog roots, older/archived exact dependency closure and explicit
+  capture-time owner/default-form identity bindings; ordered/repeated occurrences
+  survive. Deterministic manifest/content JSON and a dedicated SHA-256 domain are
+  separate from inspection fingerprints. Private data and generation timestamps
+  are excluded; no content changes, migrations or fixture objects are added.
+- Shared offline Rust package reader and `tools validate-package [path|-]` (stdin
+  by default) verify structure, canonical wire encodings, exact embedded equality,
+  declared roots and full closure. Current diagnostics use policy 2 and saved
+  presets retain 1/2; well-formed Unknown/contradictory/incomplete drafts are allowed.
+  This is an intended engine integration contract, not actual engine integration,
+  executable gameplay acceptance or a CLI package-creation workflow (ADR0015).
 
 The original bundled creatures remain invented placeholders with retained ids.
 The cached PokeAPI projection now supplies Fire/Flying/Dragon and Charizard base/
@@ -87,7 +102,7 @@ Mega X typing. A general network importer or complete mechanics model is not pre
 | Cosmetic forms | Multiple appearances may share a mechanical reference definition | Planned |
 | Locations | Region/location/area relationships; actual playable map geometry needs a separate model | Planned |
 | Encounters | Edition, method, conditions, levels and chances; resolve mutually exclusive conditions rather than summing unrelated rows | Planned |
-| World packages | Explicit package roots and exact dependency closure, ruleset ids; deterministic, validated, self-contained export | First Frozen Package Export is the next proposal; engine/importer contract, permissions and root selection remain open; no package/export implemented |
+| World packages | Explicit package roots and exact dependency closure, ruleset ids; deterministic, validated, self-contained export | First Frozen Design Package v1 delivered: active catalog, exact closure/bindings, owner/collaborator preview/confirm download, shared offline reader and validation CLI; actual engine integration/gameplay acceptance and retained publication remain deferred (ADR0015) |
 | Simulation | Independently verify executable stat/damage/turn/effect/transformation rules and deterministic replays | Later battle-core milestone |
 
 ## Proposed bounded source set
@@ -121,14 +136,15 @@ and 0009 for atomic setup and development administrator bootstrap.
 through complete setup, with explicit mappings and original Mist relationships.
 These factors are not source observations or claimed official Pokémon rules.
 Decision 0010 defines exact rational storage, canonical metadata-identity matching,
-independent chart history and explicit adoption. Packages/simulation must pin a
-chart revision and separately define stacking/rounding before calculating damage.
+independent chart history and explicit adoption. Frozen packages preserve exact
+chart pins; simulation must separately define stacking/rounding before calculating
+damage.
 
 `fixtures/stats.json` adds three shared Stats, seven independent local Stats,
 three-/four-entry lab rosters and new sample form/variants. Values and constraints
 are synthetic, not sourced Pokémon mechanics. Decision 0011 preserves exact
-definition/roster context and old history; formulas, modifiers and engine export
-remain separate work.
+definition/roster context and old history; frozen packages now preserve that context.
+Formulas, modifiers and actual engine integration remain separate work.
 
 `fixtures/moves.json` adds invented **Impact/Precision** move attributes, **Probe/
 Veil**, independent local copies, two lab rulesets, three learnsets and four named
@@ -155,14 +171,32 @@ objects/69 initial audit events**, with old heads/history preserved. Public nati
 GET filters and 25-entry pages do not save or adopt content. Capture defaults are
 2,048 roots, 8,192 exact nodes, 65,536 edge occurrences, 1 MiB per snapshot, 16 MiB
 accounted snapshot bytes and a cooperative 10-second deadline; these are operational
-inspection limits, not game rules or export limits. Where-used bounds results to
-256, depth to 32 and work to 65,536, explicitly reporting truncation. See
+capture limits, not game rules; export shares these defaults and adds
+package-specific bounds below. Where-used bounds results to 256, depth to 32 and
+work to 65,536, explicitly reporting truncation. See
 [ADR0014](../decisions/0014-world-inspection-and-dependency-visibility.md) and the
 [inspection workflow](../../README.md#world-inspection-and-where-used).
 
+Export also reuses these labs unchanged: **65 objects/69 initial audit events**.
+Roots are the active world, current unarchived local Types/Stats/move attributes/
+Moves/variants/chart, configured roster/ruleset, and current learnsets/unarchived
+presets of active variants. Required archived/old dependencies remain included;
+archived variants' children are not independent roots. Shared learnsets require
+explicit references, not a variant's source form. Identity bindings resolve owners/
+default forms in the same capture transaction, without inventing historical pins.
+The offline reader verifies declared root eligibility/closure; completeness against
+the live catalog is the producer's responsibility. Package input/output is capped
+at 32 MiB, with two export jobs per service held through validation/serialization/
+render, blocking CPU work and the same cooperative capture/cancellation caveats as
+inspection. Preview roots/findings show at most 25 each; packages are complete or
+rejected. See [ADR0015](../decisions/0015-first-frozen-design-package.md) and the
+[v1 protocol](design-package-v1.md).
+
 The [pinned product roadmap](roadmap.md) preserves all deferred directions,
 including derived formulas/modifiers, source contexts/imports, recovery, engine
-packages and deterministic simulation.
+integration/further package workflows and deterministic simulation. Engine
+integration and a minimal executable contract are proposed directions, not a newly
+approved next milestone.
 
 ## Adapter and version rules
 
@@ -184,8 +218,10 @@ explicit same-world entries. An encounter or evolution cannot choose an arbitrar
 entry by species id when several variants exist. Changes to owned relations
 advance their aggregate revision and snapshot in the same audited transaction.
 
-Published world packages and battles will pin complete content/rules/script
-versions. Editing parameters does not grant permission to run or publish Lua.
+Frozen design packages pin their declared design-content closure and ruleset
+revisions; they contain no executable scripts. Future published playable packages
+and battles need complete executable rules/script contracts as well. Editing or
+exporting parameters does not grant permission to run or publish Lua.
 Imported effect prose and condition expressions are not automatically executable.
 
 ## Sources reviewed during planning

@@ -6,9 +6,11 @@ and independently owned game worlds, with scoped collaboration, multiple local
 variants, versioned Types, ordered typing, effectiveness charts, independent Stats,
 designer-defined move attributes and Moves, world ruleset configuration, learnsets
 and named moveset presets. Public read-only world inspection exposes authoring
-diagnostics and scoped dependencies. Exact pins, explicit source adoption and
-attributed history keep these contexts independent. Explicit fixture commands
-provide sample authoring worlds, not an executable game.
+diagnostics and scoped dependencies. Authorized world export produces frozen,
+self-contained design-content packages with a shared offline Rust reader. Exact
+pins, explicit source adoption and attributed history keep these contexts
+independent. Explicit fixture commands provide sample authoring worlds, not an
+executable game.
 
 ## Run locally
 
@@ -44,7 +46,9 @@ contradictory drafts. Follow **Authoring inspection** on either world's detail p
 or open [/worlds/classiclab/inspection](http://127.0.0.1:3000/worlds/classiclab/inspection)
 or [/worlds/variantlab/inspection](http://127.0.0.1:3000/worlds/variantlab/inspection).
 See [Moves, learning and presets](#moves-learning-and-presets) and
-[World inspection and where used](#world-inspection-and-where-used).
+[World inspection and where used](#world-inspection-and-where-used). Eligible owners
+and collaborators can follow **Export package** on a world to preview and download
+a frozen design draft; see [Frozen design packages](#frozen-design-packages).
 Setup prints the sample-world owner and, when created, the
 bootstrap sign-in name. Existing databases keep their fixture owner or use the
 sole enabled administrator; ambiguous ownership needs `--owner-user-id`.
@@ -112,6 +116,7 @@ Cookies are `HttpOnly` and `SameSite=Strict`; `Secure` is off only for local HTT
 | Create a world | Editor or administrator; creator becomes its owner |
 | Create/edit shared species, forms, Types, charts, Stats, move attributes, Moves and form learnsets | Administrator |
 | Edit a world, its variants, local Types, chart, Stats/stat roster, move attributes/Moves, ruleset, variant learnsets or presets | Owner or collaborator with editor/administrator eligibility |
+| Preview/download a frozen design package for an active world | Enabled owner or collaborator with editor/administrator eligibility |
 | Grant/revoke collaboration and inspect access history | World owner |
 
 Administrator status does not bypass another world's ownership. Accounts remain
@@ -432,6 +437,92 @@ Inspection reuses ClassicLab/VariantLab and StatsSample; it adds no schema,
 dependencies or fixture objects. Setup still has **65 objects and 69 initial audit
 events**. Existing history bytes, heads and exact pins retain their meaning.
 
+### Frozen design packages
+
+**First Frozen Design Package** is delivered as `karta-design-package` schema v1.
+It freezes authored design content, including well-formed drafts, for offline
+reading. The shared `game-data::package::Package` reader is intended for engine
+integration; no engine currently consumes it, and structural acceptance does not
+establish gameplay acceptance or combat readiness. Effects, formulas, acquisition
+eligibility, scripts and battle execution remain unevaluated.
+
+1. Sign in as an enabled editor/administrator who owns the active world or is its
+   collaborator. Follow **Export package** or open `/worlds/{world-slug}/export`.
+   This authorized GET/HEAD only opens the entry page. Administrator status has
+   **no global ownership bypass**.
+2. Choose **Preview package**. The native CSRF-protected POST captures fresh content
+   and shows the content SHA-256, root/record/binding counts, byte size and separate
+   authoring diagnostics. Root and finding previews show at most 25 each, with
+   remaining counts; the package is not truncated to that display limit.
+3. Review, check **I reviewed this package and its draft diagnostics**, then choose
+   **Confirm and download**. POST forms target the immutable world ID and are
+   limited to **4 KiB**. Confirmation recaptures and binds to the reviewed package
+   digest; changed inputs or missing confirmation show a fresh preview that must
+   be confirmed again. Session/world permission is checked during capture and
+   rechecked after processing before release, including on confirmed downloads.
+4. Save the JSON attachment (`karta-{world-id}-{first-12-digest-characters}.json`).
+   It is completely built in memory and its final bytes pass the actual shared
+   reader before release. Responses are private/no-store; the server retains no
+   package artifact or public download URL.
+
+The `active-world-catalog-v1` policy selects the current active world, all current
+unarchived local Types, Stats, move attributes, Moves and variants, its configured
+roster/ruleset and unarchived chart, and current learnsets/unarchived presets of
+active variants. Unused active definitions are included. Archived variants' children
+are not independent roots. Exact transitive dependencies include required older or
+archived revisions. Identity-only learnset/preset owners and species default forms
+have explicit capture-time identity-to-exact-key bindings; these are not newly
+authored historical pins. Shared content enters through explicit references, never
+catalog membership, names or an implicit source-form learnset. Ordered entries and
+repeated acquisitions/selections are preserved.
+
+Capture resolves the world first in one ordinary SQLite read transaction, checks
+session/permission on that connection and materializes content before ending the
+transaction. Package-wide validation, diagnostics, hashing, serialization and
+rendering follow outside it. Current Move/ruleset diagnostics use **policy 2**; saved presets keep
+**policy 1 or 2**. Contradiction, Incomplete, ContextDifference and notEvaluated are
+authoring findings, not structural failures: Missing, Unknown, NotApplicable, zero
+and unmodeled/defined-empty drafts remain representable. Unsupported schema/policy,
+invalid references/numbers, inconsistent embedded snapshots, required read failures
+or budget gaps prevent export; there is no partial package.
+
+The deterministic envelope has a manifest and canonical content, with a dedicated
+SHA-256 domain marker over compact canonical content JSON. Keyed outer lists are
+sorted; authored nested order remains meaningful. The reader allows JSON whitespace
+but requires exact field order and value encodings. It neither serializes inspection
+reports nor reuses their fingerprints. Checksums identify content, not authenticity.
+Private accounts, sessions, world ownership/access data, actors and audits are
+excluded. There is no generation timestamp; public archive-state fields remain.
+Export changes no content/history, adds no migrations or fixture objects, and keeps
+complete setup at **65 objects/69 initial audit events**.
+
+Validate a download offline, inside `nix develop`:
+
+```bash
+cargo run -p tools -- validate-package path/to/package.json
+cargo run -p tools -- validate-package - < path/to/package.json
+cargo run -p tools -- validate-package < path/to/package.json
+```
+
+`validate-package [path|-]` defaults to stdin, needs no database/network and exits
+nonzero on structural rejection. Success prints the digest, counts and separate
+diagnostic counts. This CLI **validates only**; package creation is the browser
+workflow above.
+
+**Operational bounds:** capture shares inspection's defaults: 2,048 roots, 8,192
+exact nodes, 65,536 reference occurrences, 1 MiB per preflighted snapshot, 16 MiB
+total accounted snapshot bytes and a cooperative 10-second acquisition/anchor/
+capture deadline. Package input and complete output are additionally capped at
+**32 MiB**; the reader bounds records, bindings and nested occurrences too. At most
+**two export jobs per service** hold admission through validation, serialization
+and preview rendering. CPU work uses blocking workers. The SQLite progress callback,
+caches and cancellation cleanup are shared with inspection; nested verification
+is not a perfect cost meter, and five-second busy waits, filesystem and non-VM work
+can outlast the deadline. These are operational bounds, not hard real-time or new
+game cardinality rules. See the [v1 protocol and reader contract](docs/architecture/design-package-v1.md)
+for exact JSON layout, hash construction and closure rules, and
+[ADR0015](docs/decisions/0015-first-frozen-design-package.md) for the decision.
+
 ### World fixtures
 
 The cached reference subset contains **Fire, Flying, Dragon**, one shared Charizard
@@ -627,6 +718,8 @@ even a last-preset entry/seal failure rolls back all groups and bootstrap change
 - `/worlds/{world-slug}/inspection/where-used`: world-scoped direct consumers and
   representative root paths for an exact revision or all captured versions; follow
   inspection links to supply typed target parameters.
+- `/worlds/{world-slug}/export`: authorized GET/HEAD entry, native ID-bound POST
+  preview and CSRF-protected confirmed JSON download for eligible owners/collaborators.
 - `/worlds/{world-slug}/variants/{variant-slug}`: local detail, `/edit` and `/adopt`.
 - `/types`, `/types/new`, `/types/{type-slug}`: shared Type catalog, creation and detail.
 - `/worlds/{world-slug}/types/new`, `/worlds/{world-slug}/types/{type-slug}`:
@@ -666,6 +759,9 @@ even a last-preset entry/seal failure rolls back all groups and bootstrap change
 - `/healthz`: process health.
 - `cargo run -p tools -- validate-fixtures [path.json]`: validate bundled or
   custom fixtures; errors exit nonzero. Custom files are checked, not imported.
+- `cargo run -p tools -- validate-package [path|-]`: offline package validation
+  (stdin by default), with structural acceptance and separate authoring diagnostics;
+  no CLI package creation or engine gameplay acceptance.
 - `cargo run -p web-app --bin admin -- <command>`: operator CLI:
   - `migrate` — apply pending migrations (deliberate; never automatic).
   - `seed-fixtures [--owner-user-id <id> | --admin-subject <name>]` — initialize
@@ -769,10 +865,10 @@ and a display server are not required. No pip/npm or `playwright install` step
 is needed. First use may download Nix packages and Rust build dependencies;
 browser requests during the tests are restricted to the local test server.
 
-The runner builds current native web/admin binaries with `--locked`, then runs
-78 keyboard-driven tests (58 earlier workflows, 6 Moves, 8 learning/preset and
-6 inspection tests: three inspection workflows at each width) at desktop (1280px)
-and narrow (320px) widths. It
+The runner builds current native web/admin binaries with `--locked`. The suite
+contains **84 keyboard-driven tests** (58 earlier workflows, 6 Moves, 8 learning/
+preset, 6 inspection and 6 export tests: three workflows for each of the latter
+features at each width), covering desktop (1280px) and narrow (320px) widths. It
 uses fresh test-owned databases, servers on available loopback ports, and browser
 contexts, independent of your running app or `KARTA_*` configuration. Those
 processes and databases are cleaned up after each test. Custom `CARGO_TARGET_DIR`
@@ -804,6 +900,9 @@ Inspection workflows cover public keyboard entry, GET filters/pagination, retain
 saved policy and ad-hoc comparison, exact/all-captured usage, repeated slots and
 representative paths, freshness after a concurrent native edit/rename, escaping,
 partial coverage/privacy and rejected mutation routes, with no inspection writes.
+Export workflows cover authorized keyboard entry, preview/review/download,
+attachment envelope/checksum checks, changed-input reconfirmation and revoked
+collaboration at both widths, using temporary test-owned downloads.
 
 Failures save screenshots in a unique ignored `target/browser-tests/run-*`
 directory. Screenshots can be opened from Windows for diagnosis. No traces,
@@ -827,6 +926,8 @@ failure page's retry button is keyboard-accessible.
   validation; `moves.rs`, `rulesets.rs` and `learning.rs` model the ADR0012 aggregates.
   `inspection.rs` defines public typed captures/edges/limits;
   `inspection_analysis.rs` supplies pure findings and bounded where-used traversal.
+  `package.rs` and `package/` define the versioned offline design-package reader,
+  exact closure validation, canonical serialization and content checksum.
   `deunicode` supplies deterministic name-to-ASCII transliteration for automatic
   slugs; its version is pinned and existing addresses are not recomputed on reads.
 - `crates/web-app`: catalog use cases, the identity-provider port, accounts and
@@ -853,15 +954,18 @@ failure page's retry button is keyboard-accessible.
   - `src/application/inspection.rs`, `src/persistence/inspection.rs` and
     `src/web/inspection.rs`: bounded consistent read capture, public-only fingerprint,
     off-handler analysis/path work and native read-only reports.
+  - `src/application/export.rs` and `src/web/export.rs`: explicit export policy,
+    bounded preview/confirmation and private attachment release; checked package
+    capture shares `src/persistence/inspection.rs` infrastructure.
   - `src/application/fixtures.rs` + `chart_fixtures.rs`, `stat_fixtures.rs` and
     `move_fixtures.rs`: complete atomic development setup.
   - `src/bin/admin.rs`: migration and invite operator CLI.
-- `crates/tools`: fixture validator.
+- `crates/tools`: fixture and offline design-package validators.
 - `tests/browser`: Python `unittest` + Playwright for isolated real-browser
   keyboard workflows; test-only dependencies live in the optional Nix shell.
 - `src/web/login_limit.rs`: bounded process-local login request budget.
-- SQLx provides SQLite access and migrations; SHA-256 hashes session tokens and
-  complete public inspection captures (separate contracts);
+- SQLx provides SQLite access and migrations; SHA-256 hashes session tokens,
+  complete public inspection captures and frozen package content (separate contracts);
   `getrandom` supplies tokens; Serde decodes fixtures. The POC that used a
   self-hosted Polycentric server lives outside this repository (see below).
 
@@ -870,20 +974,23 @@ failure page's retry button is keyboard-accessible.
 The delivered foundation includes automatic names/addresses, Type definitions and
 exact typing, independent pairwise charts, Stats/rosters/base values, move attributes
 and Moves, ruleset configuration, independent learnsets and named presets with
-exact-context authoring reports, plus world inspection and scoped dependency
-visibility. **First Frozen Package Export** is the next proposal, requiring an
-engine contract, export permissions and explicit root selection before implementation.
+exact-context authoring reports, world inspection and scoped dependency visibility,
+and **First Frozen Design Package** export with an offline shared reader, active
+catalog root policy and explicit owner/collaborator permission. Actual engine
+integration and a minimal executable contract are proposed next directions, not
+a newly approved milestone or delivered gameplay acceptance.
 The [pinned product roadmap](docs/architecture/roadmap.md) retains the follow-up
-directions: derived-stat formulas/modifiers, authoring recovery, validated engine
-packages, items/abilities/natures, evolution/transformation rules, maps/encounters,
-source contexts/import adapters and deterministic Battle Lab slices.
+directions: derived-stat formulas/modifiers, authoring recovery, engine integration
+and package publication/migration, items/abilities/natures, evolution/transformation
+rules, maps/encounters, source contexts/import adapters and deterministic Battle Lab slices.
 The reference benchmark is documented in
 `docs/architecture/reference-coverage.md`; Pokémon-specific limits belong to
 versioned rulesets, not universal database constraints. Only a small cached Pokémon
 metadata/typing subset is supplied; a general import/update-preview adapter and
-complete mechanics model remain future work. World edit revisions are not yet
-immutable complete-world packages. Archive/revert and ownership transfer/recovery
-also require explicit future workflows. See decision `0006-world-aware-authoring`.
+complete mechanics model remain future work. World edit revisions still do not pin
+all independent content; frozen exports capture those roots separately.
+Archive/revert and ownership transfer/recovery also require explicit future
+workflows. See decision `0006-world-aware-authoring`.
 
 The independent Polycentric proof of concept was extracted from this repository to
 `/home/eter/experiments/polycentric` and its local server stack was removed. It is

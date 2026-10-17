@@ -8,6 +8,7 @@ pub mod inspection;
 pub mod inspection_analysis;
 pub mod learning;
 pub mod moves;
+pub mod package;
 pub mod rulesets;
 pub mod stats;
 pub mod types;
