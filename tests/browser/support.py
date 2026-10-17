@@ -24,6 +24,7 @@ WORK_ROOT = Path(__file__).resolve().parents[2] / "target" / "browser-tests"
 class BrowserFixture:
     """Lifecycle and inspection helpers, deliberately without discoverable tests."""
     seed_reference = False
+    browser_timeout = 5000
 
     @classmethod
     def setUpClass(cls):
@@ -77,7 +78,7 @@ class BrowserFixture:
         self.addCleanup(context.close)
         context.route("**/*", self.local_requests_only)
         page = context.new_page()
-        page.set_default_timeout(5000)
+        page.set_default_timeout(self.browser_timeout)
         # Keep the failure screenshot pointed at the page currently under test,
         # including a failure during this context's initial navigation.
         self.page = page

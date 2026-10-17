@@ -5,9 +5,10 @@ server-rendered HTML. The local app authors a versioned shared species/form libr
 and independently owned game worlds, with scoped collaboration, multiple local
 variants, versioned Types, ordered typing, effectiveness charts, independent Stats,
 designer-defined move attributes and Moves, world ruleset configuration, learnsets
-and named moveset presets. Exact pins, explicit source adoption and attributed
-history keep these contexts independent. Explicit fixture commands provide sample
-authoring worlds, not an executable game.
+and named moveset presets. Public read-only world inspection exposes authoring
+diagnostics and scoped dependencies. Exact pins, explicit source adoption and
+attributed history keep these contexts independent. Explicit fixture commands
+provide sample authoring worlds, not an executable game.
 
 ## Run locally
 
@@ -39,7 +40,11 @@ Emberling and a sample variant in each lab. **Moves** (`/moves`) and **Move
 attributes** (`/move-attributes`) provide shared definitions; each world has local
 catalogs and its own **Ruleset**. The StatsSample owners also have independent
 learnsets and two named presets per variant, illustrating incomplete and
-contradictory drafts. See [Moves, learning and presets](#moves-learning-and-presets).
+contradictory drafts. Follow **Authoring inspection** on either world's detail page
+or open [/worlds/classiclab/inspection](http://127.0.0.1:3000/worlds/classiclab/inspection)
+or [/worlds/variantlab/inspection](http://127.0.0.1:3000/worlds/variantlab/inspection).
+See [Moves, learning and presets](#moves-learning-and-presets) and
+[World inspection and where used](#world-inspection-and-where-used).
 Setup prints the sample-world owner and, when created, the
 bootstrap sign-in name. Existing databases keep their fixture owner or use the
 sole enabled administrator; ambiguous ownership needs `--owner-user-id`.
@@ -103,7 +108,7 @@ Cookies are `HttpOnly` and `SameSite=Strict`; `Secure` is off only for local HTT
 
 | Action | Access |
 | --- | --- |
-| Browse library, worlds and content history | Public local preview |
+| Browse library, worlds, content history and read-only world inspection/where used | Public local preview |
 | Create a world | Editor or administrator; creator becomes its owner |
 | Create/edit shared species, forms, Types, charts, Stats, move attributes, Moves and form learnsets | Administrator |
 | Edit a world, its variants, local Types, chart, Stats/stat roster, move attributes/Moves, ruleset, variant learnsets or presets | Owner or collaborator with editor/administrator eligibility |
@@ -351,6 +356,82 @@ snapshot**: existing v1/v2/v3 bytes and membership semantics remain intact. See
 [ADR0012](docs/decisions/0012-moves-learning-and-world-rulesets.md) and the
 [pinned roadmap](docs/architecture/roadmap.md) for the delivered boundary and deferred work.
 
+### World inspection and where used
+
+Open a world's **Authoring inspection** link for a public, read-only GET/HEAD report
+at `/worlds/{world}/inspection`. Native GET filters select finding category, object
+kind and an optional current-policy preset comparison; query fields are typed and
+allowlisted. Findings, inventories and
+usage lists show at most **25 entries per page**. Each finding previews at most
+25 evidence nodes and explicitly counts the remainder; full typed exact evidence
+is still captured for analysis. Inspection has no POST, CSRF form, new authorization
+policy, saved report or content/audit writes.
+
+One ordinary SQLite read transaction resolves the world as its first read, then
+captures all independent current local roots, including archived and unused
+objects, explicit absences and their exact dependency closure. Shared content
+enters only through explicit dependencies. A variant's source form does **not**
+implicitly supply that form's independent learnset. Older pinned revisions,
+multiple acquisitions of the same Move and every preset selection occurrence
+remain distinct. Current catalog membership/ownership is an observation, not a
+claim that the displayed world revision historically pins every independent head.
+The read transaction ends before fingerprinting, analysis, usage traversal or
+rendering.
+
+Reports identify **Contradiction**, **Incomplete**, **ContextDifference** and
+**notEvaluated** findings; capture gaps are separate. Current Move/ruleset
+diagnostics use policy 2. Saved presets retain their exact inputs and saved policy
+1 or 2; the optional policy-2 comparison is ad hoc and saves nothing. Older pins
+and reached archived dependencies are informational, not automatically invalid.
+Missing/zero, Unknown/NotApplicable and unmodeled/defined-empty stay distinct.
+Chart lookup uses scoped canonical Type identity across metadata revisions and
+preserves known neutral, zero, Unknown and outside-roster results. These reports
+establish neither combat nor export readiness; effects, eligibility and formulas
+are not executed.
+
+Follow **Where used · exact revision** or the all-versions link to
+`/worlds/{world}/inspection/where-used`. “All” means **all captured versions**, not
+all history. Direct consumers and representative bounded shortest root paths are
+scoped to this current-world capture. Membership/ownership does not count as
+content usage; full learnset acquisitions differ from actual preset selections.
+Path results are bounded to 256, depth to 32 and traversal work to 65,536, with
+explicit truncation. “Unused in this world capture” never means globally unused or
+safe to delete. Partial captures only say no uses were observed in the inspected
+portion. Keys use immutable identities and exact revisions; history links and
+labels derive from captured public data, without post-capture database reads.
+
+**Freshness:** every request captures again. Only a complete capture has a
+deterministic SHA-256 inspection fingerprint over public semantic roots, absences,
+exact nodes/edge occurrences and observed heads. Time, private/access data,
+filters and pagination are excluded. Navigation carries the previous fingerprint;
+changed inputs produce a refreshed-result banner and reset pagination to page 1.
+**Refresh inspection** starts a fresh capture without the previous fingerprint.
+This is not frozen historical navigation, a database checksum or an engine package.
+Private world ownership/access records, actors, grants, sessions, raw audits and
+raw snapshot JSON are never reported or fingerprinted; only explicit public DTOs
+cross the capture boundary.
+
+**Operational bounds:** defaults are 2,048 roots, 8,192 exact nodes, 65,536 edge
+occurrences, 1 MiB per preflighted snapshot, 16 MiB total accounted snapshot bytes
+and a 10-second deadline across connection acquisition, anchor and capture. An
+unusable world anchor is unavailable; child read failures, unsupported data and
+budget exhaustion produce explicit partial coverage, not Unknown game data.
+Partial captures have **no fingerprint** and make no “Unused” finding. Preflight
+and per-request caching bound outer work; existing readers' nested verification
+queries are not a perfect cost meter. SQLite's safe progress callback checks about
+every 1,000 VM operations for cooperative interruption; handler removal, rollback
+and close-on-drop service leases protect connection reuse/cancellation. The existing
+five-second busy wait, filesystem work and non-VM work can outlast the deadline:
+this is not a hard real-time bound. At most **two inspection jobs** run per service,
+with admission held through rendering. Fingerprinting, analysis and path work use
+`spawn_blocking`; shared immutable exact evidence avoids quadratic deep clones.
+These limits are operational, not new game cardinality caps or query-adjustable
+allowances. See [ADR0014](docs/decisions/0014-world-inspection-and-dependency-visibility.md).
+
+Inspection reuses ClassicLab/VariantLab and StatsSample; it adds no schema,
+dependencies or fixture objects. Setup still has **65 objects and 69 initial audit
+events**. Existing history bytes, heads and exact pins retain their meaning.
+
 ### World fixtures
 
 The cached reference subset contains **Fire, Flying, Dragon**, one shared Charizard
@@ -541,6 +622,11 @@ even a last-preset entry/seal failure rolls back all groups and bootstrap change
 - `/creatures/{species-slug}/forms/new`, `/creatures/{species-slug}/forms/{form-slug}`:
   shared form creation/detail; form detail paths support `/edit`.
 - `/worlds`, `/worlds/new`, `/worlds/{world-slug}`: world catalog and creation/detail.
+- `/worlds/{world-slug}/inspection`: public read-only authoring inspection, native
+  filters, coverage/fingerprint and paginated findings/inventory.
+- `/worlds/{world-slug}/inspection/where-used`: world-scoped direct consumers and
+  representative root paths for an exact revision or all captured versions; follow
+  inspection links to supply typed target parameters.
 - `/worlds/{world-slug}/variants/{variant-slug}`: local detail, `/edit` and `/adopt`.
 - `/types`, `/types/new`, `/types/{type-slug}`: shared Type catalog, creation and detail.
 - `/worlds/{world-slug}/types/new`, `/worlds/{world-slug}/types/{type-slug}`:
@@ -660,6 +746,14 @@ explicit whole-collection source replacement, counted archived-selection retenti
 separate histories, immutable seals and populated 0006 upgrades. Complete-fixture
 checks preserve all old table values and auth data, reject partial/custom/wrong
 baselines, preserve later edits and roll back even at the final preset entry/seal.
+Inspection tests cover independently expected roots/exact closure, archived/unused
+inventory, explicit absences, old pins and repeated acquisition/selection sites,
+policy preservation, scoped Type/chart context, private-free canonical fingerprints,
+budget/unsupported/integrity gaps and no writes. A synchronized WAL race checks one
+consistent capture before a competing edit and a fresh capture after independent
+head changes. Regression coverage includes legacy companion/predecessor typed
+metadata and headers, cooperative SQLite interruption, pool acquisition deadlines,
+handler cleanup, rollback and cancellation-safe connection disposal.
 
 ### Headless keyboard browser tests (WSL/Linux)
 
@@ -676,8 +770,9 @@ is needed. First use may download Nix packages and Rust build dependencies;
 browser requests during the tests are restricted to the local test server.
 
 The runner builds current native web/admin binaries with `--locked`, then runs
-72 keyboard-driven tests (58 earlier workflows, 6 Moves and 8 learning/preset
-workflows) at desktop (1280px) and narrow (320px) widths. It
+78 keyboard-driven tests (58 earlier workflows, 6 Moves, 8 learning/preset and
+6 inspection tests: three inspection workflows at each width) at desktop (1280px)
+and narrow (320px) widths. It
 uses fresh test-owned databases, servers on available loopback ports, and browser
 contexts, independent of your running app or `KARTA_*` configuration. Those
 processes and databases are cleaned up after each test. Custom `CARGO_TARGET_DIR`
@@ -705,6 +800,10 @@ Moves/learning workflows cover native paginated editors, bounded one-field prose
 loading, Unknown/NotApplicable/zero, source replacement previews, ruleset/preset
 diagnostics, exact-context reconciliation, retained authorization/conflict drafts
 and independent history.
+Inspection workflows cover public keyboard entry, GET filters/pagination, retained
+saved policy and ad-hoc comparison, exact/all-captured usage, repeated slots and
+representative paths, freshness after a concurrent native edit/rename, escaping,
+partial coverage/privacy and rejected mutation routes, with no inspection writes.
 
 Failures save screenshots in a unique ignored `target/browser-tests/run-*`
 directory. Screenshots can be opened from Windows for diagnosis. No traces,
@@ -726,6 +825,8 @@ failure page's retry button is keyboard-accessible.
 
 - `crates/game-data`: typed fixture records, domain invariants and pure authoring
   validation; `moves.rs`, `rulesets.rs` and `learning.rs` model the ADR0012 aggregates.
+  `inspection.rs` defines public typed captures/edges/limits;
+  `inspection_analysis.rs` supplies pure findings and bounded where-used traversal.
   `deunicode` supplies deterministic name-to-ASCII transliteration for automatic
   slugs; its version is pinned and existing addresses are not recomputed on reads.
 - `crates/web-app`: catalog use cases, the identity-provider port, accounts and
@@ -749,6 +850,9 @@ failure page's retry button is keyboard-accessible.
     learnsets, named presets, source adoption and exact historical validation.
   - `src/web/moves.rs` + `src/web/learning.rs`: native bounded editors, explicit
     previews/confirmations, configuration/learning histories and report rendering.
+  - `src/application/inspection.rs`, `src/persistence/inspection.rs` and
+    `src/web/inspection.rs`: bounded consistent read capture, public-only fingerprint,
+    off-handler analysis/path work and native read-only reports.
   - `src/application/fixtures.rs` + `chart_fixtures.rs`, `stat_fixtures.rs` and
     `move_fixtures.rs`: complete atomic development setup.
   - `src/bin/admin.rs`: migration and invite operator CLI.
@@ -756,7 +860,8 @@ failure page's retry button is keyboard-accessible.
 - `tests/browser`: Python `unittest` + Playwright for isolated real-browser
   keyboard workflows; test-only dependencies live in the optional Nix shell.
 - `src/web/login_limit.rs`: bounded process-local login request budget.
-- SQLx provides SQLite access and migrations; SHA-256 hashes session tokens;
+- SQLx provides SQLite access and migrations; SHA-256 hashes session tokens and
+  complete public inspection captures (separate contracts);
   `getrandom` supplies tokens; Serde decodes fixtures. The POC that used a
   self-hosted Polycentric server lives outside this repository (see below).
 
@@ -765,10 +870,13 @@ failure page's retry button is keyboard-accessible.
 The delivered foundation includes automatic names/addresses, Type definitions and
 exact typing, independent pairwise charts, Stats/rosters/base values, move attributes
 and Moves, ruleset configuration, independent learnsets and named presets with
-exact-context authoring reports. The [pinned product roadmap](docs/architecture/roadmap.md)
-retains the follow-up directions: derived-stat formulas/modifiers, authoring recovery,
-validated engine packages, items/abilities/natures, evolution/transformation rules,
-maps/encounters, source contexts/import adapters and deterministic Battle Lab slices.
+exact-context authoring reports, plus world inspection and scoped dependency
+visibility. **First Frozen Package Export** is the next proposal, requiring an
+engine contract, export permissions and explicit root selection before implementation.
+The [pinned product roadmap](docs/architecture/roadmap.md) retains the follow-up
+directions: derived-stat formulas/modifiers, authoring recovery, validated engine
+packages, items/abilities/natures, evolution/transformation rules, maps/encounters,
+source contexts/import adapters and deterministic Battle Lab slices.
 The reference benchmark is documented in
 `docs/architecture/reference-coverage.md`; Pokémon-specific limits belong to
 versioned rulesets, not universal database constraints. Only a small cached Pokémon

@@ -131,6 +131,18 @@ targeted creature/reference/world commands initialize zero Moves/learning object
 See [ADR0012](../docs/decisions/0012-moves-learning-and-world-rulesets.md) and
 [ADR0013](../docs/decisions/0013-authoring-validation-policy-and-archive-selection.md).
 
+## Read-only inspection examples
+
+World inspection reuses ClassicLab/VariantLab, their StatsSample owners, exact
+shared sources, independent rulesets/learnsets and saved policy-1 presets. Follow
+**Authoring inspection** from either world or open `/worlds/classiclab/inspection`
+or `/worlds/variantlab/inspection`, then use the exact/all-captured **Where used**
+links. No new fixture objects, migrations or dependencies are needed: complete
+setup remains **65 objects/69 initial audit events**, with old heads/history intact.
+Inspection and optional ad-hoc policy-2 comparisons write nothing; these examples
+demonstrate authoring diagnostics/dependencies, not combat or export readiness.
+See [ADR0014](../docs/decisions/0014-world-inspection-and-dependency-visibility.md).
+
 ## Type/reference and world fixtures
 
 `admin seed-reference-fixtures` initializes the cached Fire/Flying/Dragon Types

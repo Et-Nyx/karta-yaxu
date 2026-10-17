@@ -1,0 +1,8 @@
+<div class="record-meta">
+  <strong>{{ node.label }}</strong>
+  <p>{{ node.kind }} · {{ node.scope }} · Revision {{ node.revision }}<br><code>{{ node.id }}</code></p>
+  <p>{{ node.state }}</p>
+  {% if !node.owner.is_empty() %}<p>{{ node.owner }} (ownership is separate from active/archived metadata).</p>{% endif %}
+  {% if !node.policy.is_empty() %}<p>{{ node.policy }}</p>{% endif %}
+  <ul>{% for link in node.links %}<li><a href="{{ link.url }}">{{ link.label }}</a></li>{% endfor %}</ul>
+</div>

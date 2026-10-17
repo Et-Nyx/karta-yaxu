@@ -42,6 +42,26 @@ that the current application implements all of these concepts.
   Well-formed diagnostic drafts are saveable; structurally invalid references,
   malformed numbers and intrinsic constraint violations are errors. These reports
   do not evaluate executable eligibility or combat readiness.
+- Public read-only world inspection captures independent current roots (including
+  archived/unused local objects), explicit absences and exact dependency closure in
+  one ordinary read transaction. Shared sources require explicit dependencies;
+  source forms do not implicitly add independent learnsets. Current catalog/owner
+  observations are not historical world-revision pins. Older versions, repeated
+  acquisitions and preset selection occurrences remain distinct.
+- Typed policy-2 Move/ruleset findings, saved policy-1/2 preset reports and optional
+  ad-hoc policy-2 comparisons; incomplete/context-difference/contradiction and
+  not-evaluated categories remain distinct from capture gaps. Reached archived
+  dependencies remain valid/informational. Chart lookup preserves scoped canonical
+  Type identity across metadata versions and neutral/zero/Unknown/outside states.
+- Complete-only deterministic public-semantic inspection fingerprints and fresh
+  request capture with changed-input notice/page-1 reset; partial coverage has no
+  fingerprint or “Unused” claim. Public DTOs exclude private world/access/account
+  data, actors, grants, sessions, raw audits and raw snapshot JSON from reports/hashes.
+- World-scoped where-used for all captured versions or one exact revision, direct
+  content sites and bounded representative shortest root paths. Membership/ownership
+  is not usage; learnset acquisition context is not actual preset selection. Neither
+  global/all-history usage nor safe deletion, combat readiness or export readiness
+  is established by this transient dependency graph.
 
 The original bundled creatures remain invented placeholders with retained ids.
 The cached PokeAPI projection now supplies Fire/Flying/Dragon and Charizard base/
@@ -57,6 +77,7 @@ Mega X typing. A general network importer or complete mechanics model is not pre
 | Moves and learnsets | Extensible move-owned numeric values; preserve multiple ordered acquisition records, descriptive method/context/condition and explicit threshold states | Shared/local Moves, attributes and independent learnsets implemented; source-edition-qualified learning and executable acquisition eligibility remain planned |
 | Movesets | Distinguish authored acquisition records, named configured presets and runtime repertoire/selection | Multiple independently versioned variant presets and exact-context policy-1/2 reports with explicit revalidation implemented; individual learned repertoires and runtime selection remain planned |
 | World ruleset configuration | Pin exact expectations and roster/chart context; author maximum/repeat policies without universal Pokémon limits | Configuration and authoring diagnostics implemented; formulas, effects, conditions and battle execution remain planned |
+| World inspection and dependencies | Capture current independent roots and exact closure consistently; explain authoring findings and scoped direct/root usage without losing old pins or repeated sites | Implemented read-only dependency graph with complete-only public fingerprint, explicit partial gaps and bounded where-used; not an engine package or readiness verdict (ADR0014) |
 | Abilities | Preserve available slots and hidden status, separate from a selected active ability; represent historical assignments | Planned |
 | Natures | Reference increased/decreased stats and modifiers, separately from final stat calculation/rounding | Planned |
 | Items | Distinguish item definitions, machine mappings, transformation requirements and wild held-item rarity | Planned |
@@ -66,7 +87,7 @@ Mega X typing. A general network importer or complete mechanics model is not pre
 | Cosmetic forms | Multiple appearances may share a mechanical reference definition | Planned |
 | Locations | Region/location/area relationships; actual playable map geometry needs a separate model | Planned |
 | Encounters | Edition, method, conditions, levels and chances; resolve mutually exclusive conditions rather than summing unrelated rows | Planned |
-| World packages | Exact world-entry/dependency closure and ruleset ids; deterministic, validated, self-contained export | Planned |
+| World packages | Explicit package roots and exact dependency closure, ruleset ids; deterministic, validated, self-contained export | First Frozen Package Export is the next proposal; engine/importer contract, permissions and root selection remain open; no package/export implemented |
 | Simulation | Independently verify executable stat/damage/turn/effect/transformation rules and deterministic replays | Later battle-core milestone |
 
 ## Proposed bounded source set
@@ -127,6 +148,17 @@ adoption/reconciliation; new selections require unarchived definitions, while
 retained exact archived pins permit unrelated edits. No general sourced-learning
 edition/generation model, level-up semantics, condition execution or combat
 readiness claim is supplied by these authored records.
+
+Inspection reuses ClassicLab, VariantLab and the existing StatsSample examples;
+it adds no schema, dependencies or fixture objects. Complete setup remains **65
+objects/69 initial audit events**, with old heads/history preserved. Public native
+GET filters and 25-entry pages do not save or adopt content. Capture defaults are
+2,048 roots, 8,192 exact nodes, 65,536 edge occurrences, 1 MiB per snapshot, 16 MiB
+accounted snapshot bytes and a cooperative 10-second deadline; these are operational
+inspection limits, not game rules or export limits. Where-used bounds results to
+256, depth to 32 and work to 65,536, explicitly reporting truncation. See
+[ADR0014](../decisions/0014-world-inspection-and-dependency-visibility.md) and the
+[inspection workflow](../../README.md#world-inspection-and-where-used).
 
 The [pinned product roadmap](roadmap.md) preserves all deferred directions,
 including derived formulas/modifiers, source contexts/imports, recovery, engine

@@ -4,6 +4,7 @@ pub mod authoring;
 mod chart_fixtures;
 pub mod charts;
 pub mod fixtures;
+pub mod inspection;
 pub mod learning;
 mod move_fixtures;
 pub mod moves;

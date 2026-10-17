@@ -11,6 +11,7 @@ use std::{str::FromStr, time::Duration};
 
 pub mod authoring;
 pub mod charts;
+pub mod inspection;
 pub mod learning;
 pub mod moves;
 pub mod stat_content;

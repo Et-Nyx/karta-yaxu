@@ -1,0 +1,3 @@
+{% extends "base.html" %}
+{% block title %}Inspection could not be loaded · Karta Yaxu{% endblock %}
+{% block content %}<h1>Inspection could not be loaded</h1><section class="error" aria-label="Inspection errors"><ul>{% for (field, message) in errors %}<li><strong>{{ field }}</strong>: {{ message }}</li>{% endfor %}</ul></section><p>Inspection is read-only. Use the listed query fields once each; unknown fields are rejected.</p><a href="/worlds">Worlds</a>{% endblock %}

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Authoring inspection · {{ common.world_name }} · Karta Yaxu{% endblock %}
+{% block content %}
+{% include "inspection_common.html" %}
+<nav aria-label="Inspection sections"><a href="#filters">Filters</a><a href="#findings">Findings</a><a href="#roots">Current root inventory</a><a href="#dependencies">Exact dependencies</a><a href="#absences">Unconfigured inventories</a></nav>
+<section aria-labelledby="filters"><h2 id="filters">Inspection filters</h2>
+<form method="get" action="{{ action }}">
+  <label for="category">Finding category</label><select id="category" name="category">
+    {% for value in ["all", "contradiction", "incomplete", "context_difference", "not_evaluated"] %}<option value="{{ value }}"{% if category == *value %} selected{% endif %}>{{ value }}</option>{% endfor %}
+  </select>
+  <label for="kind">Object kind</label><select id="kind" name="kind"><option value="all"{% if kind == "all" %} selected{% endif %}>all</option>{% for value in kinds %}<option value="{{ value }}"{% if kind == *value %} selected{% endif %}>{{ value }}</option>{% endfor %}</select>
+  <label for="compare">Compare saved presets with current policy</label><select id="compare" name="compare"><option value="no"{% if !compare %} selected{% endif %}>No — retain saved policy</option><option value="yes"{% if compare %} selected{% endif %}>Yes — ad-hoc current-policy comparison</option></select>
+  {% if !common.fingerprint.is_empty() %}<input type="hidden" name="fingerprint" value="{{ common.fingerprint }}">{% endif %}
+  <button type="submit">Apply inspection filters</button>
+</form>
+<p>Saved policy-1 presets retain policy 1. Optional comparison evaluates the same exact inputs under current policy without revalidation, adoption or an attributed save.</p>
+<dl>{% for (category, count) in counts %}<dt>{{ category }}</dt><dd>{{ count }}</dd>{% endfor %}</dl>
+</section>
+<p>Page {{ common.page }} · Up to 25 entries per collection on each page. Filters start at page 1.</p>
+<nav aria-label="Inspection pagination">{% for link in pagination %}<a href="{{ link.url }}">{{ link.label }}</a> {% endfor %}</nav>
+<section aria-labelledby="findings"><h2 id="findings">Findings ({{ finding_total }} matching)</h2>
+{% for finding in findings %}<article><h3>{{ finding.category }} · {{ finding.code }}</h3>
+{% let node = finding.subject %}{% include "inspection_node.html" %}
+<p>{{ finding.message }}</p><p>Typed site: {{ finding.site }}</p><p>{{ finding.policy }} · {{ finding.comparison }}</p>
+{% if !finding.evidence.is_empty() %}<h4>Exact evidence</h4>{% if !finding.evidence_note.is_empty() %}<p>{{ finding.evidence_note }}</p>{% endif %}{% for node in finding.evidence %}{% include "inspection_node.html" %}{% endfor %}{% endif %}
+</article>{% else %}<p>No matching findings on this page. This is not a readiness result; coverage and unevaluated checks still apply.</p>{% endfor %}
+</section>
+<section aria-labelledby="roots"><h2 id="roots">Current root inventory ({{ root_total }} matching)</h2><p>Includes every observed local unused and archived object. Active/Archived labels describe metadata separately from content ownership.</p>
+{% for node in roots %}<article>{% include "inspection_node.html" %}</article>{% else %}<p>No matching roots on this page.</p>{% endfor %}</section>
+<section aria-labelledby="dependencies"><h2 id="dependencies">Exact dependency inventory ({{ dependency_total }} matching)</h2>
+{% for node in dependencies %}<article>{% include "inspection_node.html" %}</article>{% else %}<p>No matching dependencies on this page.</p>{% endfor %}</section>
+<section aria-labelledby="absences"><h2 id="absences">Observed unconfigured inventories</h2><ul>{% for absence in absences %}<li>{{ absence }}</li>{% else %}<li>No unconfigured inventories observed.</li>{% endfor %}</ul></section>
+{% endblock %}

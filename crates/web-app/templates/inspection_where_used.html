@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Where used · {{ common.world_name }} · Karta Yaxu{% endblock %}
+{% block content %}
+{% include "inspection_common.html" %}
+<h2>Where used in this world capture</h2>
+<p>Query: {{ query.target.kind.as_str() }} · {% if query.target.kind.as_str() == "world" %}World anchor{% else %}{{ scope }}{% endif %} · <code>{{ query.target.id }}</code> · revision {{ version }}.</p>
+<p>This searches current consumers and retained exact dependencies in this captured world only, not global usage or all history. Membership and ownership do not count as content uses.</p>
+<form method="get" action="{{ action }}">
+<input type="hidden" name="kind" value="{{ query.target.kind.as_str() }}"><input type="hidden" name="scope" value="{{ scope }}"><input type="hidden" name="id" value="{{ query.target.id }}">
+<input type="hidden" name="compare" value="{% if compare %}yes{% else %}no{% endif %}">
+{% if !common.fingerprint.is_empty() %}<input type="hidden" name="fingerprint" value="{{ common.fingerprint }}">{% endif %}
+<label for="version">Revision (all or exact positive revision)</label><input id="version" name="version" value="{{ version }}" required>
+<label for="view">Usage view</label><select id="view" name="view"><option value="direct"{% if view == "direct" %} selected{% endif %}>Direct uses</option><option value="paths"{% if view == "paths" %} selected{% endif %}>Representative root paths</option></select>
+<button type="submit">Show where used</button>
+</form>
+<section><h2>Matching captured revisions ({{ captured_total }})</h2>{% for node in captured %}{% include "inspection_node.html" %}{% else %}{% if captured_total == 0 %}<p>Target not captured. No global or historical absence is implied.</p>{% else %}<p>No matching captured revisions on this page.</p>{% endif %}{% endfor %}</section>
+<p><strong>{{ total }} observed {% if view == "direct" %}direct sites{% else %}representative root paths{% endif %} before pagination/result cap.</strong> Usage coverage: {% if complete %}Complete{% else %}Partial{% endif %}. Page {{ common.page }} · 25 entries per page.</p>
+{% if truncated %}<p><strong>Truncated:</strong> result, traversal-work or depth limit reached. Results are not exhaustive.</p>{% endif %}
+<p>Paths show one canonical shortest representative per root, not every possible path. Server limits: 256 results, 32 edges of depth and 65536 traversal steps. Full learnset context is distinct from actual preset selections; acquisition sites and repeated selection slots remain separate in Direct uses.</p>
+{% if !empty_message.is_empty() %}<p>{{ empty_message }}</p>{% endif %}
+<nav aria-label="Where-used pagination">{% for link in pagination %}<a href="{{ link.url }}">{{ link.label }}</a> {% endfor %}</nav>
+{% if view == "direct" %}<section><h2>Direct uses</h2>{% for edge in uses %}<article>{% include "inspection_edge.html" %}</article>{% else %}<p>No direct sites on this page.</p>{% endfor %}</section>
+{% else %}<section><h2>Representative root paths</h2>{% for path in paths %}<article><h3>{{ path.role }}</h3>{% let node = path.root %}{% include "inspection_node.html" %}<ol>{% for edge in path.edges %}<li>{% include "inspection_edge.html" %}</li>{% endfor %}</ol></article>{% else %}<p>No representative paths on this page.</p>{% endfor %}</section>{% endif %}
+{% endblock %}

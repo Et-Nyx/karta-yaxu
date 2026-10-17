@@ -1,0 +1,4 @@
+<p><strong>{{ edge.kind }}</strong> · Typed site: {{ edge.site }}</p>
+<h4>Consumer</h4>{% let node = edge.from %}{% include "inspection_node.html" %}
+{% if !edge.identity.is_empty() %}<p>{{ edge.identity }}</p>{% endif %}
+{% for node in edge.targets %}<h4>Exact target</h4>{% include "inspection_node.html" %}{% endfor %}

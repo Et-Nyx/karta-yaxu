@@ -1,0 +1,13 @@
+<p><a href="{{ common.world_url }}">World detail</a> · <a href="{{ common.report_url }}">Authoring inspection</a> · <a href="{{ common.refresh_url }}">Refresh inspection</a></p>
+<h1>Authoring inspection: {{ common.world_name }}</h1>
+<p>{{ common.world_description }}</p>
+<p>World revision {{ common.revision }} · Inspection contract version {{ common.contract }}<br>Captured world metadata: {{ common.world_state }} · Slug: {{ common.world_slug }}<br>Canonical world ID <code>{{ common.world_id }}</code></p>
+<p><strong>This is not combat or export readiness.</strong> Effects, formulas, eligibility and battle calculation are not evaluated. There is no pass/fail readiness result.</p>
+{% if !common.notice.is_empty() %}<section role="status" class="notice" aria-label="Capture refreshed"><h2>Results refreshed</h2><p><strong>{{ common.notice }}</strong></p></section>{% endif %}
+<section aria-labelledby="coverage"><h2 id="coverage">Coverage: {% if common.complete %}Complete{% else %}Partial{% endif %}</h2>
+<p>{{ common.active }} Active roots · {{ common.archived }} Archived roots · {{ common.dependencies }} exact dependency nodes. {{ common.nodes }} verified captured nodes · {{ common.edges }} edge occurrences.</p>
+<p>Current membership and ownership are observations, not historical pins from the world revision. All local content, including unused and archived objects, is inventoried within server-owned capture limits. Shared content enters only through explicit dependencies; a shared source form does not implicitly supply a learnset.</p>
+{% if !common.fingerprint.is_empty() %}<p>Complete inspection fingerprint: <code class="inspection-fingerprint">{{ common.fingerprint }}</code></p>{% else %}<p><strong>No complete fingerprint is available.</strong> Capture gaps are not Unknown game data, a successful full inspection, or proof that content is unused.</p>{% endif %}
+<p>Each GET captures afresh. Navigation carries the previous complete fingerprint for change detection; it does not retain a historical report. Refresh starts at page 1 without the prior fingerprint.</p>
+{% for gap in common.gaps %}<article><h3>{{ gap.kind }} coverage gap</h3><p>{{ gap.message }}</p>{% for node in gap.subject %}{% include "inspection_node.html" %}{% endfor %}</article>{% endfor %}
+</section>
