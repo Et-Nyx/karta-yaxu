@@ -4,7 +4,32 @@ Pokémon is a temporary stress fixture for an adaptable authoring model. This is
 coverage checklist, not a claim that PokeAPI is a complete executable ruleset or
 that the current application implements all of these concepts.
 
+The product is **Karta Yaxu (Monster Cards in Globasa)**, a creature collector with
+deck-building, not a universal Pokémon schema. Worlds interpret Type-card roles
+such as attachment/resource. Definitions differ from eventual player instances.
+The card foundation is delivered with workspace and keyboard regression coverage.
+Engine integration
+and simulation are the **absolute final steps**, after authoring and fine-tuning.
+
 ## Implemented foundation
+
+- Same qualified native identity and owning revision for Form/Variant/Type/Move
+  cards, no independent wrapper IDs; Species grouping and shared/local standalone
+  cards. Native typed metadata is authoritative and all owning writers carry custom
+  components forward with same-event atomic seals.
+- Reusable same-scope exact Number, Text (2000-character ceiling, LF plain text),
+  Boolean, Choice (stable IDs) and CardReference fields. Missing/Unknown/NA,
+  absent/unmodeled/defined-empty and known empty/false/zero are distinct. Labels
+  and rules text are inert. Existing Stats/Move attributes remain separate.
+- Native public Cards/Fields catalogs, operation-scoped 32 KiB forms, 25-entry
+  lists, retained raw drafts/conflicts, exact attributed history, native metadata
+  links and confirmed standalone/field archive changes. Keep-local field adoption
+  and separate confirmed source-field replacement use explicit injective mappings,
+  including multiple compact mapping rows, never names.
+- Migration 0009 records immutable legacy boundaries, preserving old bytes/heads/
+  audit and unmodeled pre-boundary custom data. New creations/revisions require
+  seals; no implicit field seed or authored fixture-count increase (65/69), though
+  technical tables contain additional rows.
 
 - Shared canonical species identities; separate default/additional form ids.
 - Immutable typed species/form definition versions with exact parent pins.
@@ -78,6 +103,17 @@ that the current application implements all of these concepts.
   This is an intended engine integration contract, not actual engine integration,
   executable gameplay acceptance or a CLI package-creation workflow (ADR0015).
 
+Card-aware extension: `/worlds/{world}/inspection/cards` and
+`/worlds/{world}/inspection/cards/where-used` expose components, exact field
+definitions and mixed native/custom bounded usage from the same capture. Complete
+fingerprint **v2** includes these roots/data/heads; partial/truncated results remain
+honest, with no global-unused or safe-delete claim. New exports are schema-2
+**CardPackage**: complete card/field closure and a schema-1 typed projection that
+can include native dependencies reached only through custom references, so is not
+necessarily independently valid as v1. Existing v1 wire/reader remain unchanged;
+the CLI dispatches 1/2. Combined root/record/occurrence limits and 32 MiB input/output
+apply. See [card foundation](card-foundation.md) and [v2 protocol](design-package-v2.md).
+
 The original bundled creatures remain invented placeholders with retained ids.
 The cached PokeAPI projection now supplies Fire/Flying/Dragon and Charizard base/
 Mega X typing. A general network importer or complete mechanics model is not present.
@@ -93,17 +129,18 @@ Mega X typing. A general network importer or complete mechanics model is not pre
 | Movesets | Distinguish authored acquisition records, named configured presets and runtime repertoire/selection | Multiple independently versioned variant presets and exact-context policy-1/2 reports with explicit revalidation implemented; individual learned repertoires and runtime selection remain planned |
 | World ruleset configuration | Pin exact expectations and roster/chart context; author maximum/repeat policies without universal Pokémon limits | Configuration and authoring diagnostics implemented; formulas, effects, conditions and battle execution remain planned |
 | World inspection and dependencies | Capture current independent roots and exact closure consistently; explain authoring findings and scoped direct/root usage without losing old pins or repeated sites | Implemented read-only dependency graph with complete-only public fingerprint, explicit partial gaps and bounded where-used; not an engine package or readiness verdict (ADR0014) |
-| Abilities | Preserve available slots and hidden status, separate from a selected active ability; represent historical assignments | Planned |
+| Cards and fields | Same native definitions/revisions, standalone cards and exact reusable typed fields with explicit references | Delivered (ADR0016); no player instances or deck execution |
+| Abilities | Preserve available slots and hidden status, separate from a selected active ability; represent historical assignments | Standalone definitions/fields available; specialized relationships/execution planned |
 | Natures | Reference increased/decreased stats and modifiers, separately from final stat calculation/rounding | Planned |
-| Items | Distinguish item definitions, machine mappings, transformation requirements and wild held-item rarity | Planned |
+| Items | Distinguish item definitions, machine mappings, transformation requirements and wild held-item rarity | Standalone definitions/fields available; specialized relationships/execution planned |
 | Descriptions | Language/game-qualified source text, normalized for display but inert; preserve source provenance | Planned; plain-text authored paragraphs implemented |
 | Evolutions | Branches, conjunctions/alternatives, form restrictions and typed conditions bind explicit world entries | Planned |
 | Transformations | Regional/persistent forms differ from Mega/Gigantamax activation and reversion; do not fold battle transformations into evolution | Planned; Mega X name/type reference only, no activation or reversion |
 | Cosmetic forms | Multiple appearances may share a mechanical reference definition | Planned |
 | Locations | Region/location/area relationships; actual playable map geometry needs a separate model | Planned |
 | Encounters | Edition, method, conditions, levels and chances; resolve mutually exclusive conditions rather than summing unrelated rows | Planned |
-| World packages | Explicit package roots and exact dependency closure, ruleset ids; deterministic, validated, self-contained export | First Frozen Design Package v1 delivered: active catalog, exact closure/bindings, owner/collaborator preview/confirm download, shared offline reader and validation CLI; actual engine integration/gameplay acceptance and retained publication remain deferred (ADR0015) |
-| Simulation | Independently verify executable stat/damage/turn/effect/transformation rules and deterministic replays | Later battle-core milestone |
+| World packages | Explicit package roots and exact dependency closure, ruleset ids; deterministic, validated, self-contained export | V1 retained; new schema-2 CardPackage includes typed projection and complete card/field closure (ADR0016); actual engine integration/gameplay acceptance and retained publication deferred |
+| Simulation | Independently verify executable stat/damage/turn/effect/transformation rules and deterministic replays | Absolute final steps with engine integration, after authoring/fine-tuning |
 
 ## Proposed bounded source set
 
@@ -165,8 +202,8 @@ retained exact archived pins permit unrelated edits. No general sourced-learning
 edition/generation model, level-up semantics, condition execution or combat
 readiness claim is supplied by these authored records.
 
-Inspection reuses ClassicLab, VariantLab and the existing StatsSample examples;
-it adds no schema, dependencies or fixture objects. Complete setup remains **65
+The original ADR0014 inspection reuses ClassicLab, VariantLab and the existing
+StatsSample examples; it added no schema, dependencies or fixture objects. Complete setup remains **65
 objects/69 initial audit events**, with old heads/history preserved. Public native
 GET filters and 25-entry pages do not save or adopt content. Capture defaults are
 2,048 roots, 8,192 exact nodes, 65,536 edge occurrences, 1 MiB per snapshot, 16 MiB
@@ -190,13 +227,17 @@ at 32 MiB, with two export jobs per service held through validation/serializatio
 render, blocking CPU work and the same cooperative capture/cancellation caveats as
 inspection. Preview roots/findings show at most 25 each; packages are complete or
 rejected. See [ADR0015](../decisions/0015-first-frozen-design-package.md) and the
-[v1 protocol](design-package-v1.md).
+[frozen historical v1 protocol](design-package-v1.md); current card-aware exports
+follow [v2](design-package-v2.md). Migration 0009 adds technical native component
+seals on new fixture creation, without field/standalone fixture objects, additional
+authored events or changes to pre-boundary heads/bytes. No production database was
+migrated by this documentation task.
 
 The [pinned product roadmap](roadmap.md) preserves all deferred directions,
 including derived formulas/modifiers, source contexts/imports, recovery, engine
 integration/further package workflows and deterministic simulation. Engine
-integration and a minimal executable contract are proposed directions, not a newly
-approved next milestone.
+integration and the simulator are the **absolute final steps**, not the next
+milestone. Further card-content/world authoring and fine-tuning precede them.
 
 ## Adapter and version rules
 

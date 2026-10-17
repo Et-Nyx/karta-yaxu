@@ -1,7 +1,10 @@
 # Karta Yaxu
 
-A creature collector design wiki and future Battle Lab, built with Rust and
-server-rendered HTML. The local app authors a versioned shared species/form library
+**Karta Yaxu (Monster Cards in Globasa)** is a creature collector with deck-building,
+supported by a design wiki built with Rust and server-rendered HTML. Worlds interpret
+card roles, including whether Types are attachments or resources. The local app
+authors design definitions, distinct from eventual player-owned instances, in a
+versioned shared species/form library
 and independently owned game worlds, with scoped collaboration, multiple local
 variants, versioned Types, ordered typing, effectiveness charts, independent Stats,
 designer-defined move attributes and Moves, world ruleset configuration, learnsets
@@ -11,6 +14,13 @@ self-contained design-content packages with a shared offline Rust reader. Exact
 pins, explicit source adoption and attributed history keep these contexts
 independent. Explicit fixture commands provide sample authoring worlds, not an
 executable game.
+
+The **Card Definition Foundation is delivered**.
+Forms, variants, Types and Moves are cards at their native qualified identities and
+owning revisions, alongside standalone cards and reusable typed fields. See
+[Card foundation](docs/architecture/card-foundation.md). **Engine integration and
+the battle simulator are the absolute final steps**, after content/world authoring
+and fine-tuning; instance and deck-building execution are not implemented.
 
 ## Run locally
 
@@ -114,8 +124,8 @@ Cookies are `HttpOnly` and `SameSite=Strict`; `Secure` is off only for local HTT
 | --- | --- |
 | Browse library, worlds, content history and read-only world inspection/where used | Public local preview |
 | Create a world | Editor or administrator; creator becomes its owner |
-| Create/edit shared species, forms, Types, charts, Stats, move attributes, Moves and form learnsets | Administrator |
-| Edit a world, its variants, local Types, chart, Stats/stat roster, move attributes/Moves, ruleset, variant learnsets or presets | Owner or collaborator with editor/administrator eligibility |
+| Create/edit shared species, forms, Types, charts, Stats, move attributes, Moves, form learnsets, cards and reusable card fields | Administrator |
+| Edit a world, its variants, local Types, chart, Stats/stat roster, move attributes/Moves, ruleset, variant learnsets/presets, cards or reusable card fields | Owner or collaborator with editor/administrator eligibility |
 | Preview/download a frozen design package for an active world | Enabled owner or collaborator with editor/administrator eligibility |
 | Grant/revoke collaboration and inspect access history | World owner |
 
@@ -143,6 +153,35 @@ is a future explicit operation; it is not silently performed by account disablin
    complete before/after snapshots. Public world snapshots omit access details.
 6. The owner can manage collaborators using their immutable account ids. Access
    history is private and has a separate revision counter from content.
+
+### Cards and reusable fields
+
+Open **Cards** (`/cards`) or **Reusable fields** (`/card-fields`), or the matching
+world catalogs. Concrete Forms, Variants, Types and Moves are cards at the **same
+qualified identity and owning revision**, without wrapper IDs. Species remains a
+grouping. Standalone cards allow Item/Ability design without fixed gameplay classes.
+Native metadata remains authoritative; every native writer carries the component
+forward and seals it with the same revision/audit event atomically.
+
+Select ordered distinct same-scope field definitions at exact revisions: **Number**
+(exact decimals/constraints), **Text** (0–2000 characters, LF plain text), **Boolean**,
+**Choice** (stable option IDs) or **CardReference** (exact shared/same-world card).
+Missing, Unknown and NotApplicable differ from an absent field, unmodeled or
+defined-empty collection, known empty text, false and zero. Labels and optional
+rules text are inert; names never implement mechanics. Definitions/values are not
+automatically advanced or merged with existing Stats/Move attributes.
+
+Public origin-qualified native links include `/cards/form/{id}` and world-local
+`/worlds/{world}/cards/variant/{id}`; standalone cards and fields also have readable
+scoped slug aliases. Operation forms load one assignment/option/label/prose edit,
+retain raw validation/authorization/conflict drafts, use ID-bound CSRF POSTs within
+32 KiB, and show lists/history at 25 per page. Exact attributed history and native
+metadata/full-history links retain both specialized and custom context. Standalone
+card/field archive changes require preview/confirmation. Field adoption defaults
+keep-local; copying from a pinned shared card is a separate confirmed whole-field
+replacement with explicit injective mappings and removed/unmapped previews.
+Additional mapping rows use `shared_field_id local_field_id revision`, one per line.
+See [the foundation contract](docs/architecture/card-foundation.md) for details.
 
 ### Types and ordered typing
 
@@ -433,15 +472,26 @@ with admission held through rendering. Fingerprinting, analysis and path work us
 These limits are operational, not new game cardinality caps or query-adjustable
 allowances. See [ADR0014](docs/decisions/0014-world-inspection-and-dependency-visibility.md).
 
-Inspection reuses ClassicLab/VariantLab and StatsSample; it adds no schema,
-dependencies or fixture objects. Setup still has **65 objects and 69 initial audit
+The original ADR0014 inspection reuses ClassicLab/VariantLab and StatsSample and
+added no schema, dependencies or fixture objects. Setup still has **65 objects and 69 initial audit
 events**. Existing history bytes, heads and exact pins retain their meaning.
+
+Card-aware public reports extend this capture at
+`/worlds/{world}/inspection/cards` and `/worlds/{world}/inspection/cards/where-used`.
+They include native components, standalone cards, reusable field definitions and
+mixed native/custom direct usage and bounded root paths. Both typed and card
+pages share the complete-only **fingerprint v2**, including card/field roots,
+content and observed heads. Partial capture/truncated usage stays explicit; it
+does not imply authored Unknown, globally unused or safe to delete. Card inspection
+adds no further fixture objects; migration 0009 supplies its card storage.
 
 ### Frozen design packages
 
-**First Frozen Design Package** is delivered as `karta-design-package` schema v1.
+**First Frozen Design Package** delivered schema v1; new browser downloads now use
+`karta-design-package` **schema 2**, `game_data::card_package::CardPackage`.
 It freezes authored design content, including well-formed drafts, for offline
-reading. The shared `game-data::package::Package` reader is intended for engine
+reading. The unchanged schema-1 `game_data::package::Package` reader and the new
+schema-2 reader are intended for eventual engine
 integration; no engine currently consumes it, and structural acceptance does not
 establish gameplay acceptance or combat readiness. Effects, formulas, acquisition
 eligibility, scripts and battle execution remain unevaluated.
@@ -476,6 +526,13 @@ authored historical pins. Shared content enters through explicit references, nev
 catalog membership, names or an implicit source-form learnset. Ordered entries and
 repeated acquisitions/selections are preserved.
 
+Schema 2 adds active local standalone-card and reusable-field roots, native card
+roots mirroring typed Variant/Type/Move roots, complete same-revision components
+and exact card/field reference closure. Its `typed` object retains schema 1 but is
+a projection, **not necessarily a standalone v1 package**: custom references can
+reach additional older/archived native cards. All typed constraints still apply;
+the combined graph rejects missing dependencies and unrelated extras.
+
 Capture resolves the world first in one ordinary SQLite read transaction, checks
 session/permission on that connection and materializes content before ending the
 transaction. Package-wide validation, diagnostics, hashing, serialization and
@@ -493,7 +550,7 @@ but requires exact field order and value encodings. It neither serializes inspec
 reports nor reuses their fingerprints. Checksums identify content, not authenticity.
 Private accounts, sessions, world ownership/access data, actors and audits are
 excluded. There is no generation timestamp; public archive-state fields remain.
-Export changes no content/history, adds no migrations or fixture objects, and keeps
+Export changes no content/history or fixture objects, and keeps
 complete setup at **65 objects/69 initial audit events**.
 
 Validate a download offline, inside `nix develop`:
@@ -504,7 +561,8 @@ cargo run -p tools -- validate-package - < path/to/package.json
 cargo run -p tools -- validate-package < path/to/package.json
 ```
 
-`validate-package [path|-]` defaults to stdin, needs no database/network and exits
+`validate-package [path|-]` defaults to stdin, dispatches schema **1 or 2** to the
+corresponding strict reader, needs no database/network and exits
 nonzero on structural rejection. Success prints the digest, counts and separate
 diagnostic counts. This CLI **validates only**; package creation is the browser
 workflow above.
@@ -513,14 +571,18 @@ workflow above.
 exact nodes, 65,536 reference occurrences, 1 MiB per preflighted snapshot, 16 MiB
 total accounted snapshot bytes and a cooperative 10-second acquisition/anchor/
 capture deadline. Package input and complete output are additionally capped at
-**32 MiB**; the reader bounds records, bindings and nested occurrences too. At most
+**32 MiB**; schema 2 combines typed/card/field root (2,048), record (8,192) and
+authored occurrence (65,536) budgets; native components count separately from typed
+records. The reader bounds bindings too. At most
 **two export jobs per service** hold admission through validation, serialization
 and preview rendering. CPU work uses blocking workers. The SQLite progress callback,
 caches and cancellation cleanup are shared with inspection; nested verification
 is not a perfect cost meter, and five-second busy waits, filesystem and non-VM work
 can outlast the deadline. These are operational bounds, not hard real-time or new
-game cardinality rules. See the [v1 protocol and reader contract](docs/architecture/design-package-v1.md)
-for exact JSON layout, hash construction and closure rules, and
+game cardinality rules. See the [v2 protocol and reader contract](docs/architecture/design-package-v2.md)
+for exact ordered JSON, combined closure and dedicated v2 SHA-256 domain. The
+[frozen historical v1 protocol](docs/architecture/design-package-v1.md) retains its
+unchanged wire/token rules and standalone reader. See also
 [ADR0015](docs/decisions/0015-first-frozen-design-package.md) for the decision.
 
 ### World fixtures
@@ -658,7 +720,9 @@ roster/cell/mapping seals. `0005_stats.sql` adds independent Stat/roster revisio
 `0006_stat_content.sql` adds exact base-value bindings and authoritative v3 creature
 snapshots. `0007_moves_rulesets.sql` adds typed move-attribute, Move and world-ruleset
 versions; `0008_learning.sql` adds independent learnset/preset versions and exact
-acquisition bindings. New binaries require all eight migrations; older binaries reject
+acquisition bindings. `0009_cards.sql` adds same-revision card components,
+standalone cards, reusable fields and immutable legacy-boundary bookkeeping.
+New binaries require all **nine migrations**; older binaries reject
 the newer schema. Migrations do not initialize content or alter existing auth
 records. The
 explicit fixture command preserves existing canonical creature ids as species
@@ -704,9 +768,24 @@ preserve later authored data. Partial new batches, wrong creation actors/baselin
 and conflicting custom rulesets or owner learnsets reject the whole invocation;
 even a last-preset entry/seal failure rolls back all groups and bootstrap changes.
 
+The card upgrade preserves existing snapshot bytes, heads and audits. Pre-boundary
+native revisions remain explicitly custom-data-unmodeled; migration does not invent
+empty authored data, actors or events. Later revisions and new native creations
+require same-event sealed components; missing post-boundary components fail closed.
+No field definitions or standalone cards are implicitly seeded. Fresh fixture
+creation adds technical component/child rows, while authored totals stay **65/69**.
+No production database was migrated during this documentation task. See
+[migration and writer details](docs/architecture/card-foundation.md#migration-0009-and-fixture-compatibility).
+
 ## Available workflows
 
 - `/`: project overview.
+- `/cards`, `/card-fields`, `/worlds/{world}/cards`, `/worlds/{world}/card-fields`:
+  shared/local catalogs, with `/new`; card detail is `/{namespace}/{id}`, field
+  detail `/{id}`, supporting `/edit`, `/history`, `/history/{revision}`.
+  Standalone cards/fields also accept generated scoped slug aliases on GET/HEAD.
+- `/worlds/{world}/inspection/cards` and `/inspection/cards/where-used` under the
+  same world prefix: public captured card/field inventory and mixed bounded usage.
 - `/creatures`: catalog and case-insensitive name search.
 - `/creatures/{species-slug}`: shared species details.
 - `/creatures/new`, `/creatures/{species-slug}/edit`: administrator authoring.
@@ -803,6 +882,12 @@ when running the executable elsewhere.
 
 ## Checks
 
+Card-foundation verification passed: formatting, Clippy with warnings denied,
+**438 Rust tests** (two browser-provision helpers intentionally ignored in normal
+runs), and **94 keyboard browser tests in one complete run**, followed by targeted
+desktop/320px paragraph-transport verification. Human visual,
+screen-reader and actual browser-zoom assessment remain separate.
+
 Inside `nix develop`:
 
 ```bash
@@ -865,10 +950,10 @@ and a display server are not required. No pip/npm or `playwright install` step
 is needed. First use may download Nix packages and Rust build dependencies;
 browser requests during the tests are restricted to the local test server.
 
-The runner builds current native web/admin binaries with `--locked`. The suite
-contains **84 keyboard-driven tests** (58 earlier workflows, 6 Moves, 8 learning/
-preset, 6 inspection and 6 export tests: three workflows for each of the latter
-features at each width), covering desktop (1280px) and narrow (320px) widths. It
+The runner builds current native web/admin binaries with `--locked`. The source
+inventory contains **94 keyboard-driven tests** (84 prior cases plus 10 card
+cases). `test_cards.py` defines five workflows inherited by `DesktopCardTests` and
+`NarrowCardTests`: **5 × 2**, at desktop (1280px) and narrow (320px) widths. It
 uses fresh test-owned databases, servers on available loopback ports, and browser
 contexts, independent of your running app or `KARTA_*` configuration. Those
 processes and databases are cleaned up after each test. Custom `CARGO_TARGET_DIR`
@@ -904,6 +989,12 @@ Export workflows cover authorized keyboard entry, preview/review/download,
 attachment envelope/checksum checks, changed-input reconfirmation and revoked
 collaboration at both widths, using temporary test-owned downloads.
 
+Card workflows cover Unicode loaded prose/history, all five field kinds and raw
+errors, explicit multi-row copy/adoption, native metadata carry-forward and archive/
+revoked drafts. The world source-copy workflow also follows public card inspection,
+exact field usage and representative root paths using the keyboard. Five web tests
+and six pure mixed-usage tests cover further card-inspection contracts.
+
 Failures save screenshots in a unique ignored `target/browser-tests/run-*`
 directory. Screenshots can be opened from Windows for diagnosis. No traces,
 session tokens, cookie dumps or browser storage state are recorded. The suite
@@ -928,6 +1019,8 @@ failure page's retry button is keyboard-accessible.
   `inspection_analysis.rs` supplies pure findings and bounded where-used traversal.
   `package.rs` and `package/` define the versioned offline design-package reader,
   exact closure validation, canonical serialization and content checksum.
+  `cards.rs`, `card_fields.rs`, `card_inspection.rs` and `card_package.rs` with
+  `card_package/` provide same-identity components, fields, mixed usage and v2 reader.
   `deunicode` supplies deterministic name-to-ASCII transliteration for automatic
   slugs; its version is pinned and existing addresses are not recomputed on reads.
 - `crates/web-app`: catalog use cases, the identity-provider port, accounts and
@@ -938,6 +1031,10 @@ failure page's retry button is keyboard-accessible.
   - `src/application/authoring.rs`: scoped policy, transactions, versions and adoption.
   - `src/persistence/authoring.rs`: typed rows/queries and strict snapshot readers.
   - `src/web/authoring.rs`: native authoring/history forms and error rendering.
+  - `src/application/cards.rs`, `src/persistence/cards.rs`, `src/web/cards.rs`:
+    card/field policy, same-event `stage`/`seal_native` bridge and operation forms,
+    with exact attributed history. `src/web/card_inspection.rs` renders the captured
+    public card/field inventory and mixed where-used.
   - `src/web/addresses.rs`: pre-routing readable GET/HEAD addresses and ID compatibility.
   - `src/application/types.rs` + `src/persistence/types.rs`: versioned Type policy,
     exact typing, compatible full snapshots, cached reference/world initialization.
@@ -975,10 +1072,14 @@ The delivered foundation includes automatic names/addresses, Type definitions an
 exact typing, independent pairwise charts, Stats/rosters/base values, move attributes
 and Moves, ruleset configuration, independent learnsets and named presets with
 exact-context authoring reports, world inspection and scoped dependency visibility,
-and **First Frozen Design Package** export with an offline shared reader, active
-catalog root policy and explicit owner/collaborator permission. Actual engine
-integration and a minimal executable contract are proposed next directions, not
-a newly approved milestone or delivered gameplay acceptance.
+and frozen design-package export with offline shared readers, active catalog root
+policy and explicit owner/collaborator permission. The **Card Definition Foundation**
+is delivered: native same-identity cards,
+standalone definitions, reusable fields, card inspection and schema-2 packages.
+Further card-content/world authoring and fine-tuning come next. **Engine integration
+and the battle simulator are the absolute final steps**, superseding earlier
+engine-next recommendations. Player instances, decks/hands/discards, attachment/
+resource execution and deck-building execution are not implemented.
 The [pinned product roadmap](docs/architecture/roadmap.md) retains the follow-up
 directions: derived-stat formulas/modifiers, authoring recovery, engine integration
 and package publication/migration, items/abilities/natures, evolution/transformation

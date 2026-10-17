@@ -1,8 +1,12 @@
 //! One-connection, bounded, ordinary read-snapshot capture. SQL identifiers below
 //! come only from closed domain kinds, never addresses or browser input.
-use super::{authoring as content, charts, learning, moves, stats, types};
+use super::{authoring as content, cards, charts, learning, moves, stats, types};
 use crate::application::authoring::{AddressKey, Error, HistoryKind};
 use content::SnapshotKind;
+use game_data::{
+    card_fields::{FieldDefinition, FieldPin},
+    cards::{CardIdentity, CardNamespace, CardPin, CardRecord},
+};
 use game_data::{inspection::*, stats::BaseStats, types::TypingState};
 use serde::{Serialize, de::DeserializeOwned};
 use sqlx::{Connection, Row, Sqlite, SqliteConnection, pool::PoolConnection};
@@ -23,6 +27,38 @@ fn key(kind: DomainKind, world: Option<&str>, id: &str, revision: i64) -> Domain
         id: id.into(),
         revision,
     }
+}
+fn native_key(identity: &CardIdentity, revision: i64) -> Option<DomainNodeKey> {
+    let kind = match identity.namespace {
+        CardNamespace::Form => DomainKind::Form,
+        CardNamespace::Variant => DomainKind::Variant,
+        CardNamespace::Type => DomainKind::Type,
+        CardNamespace::Move => DomainKind::Move,
+        CardNamespace::Standalone => return None,
+    };
+    Some(key(
+        kind,
+        identity.world_id.as_deref(),
+        &identity.id,
+        revision,
+    ))
+}
+fn native_pin(k: &DomainNodeKey) -> Option<CardPin> {
+    let namespace = match k.kind {
+        DomainKind::Form => CardNamespace::Form,
+        DomainKind::Variant => CardNamespace::Variant,
+        DomainKind::Type => CardNamespace::Type,
+        DomainKind::Move => CardNamespace::Move,
+        _ => return None,
+    };
+    Some(CardPin {
+        identity: CardIdentity {
+            namespace,
+            world_id: k.world_id.clone(),
+            id: k.id.clone(),
+        },
+        version: k.revision,
+    })
 }
 fn integrity(subject: &DomainNodeKey) -> CaptureGap {
     CaptureGap { kind: CaptureGapKind::Integrity, subject: Some(subject.clone()), message: "The exact record or one of its required verification inputs is missing or inconsistent.".into() }
@@ -198,6 +234,8 @@ struct Capture {
     verified: BTreeMap<DomainNodeKey, Result<InspectionPayload, Error>>,
     legacy_companions: BTreeMap<DomainNodeKey, Result<(), Error>>,
     current: BTreeMap<DomainIdentity, DomainNodeKey>,
+    card_preflight: BTreeSet<CardPin>,
+    field_preflight: BTreeSet<FieldPin>,
 }
 
 /// The first SELECT resolves the anchor. Capture owns this connection's progress
@@ -229,6 +267,7 @@ pub(crate) async fn capture_pooled_world(
 /// Authorized ADR0015 active-catalog capture. The caller owns admission and must
 /// recheck permission before releasing a download. Only public content leaves
 /// this read transaction; package validation/serialization happen afterwards.
+#[cfg(test)]
 pub(crate) async fn capture_pooled_package(
     c: PoolConnection<Sqlite>,
     world: AddressKey,
@@ -240,11 +279,33 @@ pub(crate) async fn capture_pooled_package(
     capture_package_until(c, world, limits, deadline, accounts, token, || async {}).await
 }
 
+pub(crate) async fn capture_pooled_card_package(
+    c: PoolConnection<Sqlite>,
+    world: AddressKey,
+    limits: InspectionLimits,
+    deadline: Instant,
+    accounts: &crate::accounts::Accounts,
+    token: &str,
+) -> Result<game_data::card_package::CardPackageContent, Error> {
+    capture_authorized_package(
+        c,
+        world,
+        limits,
+        deadline,
+        accounts,
+        token,
+        true,
+        || async {},
+    )
+    .await
+}
+
 // As with inspection, a generic rendezvous tests the first-read boundary without
 // installing a production hook. The owned lease is discarded even if cancelled
 // while waiting for the worker or removing its progress handler.
+#[cfg(test)]
 async fn capture_package_until<F, Fut>(
-    mut c: PoolConnection<Sqlite>,
+    c: PoolConnection<Sqlite>,
     world: AddressKey,
     limits: InspectionLimits,
     deadline: Instant,
@@ -252,6 +313,35 @@ async fn capture_package_until<F, Fut>(
     token: &str,
     after_first_read: F,
 ) -> Result<game_data::package::PackageContent, Error>
+where
+    F: FnOnce() -> Fut,
+    Fut: std::future::Future<Output = ()>,
+{
+    Ok(capture_authorized_package(
+        c,
+        world,
+        limits,
+        deadline,
+        accounts,
+        token,
+        false,
+        after_first_read,
+    )
+    .await?
+    .typed)
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn capture_authorized_package<F, Fut>(
+    mut c: PoolConnection<Sqlite>,
+    world: AddressKey,
+    limits: InspectionLimits,
+    deadline: Instant,
+    accounts: &crate::accounts::Accounts,
+    token: &str,
+    with_cards: bool,
+    after_first_read: F,
+) -> Result<game_data::card_package::CardPackageContent, Error>
 where
     F: FnOnce() -> Fut,
     Fut: std::future::Future<Output = ()>,
@@ -286,7 +376,35 @@ where
                 archived_at: anchor.archived_at,
             };
             let mut capture = Capture::new(public, limits, deadline);
-            capture.package(&mut tx).await
+            let mut typed = capture.package(&mut tx).await?;
+            if with_cards {
+                // Keep the checked/preflight caches and counters of the initial
+                // typed closure; cards may extend it, never restart capture.
+                capture.result.nodes = typed
+                    .records
+                    .iter()
+                    .map(|r| (r.key.clone(), r.payload.clone()))
+                    .collect();
+                capture
+                    .capture_cards(&mut tx, true, Some(&mut typed.bindings))
+                    .await?;
+                if !capture.result.gaps.is_empty() {
+                    return Err(Error::Unavailable);
+                }
+                typed.records = std::mem::take(&mut capture.result.nodes)
+                    .into_iter()
+                    .map(|(key, payload)| game_data::package::PackageRecord { key, payload })
+                    .collect();
+            }
+            let data = capture.result.card_data;
+            Ok(game_data::card_package::CardPackageContent {
+                schema_version: 2,
+                typed,
+                card_roots: data.card_roots.into_iter().collect(),
+                field_roots: data.field_roots.into_iter().collect(),
+                cards: data.cards.into_values().collect(),
+                fields: data.fields.into_values().collect(),
+            })
         })
         .await
         .map_err(|_| Error::Unavailable)
@@ -523,6 +641,517 @@ where
 }
 
 impl Capture {
+    fn card_gap(&self, message: &str) -> CaptureGap {
+        CaptureGap {
+            kind: CaptureGapKind::Integrity,
+            subject: Some(self.result.world_key()),
+            message: message.into(),
+        }
+    }
+
+    fn card_size(&mut self, size: i64) -> Result<(), CaptureGap> {
+        let size =
+            usize::try_from(size).map_err(|_| self.card_gap("Invalid card snapshot size."))?;
+        if size > self.limits.max_snapshot_bytes {
+            return Err(budget(
+                None,
+                "A card/field snapshot exceeds the per-snapshot byte budget.",
+            ));
+        }
+        self.bytes = self.bytes.saturating_add(size);
+        if self.bytes > self.limits.max_total_snapshot_bytes {
+            return Err(budget(
+                None,
+                "The combined snapshot byte budget was reached.",
+            ));
+        }
+        Ok(())
+    }
+
+    fn card_count(&mut self, count: i64) -> Result<(), CaptureGap> {
+        let count =
+            usize::try_from(count).map_err(|_| self.card_gap("Invalid card child count."))?;
+        self.children = self.children.saturating_add(count);
+        if self.children > self.limits.max_edges {
+            return Err(budget(
+                None,
+                "The combined card/typed occurrence budget was reached.",
+            ));
+        }
+        Ok(())
+    }
+
+    fn card_node_budget(&self) -> Result<(), CaptureGap> {
+        if Instant::now() >= self.deadline {
+            return Err(budget(None, "The capture deadline was reached."));
+        }
+        if self
+            .preflight
+            .len()
+            .saturating_add(self.card_preflight.len())
+            .saturating_add(self.field_preflight.len())
+            > self.limits.max_nodes
+        {
+            return Err(budget(
+                None,
+                "The combined card/typed verification-node budget was reached.",
+            ));
+        }
+        Ok(())
+    }
+
+    async fn card_head(
+        &self,
+        c: &mut SqliteConnection,
+        i: &CardIdentity,
+    ) -> Result<CardPin, CaptureGap> {
+        let (head, scope) = match i.namespace {
+            CardNamespace::Standalone => ("standalone_cards", "scope"),
+            _ => {
+                let t = table(
+                    &native_key(i, 1)
+                        .ok_or_else(|| self.card_gap("Invalid native card identity."))?,
+                );
+                (t.head, t.scope)
+            }
+        };
+        let version = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
+            "SELECT revision FROM {head} WHERE id=? AND {scope}=?"
+        )))
+        .bind(&i.id)
+        .bind(i.world_id.as_deref().unwrap_or(""))
+        .fetch_one(c)
+        .await
+        .map_err(|_| self.card_gap("A card current head could not be resolved."))?;
+        Ok(CardPin {
+            identity: i.clone(),
+            version,
+        })
+    }
+
+    // Preflight every input used by shallow readers before calling them. Raw
+    // relational references are included even when a corrupt snapshot disagrees.
+    // Current heads are verification inputs/observations, never closure roots.
+    async fn prepare_cards(
+        &mut self,
+        c: &mut SqliteConnection,
+        first: CardPin,
+    ) -> Result<(), CaptureGap> {
+        let mut pending = BTreeSet::from([first]);
+        let mut fields = BTreeSet::new();
+        while let Some(p) = pending.pop_first() {
+            if self.card_preflight.contains(&p) {
+                continue;
+            }
+            p.validate()
+                .map_err(|_| self.card_gap("Invalid exact card reference."))?;
+            self.card_preflight.insert(p.clone());
+            self.card_node_budget()?;
+            let i = &p.identity;
+            let scope = i.world_id.as_deref().unwrap_or("");
+            let head = self.card_head(c, i).await?;
+            if head.version < p.version {
+                return Err(self.card_gap("An exact card revision is newer than its current head."));
+            }
+            pending.insert(head);
+            if let Some(k) = native_key(i, p.version) {
+                self.prepare(c, &k).await?;
+                self.card_node_budget()?;
+            } else {
+                self.prepare_card_version(
+                    c,
+                    "standalone_card_versions",
+                    "card_id",
+                    scope,
+                    &i.id,
+                    p.version,
+                )
+                .await?;
+                let source: (Option<String>, Option<i64>) = sqlx::query_as("SELECT source_id,source_revision FROM standalone_card_versions WHERE scope=? AND card_id=? AND revision=?")
+                    .bind(scope).bind(&i.id).bind(p.version).fetch_one(&mut *c).await.map_err(|_| self.card_gap("Missing standalone card version."))?;
+                if let (Some(id), Some(version)) = source {
+                    pending.insert(CardPin {
+                        identity: CardIdentity {
+                            namespace: CardNamespace::Standalone,
+                            world_id: None,
+                            id,
+                        },
+                        version,
+                    });
+                }
+            }
+            let size: Option<Option<i64>> = sqlx::query_scalar("SELECT length(CAST(snapshot_json AS BLOB)) FROM card_components WHERE namespace=? AND scope=? AND card_id=? AND revision=?")
+                .bind(i.namespace.as_str()).bind(scope).bind(&i.id).bind(p.version).fetch_optional(&mut *c).await.map_err(|_| self.card_gap("Unreadable card component."))?;
+            if let Some(size) = size {
+                self.card_size(size.ok_or_else(|| self.card_gap("Unsealed card component."))?)?;
+            }
+            for child in ["card_component_labels", "card_component_fields"] {
+                let count = sqlx::query_scalar(sqlx::AssertSqlSafe(format!("SELECT count(*) FROM {child} WHERE namespace=? AND scope=? AND card_id=? AND revision=?")))
+                    .bind(i.namespace.as_str()).bind(scope).bind(&i.id).bind(p.version).fetch_one(&mut *c).await.map_err(|_| self.card_gap("Unreadable card children."))?;
+                self.card_count(count)?;
+            }
+            let rows = sqlx::query("SELECT field_id,field_revision,ref_namespace,ref_scope,ref_id,ref_revision FROM card_component_fields WHERE namespace=? AND scope=? AND card_id=? AND revision=? ORDER BY slot")
+                .bind(i.namespace.as_str()).bind(scope).bind(&i.id).bind(p.version).fetch_all(&mut *c).await.map_err(|_| self.card_gap("Unreadable card assignments."))?;
+            for r in rows {
+                let assignment_gap = self.card_gap("Invalid card assignment reference.");
+                let get_error = |_| assignment_gap.clone();
+                fields.insert(FieldPin {
+                    world_id: i.world_id.clone(),
+                    field_id: r.try_get("field_id").map_err(get_error)?,
+                    version: r.try_get("field_revision").map_err(get_error)?,
+                });
+                if let Some(namespace) = r
+                    .try_get::<Option<String>, _>("ref_namespace")
+                    .map_err(get_error)?
+                {
+                    self.card_count(1)?;
+                    let namespace = match namespace.as_str() {
+                        "form" => CardNamespace::Form,
+                        "variant" => CardNamespace::Variant,
+                        "type" => CardNamespace::Type,
+                        "move" => CardNamespace::Move,
+                        "standalone" => CardNamespace::Standalone,
+                        _ => return Err(self.card_gap("Invalid reference namespace.")),
+                    };
+                    let scope: String = r.try_get("ref_scope").map_err(get_error)?;
+                    pending.insert(CardPin {
+                        identity: CardIdentity {
+                            namespace,
+                            world_id: (!scope.is_empty()).then_some(scope),
+                            id: r.try_get("ref_id").map_err(get_error)?,
+                        },
+                        version: r.try_get("ref_revision").map_err(get_error)?,
+                    });
+                }
+            }
+            // Native sources are typed edges. Their core readers and any direct
+            // seal snapshot reads must also be preflighted before card_version.
+            if let Some(k) = native_key(i, p.version)
+                && let Some(Ok(row)) = self.preflight.get(&k)
+            {
+                for edge in basic_edges(&k, row) {
+                    if let DomainRef::Exact(to) = edge.to
+                        && let Some(pin) = native_pin(&to)
+                    {
+                        pending.insert(pin);
+                    }
+                }
+            }
+            if pending.len().saturating_add(fields.len()) > self.limits.max_nodes {
+                return Err(budget(None, "The card pending-input budget was reached."));
+            }
+        }
+        self.prepare_fields(c, fields).await
+    }
+
+    async fn prepare_card_version(
+        &mut self,
+        c: &mut SqliteConnection,
+        table: &str,
+        id_column: &str,
+        scope: &str,
+        id: &str,
+        revision: i64,
+    ) -> Result<(), CaptureGap> {
+        // Core readers compare the full previous after bytes, but do not read
+        // the previous aggregate or recursively walk historical predecessors.
+        let sizes: (Option<i64>, i64) = sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT length(CAST(before_json AS BLOB)),length(CAST(after_json AS BLOB)) FROM {table} WHERE scope=? AND {id_column}=? AND revision=?")))
+            .bind(scope).bind(id).bind(revision).fetch_one(&mut *c).await.map_err(|_| self.card_gap("Missing card/field version."))?;
+        for size in sizes.0.into_iter().chain([sizes.1]) {
+            self.card_size(size)?;
+        }
+        if revision > 1 {
+            let size = sqlx::query_scalar(sqlx::AssertSqlSafe(format!("SELECT length(CAST(after_json AS BLOB)) FROM {table} WHERE scope=? AND {id_column}=? AND revision=?")))
+                .bind(scope).bind(id).bind(revision - 1).fetch_one(&mut *c).await.map_err(|_| self.card_gap("Missing card/field predecessor."))?;
+            self.card_size(size)?;
+        }
+        Ok(())
+    }
+
+    async fn prepare_fields(
+        &mut self,
+        c: &mut SqliteConnection,
+        mut pending: BTreeSet<FieldPin>,
+    ) -> Result<(), CaptureGap> {
+        while let Some(p) = pending.pop_first() {
+            if self.field_preflight.contains(&p) {
+                continue;
+            }
+            p.validate()
+                .map_err(|_| self.card_gap("Invalid exact field pin."))?;
+            self.field_preflight.insert(p.clone());
+            self.card_node_budget()?;
+            let scope = p.world_id.as_deref().unwrap_or("");
+            self.prepare_card_version(
+                c,
+                "card_field_versions",
+                "field_id",
+                scope,
+                &p.field_id,
+                p.version,
+            )
+            .await?;
+            let count = sqlx::query_scalar("SELECT count(*) FROM card_field_options WHERE scope=? AND field_id=? AND revision=?").bind(scope).bind(&p.field_id).bind(p.version).fetch_one(&mut *c).await.map_err(|_| self.card_gap("Unreadable field options."))?;
+            self.card_count(count)?;
+            let source: (Option<String>, Option<i64>) = sqlx::query_as("SELECT source_id,source_revision FROM card_field_versions WHERE scope=? AND field_id=? AND revision=?").bind(scope).bind(&p.field_id).bind(p.version).fetch_one(&mut *c).await.map_err(|_| self.card_gap("Unreadable field source."))?;
+            if let (Some(field_id), Some(version)) = source {
+                pending.insert(FieldPin {
+                    world_id: None,
+                    field_id,
+                    version,
+                });
+                self.card_count(1)?;
+            }
+            let version = sqlx::query_scalar(
+                "SELECT revision FROM card_field_definitions WHERE scope=? AND id=?",
+            )
+            .bind(scope)
+            .bind(&p.field_id)
+            .fetch_one(&mut *c)
+            .await
+            .map_err(|_| self.card_gap("Missing field current head."))?;
+            if version < p.version {
+                return Err(
+                    self.card_gap("An exact field revision is newer than its current head.")
+                );
+            }
+            pending.insert(FieldPin { version, ..p });
+            if pending.len() > self.limits.max_nodes {
+                return Err(budget(None, "The field pending-input budget was reached."));
+            }
+        }
+        Ok(())
+    }
+
+    async fn capture_cards(
+        &mut self,
+        c: &mut SqliteConnection,
+        exporting: bool,
+        mut bindings: Option<&mut Vec<game_data::package::IdentityBinding>>,
+    ) -> Result<(), Error> {
+        let result = self.card_closure(c, exporting, &mut bindings).await;
+        if let Err(gap) = result {
+            self.result.gaps.push(gap);
+        }
+        self.result
+            .card_data
+            .field_heads
+            .sort_by(|a, b| (&a.world_id, &a.field_id).cmp(&(&b.world_id, &b.field_id)));
+        Ok(())
+    }
+
+    async fn card_closure(
+        &mut self,
+        c: &mut SqliteConnection,
+        exporting: bool,
+        bindings: &mut Option<&mut Vec<game_data::package::IdentityBinding>>,
+    ) -> Result<(), CaptureGap> {
+        self.children = self.children.max(self.result.edges.len());
+        let w = self.result.world.id.clone();
+        for field in [false, true] {
+            let (head, versions, id) = if field {
+                ("card_field_definitions", "card_field_versions", "field_id")
+            } else {
+                ("standalone_cards", "standalone_card_versions", "card_id")
+            };
+            let remaining = self.limits.max_roots.saturating_sub(
+                self.result.roots.len()
+                    + self.result.card_data.card_roots.len()
+                    + self.result.card_data.field_roots.len(),
+            );
+            let active = if exporting {
+                format!(
+                    "AND NOT EXISTS(SELECT 1 FROM {versions} v WHERE v.scope=h.scope AND v.{id}=h.id AND v.revision=h.revision AND v.archived_at IS NOT NULL)"
+                )
+            } else {
+                String::new()
+            };
+            let rows: Vec<(String, i64)> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
+                "SELECT id,revision FROM {head} h WHERE scope=? {active} ORDER BY id LIMIT ?"
+            )))
+            .bind(&w)
+            .bind(i64::try_from(remaining.saturating_add(1)).unwrap_or(i64::MAX))
+            .fetch_all(&mut *c)
+            .await
+            .map_err(|_| self.card_gap("The card/field root inventory could not be read."))?;
+            if rows.len() > remaining {
+                return Err(budget(
+                    None,
+                    "The combined current-root budget was reached.",
+                ));
+            }
+            for (id, version) in rows {
+                if field {
+                    self.result.card_data.field_roots.insert(FieldPin {
+                        world_id: Some(w.clone()),
+                        field_id: id,
+                        version,
+                    });
+                } else {
+                    self.result.card_data.card_roots.insert(CardPin {
+                        identity: CardIdentity {
+                            namespace: CardNamespace::Standalone,
+                            world_id: Some(w.clone()),
+                            id,
+                        },
+                        version,
+                    });
+                }
+            }
+        }
+        for k in self.result.roots.keys() {
+            if let Some(pin) = native_pin(k) {
+                self.result.card_data.card_roots.insert(pin);
+            }
+        }
+        if self.result.roots.len()
+            + self.result.card_data.card_roots.len()
+            + self.result.card_data.field_roots.len()
+            > self.limits.max_roots
+        {
+            return Err(budget(
+                None,
+                "The combined current-root budget was reached.",
+            ));
+        }
+        self.card_count(
+            i64::try_from(
+                self.result.card_data.card_roots.len() + self.result.card_data.field_roots.len(),
+            )
+            .unwrap_or(i64::MAX),
+        )?;
+        let mut pending = self.result.card_data.card_roots.clone();
+        pending.extend(self.result.nodes.keys().filter_map(native_pin));
+        let mut fields = self.result.card_data.field_roots.clone();
+        let mut native_pending = BTreeSet::new();
+        loop {
+            while let Some(k) = native_pending.pop_first() {
+                if self.result.nodes.contains_key(&k) {
+                    continue;
+                }
+                let row = self
+                    .package_checked(c, &k)
+                    .await
+                    .map_err(|_| integrity(&k))?;
+                if exporting {
+                    let refs = game_data::package::references(&row).map_err(|_| integrity(&k))?;
+                    self.card_count(
+                        i64::try_from(refs.exact.len() + refs.identities.len()).unwrap_or(i64::MAX),
+                    )?;
+                    native_pending.extend(refs.exact);
+                    for identity in refs.identities {
+                        let target = self
+                            .package_current(c, &identity)
+                            .await
+                            .map_err(|_| integrity(&k))?;
+                        native_pending.insert(target.clone());
+                        if let Some(bindings) = bindings.as_deref_mut()
+                            && !bindings.iter().any(|b| b.identity == identity)
+                        {
+                            bindings.push(game_data::package::IdentityBinding { identity, target });
+                        }
+                    }
+                } else {
+                    for edge in basic_edges(&k, &row) {
+                        if let DomainRef::Exact(to) = &edge.to {
+                            native_pending.insert(to.clone());
+                        }
+                        self.add_edge(edge);
+                    }
+                    let head = self
+                        .current
+                        .get(&k.identity())
+                        .ok_or_else(|| integrity(&k))?;
+                    let payload = self
+                        .verified
+                        .get(head)
+                        .and_then(|r| r.as_ref().ok())
+                        .ok_or_else(|| integrity(head))?;
+                    self.result.heads.insert(
+                        k.identity(),
+                        HeadObservation {
+                            revision: head.revision,
+                            archived_at: payload.archived_at(),
+                        },
+                    );
+                }
+                if let Some(pin) = native_pin(&k) {
+                    pending.insert(pin);
+                }
+                self.result.nodes.insert(k, row);
+                self.card_node_budget()?;
+                if native_pending.len() > self.limits.max_nodes {
+                    return Err(budget(None, "The typed pending-node budget was reached."));
+                }
+            }
+            let Some(pin) = pending.pop_first() else {
+                break;
+            };
+            if self.result.card_data.cards.contains_key(&pin) {
+                continue;
+            }
+            self.prepare_cards(c, pin.clone()).await?;
+            let row: CardRecord = cards::card_version(c, &pin).await.map_err(|_| {
+                self.card_gap("An exact card or required verification input is inconsistent.")
+            })?;
+            let head = self.card_head(c, &pin.identity).await?;
+            cards::card(c, &pin.identity)
+                .await
+                .map_err(|_| self.card_gap("The observed card head is inconsistent."))?;
+            self.result
+                .card_data
+                .heads
+                .insert(pin.identity.clone(), head);
+            if let Some(k) = native_key(&pin.identity, pin.version) {
+                native_pending.insert(k);
+            }
+            if let Some(source) = &row.source {
+                pending.insert(source.clone());
+                self.card_count(1)?;
+            }
+            pending.extend(game_data::cards::component_ref_pins(&row.component));
+            fields.extend(game_data::cards::field_dependency_pins(&row.component));
+            self.result.card_data.cards.insert(pin, row);
+            if pending.len() + fields.len() > self.limits.max_nodes {
+                return Err(budget(
+                    None,
+                    "The combined pending-node budget was reached.",
+                ));
+            }
+        }
+        self.prepare_fields(c, fields.clone()).await?;
+        while let Some(pin) = fields.pop_first() {
+            self.card_node_budget()?;
+            if self.result.card_data.fields.contains_key(&pin) {
+                continue;
+            }
+            let row: FieldDefinition =
+                cards::field_version(c, pin.world_id.as_deref(), &pin.field_id, pin.version)
+                    .await
+                    .map_err(|_| self.card_gap("An exact field is inconsistent."))?;
+            let head = cards::field(c, pin.world_id.as_deref(), &pin.field_id)
+                .await
+                .map_err(|_| self.card_gap("A field current head is inconsistent."))?;
+            if !self
+                .result
+                .card_data
+                .field_heads
+                .iter()
+                .any(|p| p.world_id == pin.world_id && p.field_id == pin.field_id)
+            {
+                self.result.card_data.field_heads.push(head.pin());
+            }
+            if let Some(source) = &row.source {
+                fields.insert(source.clone());
+            }
+            self.result.card_data.fields.insert(pin, row);
+        }
+        if let Some(bindings) = bindings.as_deref_mut() {
+            bindings.sort_by(|a, b| a.identity.cmp(&b.identity));
+        }
+        self.card_node_budget()
+    }
+
     fn new(world: PublicWorldContent, limits: InspectionLimits, deadline: Instant) -> Self {
         Self {
             result: CapturedWorld {
@@ -534,6 +1163,7 @@ impl Capture {
                 heads: BTreeMap::new(),
                 absences: vec![],
                 gaps: vec![],
+                card_data: Default::default(),
             },
             limits,
             deadline,
@@ -545,6 +1175,8 @@ impl Capture {
             verified: BTreeMap::new(),
             legacy_companions: BTreeMap::new(),
             current: BTreeMap::new(),
+            card_preflight: BTreeSet::new(),
+            field_preflight: BTreeSet::new(),
         }
     }
 
@@ -618,6 +1250,7 @@ impl Capture {
         if Instant::now() >= self.deadline || !self.result.gaps.is_empty() {
             return Err(Error::Unavailable);
         }
+        self.children = self.children.max(occurrences);
         Ok(PackageContent {
             schema_version: package::SCHEMA_VERSION,
             root_policy: package::ROOT_POLICY.into(),
@@ -856,6 +1489,7 @@ impl Capture {
                 }
             }
         }
+        self.capture_cards(c, false, None).await?;
         self.derived_edges();
         if Instant::now() >= self.deadline {
             self.result
@@ -866,6 +1500,12 @@ impl Capture {
     }
 
     fn add_edge(&mut self, edge: InspectionEdge) -> bool {
+        if (!self.card_preflight.is_empty() || !self.field_preflight.is_empty())
+            && let Err(gap) = self.card_count(1)
+        {
+            self.result.gaps.push(gap);
+            return false;
+        }
         if self.result.edges.len() >= self.limits.max_edges {
             self.result.gaps.push(budget(
                 Some(&edge.from),
@@ -1060,7 +1700,14 @@ impl Capture {
             if Instant::now() >= self.deadline {
                 return Err(budget(Some(&k), "The capture deadline was reached."));
             }
-            if !self.preflight.contains_key(&k) && self.preflight.len() >= self.limits.max_nodes {
+            if !self.preflight.contains_key(&k)
+                && self
+                    .preflight
+                    .len()
+                    .saturating_add(self.card_preflight.len())
+                    .saturating_add(self.field_preflight.len())
+                    >= self.limits.max_nodes
+            {
                 let gap = budget(
                     Some(&k),
                     "The bounded verification-input node budget was reached.",
@@ -2386,6 +3033,468 @@ mod tests {
             .unwrap();
         let (token, _) = accounts.start_session(&user.user_id).await.unwrap();
         (user.user_id, token)
+    }
+
+    #[tokio::test]
+    async fn card_capture_preserves_old_native_pins_identity_cycles_and_active_export_roots() {
+        use crate::application::{cards::*, moves::MoveEdit};
+        use game_data::card_package::CardPackage;
+        let dir = tempfile::tempdir().unwrap();
+        let pool = super::super::connect_for_migration(&format!(
+            "sqlite://{}/cards-capture.db",
+            dir.path().display()
+        ))
+        .await
+        .unwrap();
+        super::super::migrate(&pool).await.unwrap();
+        let accounts = Accounts::new(pool.clone(), 3600).unwrap();
+        let (_, owner) = package_user(&accounts, "owner", Role::Administrator).await;
+        let world = Authoring::new(accounts.clone())
+            .create_world(&owner, fields("Cards"), None)
+            .await
+            .unwrap();
+        let api = Cards::new(accounts.clone());
+        let shared_definition = api
+            .create_field(
+                &owner,
+                None,
+                NewField {
+                    fields: fields("Shared reference"),
+                    kind: FieldKind::CardReference,
+                    source: None,
+                    reason: None,
+                },
+            )
+            .await
+            .unwrap();
+        let definition = api
+            .create_field(
+                &owner,
+                Some(&world.id),
+                NewField {
+                    fields: fields("Reference"),
+                    kind: FieldKind::CardReference,
+                    source: Some(shared_definition.pin()),
+                    reason: None,
+                },
+            )
+            .await
+            .unwrap();
+        let unused = api
+            .create_field(
+                &owner,
+                Some(&world.id),
+                NewField {
+                    fields: fields("Unused"),
+                    kind: FieldKind::Boolean,
+                    source: None,
+                    reason: None,
+                },
+            )
+            .await
+            .unwrap();
+        let unused = api
+            .save_field(
+                &owner,
+                Some(&world.id),
+                &unused.id,
+                FieldEdit {
+                    expected_revision: 1,
+                    fields: unused.fields,
+                    kind: unused.kind,
+                    archived_at: Some(1),
+                    reason: None,
+                },
+            )
+            .await
+            .unwrap();
+        let moves = Moves::new(accounts.clone());
+        let native = moves
+            .create(
+                &owner,
+                None,
+                NewMove {
+                    fields: fields("Old shared move"),
+                    source: None,
+                    attributes: None,
+                    reason: None,
+                },
+            )
+            .await
+            .unwrap();
+        let native_pin = CardPin {
+            identity: CardIdentity {
+                namespace: CardNamespace::Move,
+                world_id: None,
+                id: native.id.clone(),
+            },
+            version: 1,
+        };
+        let component = |pin| CardComponent {
+            fields: Some(vec![CardField {
+                definition: definition.clone(),
+                value: FieldValue::CardReference(pin),
+            }]),
+            ..Default::default()
+        };
+        let a = api
+            .create(
+                &owner,
+                Some(&world.id),
+                NewCard {
+                    fields: fields("A"),
+                    source: None,
+                    component: component(native_pin.clone()),
+                    reason: None,
+                },
+            )
+            .await
+            .unwrap();
+        let b = api
+            .create(
+                &owner,
+                Some(&world.id),
+                NewCard {
+                    fields: fields("B"),
+                    source: None,
+                    component: component(a.pin()),
+                    reason: None,
+                },
+            )
+            .await
+            .unwrap();
+        let a = api
+            .save_card(
+                &owner,
+                &a.identity,
+                CardEdit {
+                    expected_revision: 1,
+                    component: component(b.pin()),
+                    reason: None,
+                },
+            )
+            .await
+            .unwrap();
+        let archived = api
+            .create(
+                &owner,
+                Some(&world.id),
+                NewCard {
+                    fields: fields("Archived unused"),
+                    source: None,
+                    component: Default::default(),
+                    reason: None,
+                },
+            )
+            .await
+            .unwrap();
+        let archived = api
+            .save_metadata(
+                &owner,
+                &archived.identity,
+                CardMetadataEdit {
+                    expected_revision: 1,
+                    fields: archived.fields.clone(),
+                    archived_at: Some(1),
+                    reason: None,
+                },
+            )
+            .await
+            .unwrap();
+        moves
+            .save(
+                &owner,
+                None,
+                &native.id,
+                MoveEdit {
+                    expected_revision: 1,
+                    fields: fields("New shared move"),
+                    attributes: None,
+                    reason: None,
+                },
+            )
+            .await
+            .unwrap();
+        let local = moves
+            .create(
+                &owner,
+                Some(&world.id),
+                NewMove {
+                    fields: fields("Local active"),
+                    source: None,
+                    attributes: None,
+                    reason: None,
+                },
+            )
+            .await
+            .unwrap();
+        let before: i64 = sqlx::query_scalar("SELECT count(*) FROM audit_events")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        let mut lease = pool.acquire().await.unwrap();
+        sqlx::query("PRAGMA query_only=ON")
+            .execute(&mut *lease)
+            .await
+            .unwrap();
+        let captured = capture_world(
+            &mut lease,
+            AddressKey::Id(world.id.clone()),
+            InspectionLimits::default(),
+        )
+        .await
+        .unwrap();
+        assert!(captured.is_complete(), "{:?}", captured.gaps);
+        assert!(captured.card_data.card_roots.contains(&archived.pin()));
+        assert!(captured.card_data.field_roots.contains(&unused.pin()));
+        assert!(captured.card_data.cards.contains_key(&native_pin));
+        assert!(
+            captured
+                .card_data
+                .fields
+                .contains_key(&shared_definition.pin())
+        );
+        assert!(
+            !captured
+                .card_data
+                .field_roots
+                .contains(&shared_definition.pin())
+        );
+        assert_eq!(captured.card_data.heads[&native_pin.identity].version, 2);
+        assert!(!captured.card_data.cards.contains_key(&CardPin {
+            version: 2,
+            ..native_pin.clone()
+        }));
+        assert!(captured.card_data.cards.contains_key(&CardPin {
+            version: 1,
+            ..a.pin()
+        }));
+        let content = capture_pooled_card_package(
+            pool.acquire().await.unwrap(),
+            AddressKey::Id(world.id.clone()),
+            InspectionLimits::default(),
+            Instant::now() + Duration::from_secs(10),
+            &accounts,
+            &owner,
+        )
+        .await
+        .unwrap();
+        assert!(!content.card_roots.contains(&archived.pin()));
+        assert!(!content.field_roots.contains(&unused.pin()));
+        assert!(!content.card_roots.contains(&native_pin));
+        assert!(content.card_roots.contains(&CardPin {
+            identity: CardIdentity {
+                namespace: CardNamespace::Move,
+                world_id: Some(world.id.clone()),
+                id: local.id
+            },
+            version: 1
+        }));
+        let package = CardPackage::build(content).unwrap();
+        CardPackage::from_bytes(&package.to_bytes().unwrap()).unwrap();
+        assert_eq!(
+            sqlx::query_scalar::<_, i64>("SELECT count(*) FROM audit_events")
+                .fetch_one(&pool)
+                .await
+                .unwrap(),
+            before
+        );
+    }
+
+    #[tokio::test]
+    async fn card_capture_preflights_large_or_corrupt_seals_and_combined_budgets() {
+        use crate::application::cards::*;
+        let dir = tempfile::tempdir().unwrap();
+        let pool = super::super::connect_for_migration(&format!(
+            "sqlite://{}/cards-bounds.db",
+            dir.path().display()
+        ))
+        .await
+        .unwrap();
+        super::super::migrate(&pool).await.unwrap();
+        let accounts = Accounts::new(pool.clone(), 3600).unwrap();
+        let (_, owner) = package_user(&accounts, "owner", Role::Administrator).await;
+        let world = Authoring::new(accounts.clone())
+            .create_world(&owner, fields("Bounds"), None)
+            .await
+            .unwrap();
+        Cards::new(accounts.clone())
+            .create(
+                &owner,
+                Some(&world.id),
+                NewCard {
+                    fields: fields("Card"),
+                    source: None,
+                    component: Default::default(),
+                    reason: None,
+                },
+            )
+            .await
+            .unwrap();
+        let mut c = pool.acquire().await.unwrap();
+        let limited = capture_world(
+            &mut c,
+            AddressKey::Id(world.id.clone()),
+            InspectionLimits {
+                max_roots: 1,
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+        assert!(
+            limited
+                .gaps
+                .iter()
+                .any(|g| g.kind == CaptureGapKind::Budget)
+        );
+        sqlx::query("DROP TRIGGER card_components_sealed_update")
+            .execute(&mut *c)
+            .await
+            .unwrap();
+        sqlx::query("UPDATE card_components SET snapshot_json=printf('%.*c',20000,'x')")
+            .execute(&mut *c)
+            .await
+            .unwrap();
+        let limited = capture_world(
+            &mut c,
+            AddressKey::Id(world.id.clone()),
+            InspectionLimits {
+                max_snapshot_bytes: 4096,
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+        assert!(limited.card_data.cards.is_empty());
+        assert!(
+            limited
+                .gaps
+                .iter()
+                .any(|g| g.kind == CaptureGapKind::Budget)
+        );
+        sqlx::query("UPDATE card_components SET snapshot_json='{}'")
+            .execute(&mut *c)
+            .await
+            .unwrap();
+        let corrupt = capture_world(
+            &mut c,
+            AddressKey::Id(world.id.clone()),
+            InspectionLimits::default(),
+        )
+        .await
+        .unwrap();
+        assert!(
+            corrupt
+                .gaps
+                .iter()
+                .any(|g| g.kind == CaptureGapKind::Integrity)
+        );
+        assert!(
+            capture_pooled_card_package(
+                pool.acquire().await.unwrap(),
+                AddressKey::Id(world.id),
+                InspectionLimits::default(),
+                Instant::now() + Duration::from_secs(10),
+                &accounts,
+                &owner
+            )
+            .await
+            .is_err()
+        );
+        assert_eq!(
+            sqlx::query_scalar::<_, i64>("SELECT 1")
+                .fetch_one(&mut *c)
+                .await
+                .unwrap(),
+            1
+        );
+    }
+
+    #[tokio::test]
+    async fn card_package_world_first_snapshot_excludes_later_card_and_field_roots() {
+        use crate::application::cards::*;
+        let dir = tempfile::tempdir().unwrap();
+        let pool = super::super::connect_for_migration(&format!(
+            "sqlite://{}/cards-race.db",
+            dir.path().display()
+        ))
+        .await
+        .unwrap();
+        super::super::migrate(&pool).await.unwrap();
+        let accounts = Accounts::new(pool.clone(), 3600).unwrap();
+        let (_, owner) = package_user(&accounts, "owner", Role::Administrator).await;
+        let world = Authoring::new(accounts.clone())
+            .create_world(&owner, fields("Race"), None)
+            .await
+            .unwrap();
+        let (started, first_read) = tokio::sync::oneshot::channel();
+        let (committed, writer_done) = tokio::sync::oneshot::channel();
+        let mut lease = pool.acquire().await.unwrap();
+        sqlx::query("PRAGMA query_only=ON")
+            .execute(&mut *lease)
+            .await
+            .unwrap();
+        let reader = capture_authorized_package(
+            lease,
+            AddressKey::Id(world.id.clone()),
+            InspectionLimits::default(),
+            Instant::now() + Duration::from_secs(10),
+            &accounts,
+            &owner,
+            true,
+            || async move {
+                started.send(()).unwrap();
+                writer_done.await.unwrap();
+            },
+        );
+        let writer = async {
+            first_read.await.unwrap();
+            let cards = Cards::new(accounts.clone());
+            cards
+                .create_field(
+                    &owner,
+                    Some(&world.id),
+                    NewField {
+                        fields: fields("Later field"),
+                        kind: FieldKind::Boolean,
+                        source: None,
+                        reason: None,
+                    },
+                )
+                .await
+                .unwrap();
+            cards
+                .create(
+                    &owner,
+                    Some(&world.id),
+                    NewCard {
+                        fields: fields("Later card"),
+                        source: None,
+                        component: Default::default(),
+                        reason: None,
+                    },
+                )
+                .await
+                .unwrap();
+            committed.send(()).unwrap();
+        };
+        let (old, ()) = tokio::join!(reader, writer);
+        let old = old.unwrap();
+        assert!(old.card_roots.is_empty() && old.field_roots.is_empty());
+        let new = capture_pooled_card_package(
+            pool.acquire().await.unwrap(),
+            AddressKey::Id(world.id),
+            InspectionLimits::default(),
+            Instant::now() + Duration::from_secs(10),
+            &accounts,
+            &owner,
+        )
+        .await
+        .unwrap();
+        assert_eq!(new.card_roots.len(), 1);
+        assert_eq!(new.field_roots.len(), 1);
+        game_data::card_package::CardPackage::build(new).unwrap();
     }
 
     #[tokio::test]

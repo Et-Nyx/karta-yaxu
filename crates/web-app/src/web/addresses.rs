@@ -115,7 +115,24 @@ fn classify<'a>(parts: &'a [&'a str]) -> Option<Address<'a>> {
     let (object, suffix) = match parts {
         ["worlds", world, "inspection"]
         | ["worlds", world, "inspection", "where-used"]
+        | ["worlds", world, "inspection", "cards"]
+        | ["worlds", world, "inspection", "cards", "where-used"]
         | ["worlds", world, "export"] => (Object::World(world), &parts[2..]),
+        ["worlds", world, "cards"]
+        | ["worlds", world, "cards", "new"]
+        | ["worlds", world, "card-fields"]
+        | ["worlds", world, "card-fields", "new"] => (Object::World(world), &parts[2..]),
+        ["worlds", world, "cards", namespace, _, suffix @ ..]
+            if matches!(
+                *namespace,
+                "form" | "variant" | "type" | "move" | "standalone"
+            ) && content_suffix(suffix) =>
+        {
+            (Object::World(world), &parts[2..])
+        }
+        ["worlds", world, "card-fields", _, suffix @ ..] if content_suffix(suffix) => {
+            (Object::World(world), &parts[2..])
+        }
         ["creatures", "new"]
         | ["worlds", "new"]
         | ["types", "new"]

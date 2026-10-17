@@ -697,7 +697,17 @@ pub(crate) async fn put_move(
     }
     sqlx::query("INSERT INTO move_versions(scope,move_id,revision,source_move_id,source_revision,slug,display_name,description,archived_at,attributes_defined,audit_id,previous_revision,before_json,after_json) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
         .bind(scope(world)).bind(&row.id).bind(row.revision).bind(row.source.as_ref().map(|p|&p.move_id)).bind(row.source.as_ref().map(|p|p.version))
-        .bind(&row.fields.slug).bind(&row.fields.display_name).bind(&row.fields.description).bind(row.archived_at).bind(i64::from(row.attributes.is_some())).bind(audit).bind(content::previous(row.revision)).bind(before).bind(after).execute(c).await.map_err(storage_error)?;
+        .bind(&row.fields.slug).bind(&row.fields.display_name).bind(&row.fields.description).bind(row.archived_at).bind(i64::from(row.attributes.is_some())).bind(audit).bind(content::previous(row.revision)).bind(before).bind(after).execute(&mut *c).await.map_err(storage_error)?;
+    super::cards::seal_native(
+        c,
+        game_data::cards::CardIdentity {
+            namespace: game_data::cards::CardNamespace::Move,
+            world_id: row.world_id.clone(),
+            id: row.id.clone(),
+        },
+        row.revision,
+    )
+    .await?;
     Ok(())
 }
 pub(crate) async fn put_ruleset(

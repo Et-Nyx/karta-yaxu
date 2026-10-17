@@ -737,6 +737,13 @@ async fn unused_archived_local_roots_are_inventoried_without_shared_catalog_expa
         .await
         .unwrap();
     sqlx::query("UPDATE move_versions SET archived_at=123,after_json=json_set(after_json,'$.content.archived_at',123) WHERE scope=? AND move_id=?").bind(CLASSIC).bind(&unused.id).execute(&l.pool).await.unwrap();
+    // This test initializes a coherent archived definition, including its new
+    // same-revision card companion. Mismatched companions are covered separately.
+    sqlx::query("DROP TRIGGER card_components_sealed_update")
+        .execute(&l.pool)
+        .await
+        .unwrap();
+    sqlx::query("UPDATE card_components SET snapshot_json=json_set(snapshot_json,'$.content.archived_at',123) WHERE namespace='move' AND scope=? AND card_id=? AND revision=1").bind(CLASSIC).bind(&unused.id).execute(&l.pool).await.unwrap();
     let c = l.capture(CLASSIC).await;
     let k = key(DomainKind::Move, Some(CLASSIC), &unused.id, 1);
     assert_eq!(c.roots[&k], RootRole::Archived);

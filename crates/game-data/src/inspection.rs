@@ -320,6 +320,8 @@ pub struct CapturedWorld {
     pub heads: BTreeMap<DomainIdentity, HeadObservation>,
     pub absences: Vec<InventoryAbsence>,
     pub gaps: Vec<CaptureGap>,
+    #[serde(default)]
+    pub card_data: crate::card_inspection::CapturedCards,
 }
 impl CapturedWorld {
     pub fn is_complete(&self) -> bool {

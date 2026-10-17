@@ -24,7 +24,7 @@ fn valid_key(k: &DomainNodeKey) -> bool {
 
 // Count all authored collection occurrences, including repeated embedded
 // snapshots, before validation builds indexes, edges or metadata copies.
-pub(super) fn payload_occurrences(payload: &InspectionPayload) -> Result<usize, String> {
+pub(crate) fn payload_occurrences(payload: &InspectionPayload) -> Result<usize, String> {
     use InspectionPayload as P;
     fn add(total: &mut usize, n: usize) -> Result<(), String> {
         *total = total
@@ -486,6 +486,15 @@ impl<'a> Index<'a> {
 }
 
 pub(super) fn validate(content: &PackageContent) -> Result<(), String> {
+    validate_with_external_seeds(content, &[])
+}
+
+/// Additional exact seeds are internal to the v2 combined-closure validator.
+/// Catalog-root rules, payload validation and binding checks remain unchanged.
+pub(crate) fn validate_with_external_seeds(
+    content: &PackageContent,
+    external_seeds: &[DomainNodeKey],
+) -> Result<(), String> {
     preflight(content)?;
     require(
         content.schema_version == SCHEMA_VERSION && content.root_policy == ROOT_POLICY,
@@ -622,6 +631,7 @@ pub(super) fn validate(content: &PackageContent) -> Result<(), String> {
     )?;
     let mut visited = BTreeSet::new();
     let mut pending: BTreeSet<_> = content.roots.iter().cloned().collect();
+    pending.extend(external_seeds.iter().cloned());
     while let Some(k) = pending.pop_first() {
         if visited.insert(k.clone()) {
             for target in adjacency

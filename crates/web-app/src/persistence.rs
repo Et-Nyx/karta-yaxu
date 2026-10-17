@@ -10,6 +10,7 @@ use sqlx::{
 use std::{str::FromStr, time::Duration};
 
 pub mod authoring;
+pub mod cards;
 pub mod charts;
 pub mod inspection;
 pub mod learning;
@@ -107,7 +108,8 @@ pub async fn schema_ready(pool: &SqlitePool) -> Result<bool, String> {
         let application_tables: i64 = sqlx::query_scalar(
             "SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name IN ('users', 'sessions', 'invites', 'species', 'species_versions', 'forms', 'form_versions', 'worlds', 'variants', 'world_revisions', 'variant_revisions', 'world_collaborators', 'world_access_revisions', 'audit_events', 'types', 'type_versions', 'world_types', 'world_type_versions', 'form_content_snapshots', 'variant_content_snapshots', 'world_content_snapshots', 'form_type_bindings', 'variant_type_bindings', 'type_version_sources', 'species_version_sources', 'form_version_sources', 'charts', 'chart_versions', 'chart_roster', 'chart_cells', 'chart_mapping', 'stat_definitions', 'stat_versions', 'stat_rosters', 'stat_roster_versions', 'stat_roster_entries', 'form_stat_snapshots', 'variant_stat_snapshots', 'form_stat_bindings', 'variant_stat_bindings', 'move_attribute_definitions', 'move_attribute_versions', 'moves', 'move_versions', 'move_attribute_bindings', 'move_attribute_mappings', 'world_rulesets', 'world_ruleset_versions', 'ruleset_attribute_expectations', 'learnsets', 'learnset_versions', 'learnset_records', 'learnset_move_mappings', 'moveset_presets', 'moveset_preset_versions', 'moveset_preset_entries')",
         ).fetch_one(pool).await.map_err(|error| error.to_string())?;
-        if application_tables != 0 {
+        let card_tables:i64=sqlx::query_scalar("SELECT count(*) FROM sqlite_master WHERE type='table' AND name IN ('card_legacy_boundaries','card_field_definitions','card_field_versions','card_field_options','standalone_cards','standalone_card_versions','card_components','card_component_labels','card_component_fields')").fetch_one(pool).await.map_err(|error|error.to_string())?;
+        if application_tables + card_tables != 0 {
             return Err("Database has application tables without migration history; select a compatible database or investigate its history.".to_owned());
         }
         return Ok(false);
@@ -135,6 +137,15 @@ pub async fn schema_ready(pool: &SqlitePool) -> Result<bool, String> {
     }
     // Preparing zero-row reads verifies columns without scanning user/session data.
     for query in [
+        "SELECT namespace,scope,id,maximum_revision FROM card_legacy_boundaries LIMIT 0",
+        "SELECT namespace,scope,card_id,revision,fields_defined,rules_text,labels_defined,audit_id,snapshot_json FROM card_components LIMIT 0",
+        "SELECT scope,id,world_id,slug,revision FROM card_field_definitions LIMIT 0",
+        "SELECT scope,field_id,revision,source_id,source_revision,slug,display_name,description,archived_at,kind,whole_only,minimum_coefficient,minimum_scale,maximum_coefficient,maximum_scale,max_length,audit_id,previous_revision,before_json,after_json FROM card_field_versions LIMIT 0",
+        "SELECT scope,field_id,revision,slot,option_id,label FROM card_field_options LIMIT 0",
+        "SELECT namespace,scope,card_id,revision,slot,label FROM card_component_labels LIMIT 0",
+        "SELECT namespace,scope,card_id,revision,slot,field_id,field_revision,state,coefficient,scale,text_value,boolean_value,option_id,ref_namespace,ref_scope,ref_id,ref_revision FROM card_component_fields LIMIT 0",
+        "SELECT scope,id,world_id,slug,revision FROM standalone_cards LIMIT 0",
+        "SELECT scope,card_id,revision,slug,display_name,description,archived_at,source_id,source_revision,audit_id,previous_revision,before_json,after_json FROM standalone_card_versions LIMIT 0",
         "SELECT id, provider, provider_subject, display_name, role, is_disabled, created_at, updated_at FROM users LIMIT 0",
         "SELECT token_hash, user_id, created_at, expires_at, revoked_at FROM sessions LIMIT 0",
         "SELECT id, provider, provider_subject, role, note, created_at, consumed_at, consumed_by FROM invites LIMIT 0",

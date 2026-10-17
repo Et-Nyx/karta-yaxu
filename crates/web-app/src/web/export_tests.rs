@@ -3,6 +3,7 @@ use super::*;
 use crate::{
     application::{
         authoring::{AddressKey, Edit},
+        cards::{CardEdit, Cards, NewCard, NewField},
         fixtures::{Fixtures, SeedOptions},
         moves::{AttributeValueInput, MoveEdit},
     },
@@ -10,7 +11,12 @@ use crate::{
     persistence,
 };
 use axum::body::{Body, to_bytes};
-use game_data::{authoring::ContentFields, package::Package};
+use game_data::{
+    authoring::ContentFields,
+    card_fields::{CardField, FieldKind, FieldValue},
+    card_package::CardPackage,
+    cards::CardComponent,
+};
 use sqlx::{AssertSqlSafe, SqlitePool};
 use std::collections::BTreeMap;
 use tower::ServiceExt;
@@ -338,8 +344,8 @@ async fn full_fixture_preview_and_confirmed_attachment_roundtrip_offline_with_no
             )
         );
         site.private_free(&download.2);
-        let package = Package::from_bytes(download.2.as_bytes()).unwrap();
-        assert_eq!(package.content.world.id, world);
+        let package = CardPackage::from_bytes(download.2.as_bytes()).unwrap();
+        assert_eq!(package.content.typed.world.id, world);
         assert_eq!(package.manifest.content_sha256, digest);
         assert_eq!(package.to_bytes().unwrap(), download.2.as_bytes());
         let again = site
@@ -350,6 +356,162 @@ async fn full_fixture_preview_and_confirmed_attachment_roundtrip_offline_with_no
             again.2, download.2,
             "unchanged requests produce byte-identical attachments"
         );
+    }
+    assert_eq!(site.snapshot().await, before);
+}
+
+#[tokio::test]
+async fn standalone_card_attachment_preserves_false_and_custom_edit_invalidates_review_then_corruption_blocks_release()
+ {
+    let site = Site::new().await;
+    let cards = Cards::new(site.state.accounts.clone());
+    let fields = |name: &str| ContentFields {
+        slug: String::new(),
+        display_name: name.into(),
+        description: "Inert HTTP card export".into(),
+    };
+    let definition = cards
+        .create_field(
+            &site.token,
+            Some(CLASSIC),
+            NewField {
+                fields: fields("HTTP exported flag"),
+                kind: FieldKind::Boolean,
+                source: None,
+                reason: None,
+            },
+        )
+        .await
+        .unwrap();
+    let card = cards
+        .create(
+            &site.token,
+            Some(CLASSIC),
+            NewCard {
+                fields: fields("HTTP exported standalone"),
+                source: None,
+                component: CardComponent {
+                    fields: Some(vec![CardField {
+                        definition: definition.clone(),
+                        value: FieldValue::Boolean(false),
+                    }]),
+                    rules_text: Some("<script>inert</script>".into()),
+                    labels: Some(vec![]),
+                },
+                reason: None,
+            },
+        )
+        .await
+        .unwrap();
+    let world_revision = site
+        .state
+        .authoring
+        .world_detail(CLASSIC)
+        .await
+        .unwrap()
+        .revision;
+    let before = site.snapshot().await;
+    let preview = site
+        .post(CLASSIC, &site.token, form("preview", "", ""))
+        .await;
+    assert_eq!(preview.0, StatusCode::OK, "{}", preview.2);
+    let digest = input(&preview.2, "reviewed_digest");
+    let download = site
+        .post(CLASSIC, &site.token, form("download", &digest, "yes"))
+        .await;
+    assert_eq!(download.0, StatusCode::OK, "{}", download.2);
+    assert_eq!(download.1[header::CACHE_CONTROL], "private, no-store");
+    assert!(download.1.contains_key(header::CONTENT_DISPOSITION));
+    let offline = CardPackage::from_bytes(download.2.as_bytes()).unwrap();
+    assert_eq!(offline.manifest.schema_version, 2);
+    assert_eq!(offline.manifest.content_sha256, digest);
+    assert_eq!(offline.to_bytes().unwrap(), download.2.as_bytes());
+    assert!(offline.content.cards.contains(&card));
+    assert!(offline.content.card_roots.contains(&card.pin()));
+    assert!(offline.content.fields.contains(&definition));
+    assert!(offline.content.field_roots.contains(&definition.pin()));
+    assert_eq!(
+        offline.manifest.root_count,
+        offline.content.typed.roots.len()
+            + offline.content.card_roots.len()
+            + offline.content.field_roots.len()
+    );
+    assert_eq!(
+        offline.manifest.record_count,
+        offline.content.typed.records.len()
+            + offline.content.cards.len()
+            + offline.content.fields.len()
+    );
+    site.private_free(&download.2);
+    assert_eq!(site.snapshot().await, before);
+
+    let mut component = card.component.clone();
+    component.fields.as_mut().unwrap()[0].value = FieldValue::Boolean(true);
+    let updated = cards
+        .save_card(
+            &site.token,
+            &card.identity,
+            CardEdit {
+                expected_revision: 1,
+                component,
+                reason: None,
+            },
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        site.state
+            .authoring
+            .world_detail(CLASSIC)
+            .await
+            .unwrap()
+            .revision,
+        world_revision
+    );
+    let before = site.snapshot().await;
+    let stale = site
+        .post(CLASSIC, &site.token, form("download", &digest, "yes"))
+        .await;
+    assert_eq!(stale.0, StatusCode::OK, "{}", stale.2);
+    assert!(!stale.1.contains_key(header::CONTENT_DISPOSITION));
+    assert!(stale.2.contains("Review the fresh preview"));
+    let fresh = input(&stale.2, "reviewed_digest");
+    assert_ne!(fresh, digest);
+    let download = site
+        .post(CLASSIC, &site.token, form("download", &fresh, "yes"))
+        .await;
+    assert_eq!(download.0, StatusCode::OK, "{}", download.2);
+    assert!(
+        CardPackage::from_bytes(download.2.as_bytes())
+            .unwrap()
+            .content
+            .cards
+            .contains(&updated)
+    );
+    site.private_free(&download.2);
+    assert_eq!(site.snapshot().await, before);
+
+    // Deliberate temporary-database damage to the selected field component.
+    sqlx::query("DROP TRIGGER card_component_fields_immutable_update")
+        .execute(&site.pool)
+        .await
+        .unwrap();
+    assert_eq!(sqlx::query("UPDATE card_component_fields SET boolean_value=0 WHERE namespace='standalone' AND scope=? AND card_id=? AND revision=2 AND state='boolean'")
+        .bind(CLASSIC).bind(&card.identity.id).execute(&site.pool).await.unwrap().rows_affected(), 1);
+    let before = site.snapshot().await;
+    for body in [form("preview", "", ""), form("download", &fresh, "yes")] {
+        let response = site.post(CLASSIC, &site.token, body).await;
+        assert_eq!(
+            response.0,
+            StatusCode::SERVICE_UNAVAILABLE,
+            "{}",
+            response.2
+        );
+        assert_eq!(response.1[header::CACHE_CONTROL], "no-store");
+        assert!(!response.1.contains_key(header::CONTENT_DISPOSITION));
+        assert!(!response.2.contains("name=\"reviewed_digest\""));
+        assert!(response.2.contains("No partial package was released"));
+        site.private_free(&response.2);
     }
     assert_eq!(site.snapshot().await, before);
 }
@@ -498,7 +660,7 @@ async fn http_permissions_cover_anonymous_viewer_nonmember_admin_collaborator_re
     assert_eq!(download.0, StatusCode::OK);
     assert!(download.1.contains_key(header::CONTENT_DISPOSITION));
     assert_eq!(
-        Package::from_bytes(download.2.as_bytes())
+        CardPackage::from_bytes(download.2.as_bytes())
             .unwrap()
             .manifest
             .content_sha256,
@@ -608,7 +770,7 @@ async fn stale_preview_after_independent_move_edit_or_world_rename_returns_html_
         assert_eq!(confirmed.0, StatusCode::OK);
         assert_eq!(confirmed.1[header::CACHE_CONTROL], "private, no-store");
         assert_eq!(
-            Package::from_bytes(confirmed.2.as_bytes())
+            CardPackage::from_bytes(confirmed.2.as_bytes())
                 .unwrap()
                 .manifest
                 .content_sha256,

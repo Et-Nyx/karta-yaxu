@@ -145,8 +145,8 @@ See [ADR0014](../docs/decisions/0014-world-inspection-and-dependency-visibility.
 
 ## Frozen design-package examples
 
-First frozen design-package export reuses the same ClassicLab/VariantLab content;
-it adds **no fixture objects, migrations or content/history changes**. Complete
+The original ADR0015 frozen design-package export reuses the same ClassicLab/VariantLab
+content; it added **no fixture objects, migrations or content/history changes**. Complete
 setup stays at **65 objects/69 initial audit events**, preserving saved policy-1
 preset baselines. The internal fixture manifests above are not package wire files.
 
@@ -169,7 +169,7 @@ The synthetic contradictory/incomplete drafts are permitted: current diagnostics
 use policy 2, while saved presets keep policy 1/2. Neither diagnostic counts nor
 structural acceptance establish combat readiness or engine gameplay acceptance.
 
-Downloaded `karta-design-package` v1 JSON has a deterministic manifest/content
+New downloaded `karta-design-package` **schema 2** JSON has a deterministic manifest/content
 envelope and dedicated content SHA-256, never an inspection fingerprint. It has no
 private account/access/audit data or generation timestamp, and is not retained on
 the server. The final bytes pass the shared offline reader intended for engine
@@ -181,8 +181,54 @@ them. Required read failures, invalid/unsupported data and budget gaps prevent
 export rather than producing partial packages. Capture shares inspection's bounded
 cooperative limits, with a 32 MiB package input/output cap and two export jobs held
 through validation/serialization/render. See the [workflow and limits](../README.md#frozen-design-packages),
-[v1 wire protocol](../docs/architecture/design-package-v1.md) and
+[v2 wire protocol](../docs/architecture/design-package-v2.md), unchanged
+[historical v1 protocol](../docs/architecture/design-package-v1.md) and
 [ADR0015](../docs/decisions/0015-first-frozen-design-package.md).
+
+## Card foundation compatibility (migration 0009)
+
+The foundation passed workspace and keyboard checks against temporary databases;
+the existing local database was not migrated by this implementation. Use the deliberate
+backup/stop/`admin migrate`/restart workflow inside `nix develop`: all **nine**
+migrations are required. Startup and seed commands never migrate automatically.
+
+Migration `0009_cards.sql` adds immutable legacy-boundary bookkeeping and typed
+card/field/component tables. It preserves every preexisting snapshot byte, head
+and audit event. Pre-boundary native Forms/Variants/Types/Moves are card definitions
+with explicitly **unmodeled** custom fields/rules text, not fabricated empty authored
+values or card-creation events. Species remains a grouping. New native creations
+and later owning revisions seal complete same-revision components with the owning
+audit event, atomically; every writer carries them forward. Missing required
+post-boundary components fail closed.
+
+No implicit field definitions or standalone cards are seeded. Fresh explicit setup
+seals the native cards already in these fixtures; **65 authored objects / 69 initial
+audit events** and rerun skip counts stay unchanged. New component/child/boundary
+tables contain additional **technical rows**, not new independently counted fixture
+objects. Migration and reruns do not rewrite historical bytes/heads or reset edits.
+
+Browse `/cards`, `/card-fields` and their world catalogs for native cards at the
+same qualified identities and reusable fields. Create standalone Item/Ability-like definitions
+and exact typed fields explicitly. Known zero/false/empty text differs from
+Missing/Unknown/NA, absent assignments and unmodeled/defined-empty collections;
+labels and rules text impose no mechanics. Public `/worlds/{world}/inspection/cards`
+and `/inspection/cards/where-used` under the same world prefix reuse these labs,
+including components/field definitions and mixed bounded usage with the common
+complete-only fingerprint v2. No extra fixture content is needed.
+
+New exports use CardPackage schema 2, adding active local standalone/field roots
+and complete exact card/field closure to the typed schema-1 projection. That
+projection is not necessarily a standalone v1 package when custom references reach
+additional native cards. The v1 reader/wire remains unchanged; offline
+`tools validate-package` dispatches schemas 1/2. Root/record/occurrence budgets are
+combined across typed/cards/fields; complete input/output remains capped at 32 MiB.
+See [card foundation](../docs/architecture/card-foundation.md) and
+[ADR0016](../docs/decisions/0016-card-definition-foundation.md).
+
+Karta Yaxu means Monster Cards in Globasa: creature collecting with deck-building,
+where worlds interpret Type attachment/resource choices. Fixtures are design
+definitions, not player instances, playable decks or executed effects. No engine
+integration/simulator is implemented; those are the absolute final product steps.
 
 ## Type/reference and world fixtures
 

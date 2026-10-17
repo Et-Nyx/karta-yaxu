@@ -3,6 +3,10 @@ use serde::Deserialize;
 use std::collections::HashSet;
 
 pub mod authoring;
+pub mod card_fields;
+pub mod card_inspection;
+pub mod card_package;
+pub mod cards;
 pub mod charts;
 pub mod inspection;
 pub mod inspection_analysis;

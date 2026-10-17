@@ -1,10 +1,14 @@
 //! Frozen-package application regressions; every database is temporary and test-owned.
 use game_data::{
     authoring::ContentFields,
+    card_fields::{CardField, ChoiceOption, FieldKind, FieldValue},
+    card_package::{CardPackage, native_card_pin},
+    cards::{CardComponent, CardPin},
     inspection::{DomainKind, DomainNodeKey, InspectionLimits, InspectionPayload},
     inspection_analysis::FindingCategory,
     moves::NumericValue,
     package::Package,
+    stats::NumericConstraints,
 };
 use sqlx::{AssertSqlSafe, SqlitePool};
 use std::collections::{BTreeMap, BTreeSet};
@@ -12,10 +16,12 @@ use web_app::{
     accounts::Accounts,
     application::{
         authoring::{AddressKey, Authoring, Edit, Error, SourcePin},
+        cards::{CardEdit, Cards, NewCard, NewField},
         export::{Confirmation, ExportResult, WorldExport},
         fixtures::{Fixtures, SeedOptions},
         learning::{Learning, LearnsetAdoptEdit, LearnsetEdit},
         moves::{AttributeValueInput, MoveEdit, Moves, NewMove},
+        types::Types,
     },
     auth::{Role, Subject},
     persistence,
@@ -306,6 +312,11 @@ fn fixture_records(world: &str, emberling_default: &str) -> BTreeSet<DomainNodeK
 async fn both_full_labs_roundtrip_exact_roots_bindings_drafts_and_numeric_states_without_writes() {
     let l = Lab::new().await;
     let before = l.snapshot().await;
+    assert_eq!(
+        before["audit_events"].len(),
+        69,
+        "card sealing must preserve the fixture audit baseline"
+    );
     let learning = Learning::new(l.accounts.clone());
     let moves = Moves::new(l.accounts.clone());
     // Creature bootstrap allocates this immutable default Form ID. Obtain it
@@ -325,14 +336,64 @@ async fn both_full_labs_roundtrip_exact_roots_bindings_drafts_and_numeric_states
         ),
     ] {
         let result = l.preview(world).await;
-        let offline = Package::from_bytes(&result.bytes)
+        let offline = CardPackage::from_bytes(&result.bytes)
             .expect("real fixture capture must pass the offline reader");
         assert_eq!(offline, result.package);
         assert_eq!(offline.to_bytes().unwrap(), result.bytes);
-        assert_eq!(offline.content.roots.len(), expected_roots);
+        assert_eq!(offline.manifest.schema_version, 2);
+        assert_eq!(offline.content.typed.schema_version, 1);
+        let expected_records = fixture_records(world, &emberling_default);
+        let expected_cards: BTreeSet<_> = expected_records
+            .iter()
+            .filter_map(native_card_pin)
+            .collect();
         assert_eq!(
             offline
                 .content
+                .cards
+                .iter()
+                .map(|c| c.pin())
+                .collect::<BTreeSet<_>>(),
+            expected_cards,
+            "every exact native record has its same-revision sealed card component"
+        );
+        assert_eq!(
+            offline
+                .content
+                .card_roots
+                .iter()
+                .cloned()
+                .collect::<BTreeSet<_>>(),
+            fixture_roots(world)
+                .iter()
+                .filter_map(native_card_pin)
+                .collect()
+        );
+        assert!(offline.content.fields.is_empty());
+        assert!(offline.content.field_roots.is_empty());
+        assert_eq!(
+            offline.manifest.root_count,
+            expected_roots + offline.content.card_roots.len()
+        );
+        assert_eq!(
+            offline.manifest.record_count,
+            expected_records.len() + expected_cards.len()
+        );
+        assert!(offline.content.cards.iter().all(|c| !c.legacy_unmodeled));
+        // Freeze one legacy envelope through the pure v1 builder/reader. The
+        // unchanged fixture projection is still a complete v1 closure.
+        if world == CLASSIC {
+            let legacy = Package::build(offline.content.typed.clone()).unwrap();
+            let legacy_bytes = legacy.to_bytes().unwrap();
+            assert_eq!(Package::from_bytes(&legacy_bytes).unwrap(), legacy);
+            assert!(CardPackage::from_bytes(&legacy_bytes).is_err());
+        }
+        assert!(Package::from_bytes(&result.bytes).is_err());
+        assert_eq!(offline.content.typed.roots.len(), expected_roots);
+        assert_eq!(
+            offline
+                .content
+                .typed
                 .roots
                 .iter()
                 .cloned()
@@ -342,6 +403,7 @@ async fn both_full_labs_roundtrip_exact_roots_bindings_drafts_and_numeric_states
         assert_eq!(
             offline
                 .content
+                .typed
                 .records
                 .iter()
                 .map(|r| r.key.clone())
@@ -352,6 +414,7 @@ async fn both_full_labs_roundtrip_exact_roots_bindings_drafts_and_numeric_states
         assert_eq!(
             offline
                 .content
+                .typed
                 .bindings
                 .iter()
                 .map(|b| b.target.clone())
@@ -369,7 +432,7 @@ async fn both_full_labs_roundtrip_exact_roots_bindings_drafts_and_numeric_states
             ])
         );
         assert!(
-            offline.content.records.iter().all(|r| r
+            offline.content.typed.records.iter().all(|r| r
                 .key
                 .world_id
                 .as_deref()
@@ -378,6 +441,7 @@ async fn both_full_labs_roundtrip_exact_roots_bindings_drafts_and_numeric_states
         assert!(
             offline
                 .content
+                .typed
                 .records
                 .windows(2)
                 .all(|w| w[0].key < w[1].key)
@@ -385,22 +449,24 @@ async fn both_full_labs_roundtrip_exact_roots_bindings_drafts_and_numeric_states
         assert!(
             offline
                 .content
+                .typed
                 .bindings
                 .windows(2)
                 .all(|w| w[0].identity < w[1].identity)
         );
-        assert!(!offline.content.bindings.is_empty());
-        for binding in &offline.content.bindings {
+        assert!(!offline.content.typed.bindings.is_empty());
+        for binding in &offline.content.typed.bindings {
             assert_eq!(binding.identity, binding.target.identity());
             assert!(
                 offline
                     .content
+                    .typed
                     .records
                     .iter()
                     .any(|r| r.key == binding.target)
             );
         }
-        for record in &offline.content.records {
+        for record in &offline.content.typed.records {
             let owner = match &record.payload {
                 InspectionPayload::Species(r) => {
                     Some(key(DomainKind::Form, None, &r.default_form_id, 1))
@@ -424,6 +490,7 @@ async fn both_full_labs_roundtrip_exact_roots_bindings_drafts_and_numeric_states
                 assert!(
                     offline
                         .content
+                        .typed
                         .bindings
                         .iter()
                         .any(|b| b.identity == owner.identity() && b.target == owner)
@@ -435,7 +502,7 @@ async fn both_full_labs_roundtrip_exact_roots_bindings_drafts_and_numeric_states
             .await
             .unwrap()
             .unwrap();
-        assert!(offline.content.records.iter().any(
+        assert!(offline.content.typed.records.iter().any(
             |r| matches!(&r.payload, InspectionPayload::Learnset(record) if record == &saved)
         ));
         let acquisitions = saved.records.as_ref().unwrap();
@@ -449,7 +516,7 @@ async fn both_full_labs_roundtrip_exact_roots_bindings_drafts_and_numeric_states
         );
         assert_eq!(acquisitions[2].threshold, NumericValue::NotApplicable);
         let exact_move = moves.detail(Some(world), probe).await.unwrap();
-        assert!(offline.content.records.iter().any(
+        assert!(offline.content.typed.records.iter().any(
             |r| matches!(&r.payload, InspectionPayload::Move(record) if record == &exact_move)
         ));
         let attributes = exact_move.attributes.as_ref().unwrap();
@@ -463,7 +530,7 @@ async fn both_full_labs_roundtrip_exact_roots_bindings_drafts_and_numeric_states
                 preset.validator_version, 1,
                 "export must not revalidate saved policies"
             );
-            assert!(offline.content.records.iter().any(
+            assert!(offline.content.typed.records.iter().any(
                 |r| matches!(&r.payload, InspectionPayload::Preset(record) if record == &preset)
             ));
             if world == VARIANT && preset.entries.len() == 3 {
@@ -523,6 +590,409 @@ async fn both_full_labs_roundtrip_exact_roots_bindings_drafts_and_numeric_states
             );
         }
     }
+    assert_eq!(l.snapshot().await, before);
+}
+
+#[tokio::test]
+async fn custom_cards_freeze_typed_old_references_field_sources_and_identity_cycles_end_to_end() {
+    let l = Lab::new().await;
+    let author = Authoring::new(l.accounts.clone());
+    let cards = Cards::new(l.accounts.clone());
+    // Establish real native definitions before constructing the custom graph.
+    // None belongs to the world's original typed closure.
+    let ty = Types::new(l.accounts.clone())
+        .create_type(&l.token, fields("Card-only shared Type"), None)
+        .await
+        .unwrap();
+    let mv = Moves::new(l.accounts.clone())
+        .create(
+            &l.token,
+            None,
+            NewMove {
+                fields: fields("Card-only shared Move"),
+                source: None,
+                attributes: Some(vec![]),
+                reason: None,
+            },
+        )
+        .await
+        .unwrap();
+    let species = author
+        .create_species(&l.token, fields("Card-only shared species"), None)
+        .await
+        .unwrap();
+    let native_keys = [
+        key(DomainKind::Type, None, &ty.id, 1),
+        key(DomainKind::Move, None, &mv.id, 1),
+        key(DomainKind::Form, None, &species.default_form_id, 1),
+    ];
+    let mut old_cards = Vec::new();
+    let mut default_binding_cards = Vec::new();
+    for k in &native_keys {
+        let pin = native_card_pin(k).unwrap();
+        let old = cards.version(&pin).await.unwrap();
+        let updated = cards
+            .save_card(
+                &l.token,
+                &old.identity,
+                CardEdit {
+                    expected_revision: 1,
+                    component: CardComponent {
+                        rules_text: Some("New head must not retarget old references".into()),
+                        ..Default::default()
+                    },
+                    reason: None,
+                },
+            )
+            .await
+            .unwrap();
+        assert_eq!(updated.revision, 2);
+        if k.kind == DomainKind::Form {
+            // Species pins its default Form by identity. Its explicit capture-
+            // time binding adds the current Form independently of the old ref.
+            default_binding_cards.push(updated);
+        }
+        old_cards.push(old);
+    }
+    let world = author
+        .create_world(&l.token, fields("Card export graph"), None)
+        .await
+        .unwrap();
+    let baseline = l.preview(&world.id).await;
+    assert_eq!(baseline.package.content.typed.records.len(), 1);
+    drop(baseline);
+    let shared_ref = cards
+        .create_field(
+            &l.token,
+            None,
+            NewField {
+                fields: fields("Shared exact reference"),
+                kind: FieldKind::CardReference,
+                source: None,
+                reason: None,
+            },
+        )
+        .await
+        .unwrap();
+    let reference_component = |pin: CardPin| CardComponent {
+        fields: Some(vec![CardField {
+            definition: shared_ref.clone(),
+            value: FieldValue::CardReference(pin),
+        }]),
+        ..Default::default()
+    };
+    let a1 = cards
+        .create(
+            &l.token,
+            None,
+            NewCard {
+                fields: fields("Cycle A"),
+                source: None,
+                component: reference_component(old_cards[0].pin()),
+                reason: None,
+            },
+        )
+        .await
+        .unwrap();
+    let b1 = cards
+        .create(
+            &l.token,
+            None,
+            NewCard {
+                fields: fields("Cycle B"),
+                source: None,
+                component: reference_component(a1.pin()),
+                reason: None,
+            },
+        )
+        .await
+        .unwrap();
+    let a2 = cards
+        .save_card(
+            &l.token,
+            &a1.identity,
+            CardEdit {
+                expected_revision: 1,
+                component: reference_component(b1.pin()),
+                reason: None,
+            },
+        )
+        .await
+        .unwrap();
+    let b2 = cards
+        .save_card(
+            &l.token,
+            &b1.identity,
+            CardEdit {
+                expected_revision: 1,
+                component: reference_component(a2.pin()),
+                reason: None,
+            },
+        )
+        .await
+        .unwrap();
+    let shared_boolean = cards
+        .create_field(
+            &l.token,
+            None,
+            NewField {
+                fields: fields("Shared flag source"),
+                kind: FieldKind::Boolean,
+                source: None,
+                reason: None,
+            },
+        )
+        .await
+        .unwrap();
+    let option_id = "e".repeat(32);
+    let mut assignments = Vec::new();
+    for (name, kind, value, source) in [
+        (
+            "Exact zero",
+            FieldKind::Number(NumericConstraints {
+                whole_only: true,
+                minimum: Some("0".parse().unwrap()),
+                maximum: Some("3".parse().unwrap()),
+            }),
+            FieldValue::Number("0".parse().unwrap()),
+            None,
+        ),
+        (
+            "False flag",
+            FieldKind::Boolean,
+            FieldValue::Boolean(false),
+            Some(shared_boolean.pin()),
+        ),
+        (
+            "Empty text",
+            FieldKind::Text { max_length: 20 },
+            FieldValue::Text(String::new()),
+            None,
+        ),
+        (
+            "Stable choice",
+            FieldKind::Choice {
+                options: vec![ChoiceOption {
+                    id: option_id.clone(),
+                    label: "Inert option".into(),
+                }],
+            },
+            FieldValue::Choice(option_id),
+            None,
+        ),
+        (
+            "Old Type",
+            FieldKind::CardReference,
+            FieldValue::CardReference(old_cards[0].pin()),
+            Some(shared_ref.pin()),
+        ),
+        (
+            "Old Move",
+            FieldKind::CardReference,
+            FieldValue::CardReference(old_cards[1].pin()),
+            Some(shared_ref.pin()),
+        ),
+        (
+            "Old Form",
+            FieldKind::CardReference,
+            FieldValue::CardReference(old_cards[2].pin()),
+            Some(shared_ref.pin()),
+        ),
+        (
+            "Identity cycle",
+            FieldKind::CardReference,
+            FieldValue::CardReference(b2.pin()),
+            Some(shared_ref.pin()),
+        ),
+    ] {
+        let definition = cards
+            .create_field(
+                &l.token,
+                Some(&world.id),
+                NewField {
+                    fields: fields(name),
+                    kind,
+                    source,
+                    reason: None,
+                },
+            )
+            .await
+            .unwrap();
+        assignments.push(CardField { definition, value });
+    }
+    let unused_field = cards
+        .create_field(
+            &l.token,
+            Some(&world.id),
+            NewField {
+                fields: fields("Unused reusable field"),
+                kind: FieldKind::Boolean,
+                source: None,
+                reason: None,
+            },
+        )
+        .await
+        .unwrap();
+    let local = cards
+        .create(
+            &l.token,
+            Some(&world.id),
+            NewCard {
+                fields: fields("Standalone exported card"),
+                source: None,
+                component: CardComponent {
+                    fields: Some(assignments.clone()),
+                    rules_text: Some("Inert <script>🐉</script>".into()),
+                    labels: Some(vec!["Item".into()]),
+                },
+                reason: None,
+            },
+        )
+        .await
+        .unwrap();
+    let before = l.snapshot().await;
+    let result = l.preview(&world.id).await;
+    let offline = CardPackage::from_bytes(&result.bytes).unwrap();
+    assert_eq!(offline, result.package);
+    assert_eq!(offline.to_bytes().unwrap(), result.bytes);
+    assert_eq!(l.preview(&world.id).await.bytes, result.bytes);
+    assert_eq!(
+        offline.content.typed.roots,
+        vec![key(DomainKind::World, None, &world.id, 1)]
+    );
+    assert_eq!(offline.content.card_roots, vec![local.pin()]);
+    let mut expected_fields: BTreeSet<_> = assignments.iter().map(|a| a.definition.pin()).collect();
+    expected_fields.insert(unused_field.pin());
+    assert_eq!(
+        offline
+            .content
+            .field_roots
+            .iter()
+            .cloned()
+            .collect::<BTreeSet<_>>(),
+        expected_fields
+    );
+    expected_fields.extend([shared_ref.pin(), shared_boolean.pin()]);
+    assert_eq!(
+        offline
+            .content
+            .fields
+            .iter()
+            .map(|f| f.pin())
+            .collect::<BTreeSet<_>>(),
+        expected_fields
+    );
+    let mut expected_cards = vec![local.clone(), a1, b1, a2, b2];
+    expected_cards.extend(old_cards);
+    expected_cards.extend(default_binding_cards);
+    expected_cards.sort_by_key(|c| c.pin());
+    assert_eq!(
+        offline.content.cards, expected_cards,
+        "exact historical graph survives cyclic identities with only the required default-Form head binding"
+    );
+    let mut expected_typed = BTreeSet::from([
+        key(DomainKind::World, None, &world.id, 1),
+        key(DomainKind::Species, None, &species.id, 1),
+        key(DomainKind::Form, None, &species.default_form_id, 2),
+    ]);
+    expected_typed.extend(native_keys);
+    assert_eq!(
+        offline
+            .content
+            .typed
+            .records
+            .iter()
+            .map(|r| r.key.clone())
+            .collect::<BTreeSet<_>>(),
+        expected_typed
+    );
+    assert_eq!(offline.content.typed.bindings.len(), 1);
+    assert_eq!(
+        offline.content.typed.bindings[0].target,
+        key(DomainKind::Form, None, &species.default_form_id, 2)
+    );
+    assert_eq!(offline.manifest.root_count, 1 + 1 + assignments.len() + 1);
+    assert_eq!(
+        offline.manifest.record_count,
+        expected_typed.len() + expected_cards.len() + expected_fields.len()
+    );
+    let digest = offline.manifest.content_sha256.clone();
+    let Confirmation::Download(download) = l
+        .export
+        .confirm(&l.token, address(&world.id), &digest)
+        .await
+        .unwrap()
+    else {
+        panic!("unchanged reviewed card graph should download")
+    };
+    assert_eq!(download.bytes, result.bytes);
+    let text = std::str::from_utf8(&download.bytes).unwrap();
+    for private in [
+        &l.owner,
+        &l.token,
+        "owner_user_id",
+        "access_revision",
+        "collaborator_ids",
+        "provider_subject",
+        "token_hash",
+        "before_json",
+        "after_json",
+    ] {
+        assert!(
+            !text.contains(private),
+            "private field/value leaked: {private}"
+        );
+    }
+    assert_eq!(l.snapshot().await, before);
+    drop((download, result));
+    let mut component = local.component.clone();
+    component.rules_text = Some("Independent custom edit".into());
+    let updated = cards
+        .save_card(
+            &l.token,
+            &local.identity,
+            CardEdit {
+                expected_revision: 1,
+                component,
+                reason: None,
+            },
+        )
+        .await
+        .unwrap();
+    assert_eq!(author.world_detail(&world.id).await.unwrap().revision, 1);
+    let before = l.snapshot().await;
+    let Confirmation::Changed(changed) = l
+        .export
+        .confirm(&l.token, address(&world.id), &digest)
+        .await
+        .unwrap()
+    else {
+        panic!("custom-only card edits must require a fresh review")
+    };
+    assert_ne!(changed.package.manifest.content_sha256, digest);
+    assert!(changed.package.content.cards.contains(&updated));
+    assert_eq!(changed.package.content.typed, offline.content.typed);
+    assert_eq!(l.snapshot().await, before);
+    let fresh_digest = changed.package.manifest.content_sha256.clone();
+    drop(changed);
+    // Isolated corruption of a field component, not a production mutation.
+    sqlx::query("DROP TRIGGER card_component_fields_immutable_update")
+        .execute(&l.pool)
+        .await
+        .unwrap();
+    assert_eq!(sqlx::query("UPDATE card_component_fields SET boolean_value=1 WHERE namespace='standalone' AND scope=? AND card_id=? AND revision=2 AND state='boolean'")
+        .bind(&world.id).bind(&local.identity.id).execute(&l.pool).await.unwrap().rows_affected(), 1);
+    let before = l.snapshot().await;
+    assert!(matches!(
+        l.export.preview(&l.token, address(&world.id)).await,
+        Err(Error::Unavailable)
+    ));
+    assert!(matches!(
+        l.export
+            .confirm(&l.token, address(&world.id), &fresh_digest)
+            .await,
+        Err(Error::Unavailable)
+    ));
     assert_eq!(l.snapshot().await, before);
 }
 
@@ -589,11 +1059,11 @@ async fn permissions_are_enforced_by_every_use_case_and_private_access_changes_d
     assert!(l.export.entry(&editor, address(&w.id)).await.is_ok());
     let result = l.export.preview(&editor, address(&w.id)).await.unwrap();
     assert_eq!(
-        result.package.content.roots,
+        result.package.content.typed.roots,
         vec![key(DomainKind::World, None, &w.id, 1)]
     );
-    assert_eq!(result.package.content.records.len(), 1);
-    assert!(result.package.content.bindings.is_empty());
+    assert_eq!(result.package.content.typed.records.len(), 1);
+    assert!(result.package.content.typed.bindings.is_empty());
     drop(result);
     assert_eq!(l.snapshot().await, before);
     l.accounts.set_disabled(&editor_id, true).await.unwrap();
@@ -630,6 +1100,7 @@ async fn source_form_does_not_import_a_learnset_but_independent_explicit_adoptio
         first
             .package
             .content
+            .typed
             .records
             .iter()
             .any(|r| r.key == key(DomainKind::Form, None, SAMPLE_FORM, 1))
@@ -638,6 +1109,7 @@ async fn source_form_does_not_import_a_learnset_but_independent_explicit_adoptio
         !first
             .package
             .content
+            .typed
             .records
             .iter()
             .any(|r| r.key.kind == DomainKind::Learnset)
@@ -646,6 +1118,7 @@ async fn source_form_does_not_import_a_learnset_but_independent_explicit_adoptio
         first
             .package
             .content
+            .typed
             .roots
             .iter()
             .cloned()
@@ -708,7 +1181,7 @@ async fn source_form_does_not_import_a_learnset_but_independent_explicit_adoptio
         .unwrap();
     let before = l.snapshot().await;
     let result = l.preview(&w.id).await;
-    let offline = Package::from_bytes(&result.bytes).unwrap();
+    let offline = CardPackage::from_bytes(&result.bytes).unwrap();
     for set in [shared, adopted] {
         assert_eq!(
             set.records,
@@ -716,7 +1189,7 @@ async fn source_form_does_not_import_a_learnset_but_independent_explicit_adoptio
             "defined empty stays distinct from unmodeled"
         );
         assert!(
-            offline.content.records.iter().any(
+            offline.content.typed.records.iter().any(
                 |r| matches!(&r.payload, InspectionPayload::Learnset(record) if record == &set)
             )
         );
@@ -725,14 +1198,23 @@ async fn source_form_does_not_import_a_learnset_but_independent_explicit_adoptio
     assert!(
         offline
             .content
+            .typed
             .bindings
             .iter()
             .any(|b| b.identity == target.identity() && b.target == target)
     );
-    assert!(offline.content.records.iter().any(|r| r.key == target));
     assert!(
         offline
             .content
+            .typed
+            .records
+            .iter()
+            .any(|r| r.key == target)
+    );
+    assert!(
+        offline
+            .content
+            .typed
             .records
             .iter()
             .any(|r| r.key == key(DomainKind::Species, None, &unrelated.id, 1))
@@ -740,6 +1222,7 @@ async fn source_form_does_not_import_a_learnset_but_independent_explicit_adoptio
     assert!(
         !offline
             .content
+            .typed
             .roots
             .iter()
             .any(|r| r.world_id.is_none() && r.kind != DomainKind::World)
@@ -779,18 +1262,18 @@ async fn unused_active_moves_are_catalog_roots_with_distinct_unmodeled_and_defin
     }
     let before = l.snapshot().await;
     let result = l.preview(&world.id).await;
-    let offline = Package::from_bytes(&result.bytes).unwrap();
-    assert_eq!(offline.content.roots.len(), 3);
-    assert_eq!(offline.content.records.len(), 3);
-    assert!(offline.content.bindings.is_empty());
+    let offline = CardPackage::from_bytes(&result.bytes).unwrap();
+    assert_eq!(offline.content.typed.roots.len(), 3);
+    assert_eq!(offline.content.typed.records.len(), 3);
+    assert!(offline.content.typed.bindings.is_empty());
     assert_eq!(
-        offline.content.world.revision, world.revision,
+        offline.content.typed.world.revision, world.revision,
         "independent definitions do not revise the world"
     );
     assert!(created[0].attributes.is_none());
     assert_eq!(created[1].attributes, Some(vec![]));
     for row in created {
-        assert!(offline.content.roots.contains(&key(
+        assert!(offline.content.typed.roots.contains(&key(
             DomainKind::Move,
             Some(&world.id),
             &row.id,
@@ -799,6 +1282,7 @@ async fn unused_active_moves_are_catalog_roots_with_distinct_unmodeled_and_defin
         assert!(
             offline
                 .content
+                .typed
                 .records
                 .iter()
                 .any(|r| matches!(&r.payload, InspectionPayload::Move(record) if record == &row))
@@ -834,11 +1318,12 @@ async fn archived_unused_move_is_excluded_before_corrupt_or_oversized_snapshot_r
         .unwrap();
     let active = l.preview(&world.id).await;
     let move_key = key(DomainKind::Move, Some(&world.id), &unused.id, 1);
-    assert!(active.package.content.roots.contains(&move_key));
+    assert!(active.package.content.typed.roots.contains(&move_key));
     assert!(
         active
             .package
             .content
+            .typed
             .records
             .iter()
             .any(|r| r.key == move_key)
@@ -853,6 +1338,12 @@ async fn archived_unused_move_is_excluded_before_corrupt_or_oversized_snapshot_r
         .await
         .unwrap();
     assert_eq!(sqlx::query("UPDATE move_versions SET archived_at=123,after_json=json_set(after_json,'$.content.archived_at',123) WHERE scope=? AND move_id=? AND revision=1")
+        .bind(&world.id).bind(&unused.id).execute(&l.pool).await.unwrap().rows_affected(), 1);
+    sqlx::query("DROP TRIGGER card_components_sealed_update")
+        .execute(&l.pool)
+        .await
+        .unwrap();
+    assert_eq!(sqlx::query("UPDATE card_components SET snapshot_json=json_set(snapshot_json,'$.content.archived_at',123) WHERE namespace='move' AND scope=? AND card_id=? AND revision=1")
         .bind(&world.id).bind(&unused.id).execute(&l.pool).await.unwrap().rows_affected(), 1);
     let mut archived = unused;
     archived.archived_at = Some(123);
@@ -877,16 +1368,30 @@ async fn archived_unused_move_is_excluded_before_corrupt_or_oversized_snapshot_r
             result.bytes, empty_bytes,
             "excluded archived data must not affect capture or its digest"
         );
-        assert!(!result.package.content.roots.contains(&move_key));
+        assert!(!result.package.content.typed.roots.contains(&move_key));
+        let pin = native_card_pin(&move_key).unwrap();
+        assert!(!result.package.content.card_roots.contains(&pin));
         assert!(
             !result
                 .package
                 .content
+                .cards
+                .iter()
+                .any(|c| c.identity == pin.identity)
+        );
+        assert!(
+            !result
+                .package
+                .content
+                .typed
                 .records
                 .iter()
                 .any(|r| r.key.id == archived.id)
         );
-        assert_eq!(Package::from_bytes(&result.bytes).unwrap(), result.package);
+        assert_eq!(
+            CardPackage::from_bytes(&result.bytes).unwrap(),
+            result.package
+        );
         drop(result);
         let Confirmation::Download(download) = l
             .export
@@ -905,9 +1410,9 @@ async fn archived_unused_move_is_excluded_before_corrupt_or_oversized_snapshot_r
 async fn required_older_move_survives_as_dependency_when_its_current_head_is_archived() {
     let l = Lab::new().await;
     let initial = l.preview(CLASSIC).await;
-    let mut expected_roots = initial.package.content.roots.clone();
-    let expected_records = initial.package.content.records.clone();
-    let expected_bindings = initial.package.content.bindings.clone();
+    let mut expected_roots = initial.package.content.typed.roots.clone();
+    let expected_records = initial.package.content.typed.records.clone();
+    let expected_bindings = initial.package.content.typed.bindings.clone();
     drop(initial);
     let moves = Moves::new(l.accounts.clone());
     let old = moves.detail(Some(CLASSIC), PROBE).await.unwrap();
@@ -941,6 +1446,12 @@ async fn required_older_move_survives_as_dependency_when_its_current_head_is_arc
         .unwrap();
     assert_eq!(sqlx::query("UPDATE move_versions SET archived_at=123,after_json=json_set(after_json,'$.content.archived_at',123) WHERE scope=? AND move_id=? AND revision=2")
         .bind(CLASSIC).bind(PROBE).execute(&l.pool).await.unwrap().rows_affected(), 1);
+    sqlx::query("DROP TRIGGER card_components_sealed_update")
+        .execute(&l.pool)
+        .await
+        .unwrap();
+    assert_eq!(sqlx::query("UPDATE card_components SET snapshot_json=json_set(snapshot_json,'$.content.archived_at',123) WHERE namespace='move' AND scope=? AND card_id=? AND revision=2")
+        .bind(CLASSIC).bind(PROBE).execute(&l.pool).await.unwrap().rows_affected(), 1);
     let mut archived = head;
     archived.archived_at = Some(123);
     assert_eq!(moves.detail(Some(CLASSIC), PROBE).await.unwrap(), archived);
@@ -949,17 +1460,35 @@ async fn required_older_move_survives_as_dependency_when_its_current_head_is_arc
     expected_roots.retain(|k| k != &old_key);
     let before = l.snapshot().await;
     let result = l.preview(CLASSIC).await;
-    let offline = Package::from_bytes(&result.bytes).unwrap();
-    assert_eq!(offline.content.roots, expected_roots);
+    let offline = CardPackage::from_bytes(&result.bytes).unwrap();
+    assert_eq!(offline.content.typed.roots, expected_roots);
     assert_eq!(
-        offline.content.records, expected_records,
+        offline.content.typed.records, expected_records,
         "required old exact content is preserved, but the archived current head is not imported"
     );
-    assert_eq!(offline.content.bindings, expected_bindings);
-    assert!(offline.content.records.iter().any(|r| r.key == old_key));
+    assert_eq!(offline.content.typed.bindings, expected_bindings);
+    let old_pin = native_card_pin(&old_key).unwrap();
+    assert!(offline.content.cards.iter().any(|c| c.pin() == old_pin));
+    assert!(!offline.content.card_roots.contains(&old_pin));
     assert!(
         !offline
             .content
+            .cards
+            .iter()
+            .any(|c| c.identity == old_pin.identity && c.revision == 2)
+    );
+    assert!(
+        offline
+            .content
+            .typed
+            .records
+            .iter()
+            .any(|r| r.key == old_key)
+    );
+    assert!(
+        !offline
+            .content
+            .typed
             .records
             .iter()
             .any(|r| r.key == key(DomainKind::Move, Some(CLASSIC), PROBE, 2))
@@ -971,7 +1500,7 @@ async fn required_older_move_survives_as_dependency_when_its_current_head_is_arc
         .unwrap();
     assert_eq!(learnset.records.as_ref().unwrap()[0].move_record, old);
     assert!(
-        offline.content.records.iter().any(
+        offline.content.typed.records.iter().any(
             |r| matches!(&r.payload, InspectionPayload::Learnset(record) if record == &learnset)
         )
     );
@@ -1039,9 +1568,9 @@ async fn archived_variant_excludes_its_learnset_and_presets_without_expanding_wo
     assert!(
         excluded
             .iter()
-            .all(|k| active.package.content.roots.contains(k))
+            .all(|k| active.package.content.typed.roots.contains(k))
     );
-    let mut expected = active.package.content.clone();
+    let mut expected = active.package.content.typed.clone();
     expected.roots.retain(|k| !excluded.contains(k));
     expected.records.retain(|r| !excluded.contains(&r.key));
     expected.bindings.retain(|b| {
@@ -1056,6 +1585,7 @@ async fn archived_variant_excludes_its_learnset_and_presets_without_expanding_wo
         "DROP TRIGGER variant_revisions_update",
         "DROP TRIGGER variant_content_update",
         "DROP TRIGGER variant_stat_update",
+        "DROP TRIGGER card_components_sealed_update",
     ] {
         sqlx::query(sql).execute(&mut *tx).await.unwrap();
     }
@@ -1085,6 +1615,8 @@ async fn archived_variant_excludes_its_learnset_and_presets_without_expanding_wo
             1
         );
     }
+    assert_eq!(sqlx::query("UPDATE card_components SET snapshot_json=json_set(snapshot_json,'$.content.archived_at',123) WHERE namespace='variant' AND scope=? AND card_id=? AND revision=1")
+        .bind(CLASSIC).bind(&variant.id).execute(&mut *tx).await.unwrap().rows_affected(), 1);
     tx.commit().await.unwrap();
     let before = l.snapshot().await;
     // Inspection deliberately reads archived inventory. Its checked readers
@@ -1100,14 +1632,25 @@ async fn archived_variant_excludes_its_learnset_and_presets_without_expanding_wo
     );
     assert!(excluded.iter().all(|k| capture.nodes.contains_key(k)));
     let result = l.preview(CLASSIC).await;
-    let offline = Package::from_bytes(&result.bytes).unwrap();
+    let offline = CardPackage::from_bytes(&result.bytes).unwrap();
     assert_eq!(
-        offline.content, expected,
+        offline.content.typed, expected,
         "catalog membership must not resurrect an archived variant or its independent children"
+    );
+    let archived_pin =
+        native_card_pin(&key(DomainKind::Variant, Some(CLASSIC), &variant.id, 1)).unwrap();
+    assert!(!offline.content.card_roots.contains(&archived_pin));
+    assert!(
+        !offline
+            .content
+            .cards
+            .iter()
+            .any(|c| c.identity == archived_pin.identity)
     );
     assert!(
         offline
             .content
+            .typed
             .records
             .iter()
             .any(|r| r.key == key(DomainKind::Move, Some(CLASSIC), PROBE, 1)),
@@ -1166,6 +1709,7 @@ async fn independent_move_edit_and_world_rename_require_new_review_and_keep_exac
         changed
             .package
             .content
+            .typed
             .records
             .iter()
             .any(|r| r.key == old_key
@@ -1175,12 +1719,13 @@ async fn independent_move_edit_and_world_rename_require_new_review_and_keep_exac
         changed
             .package
             .content
+            .typed
             .records
             .iter()
             .any(|r| r.key == new_key)
     );
-    assert!(!changed.package.content.roots.contains(&old_key));
-    assert!(changed.package.content.roots.contains(&new_key));
+    assert!(!changed.package.content.typed.roots.contains(&old_key));
+    assert!(changed.package.content.typed.roots.contains(&new_key));
     let digest = changed.package.manifest.content_sha256.clone();
     drop(changed);
     assert_eq!(l.snapshot().await, before);

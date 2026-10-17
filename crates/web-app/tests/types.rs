@@ -2066,7 +2066,30 @@ async fn append_variant_snapshot(l: &Lab, head: &VariantRecord, snapshot: &Varia
     sqlx::query("INSERT INTO variant_stat_snapshots(world_id,variant_id,revision,stats_defined,before_json,after_json) VALUES (?,?,?,0,?,?)")
         .bind(&head.world_id).bind(&head.id).bind(head.revision).bind(authoritative_before).bind(after.to_string()).execute(&mut *tx).await.unwrap();
     sqlx::query("INSERT INTO variant_revisions(world_id,variant_id,revision,previous_revision,audit_id,before_json,after_json,content_snapshot_version,stat_snapshot_version) VALUES (?,?,?,?,?,?,?,2,3)")
-        .bind(&head.world_id).bind(&head.id).bind(head.revision).bind(previous).bind(audit).bind(projection_before).bind(envelope(snapshot)).execute(&mut *tx).await.unwrap();
+        .bind(&head.world_id).bind(&head.id).bind(head.revision).bind(previous).bind(&audit).bind(projection_before).bind(envelope(snapshot)).execute(&mut *tx).await.unwrap();
+    // Raw historical provisioning must include the same-revision card evidence.
+    // Use the historical record, not the deliberately different current head.
+    let card = game_data::cards::CardRecord {
+        identity: game_data::cards::CardIdentity {
+            namespace: game_data::cards::CardNamespace::Variant,
+            world_id: Some(snapshot.world_id.clone()),
+            id: snapshot.id.clone(),
+        },
+        revision: snapshot.revision,
+        fields: snapshot.fields.clone(),
+        archived_at: snapshot.archived_at,
+        source: snapshot.source.as_ref().map(|p| game_data::cards::CardPin {
+            identity: game_data::cards::CardIdentity {
+                namespace: game_data::cards::CardNamespace::Form,
+                world_id: None,
+                id: p.form_id.clone(),
+            },
+            version: p.version,
+        }),
+        component: Default::default(),
+        legacy_unmodeled: false,
+    };
+    sqlx::query("INSERT INTO card_components(namespace,scope,card_id,revision,fields_defined,rules_text,labels_defined,audit_id,snapshot_json) VALUES ('variant',?,?,?,0,NULL,0,?,?)").bind(&head.world_id).bind(&head.id).bind(head.revision).bind(&audit).bind(envelope(&card)).execute(&mut *tx).await.unwrap();
     tx.commit().await.unwrap();
     l.integrity().await;
 }

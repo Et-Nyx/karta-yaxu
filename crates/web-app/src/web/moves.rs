@@ -901,6 +901,19 @@ async fn make_page(
         p.title = format!("{} — {}", p.title, r.fields().display_name);
         p.panel("Current saved state", r.text(n));
         p.link("History", format!("{url}/history"));
+        if let Record::Move(m) = r {
+            p.link(
+                "Card fields and rules",
+                format!(
+                    "{}/cards/move/{}",
+                    m.world_id
+                        .as_ref()
+                        .map(|w| format!("/worlds/{w}"))
+                        .unwrap_or_default(),
+                    m.id
+                ),
+            );
+        }
         if ctx.mode == Mode::Detail && allowed {
             p.link("Edit", format!("{url}/edit"));
             let source = match r {

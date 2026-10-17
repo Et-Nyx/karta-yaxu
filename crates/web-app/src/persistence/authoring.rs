@@ -594,7 +594,17 @@ async fn put_form_content(
     let audit_id = audit(c, &r).await?;
     super::types::seal_content(c, HistoryKind::Form, &row.id, None, row.revision, &seal).await?;
     sqlx::query("INSERT INTO form_versions(form_id, species_id, species_version, slug, display_name, description, revision, is_default, archived_at, audit_id, previous_revision, before_json, after_json, content_snapshot_version, stat_snapshot_version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 2, 3)")
-        .bind(&row.id).bind(&row.species_id).bind(row.species_version).bind(&row.fields.slug).bind(&row.fields.display_name).bind(&row.fields.description).bind(row.revision).bind(row.is_default).bind(row.archived_at).bind(audit_id).bind(previous(row.revision)).bind(r.before).bind(r.after).execute(c).await.map_err(storage_error)?;
+        .bind(&row.id).bind(&row.species_id).bind(row.species_version).bind(&row.fields.slug).bind(&row.fields.display_name).bind(&row.fields.description).bind(row.revision).bind(row.is_default).bind(row.archived_at).bind(audit_id).bind(previous(row.revision)).bind(r.before).bind(r.after).execute(&mut *c).await.map_err(storage_error)?;
+    super::cards::seal_native(
+        c,
+        game_data::cards::CardIdentity {
+            namespace: game_data::cards::CardNamespace::Form,
+            world_id: None,
+            id: row.id.clone(),
+        },
+        row.revision,
+    )
+    .await?;
     Ok(())
 }
 pub(crate) async fn put_world(
@@ -723,7 +733,17 @@ async fn put_variant_content(
     )
     .await?;
     sqlx::query("INSERT INTO variant_revisions(world_id, variant_id, revision, previous_revision, audit_id, before_json, after_json, content_snapshot_version, stat_snapshot_version) VALUES (?, ?, ?, ?, ?, ?, ?, 2, 3)")
-        .bind(&row.world_id).bind(&row.id).bind(row.revision).bind(previous(row.revision)).bind(audit_id).bind(r.before).bind(r.after).execute(c).await.map_err(storage_error)?;
+        .bind(&row.world_id).bind(&row.id).bind(row.revision).bind(previous(row.revision)).bind(audit_id).bind(r.before).bind(r.after).execute(&mut *c).await.map_err(storage_error)?;
+    super::cards::seal_native(
+        c,
+        game_data::cards::CardIdentity {
+            namespace: game_data::cards::CardNamespace::Variant,
+            world_id: Some(row.world_id.clone()),
+            id: row.id.clone(),
+        },
+        row.revision,
+    )
+    .await?;
     Ok(())
 }
 pub(crate) async fn put_access_revision(

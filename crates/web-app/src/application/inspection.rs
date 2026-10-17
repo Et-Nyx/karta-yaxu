@@ -105,7 +105,7 @@ pub fn fingerprint(captured: &CapturedWorld) -> Option<String> {
     let mut absences = captured.absences.iter().collect::<Vec<_>>();
     absences.sort();
     let bytes = serde_json::to_vec(&(
-        "karta-world-inspection-sha256-v1",
+        "karta-world-inspection-sha256-v2",
         captured.contract_version,
         &captured.world,
         captured.roots.iter().collect::<Vec<_>>(),
@@ -113,6 +113,12 @@ pub fn fingerprint(captured: &CapturedWorld) -> Option<String> {
         captured.heads.iter().collect::<Vec<_>>(),
         edges,
         absences,
+        captured.card_data.cards.iter().collect::<Vec<_>>(),
+        captured.card_data.fields.iter().collect::<Vec<_>>(),
+        &captured.card_data.card_roots,
+        &captured.card_data.field_roots,
+        captured.card_data.heads.iter().collect::<Vec<_>>(),
+        &captured.card_data.field_heads,
     ))
     .ok()?;
     Some(hex::encode(Sha256::digest(bytes)))

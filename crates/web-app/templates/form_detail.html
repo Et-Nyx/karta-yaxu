@@ -6,6 +6,7 @@
 <a href="/creatures/{{ species_segment }}">← Parent species</a>
 <p class="eyebrow">Shared form{% if form.is_default %} · Default{% endif %}</p>
 <h1>{{ form.fields.display_name }}</h1>
+<p><a href="/cards/form/{{ form.id }}">Card fields and rules</a> · This form is a creature-card definition, not a player-owned creature instance.</p>
 <p class="notice">Development placeholder — not approved game content.</p>
 <section class="panel"><p class="lead plain-text">{{ form.fields.description }}</p>
 <dl><dt>Canonical form ID</dt><dd><code>{{ form.id }}</code></dd><dt>Slug</dt><dd>{{ form.fields.slug }}</dd><dt>Form version</dt><dd>{{ form.revision }}</dd><dt>Canonical species ID and pinned version</dt><dd><a href="/creatures/{{ species.id }}"><code>{{ species.id }}</code></a> · version {{ form.species_version }}</dd><dt>Species name at pin</dt><dd>{{ species.fields.display_name }}</dd></dl></section>

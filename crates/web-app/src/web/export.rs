@@ -79,6 +79,7 @@ impl ExportPage {
         let package = &result.package;
         let name = package
             .content
+            .typed
             .records
             .iter()
             .find_map(|r| match &r.payload {
@@ -86,19 +87,20 @@ impl ExportPage {
                 _ => None,
             })
             .unwrap_or_default();
-        let mut page = Self::new(package.content.world.id.clone(), name);
+        let mut page = Self::new(package.content.typed.world.id.clone(), name);
         page.digest = package.manifest.content_sha256.clone();
         page.roots = package.manifest.root_count;
         page.records = package.manifest.record_count;
-        page.bindings = package.content.bindings.len();
+        page.bindings = package.content.typed.bindings.len();
         page.bytes = result.bytes.len();
         page.items = package
             .content
+            .typed
             .roots
             .iter()
             .take(25)
             .map(|k| {
-                let record = package.content.records.iter().find(|r| &r.key == k);
+                let record = package.content.typed.records.iter().find(|r| &r.key == k);
                 Item {
                     kind: k.kind.as_str(),
                     id: k.id.clone(),
@@ -111,6 +113,34 @@ impl ExportPage {
                 }
             })
             .collect();
+        let space = 25usize.saturating_sub(page.items.len());
+        page.items
+            .extend(package.content.card_roots.iter().take(space).map(|pin| {
+                let record = package.content.cards.iter().find(|c| c.pin() == *pin);
+                Item {
+                    kind: pin.identity.namespace.as_str(),
+                    id: pin.identity.id.clone(),
+                    revision: pin.version,
+                    label: record
+                        .map(|c| c.fields.display_name.clone())
+                        .unwrap_or_default(),
+                    state: "Card component root",
+                }
+            }));
+        let space = 25usize.saturating_sub(page.items.len());
+        page.items
+            .extend(package.content.field_roots.iter().take(space).map(|pin| {
+                let record = package.content.fields.iter().find(|f| f.pin() == *pin);
+                Item {
+                    kind: "card-field",
+                    id: pin.field_id.clone(),
+                    revision: pin.version,
+                    label: record
+                        .map(|f| f.fields.display_name.clone())
+                        .unwrap_or_default(),
+                    state: "Reusable field root",
+                }
+            }));
         page.remaining_items = page.roots.saturating_sub(page.items.len());
         let mut counts = BTreeMap::new();
         for finding in &result.findings {
@@ -243,7 +273,7 @@ async fn submit(
         Ok(Confirmation::Download(mut result)) => {
             let filename = format!(
                 "attachment; filename=\"karta-{}-{}.json\"",
-                result.package.content.world.id,
+                result.package.content.typed.world.id,
                 &result.package.manifest.content_sha256[..12]
             );
             let mut response = std::mem::take(&mut result.bytes).into_response();

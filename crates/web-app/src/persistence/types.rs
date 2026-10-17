@@ -242,7 +242,17 @@ pub(crate) async fn put_type(
         .await
         .map_err(content::content_write_error)?;
     let audit = content::audit(c, &r).await?;
-    sqlx::query("INSERT INTO type_versions(type_id,revision,slug,display_name,description,archived_at,audit_id,previous_revision,before_json,after_json) VALUES (?,?,?,?,?,?,?,?,?,?)").bind(&row.id).bind(row.revision).bind(&row.fields.slug).bind(&row.fields.display_name).bind(&row.fields.description).bind(row.archived_at).bind(audit).bind(content::previous(row.revision)).bind(r.before).bind(r.after).execute(c).await.map_err(storage_error)?;
+    sqlx::query("INSERT INTO type_versions(type_id,revision,slug,display_name,description,archived_at,audit_id,previous_revision,before_json,after_json) VALUES (?,?,?,?,?,?,?,?,?,?)").bind(&row.id).bind(row.revision).bind(&row.fields.slug).bind(&row.fields.display_name).bind(&row.fields.description).bind(row.archived_at).bind(audit).bind(content::previous(row.revision)).bind(r.before).bind(r.after).execute(&mut *c).await.map_err(storage_error)?;
+    super::cards::seal_native(
+        c,
+        game_data::cards::CardIdentity {
+            namespace: game_data::cards::CardNamespace::Type,
+            world_id: None,
+            id: row.id.clone(),
+        },
+        row.revision,
+    )
+    .await?;
     Ok(())
 }
 pub(crate) async fn put_world_type(
@@ -269,7 +279,17 @@ pub(crate) async fn put_world_type(
         .await
         .map_err(content::content_write_error)?;
     let audit = content::audit(c, &r).await?;
-    sqlx::query("INSERT INTO world_type_versions(world_id,type_id,revision,source_type_id,source_type_version,slug,display_name,description,archived_at,audit_id,previous_revision,before_json,after_json) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)").bind(&row.world_id).bind(&row.id).bind(row.revision).bind(row.source.as_ref().map(|p| &p.type_id)).bind(row.source.as_ref().map(|p| p.version)).bind(&row.fields.slug).bind(&row.fields.display_name).bind(&row.fields.description).bind(row.archived_at).bind(audit).bind(content::previous(row.revision)).bind(r.before).bind(r.after).execute(c).await.map_err(storage_error)?;
+    sqlx::query("INSERT INTO world_type_versions(world_id,type_id,revision,source_type_id,source_type_version,slug,display_name,description,archived_at,audit_id,previous_revision,before_json,after_json) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)").bind(&row.world_id).bind(&row.id).bind(row.revision).bind(row.source.as_ref().map(|p| &p.type_id)).bind(row.source.as_ref().map(|p| p.version)).bind(&row.fields.slug).bind(&row.fields.display_name).bind(&row.fields.description).bind(row.archived_at).bind(audit).bind(content::previous(row.revision)).bind(r.before).bind(r.after).execute(&mut *c).await.map_err(storage_error)?;
+    super::cards::seal_native(
+        c,
+        game_data::cards::CardIdentity {
+            namespace: game_data::cards::CardNamespace::Type,
+            world_id: Some(row.world_id.clone()),
+            id: row.id.clone(),
+        },
+        row.revision,
+    )
+    .await?;
     Ok(())
 }
 fn json(s: &str) -> Result<Value, Error> {

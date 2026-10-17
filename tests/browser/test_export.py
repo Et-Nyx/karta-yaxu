@@ -16,7 +16,7 @@ from playwright.sync_api import expect
 from test_authoring import AuthoringSupport
 
 
-HASH_DOMAIN = b"karta-design-package-content-sha256-v1\n"
+HASH_DOMAIN = b"karta-design-package-content-sha256-v2\n"
 REVIEW_LABEL = "I reviewed this package and its draft diagnostics."
 
 
@@ -90,6 +90,21 @@ class ExportWorkflows(AuthoringSupport):
         self.page.keyboard.press("Space")
         expect(checkbox).to_be_checked()
 
+    def save_card_operation(self):
+        # Card routes redirect directly to their readable card address rather
+        # than the temporary legacy native-object address chain.
+        button = self.page.get_by_role("button", name="Save operation", exact=True)
+        action = button.locator("xpath=ancestor::form").get_attribute("action")
+        self.tab_to(button)
+        with self.page.expect_navigation(wait_until="load"):
+            with self.page.expect_response(
+                lambda response: response.url == self.origin + action
+                and response.request.method == "POST"
+            ) as submission:
+                self.page.keyboard.press("Enter")
+        self.assertEqual(submission.value.status, 303)
+        self.assert_no_horizontal_overflow()
+
     def download_package(self, world_id, digest):
         button = self.page.get_by_role("button", name="Confirm and download", exact=True)
         action = f"/worlds/{world_id}/export"
@@ -128,29 +143,54 @@ class ExportWorkflows(AuthoringSupport):
             "format", "schema_version", "producer", "content_sha256", "root_count", "record_count",
         })
         self.assertEqual(manifest["format"], "karta-design-package")
-        self.assertEqual(manifest["schema_version"], 1)
+        self.assertEqual(manifest["schema_version"], 2)
         self.assertEqual(manifest["producer"], "karta-yaxu")
-        self.assertEqual(set(content), {"schema_version", "root_policy", "world", "roots", "records", "bindings"})
-        self.assertEqual(content["schema_version"], 1)
-        self.assertEqual(content["root_policy"], "active-world-catalog-v1")
-        self.assertEqual(content["world"]["id"], world_id)
-        self.assertEqual(content["world"]["kind"], "world")
-        self.assertIn(content["world"], content["roots"])
-        self.assertEqual(manifest["root_count"], len(content["roots"]))
-        self.assertEqual(manifest["record_count"], len(content["records"]))
+        self.assertEqual(set(content), {"schema_version", "typed", "card_roots", "field_roots", "cards", "fields"})
+        self.assertEqual(content["schema_version"], 2)
+        typed = content["typed"]
+        self.assertEqual(set(typed), {"schema_version", "root_policy", "world", "roots", "records", "bindings"})
+        self.assertEqual(typed["schema_version"], 1)
+        self.assertEqual(typed["root_policy"], "active-world-catalog-v1")
+        self.assertEqual(typed["world"]["id"], world_id)
+        self.assertEqual(typed["world"]["kind"], "world")
+        self.assertIn(typed["world"], typed["roots"])
+        self.assertEqual(manifest["root_count"], len(typed["roots"]) + len(content["card_roots"]) + len(content["field_roots"]))
+        self.assertEqual(manifest["record_count"], len(typed["records"]) + len(content["cards"]) + len(content["fields"]))
         self.assertGreater(manifest["root_count"], 0)
         self.assertGreaterEqual(manifest["record_count"], manifest["root_count"])
 
         def exact_key(key):
             return key["kind"], key["world_id"], key["id"], key["revision"]
 
-        roots = {exact_key(key) for key in content["roots"]}
-        records = {exact_key(record["key"]) for record in content["records"]}
-        self.assertEqual(len(roots), len(content["roots"]))
-        self.assertEqual(len(records), len(content["records"]))
+        roots = {exact_key(key) for key in typed["roots"]}
+        records = {exact_key(record["key"]) for record in typed["records"]}
+        self.assertEqual(len(roots), len(typed["roots"]))
+        self.assertEqual(len(records), len(typed["records"]))
         self.assertTrue(roots <= records, "Active root missing from downloaded exact records")
-        for binding in content["bindings"]:
+        for binding in typed["bindings"]:
             self.assertIn(exact_key(binding["target"]), records)
+
+        def card_key(pin):
+            identity = pin["identity"]
+            self.assertEqual(set(identity), {"namespace", "world_id", "id"})
+            return identity["namespace"], identity["world_id"], identity["id"], pin["version"]
+
+        cards = {card_key({"identity": card["identity"], "version": card["revision"]})
+                 for card in content["cards"]}
+        card_roots = {card_key(pin) for pin in content["card_roots"]}
+        self.assertEqual(len(cards), len(content["cards"]))
+        self.assertEqual(len(card_roots), len(content["card_roots"]))
+        self.assertTrue(card_roots <= cards)
+        for key in records:
+            if key[0] in {"form", "variant", "type", "move"}:
+                self.assertIn(key, cards, "Native typed revision missing its exact card component")
+        self.assertEqual({key for key in card_roots if key[0] != "standalone"},
+                         {key for key in roots if key[0] in {"form", "variant", "type", "move"}})
+        field_keys = {(field["world_id"], field["id"], field["revision"]) for field in content["fields"]}
+        field_roots = {(pin["world_id"], pin["field_id"], pin["version"]) for pin in content["field_roots"]}
+        self.assertEqual(len(field_keys), len(content["fields"]))
+        self.assertEqual(len(field_roots), len(content["field_roots"]))
+        self.assertTrue(field_roots <= field_keys)
 
         # Python preserves parsed field order. Do not sort object keys or change
         # authored array order; the domain marker is distinct from inspection.
@@ -159,9 +199,9 @@ class ExportWorkflows(AuthoringSupport):
         self.assertEqual(manifest["content_sha256"], digest)
         self.assertEqual(digest, reviewed_digest)
         self.assertEqual(int(self.saved_value("Download bytes").inner_text()), len(raw))
-        self.assertEqual(int(self.saved_value("Active roots").inner_text()), len(content["roots"]))
-        self.assertEqual(int(self.saved_value("Exact records including dependencies").inner_text()), len(content["records"]))
-        self.assertEqual(int(self.saved_value("Capture-time identity bindings").inner_text()), len(content["bindings"]))
+        self.assertEqual(int(self.saved_value("Active roots").inner_text()), manifest["root_count"])
+        self.assertEqual(int(self.saved_value("Exact records including dependencies").inner_text()), manifest["record_count"])
+        self.assertEqual(int(self.saved_value("Capture-time identity bindings").inner_text()), len(typed["bindings"]))
 
         def check_public(value):
             if isinstance(value, dict):
@@ -210,7 +250,7 @@ class ExportWorkflows(AuthoringSupport):
         expect(diagnostics).to_contain_text("Validator policy 1")
         self.confirm_review()
         content = self.download_package(world_id, digest)
-        presets = [record["payload"]["preset"] for record in content["records"]
+        presets = [record["payload"]["preset"] for record in content["typed"]["records"]
                    if record["key"]["kind"] == "preset"]
         self.assertTrue(presets, "Fixture presets missing from active-catalog package")
         self.assertTrue(all(preset["validator_version"] == 1 for preset in presets))
@@ -226,6 +266,29 @@ class ExportWorkflows(AuthoringSupport):
     def test_competing_native_rename_refreshes_digest_and_keeps_id_bound_confirmation(self):
         world_id = self.open_world()
         old_revision = int(self.saved_value("Content and membership revision").inner_text())
+        self.follow("World reusable card fields")
+        self.follow("Create reusable field")
+        self.enter("Display name", "Exported false flag")
+        self.enter("Description (inert plain text)", "Reusable export regression flag")
+        self.select("Field kind", "boolean")
+        self.save_card_operation()
+        field_id = self.sql("SELECT id FROM card_field_definitions WHERE scope=? AND slug=?",
+                            (world_id, "exported-false-flag"))[0][0]
+        self.follow(self.page.get_by_role("navigation", name="Card authoring").get_by_role("link", name="Cards", exact=True))
+        self.follow("Create standalone card")
+        self.enter("Display name", "Exported standalone item")
+        self.enter("Description (inert plain text)", "Card survives a competing native edit")
+        self.save_card_operation()
+        self.follow("Edit assignment")
+        self.enter("Field identity (same scope)", field_id)
+        self.enter("Exact field revision", "1")
+        self.select("Field value state", "boolean")
+        self.save_card_operation()
+        expect(self.page.get_by_role("main")).to_contain_text("Boolean false")
+        card_id = self.sql("SELECT id FROM standalone_cards WHERE scope=? AND slug=?",
+                           (world_id, "exported-standalone-item"))[0][0]
+        self.open_world()
+        self.assertEqual(int(self.saved_value("Content and membership revision").inner_text()), old_revision)
         self.open_export(world_id)
         self.submit_export_html("Preview package")
         old_digest = self.preview_digest()
@@ -261,10 +324,21 @@ class ExportWorkflows(AuthoringSupport):
         self.assertEqual(self.database_hash(), after_edit)
         self.confirm_review()
         content = self.download_package(world_id, new_digest)
-        world = next(record["payload"]["world"] for record in content["records"]
-                     if record["key"] == content["world"])
+        world = next(record["payload"]["world"] for record in content["typed"]["records"]
+                     if record["key"] == content["typed"]["world"])
         self.assertEqual(world["fields"]["display_name"], renamed)
-        self.assertEqual(content["world"]["revision"], old_revision + 1)
+        self.assertEqual(content["typed"]["world"]["revision"], old_revision + 1)
+        card = next(card for card in content["cards"] if card["identity"]["id"] == card_id)
+        self.assertEqual(card["identity"], {"namespace": "standalone", "world_id": world_id, "id": card_id})
+        self.assertEqual(card["revision"], 2)
+        self.assertFalse(card["legacy_unmodeled"])
+        self.assertIn({"identity": card["identity"], "version": 2}, content["card_roots"])
+        self.assertEqual(len(card["component"]["fields"]), 1)
+        assignment = card["component"]["fields"][0]
+        self.assertEqual(assignment["definition"]["id"], field_id)
+        self.assertEqual(assignment["value"], {"state": "boolean", "value": False})
+        self.assertIn(assignment["definition"], content["fields"])
+        self.assertIn({"world_id": world_id, "field_id": field_id, "version": 1}, content["field_roots"])
         self.assertEqual(self.database_hash(), after_edit)
 
     def test_unauthorized_revoked_collaborator_and_disabled_owner_release_no_attachment(self):

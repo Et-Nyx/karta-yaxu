@@ -1,3 +1,4 @@
+use game_data::card_package::CardPackage;
 use game_data::package::{MAX_PACKAGE_BYTES, Package};
 use game_data::{BUNDLED_FIXTURES, Catalog};
 use std::{io::Read, process::ExitCode};
@@ -39,13 +40,28 @@ fn usage() {
     );
 }
 
-fn read_package(reader: impl Read) -> Result<Package, String> {
+#[derive(Debug)]
+enum OfflinePackage {
+    V1(Package),
+    V2(CardPackage),
+}
+
+fn read_package(reader: impl Read) -> Result<OfflinePackage, String> {
     let mut bytes = vec![];
     reader
         .take((MAX_PACKAGE_BYTES + 1) as u64)
         .read_to_end(&mut bytes)
         .map_err(|error| format!("Cannot read package: {error}"))?;
-    Package::from_bytes(&bytes)
+    if bytes.len() > MAX_PACKAGE_BYTES {
+        return Err("Package exceeds the 32 MiB input limit.".into());
+    }
+    // Dispatch only. The selected strict reader rechecks the complete envelope,
+    // duplicate fields, schema agreement and canonical wire representation.
+    match game_data::card_package::schema_version_from_bytes(&bytes)? {
+        1 => Package::from_bytes(&bytes).map(OfflinePackage::V1),
+        2 => CardPackage::from_bytes(&bytes).map(OfflinePackage::V2),
+        _ => Err("Unsupported package schema version (expected 1 or 2).".into()),
+    }
 }
 
 fn validate_package(path: Option<&str>) -> ExitCode {
@@ -58,13 +74,26 @@ fn validate_package(path: Option<&str>) -> ExitCode {
     match result {
         Ok(package) => {
             use game_data::inspection_analysis::FindingCategory as C;
-            let findings = package.diagnostics();
+            let (roots, records, checksum, findings) = match package {
+                OfflinePackage::V1(p) => (
+                    p.manifest.root_count,
+                    p.manifest.record_count,
+                    p.manifest.content_sha256.clone(),
+                    p.diagnostics(),
+                ),
+                OfflinePackage::V2(p) => (
+                    p.manifest.root_count,
+                    p.manifest.record_count,
+                    p.manifest.content_sha256.clone(),
+                    p.diagnostics(),
+                ),
+            };
             let count = |category| findings.iter().filter(|f| f.category == category).count();
             println!(
                 "Accepted design draft: {} roots, {} exact records",
-                package.manifest.root_count, package.manifest.record_count
+                roots, records
             );
-            println!("Content SHA-256: {}", package.manifest.content_sha256);
+            println!("Content SHA-256: {checksum}");
             println!(
                 "Authoring diagnostics: {} contradictions, {} incomplete, {} context differences, {} not evaluated",
                 count(C::Contradiction),
@@ -85,6 +114,81 @@ fn validate_package(path: Option<&str>) -> ExitCode {
 #[cfg(test)]
 mod tests {
     use super::*;
+    fn content() -> game_data::package::PackageContent {
+        use game_data::{
+            authoring::ContentFields,
+            inspection::{InspectionPayload, PublicWorldContent},
+            package::{PackageContent, PackageRecord, payload_key},
+        };
+        let payload = InspectionPayload::World(PublicWorldContent {
+            id: format!("{:032x}", 1),
+            fields: ContentFields {
+                slug: "world".into(),
+                display_name: "World".into(),
+                description: "Design draft".into(),
+            },
+            revision: 1,
+            archived_at: None,
+        });
+        let key = payload_key(&payload);
+        PackageContent {
+            schema_version: 1,
+            root_policy: game_data::package::ROOT_POLICY.into(),
+            world: key.clone(),
+            roots: vec![key.clone()],
+            records: vec![PackageRecord { key, payload }],
+            bindings: vec![],
+        }
+    }
+    #[test]
+    fn offline_dispatch_accepts_both_versions_and_checks_complete_envelope() {
+        let v1 = Package::build(content()).unwrap().to_bytes().unwrap();
+        let v2 = CardPackage::build(game_data::card_package::CardPackageContent {
+            schema_version: 2,
+            typed: content(),
+            card_roots: vec![],
+            field_roots: vec![],
+            cards: vec![],
+            fields: vec![],
+        })
+        .unwrap()
+        .to_bytes()
+        .unwrap();
+        assert!(matches!(
+            read_package(v1.as_slice()).unwrap(),
+            OfflinePackage::V1(_)
+        ));
+        assert!(matches!(
+            read_package(v2.as_slice()).unwrap(),
+            OfflinePackage::V2(_)
+        ));
+        let text = String::from_utf8(v2).unwrap();
+        assert!(
+            read_package(
+                text.replacen("\"schema_version\":2", "\"schema_version\":1", 1)
+                    .as_bytes()
+            )
+            .is_err()
+        );
+        assert!(
+            read_package(
+                text.replacen("\"schema_version\":2", "\"schema_version\":3", 1)
+                    .as_bytes()
+            )
+            .is_err()
+        );
+        assert!(
+            read_package(
+                text.replacen(
+                    "\"schema_version\":2",
+                    "\"schema_version\":2,\"schema_version\":2",
+                    1
+                )
+                .as_bytes()
+            )
+            .is_err()
+        );
+    }
     #[test]
     fn package_input_is_bounded_before_parsing() {
         struct Endless {

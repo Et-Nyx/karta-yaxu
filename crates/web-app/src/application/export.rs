@@ -2,7 +2,7 @@
 use super::authoring::{AddressKey, Authoring, Error, WorldRecord, invalid};
 use crate::{accounts::Accounts, persistence};
 use game_data::{
-    inspection::InspectionLimits, inspection_analysis::InspectionFinding, package::Package,
+    card_package::CardPackage, inspection::InspectionLimits, inspection_analysis::InspectionFinding,
 };
 use std::{sync::Arc, time::Duration};
 use tokio::{
@@ -18,7 +18,7 @@ pub struct WorldExport {
 
 #[derive(Debug)]
 pub struct ExportResult {
-    pub package: Package,
+    pub package: CardPackage,
     pub bytes: Vec<u8>,
     pub findings: Vec<InspectionFinding>,
     // Also retained inside blocking work when its awaiting request is cancelled.
@@ -82,7 +82,7 @@ impl WorldExport {
             .await
             .map_err(|_| Error::Unavailable)?
             .map_err(persistence::authoring::storage_error)?;
-        let content = persistence::inspection::capture_pooled_package(
+        let content = persistence::inspection::capture_pooled_card_package(
             c,
             world,
             limits,
@@ -93,17 +93,17 @@ impl WorldExport {
         .await?;
         let result = tokio::task::spawn_blocking(move || {
             let _slot = slot;
-            let package = Package::build(content).map_err(|_| invalid("package", "The selected content cannot form a supported, self-contained package. Review its exact dependencies and retry; no download was produced."))?;
+            let package = CardPackage::build(content).map_err(|_| invalid("package", "The selected content cannot form a supported, self-contained card package. Review its exact dependencies and retry; no download was produced."))?;
             let bytes = package.to_bytes().map_err(|_| Error::Unavailable)?;
             // Acceptance uses the real offline reader over the actual final bytes.
-            let package = Package::from_bytes(&bytes).map_err(|_| Error::Unavailable)?;
+            let package = CardPackage::from_bytes(&bytes).map_err(|_| Error::Unavailable)?;
             let findings = package.diagnostics();
             Ok(ExportResult { package, bytes, findings, _slot })
         }).await.map_err(|_| Error::Unavailable)??;
         // Revocation during expensive processing must not release an artifact.
         self.entry(
             token,
-            AddressKey::Id(result.package.content.world.id.clone()),
+            AddressKey::Id(result.package.content.typed.world.id.clone()),
         )
         .await?;
         Ok(result)

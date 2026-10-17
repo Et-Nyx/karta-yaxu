@@ -2217,6 +2217,9 @@ async fn missing_snapshot_fields_are_corruption_not_unknown_and_future_policy_is
     );
 }
 
+#[path = "support/legacy.rs"]
+mod legacy;
+
 #[tokio::test]
 async fn populated_0006_upgrade_preserves_creature_snapshots_users_sessions_and_audit() {
     let dir = tempfile::tempdir().unwrap();
@@ -2236,7 +2239,12 @@ async fn populated_0006_upgrade_preserves_creature_snapshots_users_sessions_and_
     ] {
         sqlx::raw_sql(sql).execute(&pool).await.unwrap();
     }
-    let accounts = Accounts::new(pool.clone(), 3600).unwrap();
+    let source_path = dir.path().join("source.db");
+    let source = persistence::connect_for_migration(&format!("sqlite://{}", source_path.display()))
+        .await
+        .unwrap();
+    persistence::migrate(&source).await.unwrap();
+    let accounts = Accounts::new(source.clone(), 3600).unwrap();
     let admin = user(&accounts, "Admin", Role::Administrator).await;
     let owner = user(&accounts, "Owner", Role::Editor).await;
     let author = Authoring::new(accounts.clone());
@@ -2259,6 +2267,10 @@ async fn populated_0006_upgrade_preserves_creature_snapshots_users_sessions_and_
         )
         .await
         .unwrap();
+    // Only v6 columns enter the genuine legacy DB; no native card seals are copied.
+    legacy::copy_core(&source_path, &pool).await;
+    let accounts = Accounts::new(pool.clone(), 3600).unwrap();
+    let author = Authoring::new(accounts.clone());
     let queries = [
         "SELECT after_json FROM world_revisions ORDER BY world_id,revision",
         "SELECT after_json FROM form_versions ORDER BY form_id,revision",
@@ -2286,6 +2298,10 @@ async fn populated_0006_upgrade_preserves_creature_snapshots_users_sessions_and_
         .await
         .unwrap();
     sqlx::raw_sql(include_str!("../migrations/0008_learning.sql"))
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::raw_sql(include_str!("../migrations/0009_cards.sql"))
         .execute(&pool)
         .await
         .unwrap();

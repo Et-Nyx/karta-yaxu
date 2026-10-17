@@ -12,6 +12,12 @@ decimal base values. Independent Moves, learning/presets and read-only world
 inspection and frozen design-package export now extend this authoring foundation.
 Pokémon is a temporary reference stress fixture.
 
+The Card Definition Foundation is also delivered: same-identity native cards,
+standalone cards, reusable typed fields,
+public card inspection and card-aware package schema 2. Karta Yaxu means **Monster
+Cards** in Globasa, a creature collector with deck-building; definitions remain
+distinct from eventual player instances and executable decks.
+
 ## Delivered: Moves, Learnsets and Movesets
 
 Designer-defined move attributes belong to move definitions. Each world defines
@@ -88,13 +94,35 @@ audit events. See [ADR0015](../decisions/0015-first-frozen-design-package.md),
 [the v1 protocol](design-package-v1.md) and
 [the workflow](../../README.md#frozen-design-packages).
 
-## Proposed next direction: engine integration and a minimal executable contract
+## Delivered: Card Definition Foundation
 
-The shared reader is intended for engine integration; no engine currently consumes
-this package. Agree a minimal executable rules/content contract and verify actual
-engine acceptance before making gameplay claims. Formulas, effects, acquisition
-eligibility, scripts and battle execution remain future work. This is a proposed
-direction for maintainer discussion, not a newly approved next milestone.
+The maintainer clarified Karta Yaxu (Monster Cards) as a creature collector with
+deck-building. Creatures, Moves, Types, Abilities and Items can be cards; each
+world determines their uses. A Type card could be an attachment or resource.
+Definitions are distinct from eventual player-owned instances and dynamic state.
+
+Existing Forms/Variants/Types/Moves now are cards at their qualified native identity
+and owning revision, with no wrapper IDs; Species stays a grouping. Standalone
+cards and reusable exact shared/local Number/Text/Boolean/Choice/CardReference
+fields support further content authoring. Native metadata stays authoritative,
+every writer carries components forward, and late seals share the owning audit
+event atomically. Migration 0009 preserves old bytes/heads/audits and marks legacy
+custom data unmodeled; new native creations require complete seals. No fields are
+implicitly seeded and fixture totals remain 65 objects/69 initial audit events.
+
+Public Cards/Fields operation forms and exact history, explicit source-copy mappings,
+card/field inspection and mixed bounded where-used are implemented. Inspection uses
+the common complete-only fingerprint v2. New exports use schema-2 CardPackage with
+complete card closure and a schema-1 typed projection; the frozen v1 reader/wire
+is unchanged. Formatting, strict Clippy, 438 Rust tests and the complete 94-case
+keyboard suite passed. See [ADR0016](../decisions/0016-card-definition-foundation.md),
+[the foundation contract](card-foundation.md) and [package v2](design-package-v2.md).
+No player-instance/deck/attachment/resource execution, engine integration or
+simulation is delivered.
+
+**Engine integration and the battle simulator are the absolute final steps.**
+Complete and fine-tune the design database/authoring domains first. Earlier
+engine-next recommendations are superseded by this maintainer decision.
 
 ## Pinned follow-up directions
 
@@ -128,7 +156,8 @@ direction for maintainer discussion, not a newly approved next milestone.
    first, browser PvE next, then server-authoritative turn-based PvP. Pin content,
    rules and RNG; bound execution. Introduce trusted Lua only for concrete needs.
 
-Possible path for discussion: delivered moves/availability/presets, inspection and
-first frozen design packages → engine integration/minimal executable contract →
-CLI battle and replay → browser PvE. Ordering remains a maintainer decision;
-completing every reference domain is not a prerequisite to bounded simulation.
+Current direction: card foundation → further card-content and world authoring
+domains (including Items/Abilities and explicit relationships) → fine-tuning and
+authoring recovery. Engine integration, then deterministic CLI battle/replay,
+browser PvE and eventual PvP come last. Detailed intermediate ordering remains a
+maintainer decision, not a promise to reproduce every reference-game domain.

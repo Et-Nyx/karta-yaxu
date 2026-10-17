@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% macro entry(e) %}
+<h3>{{ e.label }}</h3><p>{{ e.meta }}</p>
+{% for text in e.text %}<p class="plain-text">{{ text }}</p>{% endfor %}
+<ul>{% for link in e.links %}<li><a href="{{ link.url }}">{{ link.label }}</a></li>{% endfor %}</ul>
+{% endmacro %}
+{% macro edge(e) %}<li><p><strong>{{ e.site }}</strong></p><section aria-label="Consumer">{{ entry(e.from) }}</section><section aria-label="Referenced definition">{{ entry(e.to) }}</section></li>{% endmacro %}
+{% block title %}Card inspection · {{ world }} · Karta Yaxu{% endblock %}
+{% block content %}
+<h1>Card inspection · {{ world }}</h1>
+<nav aria-label="Inspection"><a href="{{ world_url }}">World</a> · <a href="{{ typed_url }}">Authoring inspection</a> · <a href="{{ inventory_url }}">Card and field inventory</a></nav>
+<p>Public read-only evidence from one fresh world capture. Card components belong to native definitions, not second gameplay identities. Rules text and labels are inert. Exact pins do not advance automatically.</p>
+{% if !notice.is_empty() %}<p role="status">{{ notice }}</p>{% endif %}
+<p>Coverage: {% if complete %}<strong>Complete</strong>{% else %}<strong>Partial</strong> — gaps or traversal limits prevent an unused claim.{% endif %} · Page {{ page }}</p>
+{% if !fingerprint.is_empty() %}<p>Capture fingerprint: <code>{{ fingerprint }}</code>. Navigation captures anew; this is not frozen history or a package checksum.</p>{% endif %}
+{% for gap in gaps %}<p class="error">Coverage gap: {{ gap }}</p>{% endfor %}
+{% if usage %}
+<h2>Where used · {{ view }}</h2>
+<p>Only this world's captured revisions. Membership and ownership are not content uses. Acquisitions are distinct from actual preset selections. Paths are shortest representative paths, not every possible path.</p>
+<p>{{ total }} observed results. Showing at most 25 per page; at most 256 representatives, depth 32 and 65536 traversal steps.</p>
+{% if truncated %}<p role="status">Traversal/results truncated. Remaining paths or sites may exist; no unused claim is possible.</p>{% endif %}
+{% if !empty.is_empty() %}<p>{{ empty }}</p>{% endif %}
+<section aria-label="Captured target revisions"><h2>Captured target revisions ({{ captured_total }})</h2>{% for e in captured %}<article>{{ entry(e) }}</article>{% endfor %}</section>
+<ol>{% for e in direct %}{{ edge(e) }}{% endfor %}</ol>
+{% for path in paths %}<article><h2>Representative root path</h2>{{ entry(path.root) }}<ol>{% for e in path.edges %}{{ edge(e) }}{% endfor %}</ol></article>{% endfor %}
+{% else %}
+<section aria-label="Card inventory"><h2>Cards ({{ card_total }})</h2><p>At most 25 cards per page. Each component previews at most 25 fields/values and labels; long text previews contain at most 2000 characters. Full saved evidence is linked in exact history.</p>{% for e in cards %}<article>{{ entry(e) }}</article>{% endfor %}</section>
+<section aria-label="Field inventory"><h2>Reusable fields ({{ field_total }})</h2><p>At most 25 exact field definitions per page. Choice options preview at most 25 entries.</p>{% for e in fields %}<article>{{ entry(e) }}</article>{% endfor %}</section>
+{% endif %}
+<nav aria-label="Results navigation"><ul>{% for link in links %}<li><a href="{{ link.url }}">{{ link.label }}</a></li>{% endfor %}</ul></nav>
+{% endblock %}

@@ -1044,6 +1044,7 @@ mod tests {
             heads: BTreeMap::new(),
             absences: vec![],
             gaps: vec![],
+            card_data: Default::default(),
         }
     }
     fn edge(

@@ -17,7 +17,10 @@ use std::{collections::BTreeMap, io::Write};
 
 mod references;
 mod validation;
+// V2 supplies exact native-card seeds; the v1 entry point still supplies none.
 pub use references::{References, payload_key, references};
+pub(crate) use validation::payload_occurrences;
+pub(crate) use validation::validate_with_external_seeds;
 
 pub const SCHEMA_VERSION: u32 = 1;
 pub const ROOT_POLICY: &str = "active-world-catalog-v1";
@@ -139,17 +142,19 @@ impl Package {
         if self.validate().is_err() {
             return vec![];
         }
-        let nodes: BTreeMap<_, _> = self
-            .content
+        Self::analyze_content(&self.content)
+    }
+
+    pub(crate) fn analyze_content(content: &PackageContent) -> Vec<InspectionFinding> {
+        let nodes: BTreeMap<_, _> = content
             .records
             .iter()
             .map(|r| (r.key.clone(), r.payload.clone()))
             .collect();
-        let Some(InspectionPayload::World(world)) = nodes.get(&self.content.world) else {
+        let Some(InspectionPayload::World(world)) = nodes.get(&content.world) else {
             return vec![];
         };
-        let roots: BTreeMap<_, _> = self
-            .content
+        let roots: BTreeMap<_, _> = content
             .roots
             .iter()
             .map(|k| (k.clone(), RootRole::Active))
@@ -169,7 +174,7 @@ impl Package {
         }
         for variant in roots.keys().filter(|k| k.kind == DomainKind::Variant) {
             for kind in [DomainKind::Learnset, DomainKind::Preset] {
-                if !self.content.roots.iter().any(|key| match nodes.get(key) {
+                if !content.roots.iter().any(|key| match nodes.get(key) {
                     Some(InspectionPayload::Learnset(r)) if kind == DomainKind::Learnset => {
                         r.variant_id.as_ref() == Some(&variant.id)
                     }
@@ -185,8 +190,7 @@ impl Package {
                 }
             }
         }
-        let edges = self
-            .content
+        let edges = content
             .records
             .iter()
             .flat_map(|r| references::edges(&r.payload))
@@ -203,6 +207,7 @@ impl Package {
                 heads: BTreeMap::new(),
                 absences,
                 gaps: vec![],
+                card_data: Default::default(),
             },
             false,
         )
@@ -229,14 +234,14 @@ impl Write for BoundedBuffer {
         Ok(())
     }
 }
-fn bounded_json(value: &impl Serialize) -> Result<Vec<u8>, String> {
+pub(crate) fn bounded_json(value: &impl Serialize) -> Result<Vec<u8>, String> {
     let mut output = BoundedBuffer(Vec::new());
     serde_json::to_writer(&mut output, value)
         .map_err(|error| format!("Cannot encode package: {error}"))?;
     Ok(output.0)
 }
 
-fn without_whitespace(bytes: &[u8]) -> impl Iterator<Item = u8> + '_ {
+pub(crate) fn without_whitespace(bytes: &[u8]) -> impl Iterator<Item = u8> + '_ {
     let (mut quoted, mut escaped) = (false, false);
     bytes.iter().copied().filter(move |byte| {
         if quoted {

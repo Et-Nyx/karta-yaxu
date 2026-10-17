@@ -3,6 +3,10 @@
 
 mod addresses;
 mod authoring;
+mod card_inspection;
+mod cards;
+#[cfg(test)]
+mod cards_tests;
 mod charts;
 #[cfg(test)]
 mod charts_tests;
@@ -51,6 +55,7 @@ const AUTH_FORM_LIMIT: usize = 4096;
 
 #[derive(Clone)]
 pub struct AppState {
+    cards: crate::application::cards::Cards,
     authoring: Authoring,
     types: crate::application::types::Types,
     charts: crate::application::charts::Charts,
@@ -75,6 +80,7 @@ impl AppState {
         cookie_secure: bool,
     ) -> Self {
         Self {
+            cards: crate::application::cards::Cards::new(accounts.clone()),
             authoring: Authoring::new(accounts.clone()),
             types: crate::application::types::Types::new(accounts.clone()),
             charts: crate::application::charts::Charts::new(accounts.clone()),
@@ -96,6 +102,8 @@ impl AppState {
 pub fn router(state: AppState) -> Router {
     let inner = Router::new()
         .merge(authoring::routes())
+        .merge(cards::routes())
+        .merge(card_inspection::routes())
         .merge(types::routes())
         .merge(charts::routes())
         .merge(stats::routes())

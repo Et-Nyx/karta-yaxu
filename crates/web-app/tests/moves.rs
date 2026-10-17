@@ -1156,6 +1156,9 @@ async fn head_snapshot_predecessor_audit_and_dependencies_are_verified() {
     }
 }
 
+#[path = "support/legacy.rs"]
+mod legacy;
+
 #[tokio::test]
 async fn populated_0006_upgrade_preserves_existing_bytes_and_seeds_are_atomic_idempotent() {
     let dir = tempfile::tempdir().unwrap();
@@ -1175,13 +1178,21 @@ async fn populated_0006_upgrade_preserves_existing_bytes_and_seeds_are_atomic_id
     ] {
         sqlx::raw_sql(sql).execute(&pool).await.unwrap();
     }
-    let accounts = Accounts::new(pool.clone(), 3600).unwrap();
+    let source_path = dir.path().join("source.db");
+    let source = persistence::connect_for_migration(&format!("sqlite://{}", source_path.display()))
+        .await
+        .unwrap();
+    persistence::migrate(&source).await.unwrap();
+    let accounts = Accounts::new(source.clone(), 3600).unwrap();
     let owner = user(&accounts, "Owner", Role::Editor).await;
     let author = Authoring::new(accounts.clone());
     let world = author
         .create_world(&owner.token, fields("Existing world"), None)
         .await
         .unwrap();
+    legacy::copy_core(&source_path, &pool).await;
+    let accounts = Accounts::new(pool.clone(), 3600).unwrap();
+    let author = Authoring::new(accounts.clone());
     let bytes: String =
         sqlx::query_scalar("SELECT after_json FROM world_revisions WHERE world_id=?")
             .bind(&world.id)
@@ -1192,6 +1203,12 @@ async fn populated_0006_upgrade_preserves_existing_bytes_and_seeds_are_atomic_id
         .execute(&pool)
         .await
         .unwrap();
+    for sql in [
+        include_str!("../migrations/0008_learning.sql"),
+        include_str!("../migrations/0009_cards.sql"),
+    ] {
+        sqlx::raw_sql(sql).execute(&pool).await.unwrap();
+    }
     assert_eq!(author.world_detail(&world.id).await.unwrap(), world);
     assert_eq!(
         sqlx::query_scalar::<_, String>("SELECT after_json FROM world_revisions WHERE world_id=?")
