@@ -67,6 +67,10 @@ such as Cost impose **no mechanics**. No effects, spending or formulas execute.
 
 ## Native browser workflow and history
 
+[Card Workshop refinement (ADR0017)](card-workshop.md) adds named bounded selectors,
+typed Known controls, catalog filters and readable exact references. The original
+exact-coordinate and compact-row workflows below remain advanced fallbacks.
+
 Public GET/HEAD catalogs are `/cards`, `/card-fields` and their
 `/worlds/{world}/cards`, `/worlds/{world}/card-fields` counterparts. Native card
 links qualify the origin: `/cards/form/{id}`, `/cards/type/{id}`,

@@ -5,22 +5,19 @@
 <p>Only this loaded operation is submitted. Other values remain saved. Save before following another link, or explicitly discard this draft.</p>
 {% if operation == "copy" %}<p>This operation replaces the whole assignment collection using all explicitly mapped source fields. Unmapped assignments are removed. It does not change the pinned source. Use the optional initial mapping and any number of additional mapping lines, within this operation's 32 KiB form budget. This is a transport bound, not a game limit. Each nonblank line has exactly three tokens: shared_field_id local_field_id revision. Names are never inferred. Set Review page and preview again to inspect removed/unmapped lists at 25 entries per page.</p>{% endif %}
 {% if operation == "archive" %}<p>Archiving prevents new selections of this definition. Retained exact pins and history remain readable. Review the saved and proposed archive state before confirming.</p>{% endif %}
-{% if operation == "assignment" %}<p>Use exact field IDs and revisions from the same-scope Reusable fields catalog. Reference scope is “shared” or this world's immutable ID. Absent assignments, unmodeled collections, Missing, Unknown, NotApplicable, zero, false and empty text are distinct. Load saved text using its “Load assignment” link on card detail before editing it.</p>{% endif %}
+{% if operation == "assignment" %}<p>Choose a named field from this scope, then choose its explicit value state. Absent assignments, unmodeled collections, Missing, Unknown, NotApplicable, zero, false and empty text are distinct. Search and selection keep your draft without saving. Load saved text before editing; save or explicitly discard dirty text before loading another assignment.</p>{% endif %}
 {% if !error.is_empty() %}<div role="alert"><p>{{ error }}</p>{% for (field, message) in errors %}<p><strong>{{ field }}</strong>: {{ message }}</p>{% endfor %}</div>{% endif %}
 {% for section in sections %}<section><h2>{{ section.title }}</h2>{% for line in section.lines %}<p class="plain-text">{{ line }}</p>{% endfor %}</section>{% endfor %}
 <form method="post" action="{{ action }}">
 <input type="hidden" name="csrf" value="{{ csrf }}">
 <input type="hidden" name="expected_revision" value="{{ revision }}">
 <input type="hidden" name="operation" value="{{ operation }}">
-{% if operation == "assignment" %}<input type="hidden" name="loaded_field_id" value="{{ loaded_field_id }}">{% endif %}
+{% for (key,value) in raw %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}
 {% for control in controls %}
-<div class="field"><label for="card-{{ control.name }}">{{ control.label }}</label>
-{% if !control.options.is_empty() %}<select id="card-{{ control.name }}" name="{{ control.name }}">{% for option in control.options %}<option value="{{ option.value }}"{% if option.selected %} selected{% endif %}>{{ option.label }}</option>{% endfor %}</select>
-{% else if control.multiline %}<textarea id="card-{{ control.name }}" name="{{ control.name }}" rows="6">{{ control.value }}</textarea>
-{% else %}<input id="card-{{ control.name }}" name="{{ control.name }}" value="{{ control.value }}">{% endif %}
-{% if !control.error.is_empty() %}<p class="field-error">{{ control.error }}</p>{% endif %}
-</div>
+{% if !control.advanced %}{% include "card_control.html" %}{% endif %}
 {% endfor %}
+{% include "card_picker.html" %}
+<details class="card-workshop-advanced"><summary>Advanced exact coordinates and inactive values</summary><p>Normal authoring uses named selections above. These controls preserve exact technical coordinates and inactive raw values; opening them does not save anything.</p>{% for control in controls %}{% if control.advanced %}{% include "card_control.html" %}{% endif %}{% endfor %}</details>
 {% if preview %}
 <input type="hidden" name="digest" value="{{ digest }}">
 <p>The confirmation digest binds the exact saved inputs and proposal. Changing any input requires another preview.</p>
@@ -29,7 +26,7 @@
 {% if operation == "copy" || operation == "adopt" || operation == "archive" %}<button name="intent" value="preview">Preview changes</button>{% else %}<button name="intent" value="save">Save operation</button>{% endif %}
 {% if !current_revision.is_empty() %}<button name="intent" value="{% if operation == "copy" || operation == "adopt" || operation == "archive" %}preview{% else %}save{% endif %}" formaction="{{ action }}?reviewed_revision={{ current_revision }}">Use current revision {{ current_revision }} after reviewing saved state</button>{% endif %}
 </form>
-{% if !raw.is_empty() %}<section><h2>Additional raw draft values (not submitted)</h2>{% for (key,value) in raw %}<h3>{{ key }}</h3><p class="plain-text">{{ value }}</p>{% endfor %}</section>{% endif %}
+{% if !raw_readonly.is_empty() %}<section><h2>Unexpected raw draft values (not submitted)</h2>{% for (key,value) in raw_readonly %}<p>{{ key }}: <span class="plain-text">{{ value }}</span></p>{% endfor %}</section>{% endif %}
 <a href="{{ back }}">Discard this draft and return</a>
 <nav aria-label="Browse exact definitions">{% for link in catalogs %}<a href="{{ link.url }}">Discard draft and browse {{ link.label }}</a>{% endfor %}</nav>
 {% endblock %}

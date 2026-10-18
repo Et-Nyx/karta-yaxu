@@ -75,3 +75,10 @@ legend { font-weight: 600; }
 .stat-editor button { margin: .5rem .5rem .5rem 0; }
 .stat-state { max-width: 100%; }
 .package-confirm input[type="checkbox"] { width: auto; margin-right: .5rem; }
+/* Card Workshop: native selectors share the authoring form, including at 320px. */
+.card-workshop-picker { border-block: 1px solid var(--line); padding-block: 1rem; margin-block: 2rem; min-width: 0; }
+.card-workshop-picker article { border-block-end: 1px solid var(--line); padding-block: 1rem; }
+.card-workshop-picker button { margin: .5rem .5rem .5rem 0; overflow-wrap: anywhere; }
+.card-workshop-advanced { margin-block: .75rem; padding-inline-start: .75rem; border-inline-start: 2px solid var(--line); }
+.card-workshop-advanced summary { cursor: pointer; color: var(--muted); }
+.card-workshop-search { border-block-end: 1px solid var(--line); padding-block-end: 1rem; }

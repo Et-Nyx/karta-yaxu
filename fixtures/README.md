@@ -230,6 +230,32 @@ where worlds interpret Type attachment/resource choices. Fixtures are design
 definitions, not player instances, playable decks or executed effects. No engine
 integration/simulator is implemented; those are the absolute final product steps.
 
+## Optional original Card Workshop (ADR0017)
+
+`admin seed-card-workshop --owner-user-id <immutable-user-id>` separately creates
+the original **Card Workshop** world with Mossrunner (Variant), Ember (Type),
+Steady Ascent (Move), Trail Kit, Focused Effort and Field Wrap (standalone cards).
+A shared Trail Kit example and shared Roll Bonus field provide explicit local
+source context. The six local reusable fields are Roll Bonus, Target Number,
+Usage Notes, Optional Marker, Use Context and Associated Card, covering all five
+field kinds and exact state distinctions.
+
+This is **15 objects / 16 initial audit events**, attributed to the explicit system
+actor `bundled-fixture-loader` with reason `Original Card Workshop example v1
+(ADR0017)`, not to the selected owner. The owner must already be an enabled editor
+or administrator. The command creates no accounts and runs one atomic transaction.
+It is not called by old seeds, startup or migrations; their 65-object/69-event
+baseline remains independent. Reruns validate exact immutable creation evidence,
+skip all 15 and preserve every later edit. Partial/colliding/wrong-owner/corrupt
+batches reject without repair; late failures roll back all content and events.
+
+The immutable typed v1 creation manifest lives in
+`crates/web-app/src/application/card_workshop.rs`; these are original learning
+examples, not approved final-game content or new mandatory card classes. The
+`10 + 3 + 5 = 18 against target 15` example is descriptive, with no calculation or
+success resolution. Normal card inspection and schema-2 packages include exact
+workshop dependencies. See [Card Workshop](../docs/architecture/card-workshop.md).
+
 ## Type/reference and world fixtures
 
 `admin seed-reference-fixtures` initializes the cached Fire/Flying/Dragon Types

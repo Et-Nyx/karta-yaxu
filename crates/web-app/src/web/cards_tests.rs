@@ -188,6 +188,384 @@ fn url(card: &CardRecord) -> String {
     )
 }
 
+// Read browser-successful controls without normalizing malformed user values.
+fn escaped_input(html: &str, name: &str, expected: &str) {
+    let expected = expected
+        .replace('&', "&amp;")
+        .replace('"', "&quot;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;");
+    assert!(
+        html.contains(&format!("name=\"{name}\" value=\"{expected}\"")),
+        "missing raw {name}"
+    );
+}
+
+#[tokio::test]
+async fn workshop_search_pages_and_select_keep_every_raw_draft_and_never_write() {
+    let s = site().await;
+    let card = s.card("Draft card").await;
+    for i in 0..26 {
+        s.field(&format!("Named flag {i:02}"), FieldKind::Boolean)
+            .await;
+    }
+    let selected = s
+        .field(
+            "Selected exact number",
+            FieldKind::Number(Default::default()),
+        )
+        .await;
+    let path = format!("{}/edit", url(&card));
+    let mut d = assignment(1, &selected, "number", "not a number 🐉\nsecond line");
+    for (k, v) in [
+        ("intent", "picker-search"),
+        ("picker_query", "Named flag"),
+        ("picker", "field"),
+        ("picker_page", "2"),
+        ("reason", "Raw search reason <&>"),
+        ("reference_scope", "shared"),
+        ("reference_namespace", "standalone"),
+        ("reference_id", &card.identity.id),
+        ("reference_revision", "1"),
+    ] {
+        d.insert(k.into(), v.into());
+    }
+    let searched = s.post(&path, &s.admin, &d).await;
+    assert_eq!(searched.0, StatusCode::OK, "{}", searched.2);
+    assert!(!searched.1.contains_key(header::LOCATION));
+    assert!(searched.2.contains("not a number 🐉\nsecond line"));
+    assert_eq!(searched.2.matches(">Choose Named flag ").count(), 25);
+    escaped_input(&searched.2, "field_id", &selected.id);
+    escaped_input(&searched.2, "expected_revision", "1");
+    assert!(searched.2.contains("Selected field: Selected exact number"));
+    d.insert("intent".into(), "picker-page:2".into());
+    let second = s.post(&path, &s.admin, &d).await;
+    assert_eq!(second.0, StatusCode::OK);
+    assert_eq!(second.2.matches(">Choose Named flag ").count(), 1);
+    assert!(second.2.contains("not a number 🐉\nsecond line"));
+    assert_eq!(s.api.detail(&card.identity).await.unwrap(), card);
+    assert_eq!(s.api.history(&card.identity, None).await.unwrap().len(), 1);
+    let forbidden = s.post(&path, &s.editor, &d).await;
+    assert_eq!(forbidden.0, StatusCode::FORBIDDEN);
+    assert!(forbidden.2.contains("not a number 🐉\nsecond line"));
+    escaped_input(&forbidden.2, "picker_query", "Named flag");
+    assert_eq!(s.api.detail(&card.identity).await.unwrap(), card);
+}
+
+#[tokio::test]
+async fn workshop_catalog_allowlist_literal_search_and_filter_pagination() {
+    let s = site().await;
+    for i in 0..26 {
+        s.card(&format!("Literal %_ card {i:02}")).await;
+    }
+    s.card("Literal other card").await;
+    let response = s
+        .request(
+            "GET",
+            "/cards?query=%25_&namespace=standalone&archive=active",
+            "",
+            String::new(),
+        )
+        .await;
+    assert_eq!(response.0, StatusCode::OK);
+    assert_eq!(response.2.matches(">View card</a>").count(), 25);
+    assert!(!response.2.contains("Literal other card"));
+    assert!(
+        response
+            .2
+            .replace("&#38;", "&amp;")
+            .contains("archive=active&amp;namespace=standalone&amp;page=2&amp;query=%25_")
+    );
+    let last = s
+        .request(
+            "GET",
+            "/cards?query=%25_&namespace=standalone&archive=active&page=2",
+            "",
+            String::new(),
+        )
+        .await;
+    assert_eq!(last.2.matches(">View card</a>").count(), 1);
+    assert!(!last.2.contains(">Next page</a>"));
+    assert_eq!(
+        s.request("GET", "/cards?world_id=foreign", "", String::new())
+            .await
+            .0,
+        StatusCode::UNPROCESSABLE_ENTITY
+    );
+    let f = s
+        .field("Literal %_ Number", FieldKind::Number(Default::default()))
+        .await;
+    s.field("Literal %_ Boolean", FieldKind::Boolean).await;
+    let fields = s
+        .request(
+            "GET",
+            "/card-fields?query=%25_&kind=number",
+            "",
+            String::new(),
+        )
+        .await;
+    assert!(fields.2.contains(&f.fields.display_name));
+    assert!(!fields.2.contains("Literal %_ Boolean"));
+    assert_eq!(
+        s.request("GET", "/cards?query=one&query=two", "", String::new())
+            .await
+            .0,
+        StatusCode::UNPROCESSABLE_ENTITY
+    );
+}
+
+#[tokio::test]
+async fn workshop_transitions_reject_unexpected_keys_and_keep_them_read_only() {
+    let s = site().await;
+    let card = s.card("Allowlisted draft").await;
+    let field = s
+        .field("Allowed text", FieldKind::Text { max_length: 2000 })
+        .await;
+    let endpoint = format!("{}/edit", url(&card));
+    for intent in ["picker-search", "picker-page:2", "discard-value"] {
+        let mut d = assignment(1, &field, "known", "Retained raw prose");
+        d.insert("intent".into(), intent.into());
+        d.insert("actor_id".into(), "Untrusted actor draft".into());
+        let response = s.post(&endpoint, &s.admin, &d).await;
+        assert_eq!(response.0, StatusCode::UNPROCESSABLE_ENTITY);
+        assert!(response.2.contains("Untrusted actor draft"));
+        assert!(!response.2.contains("type=\"hidden\" name=\"actor_id\""));
+        assert!(response.2.contains("Retained raw prose"));
+        assert_eq!(s.api.detail(&card.identity).await.unwrap(), card);
+    }
+}
+
+#[tokio::test]
+async fn workshop_unicode_search_keeps_one_full_prose_field_without_utf16_truncation() {
+    let s = site().await;
+    let card = s.card("Unicode draft").await;
+    let field = s
+        .field("Long exact text", FieldKind::Text { max_length: 2000 })
+        .await;
+    let prose = "🐉".repeat(2000);
+    let mut d = assignment(1, &field, "known", &prose);
+    d.insert("reason".into(), "🦉".repeat(500));
+    d.insert("intent".into(), "picker-search".into());
+    d.insert("picker_query".into(), "雨".repeat(100));
+    assert!(encode(&d).len() < 32 * 1024);
+    let response = s.post(&format!("{}/edit", url(&card)), &s.admin, &d).await;
+    assert_eq!(
+        response.0,
+        StatusCode::OK,
+        "Unicode draft and picker must fit the form budget"
+    );
+    assert!(response.2.contains(&prose));
+    assert_eq!(response.2.matches("name=\"text\"").count(), 1);
+    assert!(!response.2.contains("maxlength="));
+    assert_eq!(s.api.detail(&card.identity).await.unwrap(), card);
+}
+
+#[tokio::test]
+async fn workshop_choices_are_exact_named_paginated_and_no_implicit_first_option() {
+    let s = site().await;
+    let card = s.card("Exact options").await;
+    let f = s
+        .field(
+            "Many choices",
+            FieldKind::Choice {
+                options: (0..27)
+                    .map(|i| ChoiceOption {
+                        id: format!("{i:032x}"),
+                        label: format!("Named option {i:02}"),
+                    })
+                    .collect(),
+            },
+        )
+        .await;
+    let endpoint = format!("{}/edit", url(&card));
+    let mut d = assignment(1, &f, "known", "");
+    d.insert("intent".into(), "picker-search".into());
+    d.insert("picker".into(), "choice".into());
+    let first = s.post(&endpoint, &s.admin, &d).await;
+    assert_eq!(first.0, StatusCode::OK, "{}", first.2);
+    assert_eq!(first.2.matches(">Choose Named option ").count(), 25);
+    assert!(first.2.contains("No checked choice selected"));
+    assert!(first.2.contains("name=\"text\" value=\"\""));
+    d.insert("intent".into(), "picker-page:2".into());
+    assert_eq!(
+        s.post(&endpoint, &s.admin, &d)
+            .await
+            .2
+            .matches(">Choose Named option ")
+            .count(),
+        2
+    );
+    d.insert("intent".into(), format!("pick:choice:{:032x}", 26));
+    let chosen = s.post(&endpoint, &s.admin, &d).await;
+    assert_eq!(chosen.0, StatusCode::OK);
+    assert!(chosen.2.contains("Selected choice: Named option 26"));
+    assert_eq!(s.api.detail(&card.identity).await.unwrap(), card);
+    d.insert("intent".into(), "save".into());
+    d.insert("text".into(), format!("{:032x}", 26));
+    assert_eq!(
+        s.post(&endpoint, &s.admin, &d).await.0,
+        StatusCode::SEE_OTHER
+    );
+    s.api
+        .save_field(
+            &s.admin,
+            None,
+            &f.id,
+            FieldEdit {
+                expected_revision: 1,
+                fields: fields("Renamed choices"),
+                kind: FieldKind::Choice {
+                    options: vec![ChoiceOption {
+                        id: format!("{:032x}", 26),
+                        label: "New label, not historical".into(),
+                    }],
+                },
+                archived_at: None,
+                reason: None,
+            },
+        )
+        .await
+        .unwrap();
+    let detail = s.request("GET", &url(&card), "", String::new()).await;
+    assert!(detail.2.contains("Named option 26"));
+    assert!(!detail.2.contains("New label, not historical"));
+}
+
+#[tokio::test]
+async fn workshop_loaded_marker_binds_exact_kind_revision_and_empty_dirty_text() {
+    let s = site().await;
+    let card = s.card("Loaded safety").await;
+    let f = s
+        .field("Old text kind", FieldKind::Text { max_length: 2000 })
+        .await;
+    let path = format!("{}/edit", url(&card));
+    assert_eq!(
+        s.post(&path, &s.admin, &assignment(1, &f, "text", "Saved prose"))
+            .await
+            .0,
+        StatusCode::SEE_OTHER
+    );
+    let loaded = s
+        .request(
+            "GET",
+            &format!("{path}?operation=assignment&target={}", f.id),
+            &s.admin,
+            String::new(),
+        )
+        .await;
+    let marker = input(&loaded.2, "loaded_field_marker");
+    assert!(marker.ends_with(":1:2"));
+    s.api
+        .save_field(
+            &s.admin,
+            None,
+            &f.id,
+            FieldEdit {
+                expected_revision: 1,
+                fields: fields("New numeric kind"),
+                kind: FieldKind::Number(Default::default()),
+                archived_at: None,
+                reason: None,
+            },
+        )
+        .await
+        .unwrap();
+    let mut d = assignment(2, &f, "text", "");
+    d.insert("loaded_field_marker".into(), marker.clone());
+    d.insert("intent".into(), "load-assignment".into());
+    let dirty = s.post(&path, &s.admin, &d).await;
+    assert_eq!(dirty.0, StatusCode::UNPROCESSABLE_ENTITY);
+    assert!(dirty.2.contains("Save the dirty loaded value"));
+    d.insert("intent".into(), format!("pick:field:{}:2", f.id));
+    d.insert("text".into(), "Dirty old prose".into());
+    let chosen = s.post(&path, &s.admin, &d).await;
+    assert_eq!(chosen.0, StatusCode::OK);
+    assert!(chosen.2.contains("Dirty old prose"));
+    escaped_input(&chosen.2, "field_revision", "2");
+    escaped_input(&chosen.2, "loaded_field_marker", &marker);
+    d.insert("field_revision".into(), "2".into());
+    d.insert("intent".into(), "save".into());
+    assert_eq!(
+        s.post(&path, &s.admin, &d).await.0,
+        StatusCode::UNPROCESSABLE_ENTITY
+    );
+    assert_eq!(s.api.detail(&card.identity).await.unwrap().revision, 2);
+    d.insert("field_revision".into(), "1".into());
+    d.insert("intent".into(), "discard-load".into());
+    let discarded = s.post(&path, &s.admin, &d).await;
+    assert_eq!(discarded.0, StatusCode::OK);
+    assert!(discarded.2.contains("Saved prose"));
+    assert!(!discarded.2.contains("Dirty old prose"));
+    assert_eq!(s.api.detail(&card.identity).await.unwrap().revision, 2);
+}
+
+#[tokio::test]
+async fn workshop_exact_reference_names_retained_archives_and_foreign_scope_rejection() {
+    let s = site().await;
+    let target = s.card("Historical target name").await;
+    let card = s.card("Reference owner").await;
+    let f = s.field("Related card", FieldKind::CardReference).await;
+    let path = format!("{}/edit", url(&card));
+    let mut d = assignment(1, &f, "known", "");
+    for (k, v) in [
+        ("reference_scope", "shared"),
+        ("reference_namespace", "standalone"),
+        ("reference_id", &target.identity.id),
+        ("reference_revision", "1"),
+    ] {
+        d.insert(k.into(), v.into());
+    }
+    assert_eq!(s.post(&path, &s.admin, &d).await.0, StatusCode::SEE_OTHER);
+    s.api
+        .save_metadata(
+            &s.admin,
+            &target.identity,
+            CardMetadataEdit {
+                expected_revision: 1,
+                fields: fields("Current target name"),
+                archived_at: Some(1),
+                reason: None,
+            },
+        )
+        .await
+        .unwrap();
+    let public = s.request("GET", &url(&card), "", String::new()).await;
+    assert!(public.2.contains("Historical target name"));
+    assert!(!public.2.contains("Current target name"));
+    d.insert("expected_revision".into(), "2".into());
+    d.insert(
+        "intent".into(),
+        format!("pick:reference:shared:standalone:{}:1", target.identity.id),
+    );
+    let retained = s.post(&path, &s.admin, &d).await;
+    assert_eq!(retained.0, StatusCode::OK);
+    assert!(
+        retained
+            .2
+            .contains("Selected reference: Historical target name")
+    );
+    d.insert("intent".into(), "picker-search".into());
+    d.insert("reference_scope".into(), "a".repeat(32));
+    assert_eq!(
+        s.post(&path, &s.admin, &d).await.0,
+        StatusCode::UNPROCESSABLE_ENTITY
+    );
+    d.insert("expected_revision".into(), "1".into());
+    d.insert("text".into(), "Invalid raw prose <&>".into());
+    let stale = s.post(&path, &s.admin, &d).await;
+    assert_eq!(stale.0, StatusCode::CONFLICT);
+    assert!(
+        stale
+            .2
+            .replace("&#60;", "&lt;")
+            .replace("&#38;", "&amp;")
+            .replace("&#62;", "&gt;")
+            .contains("Invalid raw prose &lt;&amp;&gt;")
+    );
+    escaped_input(&stale.2, "expected_revision", "1");
+    assert_eq!(s.api.detail(&card.identity).await.unwrap().revision, 2);
+}
+
 #[tokio::test]
 async fn native_textarea_transport_preserves_paragraphs_as_lf_for_rules_and_field_values() {
     let s = site().await;
@@ -1052,6 +1430,55 @@ async fn arbitrary_mapping_set_is_preserved_reviewed_and_bound_without_a_one_or_
         "/worlds/{}/cards/standalone/{}/edit",
         world.id, target.identity.id
     );
+    // The named path builds/edits the complete compact draft beyond page 1.
+    let first_26 = mappings.lines().take(26).collect::<Vec<_>>().join("\n");
+    let choose = format!("pick:mapping:{}:1", local[26].id);
+    let mut named = draft(
+        1,
+        "copy",
+        &[
+            ("mappings", &first_26),
+            ("mapping_shared", &shared[26].id),
+            ("picker", "mapping"),
+            ("mapping_page", "2"),
+            ("intent", &choose),
+        ],
+    );
+    let added = site.post(&path, &site.editor, &named).await;
+    assert_eq!(added.0, StatusCode::OK, "{}", added.2);
+    assert_eq!(
+        added.2.matches(&mappings).count(),
+        1,
+        "complete mapping draft must have one successful copy"
+    );
+    assert!(added.2.contains("Shared mapping 26 → Local mapping 26"));
+    assert_eq!(site.api.detail(&target.identity).await.unwrap(), target);
+    named.insert("mappings".into(), mappings.clone());
+    named.insert("intent".into(), "picker-search".into());
+    named.insert("picker_query".into(), "No eligible name".into());
+    let searched = site.post(&path, &site.editor, &named).await;
+    assert_eq!(searched.0, StatusCode::OK);
+    assert_eq!(searched.2.matches(&mappings).count(), 1);
+    named.insert("intent".into(), format!("mapping-remove:{}", shared[26].id));
+    let removed = site.post(&path, &site.editor, &named).await;
+    assert_eq!(removed.0, StatusCode::OK);
+    assert_eq!(removed.2.matches(&first_26).count(), 1);
+    assert!(!removed.2.contains(&mappings));
+    // Raw reasons are intentionally not validated on navigation; Unicode must
+    // count by percent-encoded bytes before materializing another compact pin.
+    named.insert("intent".into(), choose.clone());
+    named.insert("mappings".into(), first_26.clone());
+    named.insert("reason".into(), String::new());
+    let reason = "雨".repeat((32 * 1024 - encode(&named).len() - 256) / 9);
+    named.insert("reason".into(), reason.clone());
+    assert!(encode(&named).len() < 32 * 1024);
+    let bounded = site.post(&path, &site.editor, &named).await;
+    assert_eq!(bounded.0, StatusCode::UNPROCESSABLE_ENTITY);
+    assert!(bounded.2.contains("addition would exceed the 32 KiB"));
+    assert_eq!(bounded.2.matches(&first_26).count(), 1);
+    escaped_input(&bounded.2, "pending_pick", &choose);
+    assert!(bounded.2.contains(&reason));
+    assert_eq!(site.api.detail(&target.identity).await.unwrap(), target);
     let mut d = draft(
         1,
         "copy",

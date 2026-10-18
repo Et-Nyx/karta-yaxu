@@ -124,6 +124,20 @@ simulation is delivered.
 Complete and fine-tune the design database/authoring domains first. Earlier
 engine-next recommendations are superseded by this maintainer decision.
 
+## Delivered: Card Workshop authoring refinement
+
+The approved next authoring slice adds named bounded exact selectors, type-driven
+Known controls, draft-preserving search/page/load operations, searchable catalogs
+and readable card references. A separate opt-in **Card Workshop** supplies original
+creature/Type/action/tool/ability/item examples, reusable fields and shared/local
+source context. Its illustrative `10 + 3 + 5 = 18` target-15 example is authored
+prose, not executed mechanics. No fixed global gameplay classes are introduced.
+See [ADR0017](../decisions/0017-card-workshop-and-authoring-refinement.md) and the
+[workshop guide](card-workshop.md). Strict Clippy, 462 Rust tests and the complete
+104-case keyboard suite passed. No migration, new package format, dependency or
+hosting resource was introduced. Workshop initialization is explicit and adds its
+own 15-object/16-event baseline, preserving subsequent edits and old seed scopes.
+
 ## Pinned follow-up directions
 
 1. **Derived Stats, formulas and modifiers:** explicit inputs, dependency/cycle

@@ -34,6 +34,7 @@ class AuthoringSupport(BrowserFixture):
 
     def enter(self, label, value):
         field = self.page.get_by_label(label, exact=True)
+        self.reveal_control(field)
         self.tab_to(field)
         self.page.keyboard.press("Control+A")
         self.page.keyboard.insert_text(value)
@@ -89,6 +90,7 @@ class AuthoringSupport(BrowserFixture):
 
     def select(self, label, value):
         select = self.page.get_by_label(label, exact=True)
+        self.reveal_control(select)
         values = select.locator("option").evaluate_all("options => options.map(option => option.value)")
         self.assertIn(value, values)
         self.tab_to(select)
@@ -97,6 +99,18 @@ class AuthoringSupport(BrowserFixture):
             self.page.keyboard.press("ArrowDown")
         self.page.keyboard.press("Tab")
         expect(select).to_have_value(value)
+
+    def reveal_control(self, field):
+        # Expand native disclosure controls with the keyboard before using an
+        # advanced field. DOM evaluation only inspects state, never focuses it.
+        for _ in range(8):
+            if field.is_visible():
+                return
+            disclosure = field.locator("xpath=ancestor::details[not(@open)]").first
+            if disclosure.count() == 0:
+                return
+            self.tab_to(disclosure.locator("summary").first)
+            self.page.keyboard.press("Enter")
 
     def create_variant(self, world, name, source=None, description=None):
         self.follow("Add variant")

@@ -1,0 +1,7 @@
+<div class="field"><label for="card-{{ control.name }}">{{ control.label }}</label>
+{% if !control.help.is_empty() %}<p id="help-{{ control.name }}">{{ control.help }}</p>{% endif %}
+{% if !control.options.is_empty() %}<select id="card-{{ control.name }}" name="{{ control.name }}"{% if !control.help.is_empty() %} aria-describedby="help-{{ control.name }}"{% endif %}>{% for option in control.options %}<option value="{{ option.value }}"{% if option.selected %} selected{% endif %}>{{ option.label }}</option>{% endfor %}</select>
+{% else if control.multiline %}<textarea id="card-{{ control.name }}" name="{{ control.name }}" rows="6"{% if !control.help.is_empty() %} aria-describedby="help-{{ control.name }}"{% endif %}>{{ control.value }}</textarea>
+{% else %}<input id="card-{{ control.name }}" name="{{ control.name }}" value="{{ control.value }}"{% if !control.inputmode.is_empty() %} inputmode="{{ control.inputmode }}"{% endif %}{% if !control.help.is_empty() %} aria-describedby="help-{{ control.name }}"{% endif %}>{% endif %}
+{% if !control.error.is_empty() %}<p class="field-error">{{ control.error }}</p>{% endif %}
+</div>

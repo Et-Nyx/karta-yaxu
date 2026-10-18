@@ -10,6 +10,9 @@ pub use game_data::{card_fields::*, cards::*};
 use sqlx::{Sqlite, SqliteConnection, Transaction};
 use std::collections::HashSet;
 
+mod search;
+pub use search::*;
+
 /// Public attribution only; identities, private audit data and snapshot bytes stay out.
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, sqlx::FromRow)]
 pub struct CardHistoryEntry {

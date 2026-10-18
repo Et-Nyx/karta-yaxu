@@ -1,6 +1,7 @@
 use game_data::{Catalog, Creature};
 
 pub mod authoring;
+pub mod card_workshop;
 pub mod cards;
 mod chart_fixtures;
 pub mod charts;

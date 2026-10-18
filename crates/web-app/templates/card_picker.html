@@ -1,0 +1,18 @@
+{% if picker.enabled %}
+<section class="card-workshop-picker" aria-label="Named exact selection">
+<h2>{{ picker.title }}</h2>
+<p>At most 25 named candidates per page. Selecting keeps an exact revision; search and paging never save or replace the selected pin with a current head.</p>
+{% for selected in picker.selected %}<p class="plain-text">{{ selected }}</p>{% endfor %}
+{% for link in picker.links %}<a href="{{ link.url }}">{{ link.label }}</a> {% endfor %}
+<button name="intent" value="picker-search">Search picker</button>
+{% for candidate in picker.candidates %}<article><h3>{{ candidate.name }}</h3>{% if !candidate.description.is_empty() %}<p class="plain-text">{{ candidate.description }}</p>{% endif %}<p class="plain-text">{{ candidate.context }}</p><button name="intent" value="{{ candidate.intent }}">Choose {{ candidate.name }}</button></article>{% endfor %}
+{% if picker.candidates.is_empty() %}<p>No candidates on this page. The selected exact pin and raw value are retained.</p>{% endif %}
+{% if !picker.previous.is_empty() %}<button name="intent" value="{{ picker.previous }}">Previous candidates</button>{% endif %}
+{% if !picker.next.is_empty() %}<button name="intent" value="{{ picker.next }}">Next candidates</button>{% endif %}
+{% if picker.assignment %}<p>Loading saved values is explicit. Choosing another field never coerces the current raw value.</p><button name="intent" value="load-assignment">Load selected assignment</button><button name="intent" value="discard-load">Discard text and load selected assignment</button><button name="intent" value="discard-value">Discard raw value</button>{% endif %}
+{% if !picker.mappings.is_empty() %}<h3>Complete mapping draft — displayed page</h3><p>The compact draft includes off-page mappings. Preview reviews the whole replacement, including removals and unmapped assignments.</p>{% for mapping in picker.mappings %}<p>{{ mapping.name }}</p><p class="plain-text">{{ mapping.context }}</p><button name="intent" value="{{ mapping.intent }}">Remove mapping {{ mapping.name }}</button>{% endfor %}{% endif %}
+{% if !picker.mapping_previous.is_empty() %}<button name="intent" value="{{ picker.mapping_previous }}">Previous mappings</button>{% endif %}
+{% if !picker.mapping_next.is_empty() %}<button name="intent" value="{{ picker.mapping_next }}">Next mappings</button>{% endif %}
+{% if !picker.pending.is_empty() %}<p>Pending selection: {{ picker.pending }}</p><button name="intent" value="retry-pick">Retry pending selection</button>{% endif %}
+</section>
+{% endif %}

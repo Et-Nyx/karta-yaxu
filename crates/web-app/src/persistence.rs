@@ -10,6 +10,7 @@ use sqlx::{
 use std::{str::FromStr, time::Duration};
 
 pub mod authoring;
+pub mod card_search;
 pub mod cards;
 pub mod charts;
 pub mod inspection;

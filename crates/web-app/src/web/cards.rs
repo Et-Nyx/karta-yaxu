@@ -15,6 +15,7 @@ use std::collections::BTreeMap;
 
 type Values = BTreeMap<String, String>;
 const SIZE: usize = 25;
+mod pickers;
 
 pub(super) fn routes() -> Router<AppState> {
     let mut r = Router::new();
@@ -285,6 +286,7 @@ struct Page {
     sections: Vec<Section>,
     previous: String,
     next: String,
+    filters: Vec<Control>,
 }
 fn scope(c: &Context) -> String {
     format!(
@@ -338,46 +340,80 @@ async fn catalog(
     State(s): State<AppState>,
     Path(p): Path<Values>,
     uri: Uri,
-    q: Result<Query<Values>, QueryRejection>,
+    q: Result<Query<Vec<(String, String)>>, QueryRejection>,
 ) -> Response {
     finish(
         async {
             let c = Context::new(&p, &uri)?;
-            let Query(q) = q.map_err(|_| invalid("query", "Use native page navigation."))?;
+            let Query(pairs) = q.map_err(|_| invalid("query", "Use native page navigation."))?;
+            let mut q = Values::new();
+            for (key, value) in pairs {
+                if q.insert(key, value).is_some() {
+                    return Err(invalid("query", "Use each catalog filter once."));
+                }
+            }
+            pickers::catalog_allow(&q, c.field)?;
             let n = page(&q)?;
             let api = service(&s);
             let mut sections = vec![];
-            if c.field {
-                for f in api.fields(c.world.as_deref(), n).await? {
+            let has_more = if c.field {
+                let results = api
+                    .search_fields(c.world.as_deref(), &pickers::field_search(&q, "")?)
+                    .await?;
+                let more = results.has_more;
+                for f in results.items {
                     let mut object = c.clone();
                     object.id = addresses::segment(&f.fields.slug);
                     sections.push(Section {
                         title: f.fields.display_name.clone(),
                         lines: vec![
-                            field_pin_text(&f.pin()),
-                            kind_text(&f.kind),
+                            format!("Exact revision {}", f.pin.version),
+                            f.kind.as_str().into(),
                             archive_text(f.archived_at),
                         ],
                         links: vec![link("View field", object.url())],
                     });
                 }
+                more
             } else {
-                for card in api.list(c.world.as_deref(), n).await? {
+                let results = api
+                    .search_cards(c.world.as_deref(), &pickers::card_search(&q, "")?)
+                    .await?;
+                let more = results.has_more;
+                for card in results.items {
                     let mut object = c.clone();
-                    object.id = if card.identity.namespace == CardNamespace::Standalone {
+                    object.id = if card.pin.identity.namespace == CardNamespace::Standalone {
                         addresses::segment(&card.fields.slug)
                     } else {
-                        card.identity.id.clone()
+                        card.pin.identity.id.clone()
                     };
-                    object.namespace = card.identity.namespace;
+                    object.namespace = card.pin.identity.namespace;
                     sections.push(Section {
                         title: card.fields.display_name.clone(),
-                        lines: vec![pin_text(&card.pin()), archive_text(card.archived_at)],
+                        lines: vec![
+                            card.fields.description.clone(),
+                            format!(
+                                "Labels: {}{}",
+                                card.labels.join(", "),
+                                if card.label_count > card.labels.len() {
+                                    " (more labels)"
+                                } else {
+                                    ""
+                                }
+                            ),
+                            format!(
+                                "{} origin · exact revision {}",
+                                card.pin.identity.namespace.as_str(),
+                                card.pin.version
+                            ),
+                            archive_text(card.archived_at),
+                        ],
                         links: vec![link("View card", object.url())],
                     });
                 }
-            }
-            let (previous, next) = pagination(&c.root(), n, sections.len() == SIZE);
+                more
+            };
+            let (previous, next) = pickers::catalog_pages(&c.root(), &q, n, has_more);
             let mut links = nav(&c);
             links.push(link(
                 if c.field {
@@ -395,6 +431,7 @@ async fn catalog(
                     sections,
                     previous,
                     next,
+                    filters: pickers::catalog_controls(&q, c.field),
                 },
                 StatusCode::OK,
             ))
@@ -441,13 +478,8 @@ fn value_text(v: &FieldValue) -> String {
 fn card_sections(card: &CardRecord, n: usize) -> Vec<Section> {
     let mut lines = vec![
         card.fields.display_name.clone(),
-        pin_text(&card.pin()),
-        archive_text(card.archived_at),
         card.fields.description.clone(),
     ];
-    if let Some(p) = &card.source {
-        lines.push(format!("Pinned source: {}", pin_text(p)));
-    }
     if card.legacy_unmodeled {
         lines.push("Legacy revision: card component unmodeled.".into());
     }
@@ -493,7 +525,95 @@ fn card_sections(card: &CardRecord, n: usize) -> Vec<Section> {
             .collect(),
         links: vec![],
     });
+    let mut technical = vec![pin_text(&card.pin()), archive_text(card.archived_at)];
+    if let Some(pin) = &card.source {
+        technical.push(format!("Pinned source: {}", pin_text(pin)));
+    }
+    out.push(Section {
+        title: "Technical context".into(),
+        lines: technical,
+        links: vec![],
+    });
     out
+}
+async fn readable_card_sections(
+    api: &Cards,
+    card: &CardRecord,
+    n: usize,
+) -> Result<Vec<Section>, Error> {
+    let mut sections = card_sections(card, n);
+    let displayed = card
+        .component
+        .fields
+        .iter()
+        .flatten()
+        .skip((n - 1) * SIZE)
+        .take(SIZE)
+        .collect::<Vec<_>>();
+    // Resolve only displayed exact references plus the single explicit source; never heads.
+    let mut names = BTreeMap::new();
+    if let Some(pin) = &card.source {
+        let source = api.version(pin).await?;
+        sections[0]
+            .lines
+            .push(format!("Source: {}", source.fields.display_name));
+        sections[0].links.push(link(
+            format!(
+                "Source {} · exact revision {}",
+                source.fields.display_name, pin.version
+            ),
+            pickers::card_url(pin),
+        ));
+        names.insert(pin_text(pin), source.fields.display_name);
+    }
+    sections[2].lines.clear();
+    for assignment in displayed {
+        let display = match &assignment.value {
+            FieldValue::Choice(id) => {
+                let label = if let FieldKind::Choice { options } = &assignment.definition.kind {
+                    options
+                        .iter()
+                        .find(|o| o.id == *id)
+                        .map(|o| o.label.as_str())
+                } else {
+                    None
+                };
+                format!("Choice: {}", label.unwrap_or("Unresolved exact choice"))
+            }
+            FieldValue::CardReference(pin) => {
+                let key = pin_text(pin);
+                if !names.contains_key(&key) {
+                    names.insert(key.clone(), api.version(pin).await?.fields.display_name);
+                }
+                let name = names.get(&key).ok_or(Error::Unavailable)?;
+                sections[2].links.push(link(
+                    format!("Referenced {name} · exact revision {}", pin.version),
+                    pickers::card_url(pin),
+                ));
+                format!("CardReference: {name} · exact revision {}", pin.version)
+            }
+            other => value_text(other),
+        };
+        sections[2].lines.push(format!(
+            "{} — {}",
+            assignment.definition.fields.display_name, display
+        ));
+        let technical = sections.last_mut().ok_or(Error::Unavailable)?;
+        technical.lines.push(format!(
+            "Field {} · {} · {}",
+            assignment.definition.fields.display_name,
+            field_pin_text(&assignment.definition.pin()),
+            value_text(&assignment.value)
+        ));
+        sections[2].links.push(link(
+            format!(
+                "Field {} · exact revision {}",
+                assignment.definition.fields.display_name, assignment.definition.revision
+            ),
+            pickers::field_url(&assignment.definition.pin()),
+        ));
+    }
+    Ok(sections)
 }
 fn collection<T>(v: &Option<Vec<T>>) -> String {
     match v {
@@ -587,6 +707,19 @@ async fn detail(
                     0
                 };
                 let mut sections = field_sections(&f, n);
+                if let Some(pin) = &f.source {
+                    let source = api.field_version(pin).await?;
+                    sections[0]
+                        .lines
+                        .push(format!("Source: {}", source.fields.display_name));
+                    sections[0].links.push(link(
+                        format!(
+                            "Source {} · exact revision {}",
+                            source.fields.display_name, pin.version
+                        ),
+                        pickers::field_url(pin),
+                    ));
+                }
                 if !historical && let FieldKind::Choice { options } = &f.kind {
                     for o in options.iter().skip((n - 1) * SIZE).take(SIZE) {
                         sections[1].links.push(link(
@@ -640,7 +773,7 @@ async fn detail(
                     .as_ref()
                     .map_or(0, Vec::len)
                     .max(card.component.fields.as_ref().map_or(0, Vec::len));
-                let mut sections = card_sections(&card, n);
+                let mut sections = readable_card_sections(&api, &card, n).await?;
                 if !historical {
                     for label in card
                         .component
@@ -688,6 +821,7 @@ async fn detail(
                     sections,
                     previous,
                     next,
+                    filters: vec![],
                 },
                 StatusCode::OK,
             ))
@@ -714,7 +848,7 @@ async fn history(
         }
         let (previous,next)=pagination(uri.path(),n,start>SIZE as i64);
         let mut links=nav(&c);links.push(link("Current definition",c.url()));let native=native_url(&c);if !c.field&&!native.is_empty(){links.push(link("Native full history",format!("{native}/history")));}
-        Ok(render_status(Page {title:"Card authoring history".into(),context:"Exact saved revisions with public author attribution, action, UTC time and change reason. At most 25 revisions per page.".into(),links,sections,previous,next},StatusCode::OK))
+        Ok(render_status(Page {title:"Card authoring history".into(),context:"Exact saved revisions with public author attribution, action, UTC time and change reason. At most 25 revisions per page.".into(),links,sections,previous,next,filters:vec![]},StatusCode::OK))
     }.await)
 }
 
@@ -730,6 +864,9 @@ struct Control {
     multiline: bool,
     options: Vec<OptionView>,
     error: String,
+    advanced: bool,
+    help: String,
+    inputmode: String,
 }
 #[derive(Template)]
 #[template(path = "cards_editor.html")]
@@ -740,17 +877,18 @@ struct Editor {
     csrf: String,
     revision: String,
     operation: String,
-    loaded_field_id: String,
     controls: Vec<Control>,
     error: String,
     errors: Vec<(String, String)>,
     raw: Vec<(String, String)>,
+    raw_readonly: Vec<(String, String)>,
     sections: Vec<Section>,
     preview: bool,
     digest: String,
     current_revision: String,
     back: String,
     catalogs: Vec<Link>,
+    picker: pickers::Picker,
 }
 fn control(d: &Values, k: &str, label: &str, multiline: bool) -> Control {
     Control {
@@ -760,6 +898,9 @@ fn control(d: &Values, k: &str, label: &str, multiline: bool) -> Control {
         multiline,
         options: vec![],
         error: String::new(),
+        advanced: false,
+        help: String::new(),
+        inputmode: String::new(),
     }
 }
 fn select(d: &Values, k: &str, label: &str, options: &[(&str, &str)]) -> Control {
@@ -1067,6 +1208,7 @@ async fn defaults(c: &Context, api: &Cards, op: &str, target: &str) -> Result<Va
         put(&mut d, k, v);
     }
     if c.id.is_empty() {
+        pickers::prune_defaults(c, &mut d);
         return Ok(d);
     }
     if c.field {
@@ -1146,44 +1288,10 @@ async fn defaults(c: &Context, api: &Cards, op: &str, target: &str) -> Result<Va
                 .flatten()
                 .find(|f| f.definition.id == target)
                 .ok_or(Error::NotFound)?;
-            put(&mut d, "loaded_field_id", &f.definition.id);
-            put(&mut d, "field_id", &f.definition.id);
-            put(&mut d, "field_revision", f.definition.revision);
-            let state = match &f.value {
-                FieldValue::Missing => "missing",
-                FieldValue::Unknown => "unknown",
-                FieldValue::NotApplicable => "not_applicable",
-                FieldValue::Number(n) => {
-                    put(&mut d, "text", n);
-                    "number"
-                }
-                FieldValue::Text(t) => {
-                    put(&mut d, "text", t);
-                    "text"
-                }
-                FieldValue::Boolean(b) => {
-                    put(&mut d, "boolean", b);
-                    "boolean"
-                }
-                FieldValue::Choice(id) => {
-                    put(&mut d, "text", id);
-                    "choice"
-                }
-                FieldValue::CardReference(p) => {
-                    put(
-                        &mut d,
-                        "reference_scope",
-                        p.identity.world_id.as_deref().unwrap_or("shared"),
-                    );
-                    put(&mut d, "reference_namespace", p.identity.namespace.as_str());
-                    put(&mut d, "reference_id", &p.identity.id);
-                    put(&mut d, "reference_revision", p.version);
-                    "card_reference"
-                }
-            };
-            put(&mut d, "value_state", state);
+            pickers::load_values(&mut d, f, card.revision);
         }
     }
+    pickers::prune_defaults(c, &mut d);
     Ok(d)
 }
 async fn editor(
@@ -1216,15 +1324,16 @@ async fn editor(
                 }
                 sections[0].title = "Current saved context".into();
             }
-            let mut response = show_editor(
+            let mut response = Box::pin(show_editor(
+                &service(&s),
                 &c,
                 &d,
                 csrf.clone(),
                 None,
                 sections,
-                String::new(),
-                String::new(),
-            );
+                ReviewState::default(),
+            ))
+            .await;
             if set {
                 append_cookie(&mut response, csrf_cookie(&csrf, s.cookie_secure));
             }
@@ -1233,16 +1342,26 @@ async fn editor(
         .await,
     )
 }
-fn show_editor(
+#[derive(Default)]
+struct ReviewState {
+    digest: String,
+    current_revision: String,
+}
+async fn show_editor(
+    api: &Cards,
     c: &Context,
     d: &Values,
     csrf: String,
     error: Option<&Error>,
     sections: Vec<Section>,
-    review: String,
-    current_revision: String,
+    review: ReviewState,
 ) -> Response {
     let mut controls = controls(c, d);
+    let (picker, picker_error) = match Box::pin(pickers::prepare(api, c, d, &mut controls)).await {
+        Ok(picker) => (picker, None),
+        Err(e) => (pickers::Picker::empty(), Some(e)),
+    };
+    let error = error.or(picker_error.as_ref());
     if let Some(Error::Invalid(errors)) = error {
         for control in &mut controls {
             if let Some(message) = errors.get(&control.name) {
@@ -1251,7 +1370,7 @@ fn show_editor(
         }
     }
     let names = controls.iter().map(|v| v.name.as_str()).collect::<Vec<_>>();
-    let raw = d
+    let raw_values = d
         .iter()
         .filter(|(k, _)| {
             !names.contains(&k.as_str())
@@ -1266,7 +1385,10 @@ fn show_editor(
                 )
         })
         .map(|(k, v)| (k.clone(), v.clone()))
-        .collect();
+        .collect::<Vec<_>>();
+    let (raw, raw_readonly) = raw_values
+        .into_iter()
+        .partition(|(key, _)| pickers::KEYS.contains(&key.as_str()) || key == "loaded_field_id");
     no_store(render_status(
         Editor {
             title: format!(
@@ -1283,7 +1405,6 @@ fn show_editor(
             csrf,
             revision: value(d, "expected_revision").into(),
             operation: value(d, "operation").into(),
-            loaded_field_id: value(d, "loaded_field_id").into(),
             controls,
             error: error.map(error_text).unwrap_or("").into(),
             errors: if let Some(Error::Invalid(e)) = error {
@@ -1292,12 +1413,14 @@ fn show_editor(
                 vec![]
             },
             raw,
+            raw_readonly,
             sections,
-            preview: !review.is_empty(),
-            digest: review,
-            current_revision,
+            preview: !review.digest.is_empty(),
+            digest: review.digest,
+            current_revision: review.current_revision,
             back: if c.id.is_empty() { c.root() } else { c.url() },
             catalogs: nav(c),
+            picker,
         },
         error.map(error_status).unwrap_or(StatusCode::OK),
     ))
@@ -1440,7 +1563,9 @@ fn allow(d: &Values, c: &Context) -> Result<(), Error> {
     );
     if value(d, "operation") == "assignment" {
         keys.push("loaded_field_id".into());
+        keys.push("loaded_field_marker".into());
     }
+    keys.extend(pickers::KEYS.iter().map(|k| (*k).into()));
     if d.keys().any(|k| !keys.contains(k)) {
         return Err(invalid(
             "form",
@@ -1496,6 +1621,11 @@ async fn submit(
          if value(&d,"expected_revision").parse::<i64>().ok()!=Some(revision){return Err(Error::Conflict);}revision
         };
         if !duplicates.is_empty(){return Err(invalid("form","Duplicate form fields are not accepted. All duplicate values are retained below; nothing was saved."));}
+         allow(&d,&c)?;
+         if pickers::is_transition(value(&d,"intent")) {
+            Box::pin(pickers::transition(&api, &c, &mut d)).await?;
+            return Ok(None);
+        }
         allow(&d,&c)?;let op=value(&d,"operation");let n=if matches!(op,"copy"|"adopt"){page(&d)?}else{1};
         let intent=value(&d,"intent");
         if if matches!(op,"copy"|"adopt"|"archive"){!matches!(intent,"preview"|"confirm")}else{intent!="save"}{return Err(invalid("intent","Use Save operation, Preview changes or the reviewed confirmation button for this operation."));}
@@ -1581,8 +1711,11 @@ async fn submit(
                     if op=="rules_text"{row.component.rules_text=match value(&d,"state"){"defined"=>Some(textarea_text(value(&d,"text"))),"unmodeled" if value(&d,"text").is_empty()=>None,_=>return Err(invalid("state","Clear loaded text before unmodeling, or choose Defined."))};}
                     if op=="label"{let index=row.component.labels.iter().flatten().position(|l|l==value(&d,"target"));if !value(&d,"target").is_empty()&&index.is_none(){return Err(invalid("target","Existing label not found."));}apply_one(&mut row.component.labels,value(&d,"mode"),index,Some(value(&d,"label").to_owned()))?;}
                     if op=="assignment"{let index=row.component.fields.iter().flatten().position(|f|f.definition.id==value(&d,"field_id"));
-                        if index.is_some()&&value(&d,"mode")=="set"&&value(&d,"value_state")=="text"&&value(&d,"loaded_field_id")!=value(&d,"field_id"){return Err(invalid("field_id","Load this saved assignment from card detail before editing its text."));}
-                        let new=if value(&d,"mode")=="set"{let definition=api.field_version(&field_pin(&d,c.world.clone())?).await.map_err(|e|if matches!(e,Error::NotFound){invalid("field_id","This exact same-scope field revision does not exist.")}else{e})?;Some(CardField{definition,value:field_value(&d)?})}else{None};
+                        let new=if value(&d,"mode")=="set"{let definition=api.field_version(&field_pin(&d,c.world.clone())?).await.map_err(|e|if matches!(e,Error::NotFound){invalid("field_id","This exact same-scope field revision does not exist.")}else{e})?;
+                            if index.is_some() && matches!(definition.kind,FieldKind::Text{..}) && matches!(value(&d,"value_state"),"text"|"known") && value(&d,"loaded_field_marker")!=pickers::loaded_marker(&definition.pin(),expected) {return Err(invalid("field_id","Load this saved assignment from card detail before editing its text. The loaded marker must match the exact field and starting card revision."));}
+                            let parsed=pickers::typed_value(&d,&definition)?;
+                            if let FieldValue::CardReference(pin)=&parsed {pickers::check_reference_scope(&c,pin)?;api.version(pin).await?;}
+                            Some(CardField{definition,value:parsed})}else{None};
                         apply_one(&mut row.component.fields,value(&d,"mode"),index,new)?;
                     }
                     api.save_card(&token,&c.identity(),CardEdit{expected_revision:expected,component:row.component,reason:reason(&d)}).await?;
@@ -1621,23 +1754,27 @@ async fn submit(
                 }
             }
             // CSRF cookies are issued on form GET only; failed POSTs keep the submitted draft.
-            show_editor(
+            Box::pin(show_editor(
+                &api,
                 &c,
                 &d,
                 value(&d, "csrf").into(),
                 error.as_ref(),
                 sections,
-                if error.is_none() {
-                    review
-                } else {
-                    String::new()
+                ReviewState {
+                    digest: if error.is_none() {
+                        review
+                    } else {
+                        String::new()
+                    },
+                    current_revision: if matches!(error, Some(Error::Conflict)) {
+                        current_revision
+                    } else {
+                        String::new()
+                    },
                 },
-                if matches!(error, Some(Error::Conflict)) {
-                    current_revision
-                } else {
-                    String::new()
-                },
-            )
+            ))
+            .await
         }
     }
 }

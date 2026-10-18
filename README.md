@@ -65,6 +65,21 @@ sole enabled administrator; ambiguous ownership needs `--owner-user-id`.
 The server reads the database and does not automatically load fixture files.
 See [World fixtures](#world-fixtures) for ownership, targeted commands and reruns.
 
+For original card-authoring examples, explicitly install the optional **Card
+Workshop** with an existing eligible owner:
+
+```bash
+cargo run -p web-app --bin admin -- list-users
+cargo run -p web-app --bin admin -- seed-card-workshop --owner-user-id <immutable-user-id>
+```
+
+Open `/worlds/card-workshop/cards` for Mossrunner, Ember, Steady Ascent, Trail Kit,
+Focused Effort and Field Wrap. Named field/reference/source selectors, typed Known
+controls and searchable catalogs support editing without copying opaque IDs.
+Workshop setup is a separate atomic 15-object/16-event batch and never runs with
+old seeds, startup or migrations. Reruns preserve edits. See the
+[Card Workshop guide](docs/architecture/card-workshop.md).
+
 Stop with Ctrl+C. SIGINT and SIGTERM trigger graceful shutdown. The first build
 needs network access for pinned packages and crates; normal use and tests do not
 fetch external content.
@@ -849,7 +864,11 @@ No production database was migrated during this documentation task. See
   - `seed-creature-fixtures` — initialize only the original species/default forms.
   - `seed-reference-fixtures` — load the cached Type/Charizard subset.
   - `seed-world-fixtures --owner-user-id <immutable-user-id>` — load the complete
-    synthetic lab worlds and reference prerequisites with explicit ownership.
+     synthetic lab worlds and reference prerequisites with explicit ownership.
+  - `seed-card-workshop --owner-user-id <immutable-user-id>` — separately initialize
+    the original illustrative Card Workshop (one world, seven cards, seven fields),
+    atomically, under the system actor. Requires an existing enabled editor/admin;
+    creates no accounts and preserves later edits on reruns.
   - `invite-user --subject <name> [--role <viewer|editor|administrator>] [--provider <id>] [--note <text>]` (default role: viewer).
   - `list-users`, `list-invites`.
   - `disable-user --id <immutable-user-id>`, `enable-user --id <immutable-user-id>`.
@@ -882,10 +901,11 @@ when running the executable elsewhere.
 
 ## Checks
 
-Card-foundation verification passed: formatting, Clippy with warnings denied,
-**438 Rust tests** (two browser-provision helpers intentionally ignored in normal
-runs), and **94 keyboard browser tests in one complete run**, followed by targeted
-desktop/320px paragraph-transport verification. Human visual,
+Card Workshop verification passed: formatting, Clippy with warnings denied,
+**462 Rust tests** (two browser-provision helpers intentionally ignored in normal
+runs), and **104 keyboard browser tests in one complete run**. Verification used
+single-job builds with `CARGO_PROFILE_DEV_DEBUG=0` and `CARGO_PROFILE_TEST_DEBUG=0`
+to reduce memory pressure after an initial debug-symbol build timeout. Human visual,
 screen-reader and actual browser-zoom assessment remain separate.
 
 Inside `nix develop`:
@@ -951,9 +971,9 @@ is needed. First use may download Nix packages and Rust build dependencies;
 browser requests during the tests are restricted to the local test server.
 
 The runner builds current native web/admin binaries with `--locked`. The source
-inventory contains **94 keyboard-driven tests** (84 prior cases plus 10 card
-cases). `test_cards.py` defines five workflows inherited by `DesktopCardTests` and
-`NarrowCardTests`: **5 × 2**, at desktop (1280px) and narrow (320px) widths. It
+inventory contains **104 keyboard-driven tests** (94 prior cases plus 10 Card
+Workshop cases). `test_cards.py` and `test_card_workshop.py` each define five
+workflows inherited at desktop (1280px) and narrow (320px) widths. It
 uses fresh test-owned databases, servers on available loopback ports, and browser
 contexts, independent of your running app or `KARTA_*` configuration. Those
 processes and databases are cleaned up after each test. Custom `CARGO_TARGET_DIR`
@@ -994,6 +1014,9 @@ errors, explicit multi-row copy/adoption, native metadata carry-forward and arch
 revoked drafts. The world source-copy workflow also follows public card inspection,
 exact field usage and representative root paths using the keyboard. Five web tests
 and six pure mixed-usage tests cover further card-inspection contracts.
+Workshop workflows cover named selections, typed values, invalid/dirty draft
+retention, exact historical names, named source mappings/adoption, explicit setup,
+edited reruns, inspection and offline-checksummed downloads at both widths.
 
 Failures save screenshots in a unique ignored `target/browser-tests/run-*`
 directory. Screenshots can be opened from Windows for diagnosis. No traces,

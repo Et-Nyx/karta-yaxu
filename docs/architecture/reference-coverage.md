@@ -13,6 +13,16 @@ and simulation are the **absolute final steps**, after authoring and fine-tuning
 
 ## Implemented foundation
 
+- Card Workshop refinement (ADR0017): literal name/label/origin/kind/archive catalog
+  filtering before 25-result pages; named exact field/card/source/choice/mapping
+  selectors; type-driven Known controls; single-prose raw drafts retained through
+  non-saving search/page/choose/load transitions. Historical names use exact pins.
+- Separate opt-in original Card Workshop setup: one world, seven cards and seven
+  reusable fields, 15 objects/16 initial system-attributed events. Whole-batch
+  immutable-baseline checks preserve later edits and reject partial/conflicting
+  setup. This does not alter the old 65-object/69-event lab seed scopes. The
+  example roll/bonus/target prose is inert and introduces no global card classes.
+
 - Same qualified native identity and owning revision for Form/Variant/Type/Move
   cards, no independent wrapper IDs; Species grouping and shared/local standalone
   cards. Native typed metadata is authoritative and all owning writers carry custom

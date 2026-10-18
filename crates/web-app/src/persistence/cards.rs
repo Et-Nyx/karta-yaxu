@@ -263,6 +263,16 @@ pub(crate) async fn put_field(
     action: &str,
     reason: Option<&str>,
 ) -> Result<(), Error> {
+    put_field_as(c, row, Some(actor), action, reason).await
+}
+/// Trusted operator writers may use the existing bundled-fixture system actor.
+pub(crate) async fn put_field_as(
+    c: &mut SqliteConnection,
+    row: &FieldDefinition,
+    actor: Option<&str>,
+    action: &str,
+    reason: Option<&str>,
+) -> Result<(), Error> {
     row.validate().map_err(Error::Invalid)?;
     let w = row.world_id.as_deref();
     let before = if row.revision > 1 {
@@ -278,7 +288,7 @@ pub(crate) async fn put_field(
     let after = author::snapshot(row)?;
     let audit = content::audit(
         c,
-        &content::Revision::new(Some(actor), action, reason, before.clone(), after.clone()),
+        &content::Revision::new(actor, action, reason, before.clone(), after.clone()),
     )
     .await?;
     sqlx::query("INSERT INTO card_field_definitions(scope,id,world_id,slug,revision) VALUES (?,?,?,?,?) ON CONFLICT(scope,id) DO UPDATE SET slug=excluded.slug,revision=excluded.revision").bind(scope(w)).bind(&row.id).bind(w).bind(&row.fields.slug).bind(row.revision).execute(&mut *c).await.map_err(content::content_write_error)?;
@@ -948,6 +958,16 @@ pub(crate) async fn put_card(
     action: &str,
     reason: Option<&str>,
 ) -> Result<(), Error> {
+    put_card_as(c, row, Some(actor), action, reason).await
+}
+/// Preserve ordinary user-attributed calls; None selects bundled-fixture-loader.
+pub(crate) async fn put_card_as(
+    c: &mut SqliteConnection,
+    row: &CardRecord,
+    actor: Option<&str>,
+    action: &str,
+    reason: Option<&str>,
+) -> Result<(), Error> {
     row.validate().map_err(Error::Invalid)?;
     stage(c, &row.pin(), &row.component).await?;
     let i = &row.identity;
@@ -971,7 +991,7 @@ pub(crate) async fn put_card(
             let after = author::snapshot(row)?;
             let audit = content::audit(
                 c,
-                &content::Revision::new(Some(actor), action, reason, before.clone(), after.clone()),
+                &content::Revision::new(actor, action, reason, before.clone(), after.clone()),
             )
             .await?;
             sqlx::query("INSERT INTO standalone_cards(scope,id,world_id,slug,revision) VALUES (?,?,?,?,?) ON CONFLICT(scope,id) DO UPDATE SET slug=excluded.slug,revision=excluded.revision").bind(scope(w)).bind(&i.id).bind(w).bind(&row.fields.slug).bind(row.revision).execute(&mut *c).await.map_err(content::content_write_error)?;
@@ -987,7 +1007,7 @@ pub(crate) async fn put_card(
             content::put_form(
                 c,
                 &n,
-                content::Revision::new(Some(actor), action, reason, None, after),
+                content::Revision::new(actor, action, reason, None, after),
             )
             .await?;
         }
@@ -1000,7 +1020,7 @@ pub(crate) async fn put_card(
             content::put_variant(
                 c,
                 &n,
-                content::Revision::new(Some(actor), action, reason, None, after),
+                content::Revision::new(actor, action, reason, None, after),
             )
             .await?;
         }
@@ -1014,7 +1034,7 @@ pub(crate) async fn put_card(
             types::put_type(
                 c,
                 &n,
-                content::Revision::new(Some(actor), action, reason, Some(old), after),
+                content::Revision::new(actor, action, reason, Some(old), after),
             )
             .await?;
         }
@@ -1029,7 +1049,7 @@ pub(crate) async fn put_card(
             types::put_world_type(
                 c,
                 &n,
-                content::Revision::new(Some(actor), action, reason, Some(old), after),
+                content::Revision::new(actor, action, reason, Some(old), after),
             )
             .await?;
         }
@@ -1038,7 +1058,7 @@ pub(crate) async fn put_card(
             n.revision = row.revision;
             n.fields = row.fields.clone();
             n.archived_at = row.archived_at;
-            moves::put_move(c, &n, Some(actor), action, reason).await?;
+            moves::put_move(c, &n, actor, action, reason).await?;
         }
     }
     Ok(())

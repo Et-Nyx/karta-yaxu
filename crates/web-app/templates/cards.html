@@ -4,11 +4,16 @@
 <h1>{{ title }}</h1>
 <p>{{ context }}</p>
 <nav aria-label="Card authoring">{% for link in links %}<a href="{{ link.url }}">{{ link.label }}</a> {% endfor %}</nav>
+{% if !filters.is_empty() %}<form method="get" class="card-workshop-search" aria-label="Search catalog">
+{% for control in filters %}{% include "card_control.html" %}{% endfor %}
+<button>Search catalog</button></form>{% endif %}
 {% for section in sections %}
+{% if section.title == "Technical context" %}<details><summary>Technical identity, revision, origin and archive state</summary>{% endif %}
 <section><h2>{{ section.title }}</h2>
 {% for line in section.lines %}<p class="plain-text">{{ line }}</p>{% endfor %}
 {% for link in section.links %}<a href="{{ link.url }}">{{ link.label }}</a> {% endfor %}
 </section>
+{% if section.title == "Technical context" %}</details>{% endif %}
 {% endfor %}
 {% if sections.is_empty() %}<p>No entries on this page.</p>{% endif %}
 <nav aria-label="Pagination">{% if !previous.is_empty() %}<a href="{{ previous }}">Previous page</a>{% endif %} {% if !next.is_empty() %}<a href="{{ next }}">Next page</a>{% endif %}</nav>
