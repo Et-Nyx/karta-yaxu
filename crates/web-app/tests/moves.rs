@@ -1206,6 +1206,7 @@ async fn populated_0006_upgrade_preserves_existing_bytes_and_seeds_are_atomic_id
     for sql in [
         include_str!("../migrations/0008_learning.sql"),
         include_str!("../migrations/0009_cards.sql"),
+        include_str!("../migrations/0010_records.sql"),
     ] {
         sqlx::raw_sql(sql).execute(&pool).await.unwrap();
     }

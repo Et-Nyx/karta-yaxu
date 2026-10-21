@@ -10,6 +10,8 @@ use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CapturedCards {
+    #[serde(default)]
+    pub records: crate::record_inspection::CapturedRecords,
     pub cards: BTreeMap<CardPin, CardRecord>,
     pub fields: BTreeMap<FieldPin, FieldDefinition>,
     pub card_roots: BTreeSet<CardPin>,
@@ -35,6 +37,8 @@ pub enum Node {
     Card(CardPin),
     Field(FieldPin),
     Typed(DomainNodeKey),
+    Layout(crate::relations::LayoutPin),
+    Collection(crate::relations::CollectionPin),
 }
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Identity {
@@ -44,6 +48,14 @@ pub enum Identity {
         id: String,
     },
     Typed(DomainIdentity),
+    Layout {
+        world_id: Option<String>,
+        id: String,
+    },
+    Collection {
+        world_id: Option<String>,
+        id: String,
+    },
 }
 fn native_identity(key: &DomainIdentity) -> Identity {
     let namespace = match key.kind {
@@ -77,6 +89,14 @@ impl Node {
                 id: p.field_id.clone(),
             },
             Self::Typed(p) => Identity::Typed(p.identity()),
+            Self::Layout(p) => Identity::Layout {
+                world_id: p.world_id.clone(),
+                id: p.layout_id.clone(),
+            },
+            Self::Collection(p) => Identity::Collection {
+                world_id: p.world_id.clone(),
+                id: p.collection_id.clone(),
+            },
         }
     }
     pub fn version(&self) -> i64 {
@@ -84,6 +104,8 @@ impl Node {
             Self::Card(p) => p.version,
             Self::Field(p) => p.version,
             Self::Typed(p) => p.revision,
+            Self::Layout(p) => p.version,
+            Self::Collection(p) => p.version,
         }
     }
 }
@@ -92,8 +114,30 @@ pub enum Site {
     Native(Box<InspectionEdge>),
     CardSource,
     FieldSource,
-    Assignment { slot: usize },
-    CardReference { slot: usize, field: FieldPin },
+    Assignment {
+        slot: usize,
+    },
+    CardReference {
+        slot: usize,
+        field: FieldPin,
+    },
+    RecordCollection {
+        slot: usize,
+    },
+    CollectionLayout,
+    LayoutField {
+        slot: usize,
+        column_id: String,
+    },
+    LayoutSource,
+    CollectionSource,
+    RecordReference {
+        collection: crate::relations::CollectionPin,
+        entry_id: String,
+        column_id: String,
+        row_slot: usize,
+        cell_slot: usize,
+    },
 }
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Edge {
@@ -132,6 +176,7 @@ fn local(identity: &Identity, world: &str) -> bool {
         Identity::Card(i) => &i.world_id,
         Identity::Field { world_id, .. } => world_id,
         Identity::Typed(i) => &i.world_id,
+        Identity::Layout { world_id, .. } | Identity::Collection { world_id, .. } => world_id,
     };
     scope.as_deref().is_none_or(|w| w == world)
 }
@@ -150,6 +195,24 @@ pub fn where_used(capture: &CapturedWorld, query: &Query) -> Usage {
     let mut nodes: BTreeSet<Node> = capture.nodes.keys().map(Node::native).collect();
     nodes.extend(capture.card_data.cards.keys().cloned().map(Node::Card));
     nodes.extend(capture.card_data.fields.keys().cloned().map(Node::Field));
+    nodes.extend(
+        capture
+            .card_data
+            .records
+            .layouts
+            .keys()
+            .cloned()
+            .map(Node::Layout),
+    );
+    nodes.extend(
+        capture
+            .card_data
+            .records
+            .collections
+            .keys()
+            .cloned()
+            .map(Node::Collection),
+    );
     result.captured = nodes
         .into_iter()
         .filter(|n| n.identity() == query.target && query.version.is_none_or(|v| n.version() == v))
@@ -170,6 +233,24 @@ pub fn where_used(capture: &CapturedWorld, query: &Query) -> Usage {
             .map(Node::Field),
     );
     let mut edges = Vec::new();
+    roots.extend(
+        capture
+            .card_data
+            .records
+            .layout_roots
+            .iter()
+            .cloned()
+            .map(Node::Layout),
+    );
+    roots.extend(
+        capture
+            .card_data
+            .records
+            .collection_roots
+            .iter()
+            .cloned()
+            .map(Node::Collection),
+    );
     let mut work = 0;
     let mut push = |edge: Edge| {
         work += 1;
@@ -266,6 +347,96 @@ pub fn where_used(capture: &CapturedWorld, query: &Query) -> Usage {
                 }
             }
         }
+        for (pin, layout) in &capture.card_data.records.layouts {
+            let from = Node::Layout(pin.clone());
+            if let Some(source) = &layout.source {
+                let to = Node::Layout(source.clone());
+                if !push(Edge {
+                    from: from.clone(),
+                    identity: to.identity(),
+                    to: Some(to),
+                    site: Site::LayoutSource,
+                }) {
+                    break 'build;
+                }
+            }
+            for (slot, column) in layout.columns.iter().enumerate() {
+                if let crate::relations::ColumnKind::Field(field) = &column.kind {
+                    let to = Node::Field(field.pin());
+                    if !push(Edge {
+                        from: from.clone(),
+                        identity: to.identity(),
+                        to: Some(to),
+                        site: Site::LayoutField {
+                            slot: slot + 1,
+                            column_id: column.id.clone(),
+                        },
+                    }) {
+                        break 'build;
+                    }
+                }
+            }
+        }
+        for (pin, definition) in &capture.card_data.records.collections {
+            let from = Node::Collection(pin.clone());
+            let to = Node::Layout(definition.layout.pin());
+            if !push(Edge {
+                from: from.clone(),
+                identity: to.identity(),
+                to: Some(to),
+                site: Site::CollectionLayout,
+            }) {
+                break 'build;
+            }
+            if let Some(source) = &definition.source {
+                let to = Node::Collection(source.clone());
+                if !push(Edge {
+                    from,
+                    identity: to.identity(),
+                    to: Some(to),
+                    site: Site::CollectionSource,
+                }) {
+                    break 'build;
+                }
+            }
+        }
+        for (pin, record) in &capture.card_data.records.relations {
+            let from = Node::Card(pin.clone());
+            for (slot, assignment) in record.relations.collections.iter().flatten().enumerate() {
+                let to = Node::Collection(assignment.definition.pin());
+                if !push(Edge {
+                    from: from.clone(),
+                    identity: to.identity(),
+                    to: Some(to),
+                    site: Site::RecordCollection { slot: slot + 1 },
+                }) {
+                    break 'build;
+                }
+                if let crate::relations::CollectionValue::Entries(entries) = &assignment.value {
+                    for (row_slot, entry) in entries.iter().enumerate() {
+                        for (cell_slot, cell) in entry.cells.iter().enumerate() {
+                            if let crate::relations::RecordValue::Reference(pin) = &cell.value {
+                                let to = record_target(pin);
+                                if !push(Edge {
+                                    from: from.clone(),
+                                    identity: to.identity(),
+                                    to: Some(to),
+                                    site: Site::RecordReference {
+                                        collection: assignment.definition.pin(),
+                                        entry_id: entry.id.clone(),
+                                        column_id: cell.column_id.clone(),
+                                        row_slot: row_slot + 1,
+                                        cell_slot: cell_slot + 1,
+                                    },
+                                }) {
+                                    break 'build;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
     result.truncated = work > WORK;
     edges.sort(); // keep repeated occurrence sites; never deduplicate selections
@@ -342,6 +513,23 @@ pub fn where_used(capture: &CapturedWorld, query: &Query) -> Usage {
     }
     result.complete &= !result.truncated;
     result
+}
+
+pub fn record_target(pin: &crate::relations::DefinitionPin) -> Node {
+    match pin {
+        crate::relations::DefinitionPin::Card(p) => Node::Card(p.clone()),
+        crate::relations::DefinitionPin::Field(p) => Node::Field(p.clone()),
+        crate::relations::DefinitionPin::Stat {
+            world_id,
+            stat_id,
+            version,
+        } => Node::Typed(DomainNodeKey {
+            kind: DomainKind::Stat,
+            world_id: world_id.clone(),
+            id: stat_id.clone(),
+            revision: *version,
+        }),
+    }
 }
 
 #[cfg(test)]

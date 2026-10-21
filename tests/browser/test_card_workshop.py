@@ -225,13 +225,13 @@ class WorkshopWorkflows(AuthoringSupport):
         artifact = Path(self.work.name) / "workshop.json"
         downloaded.save_as(artifact)
         package = json.loads(artifact.read_bytes())
-        self.assertEqual(package["manifest"]["schema_version"], 2)
+        self.assertEqual(package["manifest"]["schema_version"], 3)
         canonical = json.dumps(package["content"], ensure_ascii=False, separators=(",", ":")).encode()
-        self.assertEqual(hashlib.sha256(b"karta-design-package-content-sha256-v2\n" + canonical).hexdigest(), digest)
-        local_kit = next(c for c in package["content"]["cards"]
+        self.assertEqual(hashlib.sha256(b"karta-design-package-content-sha256-v3\n" + canonical).hexdigest(), digest)
+        local_kit = next(c for c in package["content"]["cards"]["cards"]
                          if c["identity"]["world_id"] and c["fields"]["display_name"] == "Trail Kit" and c["revision"] == 2)
         self.assertEqual(local_kit["revision"], 2)
-        self.assertIn({"identity": local_kit["identity"], "version": 2}, package["content"]["card_roots"])
+        self.assertIn({"identity": local_kit["identity"], "version": 2}, package["content"]["cards"]["card_roots"])
         bonus = next(f for f in local_kit["component"]["fields"] if f["definition"]["fields"]["display_name"] == "Roll Bonus")
         self.assertEqual(bonus["value"], {"state": "number", "value": "4"})
         self.assert_no_horizontal_overflow()

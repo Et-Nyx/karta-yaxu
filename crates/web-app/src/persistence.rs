@@ -16,6 +16,8 @@ pub mod charts;
 pub mod inspection;
 pub mod learning;
 pub mod moves;
+pub mod record_search;
+pub mod relations;
 pub mod stat_content;
 pub mod stats;
 pub mod types;
@@ -110,7 +112,8 @@ pub async fn schema_ready(pool: &SqlitePool) -> Result<bool, String> {
             "SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name IN ('users', 'sessions', 'invites', 'species', 'species_versions', 'forms', 'form_versions', 'worlds', 'variants', 'world_revisions', 'variant_revisions', 'world_collaborators', 'world_access_revisions', 'audit_events', 'types', 'type_versions', 'world_types', 'world_type_versions', 'form_content_snapshots', 'variant_content_snapshots', 'world_content_snapshots', 'form_type_bindings', 'variant_type_bindings', 'type_version_sources', 'species_version_sources', 'form_version_sources', 'charts', 'chart_versions', 'chart_roster', 'chart_cells', 'chart_mapping', 'stat_definitions', 'stat_versions', 'stat_rosters', 'stat_roster_versions', 'stat_roster_entries', 'form_stat_snapshots', 'variant_stat_snapshots', 'form_stat_bindings', 'variant_stat_bindings', 'move_attribute_definitions', 'move_attribute_versions', 'moves', 'move_versions', 'move_attribute_bindings', 'move_attribute_mappings', 'world_rulesets', 'world_ruleset_versions', 'ruleset_attribute_expectations', 'learnsets', 'learnset_versions', 'learnset_records', 'learnset_move_mappings', 'moveset_presets', 'moveset_preset_versions', 'moveset_preset_entries')",
         ).fetch_one(pool).await.map_err(|error| error.to_string())?;
         let card_tables:i64=sqlx::query_scalar("SELECT count(*) FROM sqlite_master WHERE type='table' AND name IN ('card_legacy_boundaries','card_field_definitions','card_field_versions','card_field_options','standalone_cards','standalone_card_versions','card_components','card_component_labels','card_component_fields')").fetch_one(pool).await.map_err(|error|error.to_string())?;
-        if application_tables + card_tables != 0 {
+        let relation_tables:i64=sqlx::query_scalar("SELECT count(*) FROM sqlite_master WHERE type='table' AND name IN ('card_relation_legacy_boundaries','record_layouts','record_layout_versions','record_layout_columns','record_column_reference_kinds','record_collection_definitions','record_collection_versions','card_relation_versions','card_relation_collections','card_relation_entries','card_relation_cells')").fetch_one(pool).await.map_err(|error|error.to_string())?;
+        if application_tables + card_tables + relation_tables != 0 {
             return Err("Database has application tables without migration history; select a compatible database or investigate its history.".to_owned());
         }
         return Ok(false);
@@ -138,6 +141,17 @@ pub async fn schema_ready(pool: &SqlitePool) -> Result<bool, String> {
     }
     // Preparing zero-row reads verifies columns without scanning user/session data.
     for query in [
+        "SELECT namespace,scope,id,maximum_revision FROM card_relation_legacy_boundaries LIMIT 0",
+        "SELECT scope,id,world_id,slug,revision FROM record_layouts LIMIT 0",
+        "SELECT scope,id,revision,source_id,source_revision,slug,display_name,description,archived_at,audit_id,previous_revision,before_json,after_json FROM record_layout_versions LIMIT 0",
+        "SELECT scope,layout_id,revision,slot,column_id,label,kind,field_id,field_revision FROM record_layout_columns LIMIT 0",
+        "SELECT scope,layout_id,revision,column_slot,slot,kind FROM record_column_reference_kinds LIMIT 0",
+        "SELECT scope,id,world_id,slug,revision FROM record_collection_definitions LIMIT 0",
+        "SELECT scope,id,revision,source_id,source_revision,slug,display_name,description,archived_at,layout_id,layout_revision,audit_id,previous_revision,before_json,after_json FROM record_collection_versions LIMIT 0",
+        "SELECT namespace,scope,card_id,revision,collections_defined,audit_id,previous_revision,before_json,snapshot_json FROM card_relation_versions LIMIT 0",
+        "SELECT namespace,scope,card_id,revision,slot,collection_id,collection_revision,state FROM card_relation_collections LIMIT 0",
+        "SELECT namespace,scope,card_id,revision,collection_slot,slot,entry_id FROM card_relation_entries LIMIT 0",
+        "SELECT namespace,scope,card_id,revision,collection_slot,entry_slot,slot,column_id,state,coefficient,scale,text_value,boolean_value,option_id,ref_kind,ref_namespace,ref_scope,ref_id,ref_revision FROM card_relation_cells LIMIT 0",
         "SELECT namespace,scope,id,maximum_revision FROM card_legacy_boundaries LIMIT 0",
         "SELECT namespace,scope,card_id,revision,fields_defined,rules_text,labels_defined,audit_id,snapshot_json FROM card_components LIMIT 0",
         "SELECT scope,id,world_id,slug,revision FROM card_field_definitions LIMIT 0",

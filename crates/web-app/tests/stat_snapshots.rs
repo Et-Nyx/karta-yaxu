@@ -45,7 +45,7 @@ fn envelope(value: &impl serde::Serialize) -> String {
     serde_json::to_string_pretty(&json!({"snapshot_version":1,"content":value})).unwrap()
 }
 impl Lab {
-    // Current writer tests use schema 9. Only the explicit historical upgrade
+    // Current writer tests use schema 10. Only the explicit historical upgrade
     // case starts earlier and appends its v1/v2 rows through raw historical SQL.
     async fn new(through: i64) -> Self {
         let dir = tempfile::tempdir().unwrap();
@@ -127,6 +127,11 @@ async fn migrate_through(pool: &SqlitePool, through: i64) {
             include_str!("../migrations/0008_learning.sql"),
         ),
         (9, "cards", include_str!("../migrations/0009_cards.sql")),
+        (
+            10,
+            "records",
+            include_str!("../migrations/0010_records.sql"),
+        ),
     ];
     let migrations = scripts
         .into_iter()
@@ -280,7 +285,7 @@ async fn chains(l: &Lab, kind: HistoryKind, id: &str) {
 
 #[tokio::test]
 async fn stats_writers_preserve_typing_and_all_other_writers_preserve_exact_stats() {
-    let l = Lab::new(9).await;
+    let l = Lab::new(10).await;
     let s = l
         .author
         .create_species(&l.token, fields("Creature"), None)
@@ -404,7 +409,7 @@ async fn stats_writers_preserve_typing_and_all_other_writers_preserve_exact_stat
 
 #[tokio::test]
 async fn empty_unmodeled_and_missing_values_are_sealed_and_late_orphan_writes_fail() {
-    let l = Lab::new(9).await;
+    let l = Lab::new(10).await;
     let s = l
         .author
         .create_species(&l.token, fields("Creature"), None)
@@ -472,7 +477,7 @@ async fn empty_unmodeled_and_missing_values_are_sealed_and_late_orphan_writes_fa
 #[tokio::test]
 async fn stat_failures_roll_back_heads_audits_projections_bindings_and_seals() {
     for table in ["form_stat_snapshots", "form_versions"] {
-        let l = Lab::new(9).await;
+        let l = Lab::new(10).await;
         let s = l
             .author
             .create_species(&l.token, fields("Creature"), None)
@@ -519,7 +524,7 @@ async fn stat_failures_roll_back_heads_audits_projections_bindings_and_seals() {
 
 #[tokio::test]
 async fn malformed_canonical_values_constraints_dependencies_and_projection_chains_fail_closed() {
-    let l = Lab::new(9).await;
+    let l = Lab::new(10).await;
     let s = l
         .author
         .create_species(&l.token, fields("Creature"), None)
@@ -843,7 +848,7 @@ async fn populated_0004_upgrade_preserves_every_old_column_and_v1_v2_to_v3_chain
 
 #[tokio::test]
 async fn variant_scope_roster_order_and_typed_values_are_exact_and_missing_v3_never_falls_back() {
-    let l = Lab::new(9).await;
+    let l = Lab::new(10).await;
     let w = l
         .author
         .create_world(&l.token, fields("World"), None)
@@ -1047,7 +1052,7 @@ async fn variant_scope_roster_order_and_typed_values_are_exact_and_missing_v3_ne
 
 #[tokio::test]
 async fn v3_guards_and_composite_deferred_fks_require_exact_owner_markers_even_for_empty_seals() {
-    let l = Lab::new(9).await;
+    let l = Lab::new(10).await;
     let s = l
         .author
         .create_species(&l.token, fields("Creature"), None)
@@ -1127,7 +1132,7 @@ async fn v3_guards_and_composite_deferred_fks_require_exact_owner_markers_even_f
 
 #[tokio::test]
 async fn stat_bindings_do_not_inherit_the_type_cardinality_limit() {
-    let l = Lab::new(9).await;
+    let l = Lab::new(10).await;
     let w = l
         .author
         .create_world(&l.token, fields("World"), None)

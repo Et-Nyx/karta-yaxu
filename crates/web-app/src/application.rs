@@ -11,6 +11,8 @@ pub mod inspection;
 pub mod learning;
 mod move_fixtures;
 pub mod moves;
+pub mod relation_workshop;
+pub mod relations;
 mod stat_fixtures;
 pub mod stat_values;
 pub mod stats;

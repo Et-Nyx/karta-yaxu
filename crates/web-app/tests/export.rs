@@ -2,12 +2,13 @@
 use game_data::{
     authoring::ContentFields,
     card_fields::{CardField, ChoiceOption, FieldKind, FieldValue},
-    card_package::{CardPackage, native_card_pin},
+    card_package::native_card_pin,
     cards::{CardComponent, CardPin},
     inspection::{DomainKind, DomainNodeKey, InspectionLimits, InspectionPayload},
     inspection_analysis::FindingCategory,
     moves::NumericValue,
     package::Package,
+    record_package::RecordPackage as CardPackage,
     stats::NumericConstraints,
 };
 use sqlx::{AssertSqlSafe, SqlitePool};
@@ -340,8 +341,8 @@ async fn both_full_labs_roundtrip_exact_roots_bindings_drafts_and_numeric_states
             .expect("real fixture capture must pass the offline reader");
         assert_eq!(offline, result.package);
         assert_eq!(offline.to_bytes().unwrap(), result.bytes);
-        assert_eq!(offline.manifest.schema_version, 2);
-        assert_eq!(offline.content.typed.schema_version, 1);
+        assert_eq!(offline.manifest.schema_version, 3);
+        assert_eq!(offline.content.cards.typed.schema_version, 1);
         let expected_records = fixture_records(world, &emberling_default);
         let expected_cards: BTreeSet<_> = expected_records
             .iter()
@@ -350,6 +351,7 @@ async fn both_full_labs_roundtrip_exact_roots_bindings_drafts_and_numeric_states
         assert_eq!(
             offline
                 .content
+                .cards
                 .cards
                 .iter()
                 .map(|c| c.pin())
@@ -360,6 +362,7 @@ async fn both_full_labs_roundtrip_exact_roots_bindings_drafts_and_numeric_states
         assert_eq!(
             offline
                 .content
+                .cards
                 .card_roots
                 .iter()
                 .cloned()
@@ -369,30 +372,38 @@ async fn both_full_labs_roundtrip_exact_roots_bindings_drafts_and_numeric_states
                 .filter_map(native_card_pin)
                 .collect()
         );
-        assert!(offline.content.fields.is_empty());
-        assert!(offline.content.field_roots.is_empty());
+        assert!(offline.content.cards.fields.is_empty());
+        assert!(offline.content.cards.field_roots.is_empty());
         assert_eq!(
             offline.manifest.root_count,
-            expected_roots + offline.content.card_roots.len()
+            expected_roots + offline.content.cards.card_roots.len()
         );
         assert_eq!(
             offline.manifest.record_count,
-            expected_records.len() + expected_cards.len()
+            expected_records.len() + expected_cards.len() * 2
         );
-        assert!(offline.content.cards.iter().all(|c| !c.legacy_unmodeled));
+        assert!(
+            offline
+                .content
+                .cards
+                .cards
+                .iter()
+                .all(|c| !c.legacy_unmodeled)
+        );
         // Freeze one legacy envelope through the pure v1 builder/reader. The
         // unchanged fixture projection is still a complete v1 closure.
         if world == CLASSIC {
-            let legacy = Package::build(offline.content.typed.clone()).unwrap();
+            let legacy = Package::build(offline.content.cards.typed.clone()).unwrap();
             let legacy_bytes = legacy.to_bytes().unwrap();
             assert_eq!(Package::from_bytes(&legacy_bytes).unwrap(), legacy);
             assert!(CardPackage::from_bytes(&legacy_bytes).is_err());
         }
         assert!(Package::from_bytes(&result.bytes).is_err());
-        assert_eq!(offline.content.typed.roots.len(), expected_roots);
+        assert_eq!(offline.content.cards.typed.roots.len(), expected_roots);
         assert_eq!(
             offline
                 .content
+                .cards
                 .typed
                 .roots
                 .iter()
@@ -403,6 +414,7 @@ async fn both_full_labs_roundtrip_exact_roots_bindings_drafts_and_numeric_states
         assert_eq!(
             offline
                 .content
+                .cards
                 .typed
                 .records
                 .iter()
@@ -414,6 +426,7 @@ async fn both_full_labs_roundtrip_exact_roots_bindings_drafts_and_numeric_states
         assert_eq!(
             offline
                 .content
+                .cards
                 .typed
                 .bindings
                 .iter()
@@ -432,7 +445,7 @@ async fn both_full_labs_roundtrip_exact_roots_bindings_drafts_and_numeric_states
             ])
         );
         assert!(
-            offline.content.typed.records.iter().all(|r| r
+            offline.content.cards.typed.records.iter().all(|r| r
                 .key
                 .world_id
                 .as_deref()
@@ -441,6 +454,7 @@ async fn both_full_labs_roundtrip_exact_roots_bindings_drafts_and_numeric_states
         assert!(
             offline
                 .content
+                .cards
                 .typed
                 .records
                 .windows(2)
@@ -449,24 +463,26 @@ async fn both_full_labs_roundtrip_exact_roots_bindings_drafts_and_numeric_states
         assert!(
             offline
                 .content
+                .cards
                 .typed
                 .bindings
                 .windows(2)
                 .all(|w| w[0].identity < w[1].identity)
         );
-        assert!(!offline.content.typed.bindings.is_empty());
-        for binding in &offline.content.typed.bindings {
+        assert!(!offline.content.cards.typed.bindings.is_empty());
+        for binding in &offline.content.cards.typed.bindings {
             assert_eq!(binding.identity, binding.target.identity());
             assert!(
                 offline
                     .content
+                    .cards
                     .typed
                     .records
                     .iter()
                     .any(|r| r.key == binding.target)
             );
         }
-        for record in &offline.content.typed.records {
+        for record in &offline.content.cards.typed.records {
             let owner = match &record.payload {
                 InspectionPayload::Species(r) => {
                     Some(key(DomainKind::Form, None, &r.default_form_id, 1))
@@ -490,6 +506,7 @@ async fn both_full_labs_roundtrip_exact_roots_bindings_drafts_and_numeric_states
                 assert!(
                     offline
                         .content
+                        .cards
                         .typed
                         .bindings
                         .iter()
@@ -502,7 +519,7 @@ async fn both_full_labs_roundtrip_exact_roots_bindings_drafts_and_numeric_states
             .await
             .unwrap()
             .unwrap();
-        assert!(offline.content.typed.records.iter().any(
+        assert!(offline.content.cards.typed.records.iter().any(
             |r| matches!(&r.payload, InspectionPayload::Learnset(record) if record == &saved)
         ));
         let acquisitions = saved.records.as_ref().unwrap();
@@ -516,7 +533,7 @@ async fn both_full_labs_roundtrip_exact_roots_bindings_drafts_and_numeric_states
         );
         assert_eq!(acquisitions[2].threshold, NumericValue::NotApplicable);
         let exact_move = moves.detail(Some(world), probe).await.unwrap();
-        assert!(offline.content.typed.records.iter().any(
+        assert!(offline.content.cards.typed.records.iter().any(
             |r| matches!(&r.payload, InspectionPayload::Move(record) if record == &exact_move)
         ));
         let attributes = exact_move.attributes.as_ref().unwrap();
@@ -530,7 +547,7 @@ async fn both_full_labs_roundtrip_exact_roots_bindings_drafts_and_numeric_states
                 preset.validator_version, 1,
                 "export must not revalidate saved policies"
             );
-            assert!(offline.content.typed.records.iter().any(
+            assert!(offline.content.cards.typed.records.iter().any(
                 |r| matches!(&r.payload, InspectionPayload::Preset(record) if record == &preset)
             ));
             if world == VARIANT && preset.entries.len() == 3 {
@@ -659,7 +676,7 @@ async fn custom_cards_freeze_typed_old_references_field_sources_and_identity_cyc
         .await
         .unwrap();
     let baseline = l.preview(&world.id).await;
-    assert_eq!(baseline.package.content.typed.records.len(), 1);
+    assert_eq!(baseline.package.content.cards.typed.records.len(), 1);
     drop(baseline);
     let shared_ref = cards
         .create_field(
@@ -857,15 +874,16 @@ async fn custom_cards_freeze_typed_old_references_field_sources_and_identity_cyc
     assert_eq!(offline.to_bytes().unwrap(), result.bytes);
     assert_eq!(l.preview(&world.id).await.bytes, result.bytes);
     assert_eq!(
-        offline.content.typed.roots,
+        offline.content.cards.typed.roots,
         vec![key(DomainKind::World, None, &world.id, 1)]
     );
-    assert_eq!(offline.content.card_roots, vec![local.pin()]);
+    assert_eq!(offline.content.cards.card_roots, vec![local.pin()]);
     let mut expected_fields: BTreeSet<_> = assignments.iter().map(|a| a.definition.pin()).collect();
     expected_fields.insert(unused_field.pin());
     assert_eq!(
         offline
             .content
+            .cards
             .field_roots
             .iter()
             .cloned()
@@ -876,6 +894,7 @@ async fn custom_cards_freeze_typed_old_references_field_sources_and_identity_cyc
     assert_eq!(
         offline
             .content
+            .cards
             .fields
             .iter()
             .map(|f| f.pin())
@@ -887,7 +906,7 @@ async fn custom_cards_freeze_typed_old_references_field_sources_and_identity_cyc
     expected_cards.extend(default_binding_cards);
     expected_cards.sort_by_key(|c| c.pin());
     assert_eq!(
-        offline.content.cards, expected_cards,
+        offline.content.cards.cards, expected_cards,
         "exact historical graph survives cyclic identities with only the required default-Form head binding"
     );
     let mut expected_typed = BTreeSet::from([
@@ -899,6 +918,7 @@ async fn custom_cards_freeze_typed_old_references_field_sources_and_identity_cyc
     assert_eq!(
         offline
             .content
+            .cards
             .typed
             .records
             .iter()
@@ -906,15 +926,15 @@ async fn custom_cards_freeze_typed_old_references_field_sources_and_identity_cyc
             .collect::<BTreeSet<_>>(),
         expected_typed
     );
-    assert_eq!(offline.content.typed.bindings.len(), 1);
+    assert_eq!(offline.content.cards.typed.bindings.len(), 1);
     assert_eq!(
-        offline.content.typed.bindings[0].target,
+        offline.content.cards.typed.bindings[0].target,
         key(DomainKind::Form, None, &species.default_form_id, 2)
     );
     assert_eq!(offline.manifest.root_count, 1 + 1 + assignments.len() + 1);
     assert_eq!(
         offline.manifest.record_count,
-        expected_typed.len() + expected_cards.len() + expected_fields.len()
+        expected_typed.len() + expected_cards.len() * 2 + expected_fields.len()
     );
     let digest = offline.manifest.content_sha256.clone();
     let Confirmation::Download(download) = l
@@ -970,8 +990,11 @@ async fn custom_cards_freeze_typed_old_references_field_sources_and_identity_cyc
         panic!("custom-only card edits must require a fresh review")
     };
     assert_ne!(changed.package.manifest.content_sha256, digest);
-    assert!(changed.package.content.cards.contains(&updated));
-    assert_eq!(changed.package.content.typed, offline.content.typed);
+    assert!(changed.package.content.cards.cards.contains(&updated));
+    assert_eq!(
+        changed.package.content.cards.typed,
+        offline.content.cards.typed
+    );
     assert_eq!(l.snapshot().await, before);
     let fresh_digest = changed.package.manifest.content_sha256.clone();
     drop(changed);
@@ -1059,11 +1082,11 @@ async fn permissions_are_enforced_by_every_use_case_and_private_access_changes_d
     assert!(l.export.entry(&editor, address(&w.id)).await.is_ok());
     let result = l.export.preview(&editor, address(&w.id)).await.unwrap();
     assert_eq!(
-        result.package.content.typed.roots,
+        result.package.content.cards.typed.roots,
         vec![key(DomainKind::World, None, &w.id, 1)]
     );
-    assert_eq!(result.package.content.typed.records.len(), 1);
-    assert!(result.package.content.typed.bindings.is_empty());
+    assert_eq!(result.package.content.cards.typed.records.len(), 1);
+    assert!(result.package.content.cards.typed.bindings.is_empty());
     drop(result);
     assert_eq!(l.snapshot().await, before);
     l.accounts.set_disabled(&editor_id, true).await.unwrap();
@@ -1100,6 +1123,7 @@ async fn source_form_does_not_import_a_learnset_but_independent_explicit_adoptio
         first
             .package
             .content
+            .cards
             .typed
             .records
             .iter()
@@ -1109,6 +1133,7 @@ async fn source_form_does_not_import_a_learnset_but_independent_explicit_adoptio
         !first
             .package
             .content
+            .cards
             .typed
             .records
             .iter()
@@ -1118,6 +1143,7 @@ async fn source_form_does_not_import_a_learnset_but_independent_explicit_adoptio
         first
             .package
             .content
+            .cards
             .typed
             .roots
             .iter()
@@ -1189,7 +1215,7 @@ async fn source_form_does_not_import_a_learnset_but_independent_explicit_adoptio
             "defined empty stays distinct from unmodeled"
         );
         assert!(
-            offline.content.typed.records.iter().any(
+            offline.content.cards.typed.records.iter().any(
                 |r| matches!(&r.payload, InspectionPayload::Learnset(record) if record == &set)
             )
         );
@@ -1198,6 +1224,7 @@ async fn source_form_does_not_import_a_learnset_but_independent_explicit_adoptio
     assert!(
         offline
             .content
+            .cards
             .typed
             .bindings
             .iter()
@@ -1206,6 +1233,7 @@ async fn source_form_does_not_import_a_learnset_but_independent_explicit_adoptio
     assert!(
         offline
             .content
+            .cards
             .typed
             .records
             .iter()
@@ -1214,6 +1242,7 @@ async fn source_form_does_not_import_a_learnset_but_independent_explicit_adoptio
     assert!(
         offline
             .content
+            .cards
             .typed
             .records
             .iter()
@@ -1222,6 +1251,7 @@ async fn source_form_does_not_import_a_learnset_but_independent_explicit_adoptio
     assert!(
         !offline
             .content
+            .cards
             .typed
             .roots
             .iter()
@@ -1263,17 +1293,17 @@ async fn unused_active_moves_are_catalog_roots_with_distinct_unmodeled_and_defin
     let before = l.snapshot().await;
     let result = l.preview(&world.id).await;
     let offline = CardPackage::from_bytes(&result.bytes).unwrap();
-    assert_eq!(offline.content.typed.roots.len(), 3);
-    assert_eq!(offline.content.typed.records.len(), 3);
-    assert!(offline.content.typed.bindings.is_empty());
+    assert_eq!(offline.content.cards.typed.roots.len(), 3);
+    assert_eq!(offline.content.cards.typed.records.len(), 3);
+    assert!(offline.content.cards.typed.bindings.is_empty());
     assert_eq!(
-        offline.content.typed.world.revision, world.revision,
+        offline.content.cards.typed.world.revision, world.revision,
         "independent definitions do not revise the world"
     );
     assert!(created[0].attributes.is_none());
     assert_eq!(created[1].attributes, Some(vec![]));
     for row in created {
-        assert!(offline.content.typed.roots.contains(&key(
+        assert!(offline.content.cards.typed.roots.contains(&key(
             DomainKind::Move,
             Some(&world.id),
             &row.id,
@@ -1282,6 +1312,7 @@ async fn unused_active_moves_are_catalog_roots_with_distinct_unmodeled_and_defin
         assert!(
             offline
                 .content
+                .cards
                 .typed
                 .records
                 .iter()
@@ -1318,11 +1349,12 @@ async fn archived_unused_move_is_excluded_before_corrupt_or_oversized_snapshot_r
         .unwrap();
     let active = l.preview(&world.id).await;
     let move_key = key(DomainKind::Move, Some(&world.id), &unused.id, 1);
-    assert!(active.package.content.typed.roots.contains(&move_key));
+    assert!(active.package.content.cards.typed.roots.contains(&move_key));
     assert!(
         active
             .package
             .content
+            .cards
             .typed
             .records
             .iter()
@@ -1368,13 +1400,14 @@ async fn archived_unused_move_is_excluded_before_corrupt_or_oversized_snapshot_r
             result.bytes, empty_bytes,
             "excluded archived data must not affect capture or its digest"
         );
-        assert!(!result.package.content.typed.roots.contains(&move_key));
+        assert!(!result.package.content.cards.typed.roots.contains(&move_key));
         let pin = native_card_pin(&move_key).unwrap();
-        assert!(!result.package.content.card_roots.contains(&pin));
+        assert!(!result.package.content.cards.card_roots.contains(&pin));
         assert!(
             !result
                 .package
                 .content
+                .cards
                 .cards
                 .iter()
                 .any(|c| c.identity == pin.identity)
@@ -1383,6 +1416,7 @@ async fn archived_unused_move_is_excluded_before_corrupt_or_oversized_snapshot_r
             !result
                 .package
                 .content
+                .cards
                 .typed
                 .records
                 .iter()
@@ -1410,9 +1444,9 @@ async fn archived_unused_move_is_excluded_before_corrupt_or_oversized_snapshot_r
 async fn required_older_move_survives_as_dependency_when_its_current_head_is_archived() {
     let l = Lab::new().await;
     let initial = l.preview(CLASSIC).await;
-    let mut expected_roots = initial.package.content.typed.roots.clone();
-    let expected_records = initial.package.content.typed.records.clone();
-    let expected_bindings = initial.package.content.typed.bindings.clone();
+    let mut expected_roots = initial.package.content.cards.typed.roots.clone();
+    let expected_records = initial.package.content.cards.typed.records.clone();
+    let expected_bindings = initial.package.content.cards.typed.bindings.clone();
     drop(initial);
     let moves = Moves::new(l.accounts.clone());
     let old = moves.detail(Some(CLASSIC), PROBE).await.unwrap();
@@ -1461,18 +1495,26 @@ async fn required_older_move_survives_as_dependency_when_its_current_head_is_arc
     let before = l.snapshot().await;
     let result = l.preview(CLASSIC).await;
     let offline = CardPackage::from_bytes(&result.bytes).unwrap();
-    assert_eq!(offline.content.typed.roots, expected_roots);
+    assert_eq!(offline.content.cards.typed.roots, expected_roots);
     assert_eq!(
-        offline.content.typed.records, expected_records,
+        offline.content.cards.typed.records, expected_records,
         "required old exact content is preserved, but the archived current head is not imported"
     );
-    assert_eq!(offline.content.typed.bindings, expected_bindings);
+    assert_eq!(offline.content.cards.typed.bindings, expected_bindings);
     let old_pin = native_card_pin(&old_key).unwrap();
-    assert!(offline.content.cards.iter().any(|c| c.pin() == old_pin));
-    assert!(!offline.content.card_roots.contains(&old_pin));
+    assert!(
+        offline
+            .content
+            .cards
+            .cards
+            .iter()
+            .any(|c| c.pin() == old_pin)
+    );
+    assert!(!offline.content.cards.card_roots.contains(&old_pin));
     assert!(
         !offline
             .content
+            .cards
             .cards
             .iter()
             .any(|c| c.identity == old_pin.identity && c.revision == 2)
@@ -1480,6 +1522,7 @@ async fn required_older_move_survives_as_dependency_when_its_current_head_is_arc
     assert!(
         offline
             .content
+            .cards
             .typed
             .records
             .iter()
@@ -1488,6 +1531,7 @@ async fn required_older_move_survives_as_dependency_when_its_current_head_is_arc
     assert!(
         !offline
             .content
+            .cards
             .typed
             .records
             .iter()
@@ -1500,7 +1544,7 @@ async fn required_older_move_survives_as_dependency_when_its_current_head_is_arc
         .unwrap();
     assert_eq!(learnset.records.as_ref().unwrap()[0].move_record, old);
     assert!(
-        offline.content.typed.records.iter().any(
+        offline.content.cards.typed.records.iter().any(
             |r| matches!(&r.payload, InspectionPayload::Learnset(record) if record == &learnset)
         )
     );
@@ -1568,9 +1612,9 @@ async fn archived_variant_excludes_its_learnset_and_presets_without_expanding_wo
     assert!(
         excluded
             .iter()
-            .all(|k| active.package.content.typed.roots.contains(k))
+            .all(|k| active.package.content.cards.typed.roots.contains(k))
     );
-    let mut expected = active.package.content.typed.clone();
+    let mut expected = active.package.content.cards.typed.clone();
     expected.roots.retain(|k| !excluded.contains(k));
     expected.records.retain(|r| !excluded.contains(&r.key));
     expected.bindings.retain(|b| {
@@ -1634,15 +1678,16 @@ async fn archived_variant_excludes_its_learnset_and_presets_without_expanding_wo
     let result = l.preview(CLASSIC).await;
     let offline = CardPackage::from_bytes(&result.bytes).unwrap();
     assert_eq!(
-        offline.content.typed, expected,
+        offline.content.cards.typed, expected,
         "catalog membership must not resurrect an archived variant or its independent children"
     );
     let archived_pin =
         native_card_pin(&key(DomainKind::Variant, Some(CLASSIC), &variant.id, 1)).unwrap();
-    assert!(!offline.content.card_roots.contains(&archived_pin));
+    assert!(!offline.content.cards.card_roots.contains(&archived_pin));
     assert!(
         !offline
             .content
+            .cards
             .cards
             .iter()
             .any(|c| c.identity == archived_pin.identity)
@@ -1650,6 +1695,7 @@ async fn archived_variant_excludes_its_learnset_and_presets_without_expanding_wo
     assert!(
         offline
             .content
+            .cards
             .typed
             .records
             .iter()
@@ -1709,6 +1755,7 @@ async fn independent_move_edit_and_world_rename_require_new_review_and_keep_exac
         changed
             .package
             .content
+            .cards
             .typed
             .records
             .iter()
@@ -1719,13 +1766,14 @@ async fn independent_move_edit_and_world_rename_require_new_review_and_keep_exac
         changed
             .package
             .content
+            .cards
             .typed
             .records
             .iter()
             .any(|r| r.key == new_key)
     );
-    assert!(!changed.package.content.typed.roots.contains(&old_key));
-    assert!(changed.package.content.typed.roots.contains(&new_key));
+    assert!(!changed.package.content.cards.typed.roots.contains(&old_key));
+    assert!(changed.package.content.cards.typed.roots.contains(&new_key));
     let digest = changed.package.manifest.content_sha256.clone();
     drop(changed);
     assert_eq!(l.snapshot().await, before);

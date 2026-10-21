@@ -158,7 +158,13 @@ pub fn where_used(capture: &CapturedWorld, query: &WhereUsedQuery) -> WhereUsedR
         paths: vec![],
         total: 0,
         truncated: false,
-        complete: capture.is_complete(),
+        complete: capture.is_complete()
+            && !capture.card_data.records.relations.values().any(|r| {
+                r.relations
+                    .collections
+                    .as_ref()
+                    .is_some_and(|v| !v.is_empty())
+            }),
     };
     if !identity_in_scope(capture, &query.target) {
         return result;
@@ -965,6 +971,9 @@ fn dependency_findings(capture: &CapturedWorld, findings: &mut Vec<InspectionFin
             }
         }
     }
+    used.extend(crate::record_inspection::referenced_typed(
+        capture.card_data.records.relations.values(),
+    ));
     for (key, role) in &capture.roots {
         if *role == RootRole::Dependency
             || key.kind == DomainKind::World

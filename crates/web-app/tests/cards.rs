@@ -1394,6 +1394,12 @@ async fn populated_upgrade_records_legacy_boundary_without_rewriting_old_values_
         audits
     );
     let cards = Cards::new(accounts.clone());
+    // Current complete card readers also require the additive record boundary.
+    pool.execute(sqlx::raw_sql(include_str!(
+        "../migrations/0010_records.sql"
+    )))
+    .await
+    .unwrap();
     let i = CardIdentity {
         namespace: CardNamespace::Type,
         world_id: None,

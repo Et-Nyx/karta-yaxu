@@ -22,6 +22,16 @@ owning revisions, alongside standalone cards and reusable typed fields. See
 the battle simulator are the absolute final steps**, after content/world authoring
 and fine-tuning; instance and deck-building execution are not implemented.
 
+The **Derived Values Foundation (ADR0019) is implemented**: native shared/local
+formula editing, attributed exact history and a public read-only calculator with
+named sample inputs. Calculations use bounded exact signed fractions and explicit
+rounding, states and errors; no live content/formula bindings, source adoption or
+scripts are introduced. See [the guide and original UI exercises](docs/architecture/derived-values.md)
+and [package schema 4](docs/architecture/design-package-v4.md).
+Formatting, strict Clippy and Rust checks passed. All 120 keyboard browser cases
+passed across the bounded full-suite attempt and the remaining-module run; see
+[checks](#checks) for the timeout and verification details.
+
 ## Run locally
 
 Requires Nix with flakes enabled on Linux. From the project root:
@@ -79,6 +89,20 @@ controls and searchable catalogs support editing without copying opaque IDs.
 Workshop setup is a separate atomic 15-object/16-event batch and never runs with
 old seeds, startup or migrations. Reruns preserve edits. See the
 [Card Workshop guide](docs/architecture/card-workshop.md).
+
+The [Card Relationships milestone](docs/architecture/card-records.md) adds reusable
+record layouts and named collections for Items, Abilities, Resources, Natures/traits
+and other world-defined content. On schema 10, optionally initialize its separate
+original examples:
+
+```bash
+cargo run -p web-app --bin admin -- seed-card-relations --owner-user-id <immutable-user-id>
+```
+
+Open `/worlds/card-relations-workshop`: Second Wind has Ember ×2 / Focus ×1 resource
+cost records; Field Satchel grants it; Fernstrider has Patient/Restless trait options.
+Patient describes optional exact Stat/field influences without executing them.
+This batch is independently atomic/idempotent (28 objects/29 initial events).
 
 Stop with Ctrl+C. SIGINT and SIGTERM trigger graceful shutdown. The first build
 needs network access for pinned packages and crates; normal use and tests do not
@@ -168,6 +192,32 @@ is a future explicit operation; it is not silently performed by account disablin
    complete before/after snapshots. Public world snapshots omit access details.
 6. The owner can manage collaborators using their immutable account ids. Access
    history is private and has a separate revision counter from content.
+
+### Formulas and sample calculation
+
+Open **Formulas** (`/formulas`) or the world's **Formulas** link. Shared authoring
+requires an administrator; local authoring requires an eligible enabled owner or
+collaborator. Create metadata, then separately edit named inputs, ordered steps and
+explicit output. Operands are constants, inputs or strictly earlier steps. The
+format bounds are **100 inputs/200 steps**, not gameplay limits. Operations are
+add/subtract/multiply/divide/minimum/maximum/clamp and explicit round (scale 0–6,
+floor/ceiling/toward_zero/nearest_ties_even). Input constraints validate, never clamp.
+
+Known decimals use signed i64 coefficients/scale 0–6; results are reduced signed
+i64-numerator/positive-i64-denominator fractions with checked i128 intermediates.
+There is no silent rounding or arbitrary precision. Overflow, division by zero and
+reversed clamp bounds are explicit errors. Missing/Unknown/NotApplicable block
+consumers with reasons, distinct from Known zero; even `0 × Unknown` stays blocked.
+
+Choose **Sample calculator (this exact revision)** on a current or historical
+definition, including archived revisions. Public bounded POSTs require no login or
+CSRF, save no sample/results/history, keep inputs out of URLs and return
+`private, no-store`. Definition writes retain ID-bound CSRF, atomic attributed
+revisions, raw error/conflict drafts and explicit review; archive changes require
+review/confirmation. Native pages display at most 25 entries (five steps per editor
+page), under a 32 KiB POST/draft budget. Save incrementally before changing editing
+operations or exceeding that budget. See [derived values](docs/architecture/derived-values.md)
+for exact negative rounding and keyboard-accessible original examples.
 
 ### Cards and reusable fields
 
@@ -495,20 +545,27 @@ Card-aware public reports extend this capture at
 `/worlds/{world}/inspection/cards` and `/worlds/{world}/inspection/cards/where-used`.
 They include native components, standalone cards, reusable field definitions and
 mixed native/custom direct usage and bounded root paths. Both typed and card
-pages share the complete-only **fingerprint v2**, including card/field roots,
-content and observed heads. Partial capture/truncated usage stays explicit; it
+pages share the complete-only **fingerprint v4**, including card/field/record roots,
+exact layouts, collections, row/cell evidence, current local formula inventory
+(including archived definitions) and observed heads. Formula semantics 1 has no
+external dependency edges; inventory membership does not invent consumer usage.
+Partial capture/truncated usage stays explicit; it
 does not imply authored Unknown, globally unused or safe to delete. Card inspection
-adds no further fixture objects; migration 0009 supplies its card storage.
+adds no further fixture objects; migrations 0009/0010 supply card and record storage.
+`/worlds/{world}/inspection/records` and its `/where-used` suffix include mixed
+Card/Stat/Field/layout/collection usage with exact repeated row/cell occurrence sites.
 
 ### Frozen design packages
 
 **First Frozen Design Package** delivered schema v1; new browser downloads now use
-`karta-design-package` **schema 2**, `game_data::card_package::CardPackage`.
+`karta-design-package` **schema 4**, `game_data::formula_package::FormulaPackage`.
 It freezes authored design content, including well-formed drafts, for offline
-reading. The unchanged schema-1 `game_data::package::Package` reader and the new
-schema-2 reader are intended for eventual engine
+reading. The unchanged schema-1 `game_data::package::Package` and schema-2
+`game_data::card_package::CardPackage` and schema-3
+`game_data::record_package::RecordPackage` readers remain unchanged and supported.
+These shared contracts are intended for eventual engine
 integration; no engine currently consumes it, and structural acceptance does not
-establish gameplay acceptance or combat readiness. Effects, formulas, acquisition
+establish gameplay acceptance or combat readiness. Effects, formula samples, acquisition
 eligibility, scripts and battle execution remain unevaluated.
 
 1. Sign in as an enabled editor/administrator who owns the active world or is its
@@ -548,6 +605,20 @@ a projection, **not necessarily a standalone v1 package**: custom references can
 reach additional older/archived native cards. All typed constraints still apply;
 the combined graph rejects missing dependencies and unrelated extras.
 
+Schema 3 adds active local layout/collection-definition roots and one complete
+same-revision record companion per card. Its `cards` object retains schema 2 as a
+projection: record references can add exact Card, Stat or Field dependencies outside
+the old closure. The schema-3 reader proves the combined graph, embedded equality,
+column allowlists, stable entries/cells and complete dependencies. Absent cells,
+explicit draft states and repeated targets survive without coercion or deduplication.
+
+Schema 4 wraps unchanged schema-3 `records` content (with cards v2/typed v1) and
+adds active local formula roots and exact definitions. Semantics 1 has no external
+formula dependencies; exact same-world root/definition equality rejects missing,
+extra, duplicate, archived, foreign or unsupported evidence. The canonical hash
+domain is `karta-design-package-content-sha256-v4\n`. Formula samples are not
+evaluated or exported. See [the v4 protocol](docs/architecture/design-package-v4.md).
+
 Capture resolves the world first in one ordinary SQLite read transaction, checks
 session/permission on that connection and materializes content before ending the
 transaction. Package-wide validation, diagnostics, hashing, serialization and
@@ -576,7 +647,7 @@ cargo run -p tools -- validate-package - < path/to/package.json
 cargo run -p tools -- validate-package < path/to/package.json
 ```
 
-`validate-package [path|-]` defaults to stdin, dispatches schema **1 or 2** to the
+`validate-package [path|-]` defaults to stdin, dispatches schemas **1, 2, 3 or 4** to the
 corresponding strict reader, needs no database/network and exits
 nonzero on structural rejection. Success prints the digest, counts and separate
 diagnostic counts. This CLI **validates only**; package creation is the browser
@@ -586,7 +657,7 @@ workflow above.
 exact nodes, 65,536 reference occurrences, 1 MiB per preflighted snapshot, 16 MiB
 total accounted snapshot bytes and a cooperative 10-second acquisition/anchor/
 capture deadline. Package input and complete output are additionally capped at
-**32 MiB**; schema 2 combines typed/card/field root (2,048), record (8,192) and
+**32 MiB**; schema 4 combines typed/card/field/layout/collection/formula root (2,048), evidence-record (8,192) and
 authored occurrence (65,536) budgets; native components count separately from typed
 records. The reader bounds bindings too. At most
 **two export jobs per service** hold admission through validation, serialization
@@ -594,8 +665,9 @@ and preview rendering. CPU work uses blocking workers. The SQLite progress callb
 caches and cancellation cleanup are shared with inspection; nested verification
 is not a perfect cost meter, and five-second busy waits, filesystem and non-VM work
 can outlast the deadline. These are operational bounds, not hard real-time or new
-game cardinality rules. See the [v2 protocol and reader contract](docs/architecture/design-package-v2.md)
-for exact ordered JSON, combined closure and dedicated v2 SHA-256 domain. The
+game cardinality rules. See the [v3 protocol and reader contract](docs/architecture/design-package-v3.md)
+for exact ordered JSON, combined closure and dedicated v3 SHA-256 domain. The
+[frozen historical v2 protocol](docs/architecture/design-package-v2.md) and
 [frozen historical v1 protocol](docs/architecture/design-package-v1.md) retains its
 unchanged wire/token rules and standalone reader. See also
 [ADR0015](docs/decisions/0015-first-frozen-design-package.md) for the decision.
@@ -737,7 +809,12 @@ snapshots. `0007_moves_rulesets.sql` adds typed move-attribute, Move and world-r
 versions; `0008_learning.sql` adds independent learnset/preset versions and exact
 acquisition bindings. `0009_cards.sql` adds same-revision card components,
 standalone cards, reusable fields and immutable legacy-boundary bookkeeping.
-New binaries require all **nine migrations**; older binaries reject
+`0010_records.sql` adds reusable layouts/collection definitions and typed same-revision
+record companions with immutable legacy boundaries. `0011_formulas.sql` additively
+adds independent typed formula heads/versions/inputs/steps/operands and audit-backed
+snapshots without changing old bytes, heads or seeds. Back up before deliberate
+migration; the local database was not migrated for ADR0019 documentation.
+New binaries require all **eleven migrations**; older binaries reject
 the newer schema. Migrations do not initialize content or alter existing auth
 records. The
 explicit fixture command preserves existing canonical creature ids as species
@@ -869,6 +946,10 @@ No production database was migrated during this documentation task. See
     the original illustrative Card Workshop (one world, seven cards, seven fields),
     atomically, under the system actor. Requires an existing enabled editor/admin;
     creates no accounts and preserves later edits on reruns.
+  - `seed-card-relations --owner-user-id <immutable-user-id>` — separately initialize
+    the original Card Relations Workshop (28 objects/29 initial events), including
+    layouts, collection definitions, resource costs, grants and trait options.
+    Requires an existing enabled editor/admin; creates no accounts, preserves edits.
   - `invite-user --subject <name> [--role <viewer|editor|administrator>] [--provider <id>] [--note <text>]` (default role: viewer).
   - `list-users`, `list-invites`.
   - `disable-user --id <immutable-user-id>`, `enable-user --id <immutable-user-id>`.
@@ -901,9 +982,20 @@ when running the executable elsewhere.
 
 ## Checks
 
-Card Workshop verification passed: formatting, Clippy with warnings denied,
-**462 Rust tests** (two browser-provision helpers intentionally ignored in normal
-runs), and **104 keyboard browser tests in one complete run**. Verification used
+**ADR0019 verification:** formatting and strict workspace Clippy passed. The full
+workspace run passed **538 Rust tests** (two browser-provision helpers intentionally
+ignored); the subsequently added populated schema-10→11 upgrade regression passed
+separately, giving **539 passing Rust cases**. All **120 keyboard browser cases**
+passed at desktop/320px widths across runs: the full attempt reached its one-hour
+limit after the first 94 cases and part of Stats, without failures; the remaining
+Stats/Types modules passed all 26 cases separately. There is no single completed
+full browser run for this milestone. Checks used temporary databases and single-job,
+debug-symbol-disabled builds. Human visual, screen-reader and actual zoom assessment
+were not performed.
+
+Card Records verification passed: formatting, Clippy with warnings denied,
+**501 Rust tests** (two browser-provision helpers intentionally ignored in normal
+runs), and **114 keyboard browser tests in one complete run**. Verification used
 single-job builds with `CARGO_PROFILE_DEV_DEBUG=0` and `CARGO_PROFILE_TEST_DEBUG=0`
 to reduce memory pressure after an initial debug-symbol build timeout. Human visual,
 screen-reader and actual browser-zoom assessment remain separate.
@@ -971,8 +1063,8 @@ is needed. First use may download Nix packages and Rust build dependencies;
 browser requests during the tests are restricted to the local test server.
 
 The runner builds current native web/admin binaries with `--locked`. The source
-inventory contains **104 keyboard-driven tests** (94 prior cases plus 10 Card
-Workshop cases). `test_cards.py` and `test_card_workshop.py` each define five
+inventory contains **120 keyboard-driven tests** (114 prior cases plus four formula
+cases and two formula-export cases). `test_cards.py`, `test_card_workshop.py` and `test_relations.py` each define five
 workflows inherited at desktop (1280px) and narrow (320px) widths. It
 uses fresh test-owned databases, servers on available loopback ports, and browser
 contexts, independent of your running app or `KARTA_*` configuration. Those
@@ -1017,6 +1109,11 @@ and six pure mixed-usage tests cover further card-inspection contracts.
 Workshop workflows cover named selections, typed values, invalid/dirty draft
 retention, exact historical names, named source mappings/adoption, explicit setup,
 edited reruns, inspection and offline-checksummed downloads at both widths.
+Record workflows cover flat layout/collection creation, row occurrences, typed
+cells, exact Card/Stat/Field references, dirty Unicode paragraphs, source-column
+mappings, immutable history, reruns, mixed usage and complete schema-4 downloads.
+Formula workflows cover named inputs/steps/output, exact fractions and rounding,
+search, sample states/errors, descriptions, history, conflict review and archival.
 
 Failures save screenshots in a unique ignored `target/browser-tests/run-*`
 directory. Screenshots can be opened from Windows for diagnosis. No traces,
@@ -1098,13 +1195,18 @@ exact-context authoring reports, world inspection and scoped dependency visibili
 and frozen design-package export with offline shared readers, active catalog root
 policy and explicit owner/collaborator permission. The **Card Definition Foundation**
 is delivered: native same-identity cards,
-standalone definitions, reusable fields, card inspection and schema-2 packages.
+standalone definitions, reusable fields and card inspection. The record extension
+adds reusable flat layouts, named collections, same-revision entries/cells, exact
+Card/Stat/Field references. ADR0019 adds independent formulas/named-sample exact
+calculation and complete schema-4 packages wrapping records v3/cards v2/typed v1,
+retaining unchanged readers 1–3; see the checks above for verification and the
+bounded browser-run timeout.
 Further card-content/world authoring and fine-tuning come next. **Engine integration
 and the battle simulator are the absolute final steps**, superseding earlier
 engine-next recommendations. Player instances, decks/hands/discards, attachment/
 resource execution and deck-building execution are not implemented.
 The [pinned product roadmap](docs/architecture/roadmap.md) retains the follow-up
-directions: derived-stat formulas/modifiers, authoring recovery, engine integration
+directions: live derived-stat/formula bindings and modifiers, authoring recovery, engine integration
 and package publication/migration, items/abilities/natures, evolution/transformation
 rules, maps/encounters, source contexts/import adapters and deterministic Battle Lab slices.
 The reference benchmark is documented in

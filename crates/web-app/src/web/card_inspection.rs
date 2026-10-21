@@ -19,11 +19,17 @@ pub(super) fn routes() -> Router<AppState> {
     Router::new()
         .route("/worlds/{world_id}/inspection/cards", get(inventory))
         .route("/worlds/{world_id}/inspection/cards/where-used", get(usage))
+        .route("/worlds/{world_id}/inspection/records", get(inventory))
+        .route(
+            "/worlds/{world_id}/inspection/records/where-used",
+            get(usage),
+        )
 }
 
 #[derive(Default, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct RawQuery {
+    kind: Option<String>,
     target: Option<String>,
     namespace: Option<String>,
     scope: Option<String>,
@@ -72,12 +78,16 @@ fn parse(raw: RawQuery, usage: bool) -> Result<Parsed, Error> {
             )),
         })
         .transpose()?;
-    if raw
-        .target
-        .as_deref()
-        .is_some_and(|s| !matches!(s, "card" | "field"))
-    {
-        return Err(invalid("target", "Choose card or field."));
+    if raw.target.as_deref().is_some_and(|s| {
+        !matches!(
+            s,
+            "card" | "field" | "stat" | "layout" | "collection" | "typed"
+        )
+    }) {
+        return Err(invalid(
+            "target",
+            "Choose card, field, stat, layout, collection or typed.",
+        ));
     }
     if raw
         .scope
@@ -119,6 +129,16 @@ fn parse(raw: RawQuery, usage: bool) -> Result<Parsed, Error> {
             "Choose target, scope and identity; cards also require a namespace.",
         ));
     }
+    if let Some(kind) = &raw.kind {
+        kind.parse::<game_data::inspection::DomainKind>()
+            .map_err(|_| invalid("kind", "Choose a supported typed object kind."))?;
+    }
+    if raw.target.as_deref() == Some("typed") && raw.kind.is_none() {
+        return Err(invalid(
+            "kind",
+            "A typed target requires its explicit kind.",
+        ));
+    }
     if raw.target.as_deref() == Some("card")
         && ((namespace == Some(CardNamespace::Form) && raw.scope.as_deref() == Some("local"))
             || (namespace == Some(CardNamespace::Variant)
@@ -136,14 +156,29 @@ fn parse(raw: RawQuery, usage: bool) -> Result<Parsed, Error> {
 fn target(p: &Parsed, world: &str) -> Identity {
     let world_id = (p.raw.scope.as_deref() == Some("local")).then(|| world.to_owned());
     let id = p.raw.id.clone().expect("validated target");
-    if p.raw.target.as_deref() == Some("field") {
-        Identity::Field { world_id, id }
-    } else {
-        Identity::Card(CardIdentity {
+    match p.raw.target.as_deref() {
+        Some("field") => Identity::Field { world_id, id },
+        Some("layout") => Identity::Layout { world_id, id },
+        Some("collection") => Identity::Collection { world_id, id },
+        Some("stat") | Some("typed") => Identity::Typed(game_data::inspection::DomainIdentity {
+            kind: if p.raw.target.as_deref() == Some("stat") {
+                game_data::inspection::DomainKind::Stat
+            } else {
+                p.raw
+                    .kind
+                    .as_ref()
+                    .expect("validated kind")
+                    .parse()
+                    .expect("validated kind")
+            },
+            world_id,
+            id,
+        }),
+        _ => Identity::Card(CardIdentity {
             world_id,
             id,
             namespace: p.namespace.expect("validated namespace"),
-        })
+        }),
     }
 }
 fn root(c: &CapturedWorld) -> String {
@@ -178,6 +213,10 @@ struct PathView {
 #[derive(Template)]
 #[template(path = "card_inspection.html")]
 struct Page {
+    layouts: Vec<Entry>,
+    layout_total: usize,
+    collections: Vec<Entry>,
+    collection_total: usize,
     world: String,
     world_url: String,
     typed_url: String,
@@ -231,23 +270,14 @@ fn usage_url(
             &i.id,
         ),
         Identity::Field { world_id, id } => ("field", String::new(), world_id, id),
-        Identity::Typed(i) => {
-            return format!(
-                "/worlds/{}/inspection/where-used?kind={}&scope={}&id={}&version={}&view={view}{}",
-                c.world.id,
-                i.kind.as_str(),
-                if i.world_id.is_some() {
-                    "local"
-                } else {
-                    "shared"
-                },
-                i.id,
-                version
-                    .map(|v| v.to_string())
-                    .unwrap_or_else(|| "all".into()),
-                fp.map(|f| format!("&fingerprint={f}")).unwrap_or_default()
-            );
-        }
+        Identity::Typed(i) => (
+            "typed",
+            format!("&kind={}", i.kind.as_str()),
+            &i.world_id,
+            &i.id,
+        ),
+        Identity::Layout { world_id, id } => ("layout", String::new(), world_id, id),
+        Identity::Collection { world_id, id } => ("collection", String::new(), world_id, id),
     };
     format!(
         "{}/where-used?target={target}{namespace}&scope={}&id={id}&version={}&view={view}{}",
@@ -383,6 +413,105 @@ fn entry(c: &CapturedWorld, n: &Node, fp: Option<&str>, full: bool) -> Entry {
                     }
                 }
             }
+            if full && let Some(records) = c.card_data.records.relations.get(p) {
+                component_links.push(Link {
+                    label: "Exact record collections".into(),
+                    url: format!(
+                        "{scope}/cards/{}/{}/records/history/{}",
+                        p.identity.namespace.as_str(),
+                        p.identity.id,
+                        p.version
+                    ),
+                });
+                text.push(match &records.relations.collections {None=>"Record inventory: Unmodeled".into(),Some(cols)=>format!("Record inventory: {} selected collections; at most 25 cell occurrences previewed",cols.len())});
+                for assignment in records.relations.collections.iter().flatten().take(SIZE) {
+                    text.push(format!(
+                        "Collection {} revision {}: {}",
+                        bounded(&assignment.definition.fields.display_name),
+                        assignment.definition.revision,
+                        match &assignment.value {
+                            game_data::relations::CollectionValue::Missing => "Missing".into(),
+                            game_data::relations::CollectionValue::Unknown => "Unknown".into(),
+                            game_data::relations::CollectionValue::NotApplicable =>
+                                "NotApplicable".into(),
+                            game_data::relations::CollectionValue::Entries(es) =>
+                                format!("Known entries: {}", es.len()),
+                        }
+                    ));
+                }
+                let cells = records
+                    .relations
+                    .collections
+                    .iter()
+                    .flatten()
+                    .filter_map(|a| {
+                        if let game_data::relations::CollectionValue::Entries(es) = &a.value {
+                            Some((a, es))
+                        } else {
+                            None
+                        }
+                    })
+                    .flat_map(|(a, es)| {
+                        es.iter()
+                            .flat_map(move |e| e.cells.iter().map(move |cell| (a, e, cell)))
+                    });
+                for (a, e, cell) in cells.take(SIZE) {
+                    let column = a
+                        .definition
+                        .layout
+                        .columns
+                        .iter()
+                        .find(|col| col.id == cell.column_id);
+                    let value = match &cell.value {
+                        game_data::relations::RecordValue::Reference(pin) => {
+                            let target = analysis::record_target(pin);
+                            let entry = entry(c, &target, fp, false);
+                            let name = entry.label;
+                            component_links.extend(entry.links);
+                            format!("Exact reference: {name}")
+                        }
+                        game_data::relations::RecordValue::Missing => "Missing".into(),
+                        game_data::relations::RecordValue::Unknown => "Unknown".into(),
+                        game_data::relations::RecordValue::NotApplicable => "NotApplicable".into(),
+                        game_data::relations::RecordValue::Number(n) => {
+                            format!("Known number: {n}")
+                        }
+                        game_data::relations::RecordValue::Text(v) => {
+                            format!("Known text: {}", bounded(v))
+                        }
+                        game_data::relations::RecordValue::Boolean(v) => {
+                            format!("Known boolean: {v}")
+                        }
+                        game_data::relations::RecordValue::Choice(id) => {
+                            let label = column
+                                .and_then(|col| {
+                                    if let game_data::relations::ColumnKind::Field(f) = &col.kind {
+                                        if let FieldKind::Choice { options } = &f.kind {
+                                            options
+                                                .iter()
+                                                .find(|o| &o.id == id)
+                                                .map(|o| o.label.as_str())
+                                        } else {
+                                            None
+                                        }
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .unwrap_or("Unavailable exact option");
+                            format!("Known choice: {}", bounded(label))
+                        }
+                    };
+                    text.push(format!(
+                        "{} · entry {} · {}: {value}",
+                        bounded(&a.definition.fields.display_name),
+                        e.id,
+                        column
+                            .map(|c| bounded(&c.label))
+                            .unwrap_or_else(|| cell.column_id.clone())
+                    ));
+                }
+            }
             (
                 r.map(|r| bounded(&r.fields.display_name))
                     .or_else(|| {
@@ -507,6 +636,15 @@ fn entry(c: &CapturedWorld, n: &Node, fp: Option<&str>, full: bool) -> Entry {
                     "/worlds/{}/variants/{}/movesets/{}/history/{}",
                     r.world_id, r.variant_id, r.id, k.revision
                 )),
+                Some(InspectionPayload::Stat(_)) => Some(format!(
+                    "{}/stats/{}/history/{}",
+                    k.world_id
+                        .as_ref()
+                        .map(|w| format!("/worlds/{w}"))
+                        .unwrap_or_default(),
+                    k.id,
+                    k.revision
+                )),
                 _ => None,
             };
             (
@@ -519,6 +657,77 @@ fn entry(c: &CapturedWorld, n: &Node, fp: Option<&str>, full: bool) -> Entry {
                     k.kind.as_str(),
                     k.id,
                     k.revision
+                ),
+            )
+        }
+        Node::Layout(p) => {
+            history = Some(format!(
+                "{}/record-layouts/{}/history/{}",
+                p.world_id
+                    .as_ref()
+                    .map(|w| format!("/worlds/{w}"))
+                    .unwrap_or_default(),
+                p.layout_id,
+                p.version
+            ));
+            let row = c.card_data.records.layouts.get(p);
+            if full && let Some(row) = row {
+                text.push(bounded(&row.fields.description));
+                for column in row.columns.iter().take(SIZE) {
+                    text.push(format!(
+                        "Column {} · {} · {}",
+                        column.id,
+                        bounded(&column.label),
+                        match &column.kind {
+                            game_data::relations::ColumnKind::Field(f) => format!(
+                                "Scalar {} revision {}",
+                                bounded(&f.fields.display_name),
+                                f.revision
+                            ),
+                            game_data::relations::ColumnKind::Reference { allowed } =>
+                                format!("Allowed target kinds {allowed:?}"),
+                        }
+                    ));
+                }
+                if row.columns.len() > SIZE {
+                    text.push(format!(
+                        "{} more columns; exact history retains all",
+                        row.columns.len() - SIZE
+                    ));
+                }
+            }
+            (
+                row.map(|r| bounded(&r.fields.display_name))
+                    .unwrap_or_else(|| "Layout evidence unavailable".into()),
+                format!("Record layout · {} · revision {}", p.layout_id, p.version),
+            )
+        }
+        Node::Collection(p) => {
+            history = Some(format!(
+                "{}/record-collections/{}/history/{}",
+                p.world_id
+                    .as_ref()
+                    .map(|w| format!("/worlds/{w}"))
+                    .unwrap_or_default(),
+                p.collection_id,
+                p.version
+            ));
+            let row = c.card_data.records.collections.get(p);
+            if full && let Some(row) = row {
+                text.push(bounded(&row.fields.description));
+                let e = entry(c, &Node::Layout(row.layout.pin()), fp, false);
+                text.push(format!(
+                    "Exact layout: {} revision {}",
+                    e.label, row.layout.revision
+                ));
+                component_links.extend(e.links);
+            }
+            (
+                row.map(|r| bounded(&r.fields.display_name))
+                    .unwrap_or_else(|| "Collection evidence unavailable".into()),
+                format!(
+                    "Collection definition · {} · revision {}",
+                    p.collection_id, p.version
                 ),
             )
         }
@@ -569,6 +778,23 @@ fn edge(c: &CapturedWorld, e: &analysis::Edge, fp: Option<&str>) -> EdgeView {
             "Card reference value · field slot {slot} · field {} revision {}",
             field.field_id, field.version
         ),
+        Site::RecordCollection { slot } => format!("Record collection assignment slot {slot}"),
+        Site::CollectionLayout => "Exact collection layout".into(),
+        Site::LayoutField { slot, column_id } => {
+            format!("Layout scalar field column {slot} · {column_id}")
+        }
+        Site::LayoutSource => "Exact layout source".into(),
+        Site::CollectionSource => "Exact collection definition source".into(),
+        Site::RecordReference {
+            collection,
+            entry_id,
+            column_id,
+            row_slot,
+            cell_slot,
+        } => format!(
+            "Record reference · collection {} revision {} · entry {entry_id} (row {row_slot}) · column {column_id} (cell {cell_slot})",
+            collection.collection_id, collection.version
+        ),
     };
     EdgeView {
         from: entry(c, &e.from, fp, false),
@@ -585,7 +811,9 @@ fn selected(n: &Node, p: &Parsed) -> bool {
             &k.identity.id,
         ),
         Node::Field(k) => ("field", None, &k.world_id, &k.field_id),
-        Node::Typed(_) => return false,
+        Node::Typed(k) => ("typed", None, &k.world_id, &k.id),
+        Node::Layout(k) => ("layout", None, &k.world_id, &k.layout_id),
+        Node::Collection(k) => ("collection", None, &k.world_id, &k.collection_id),
     };
     p.raw.target.as_deref().is_none_or(|s| s == kind)
         && p.namespace.is_none_or(|s| ns == Some(s))
@@ -640,6 +868,7 @@ fn build(result: &InspectionResult, p: &Parsed, found: Option<&Usage>) -> Page {
         let mut url = format!("{}?", root(c));
         for (key, value) in [
             ("target", &p.raw.target),
+            ("kind", &p.raw.kind),
             ("namespace", &p.raw.namespace),
             ("scope", &p.raw.scope),
             ("id", &p.raw.id),
@@ -658,9 +887,33 @@ fn build(result: &InspectionResult, p: &Parsed, found: Option<&Usage>) -> Page {
     if !base.contains('?') {
         base.push('?');
     }
+    let layouts = c
+        .card_data
+        .records
+        .layouts
+        .keys()
+        .cloned()
+        .map(Node::Layout)
+        .filter(|n| selected(n, p))
+        .collect::<Vec<_>>();
+    let collections = c
+        .card_data
+        .records
+        .collections
+        .keys()
+        .cloned()
+        .map(Node::Collection)
+        .filter(|n| selected(n, p))
+        .collect::<Vec<_>>();
     let total = found
         .map(|f| f.total.min(256).max(f.captured.len()))
-        .unwrap_or(cards.len().max(fields.len()));
+        .unwrap_or(
+            cards
+                .len()
+                .max(fields.len())
+                .max(layouts.len())
+                .max(collections.len()),
+        );
     let mut links = vec![];
     if page > 1 {
         links.push(Link {
@@ -704,6 +957,22 @@ fn build(result: &InspectionResult, p: &Parsed, found: Option<&Usage>) -> Page {
         _ => "",
     };
     Page {
+        layout_total: layouts.len(),
+        collection_total: collections.len(),
+        layouts: if found.is_none() {
+            window(layouts.iter(), page)
+                .map(|n| entry(c, n, fp, true))
+                .collect()
+        } else {
+            vec![]
+        },
+        collections: if found.is_none() {
+            window(collections.iter(), page)
+                .map(|n| entry(c, n, fp, true))
+                .collect()
+        } else {
+            vec![]
+        },
         world: bounded(&c.world.fields.display_name),
         world_url: format!("/worlds/{}", c.world.id),
         typed_url: format!("/worlds/{}/inspection", c.world.id),

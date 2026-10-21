@@ -34,6 +34,7 @@ pub use crate::package::{
     FORMAT, MAX_OCCURRENCES, MAX_PACKAGE_BYTES, MAX_RECORDS, MAX_ROOTS, PRODUCER,
 };
 pub use validation::{native_card_pin, native_key};
+pub(crate) use validation::{occurrence_count, validate_with_external_seeds};
 
 pub const SCHEMA_VERSION: u32 = 2;
 const HASH_DOMAIN: &[u8] = b"karta-design-package-content-sha256-v2\n";
@@ -55,8 +56,8 @@ pub fn schema_version_from_bytes(bytes: &[u8]) -> Result<u32, String> {
     let header: Header =
         serde_json::from_slice(bytes).map_err(|e| format!("Invalid package header: {e}"))?;
     match header.manifest.schema_version {
-        1 | 2 => Ok(header.manifest.schema_version),
-        _ => Err("Unsupported package schema version (expected 1 or 2).".into()),
+        1..=3 => Ok(header.manifest.schema_version),
+        _ => Err("Unsupported package schema version (expected 1, 2 or 3).".into()),
     }
 }
 

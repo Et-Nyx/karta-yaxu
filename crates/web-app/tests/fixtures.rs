@@ -1956,7 +1956,13 @@ async fn copy_legacy_fixture_tables(source: &SqlitePool, target: &SqlitePool) {
             "WHERE id NOT IN (SELECT audit_id FROM move_attribute_versions UNION ALL SELECT audit_id FROM move_versions UNION ALL SELECT audit_id FROM world_ruleset_versions UNION ALL SELECT audit_id FROM learnset_versions UNION ALL SELECT audit_id FROM moveset_preset_versions)"
         } else if matches!(
             table.as_str(),
-            "card_components" | "card_component_labels" | "card_component_fields"
+            "card_components"
+                | "card_component_labels"
+                | "card_component_fields"
+                | "card_relation_versions"
+                | "card_relation_collections"
+                | "card_relation_entries"
+                | "card_relation_cells"
         ) {
             // Same-revision companions follow their pre-ADR0012 owning objects;
             // excluded Move versions and their audits must not be copied alone.

@@ -54,6 +54,10 @@ pub fn native_key(pin: &CardPin) -> Option<DomainNodeKey> {
 }
 
 pub(super) fn preflight(c: &CardPackageContent) -> Result<(), String> {
+    occurrence_count(c).map(|_| ())
+}
+
+pub(crate) fn occurrence_count(c: &CardPackageContent) -> Result<usize, String> {
     require(
         c.typed
             .roots
@@ -106,7 +110,7 @@ pub(super) fn preflight(c: &CardPackageContent) -> Result<(), String> {
     }
     add(0)?;
     bounded_json(c)?;
-    Ok(())
+    Ok(n)
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -117,6 +121,17 @@ enum Node {
 }
 
 pub(super) fn validate(c: &CardPackageContent) -> Result<(), String> {
+    validate_with_external_seeds(c, &[], &[], &[])
+}
+
+/// Seeds extend projection closure only; all intrinsic and root checks still run.
+/// The caller must independently prove combined closure from real catalog roots.
+pub(crate) fn validate_with_external_seeds(
+    c: &CardPackageContent,
+    external_cards: &[CardPin],
+    external_fields: &[FieldPin],
+    external_typed: &[DomainNodeKey],
+) -> Result<(), String> {
     preflight(c)?;
     require(
         c.schema_version == SCHEMA_VERSION,
@@ -220,6 +235,7 @@ pub(super) fn validate(c: &CardPackageContent) -> Result<(), String> {
     // This checks ALL native intrinsic/cross-record constraints, original catalog
     // roots, required identity bindings and typed closure. Seeds cannot relax any
     // of these rules. The combined traversal below rejects self-justifying extras.
+    seeds.extend_from_slice(external_typed);
     package::validate_with_external_seeds(&c.typed, &seeds)?;
     let expected_native_roots: BTreeSet<_> =
         c.typed.roots.iter().filter_map(native_card_pin).collect();
@@ -261,6 +277,9 @@ pub(super) fn validate(c: &CardPackageContent) -> Result<(), String> {
         .map(Node::Typed)
         .chain(c.card_roots.iter().cloned().map(Node::Card))
         .chain(c.field_roots.iter().cloned().map(Node::Field))
+        .chain(external_cards.iter().cloned().map(Node::Card))
+        .chain(external_fields.iter().cloned().map(Node::Field))
+        .chain(external_typed.iter().cloned().map(Node::Typed))
         .collect();
     let mut visited = BTreeSet::new();
     while let Some(node) = pending.pop_first() {

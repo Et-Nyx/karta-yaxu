@@ -542,6 +542,20 @@ async fn readable_card_sections(
     n: usize,
 ) -> Result<Vec<Section>, Error> {
     let mut sections = card_sections(card, n);
+    sections[0].links.push(link(
+        "Record collections",
+        format!(
+            "{}/cards/{}/{}/records/history/{}",
+            card.identity
+                .world_id
+                .as_ref()
+                .map(|w| format!("/worlds/{w}"))
+                .unwrap_or_default(),
+            card.identity.namespace.as_str(),
+            card.identity.id,
+            card.revision
+        ),
+    ));
     let displayed = card
         .component
         .fields
@@ -775,6 +789,10 @@ async fn detail(
                     .max(card.component.fields.as_ref().map_or(0, Vec::len));
                 let mut sections = readable_card_sections(&api, &card, n).await?;
                 if !historical {
+                    links.push(link(
+                        "Edit record collections",
+                        format!("{}/records", c.url()),
+                    ));
                     for label in card
                         .component
                         .labels

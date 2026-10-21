@@ -1,0 +1,31 @@
+{
+  "archive": "karta-yaxu-2.zip",
+  "archive_sha256": "82bc94faee176055e049a3276abe18491bf6ddc483995664c5c20a06705565f4",
+  "unavailable_original_HEAD": "73d0e6fa4c7caab331de9ed33b07659ccfc71d1f",
+  "latest_intact_commit": "88cb536ceaf9009bf5b04d9bbb111ae06d519947",
+  "index_blobs_restored": 240,
+  "working_files_preserved": 38,
+  "missing_index_blobs": [
+    {
+      "path": "crates/web-app/src/web/relations/selectors.rs",
+      "missing_blob": "bc5899bb225a71f80117e8fa5461a450516e0310"
+    },
+    {
+      "path": "crates/web-app/templates/records_control.html",
+      "missing_blob": "76529cab50b7423f7e0a061e7de46ab1188f5f6c"
+    },
+    {
+      "path": "crates/web-app/templates/records_editor.html",
+      "missing_blob": "8ab5a06c001903812bd184fe69c1fdeed1bb3fa6"
+    },
+    {
+      "path": "crates/web-app/tests/record_capture.rs",
+      "missing_blob": "81997a4130648650862a7c8ce79c7005e8a3df1b"
+    },
+    {
+      "path": "crates/web-app/tests/records_http.rs",
+      "missing_blob": "2fde69f7b90373b333271ac3bb725a8ec47038e5"
+    }
+  ],
+  "method": "Restored available Git index blobs, then overlaid all archived working files byte-for-byte. Missing working files were not treated as intentional deletions. Missing index blobs could not be recreated. Original ZIP and extracted Git metadata are preserved separately. This snapshot is incomplete and has not been build-tested."
+}

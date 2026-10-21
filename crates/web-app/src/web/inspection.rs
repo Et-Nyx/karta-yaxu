@@ -779,6 +779,13 @@ async fn usage(
         let compare = compare_input(raw.compare.as_deref())?;
         let mut query = usage_input(&raw, &world)?;
         let result = state.inspection.inspect(AddressKey::Id(world), compare).await?;
+        if result.capture.card_data.records.relations.values().any(|r|r.relations.collections.as_ref().is_some_and(|c|!c.is_empty())) {
+            let target = match query.target.kind {DomainKind::Form|DomainKind::Variant|DomainKind::Type|DomainKind::Move=>Some(("card",format!("&namespace={}",query.target.kind.as_str()))),_=>Some(("typed",format!("&kind={}",query.target.kind.as_str())))};
+            if let Some((target,namespace))=target {
+                let version=match query.versions {VersionFilter::All=>"all".into(),VersionFilter::Exact(v)=>v.to_string()};
+                return Ok(Redirect::temporary(&format!("/worlds/{}/inspection/cards/where-used?target={target}{namespace}&scope={}&id={}&version={version}&view={}&page={}{}",result.capture.world.id,raw.scope,query.target.id,if query.view==UseView::DirectUses{"direct"}else{"paths"},query.page,raw.fingerprint.as_ref().map(|f|format!("&fingerprint={f}")).unwrap_or_default())).into_response());
+            }
+        }
         let mut common = common(&result, raw.fingerprint.as_deref(), query.page, compare);
         query.page = common.page;
         let (result, found) = state.inspection.usages(result, query.clone()).await?;

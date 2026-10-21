@@ -436,7 +436,7 @@ fn native_tables(i: &CardIdentity) -> (&'static str, &'static str, &'static str,
         ),
     }
 }
-async fn native_audit(c: &mut SqliteConnection, p: &CardPin) -> Result<String, Error> {
+pub(crate) async fn native_audit(c: &mut SqliteConnection, p: &CardPin) -> Result<String, Error> {
     let (_, v, k, s) = native_tables(&p.identity);
     sqlx::query_scalar(AssertSqlSafe(format!("SELECT v.audit_id FROM {v} v JOIN audit_events a ON a.id=v.audit_id LEFT JOIN users u ON u.id=a.actor_user_id WHERE v.{k}=? AND {s}=? AND v.revision=? AND coalesce(u.display_name,a.system_key) IS NOT NULL AND ((v.revision=1 AND a.action IN ('create','adopt') AND v.previous_revision IS NULL AND v.before_json IS NULL) OR (v.revision>1 AND a.action IN ('edit','adopt') AND v.previous_revision=v.revision-1 AND v.before_json IS NOT NULL))"))).bind(&p.identity.id).bind(scope(p.identity.world_id.as_deref())).bind(p.version).fetch_optional(c).await.map_err(content::storage_error)?.ok_or(Error::Unavailable)
 }
@@ -626,6 +626,7 @@ pub(crate) async fn card_version(
         verify_direct_pin(c, source).await?;
     }
     verify_standalone_snapshot(c, &row).await?;
+    super::relations::verify_seal(c, p, &audit).await?;
     Ok(row)
 }
 async fn verify_standalone_snapshot(
@@ -779,7 +780,10 @@ async fn verify_dependencies(
     }
     Ok(())
 }
-async fn verify_direct_pin(c: &mut SqliteConnection, p: &CardPin) -> Result<CardRecord, Error> {
+pub(crate) async fn verify_direct_pin(
+    c: &mut SqliteConnection,
+    p: &CardPin,
+) -> Result<CardRecord, Error> {
     let mut target = native_version(c, p).await?;
     let audit = native_audit(c, p).await?;
     let seal = sqlx::query(
@@ -806,6 +810,7 @@ async fn verify_direct_pin(c: &mut SqliteConnection, p: &CardPin) -> Result<Card
     }
     target.validate().map_err(|_| Error::Unavailable)?;
     verify_standalone_snapshot(c, &target).await?;
+    super::relations::verify_seal(c, p, &audit).await?;
     Ok(target)
 }
 pub(crate) async fn validate_selection(
@@ -916,7 +921,8 @@ pub(crate) async fn seal_native(
         verify_direct_pin(c, source).await?;
     }
     let audit = native_audit(c, &p).await?;
-    sqlx::query("UPDATE card_components SET audit_id=?,snapshot_json=? WHERE namespace=? AND scope=? AND card_id=? AND revision=? AND audit_id IS NULL").bind(audit).bind(author::snapshot(&record)?).bind(p.identity.namespace.as_str()).bind(scope(p.identity.world_id.as_deref())).bind(&p.identity.id).bind(revision).execute(c).await.map_err(content::storage_error)?;
+    sqlx::query("UPDATE card_components SET audit_id=?,snapshot_json=? WHERE namespace=? AND scope=? AND card_id=? AND revision=? AND audit_id IS NULL").bind(audit.clone()).bind(author::snapshot(&record)?).bind(p.identity.namespace.as_str()).bind(scope(p.identity.world_id.as_deref())).bind(&p.identity.id).bind(revision).execute(&mut *c).await.map_err(content::storage_error)?;
+    super::relations::seal_native(c, &p, &audit).await?;
     Ok(())
 }
 pub(crate) async fn identities(

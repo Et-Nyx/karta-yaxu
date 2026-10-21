@@ -9,6 +9,7 @@ use web_app::{
         authoring::{Authoring, Error},
         card_workshop::CardWorkshop,
         fixtures::{Fixtures, SeedOptions},
+        relation_workshop::RelationWorkshop,
         types::{FixtureReport, Types},
     },
     auth::{Role, placeholder},
@@ -31,6 +32,9 @@ Commands:
                           Initialize two synthetic worlds owned by an existing account.
   seed-card-workshop --owner-user-id <id>
                           Initialize the original Card Workshop atomically (15 objects).
+                          Requires an existing enabled editor/administrator; creates no accounts.
+  seed-card-relations --owner-user-id <id>
+                          Initialize the original Card Relations Workshop atomically.
                           Requires an existing enabled editor/administrator; creates no accounts.
   invite-user             Pre-authorize an identity for first sign-in.
       --subject <name>      Required. Placeholder username, or provider subject.
@@ -56,6 +60,9 @@ enum Command {
         owner_user_id: String,
     },
     SeedCardWorkshop {
+        owner_user_id: String,
+    },
+    SeedCardRelations {
         owner_user_id: String,
     },
     Invite {
@@ -159,6 +166,23 @@ async fn run() -> Result<(), String> {
                 report.world_id, report.created, report.skipped, report.cards, report.fields
             );
         }
+        Command::SeedCardRelations { owner_user_id } => {
+            let r = RelationWorkshop::new(accounts.clone())
+                .seed(&owner_user_id)
+                .await
+                .map_err(authoring_error)?;
+            println!(
+                "Card Relations Workshop {}: created {} objects; skipped {} matching objects ({} cards, {} fields, {} layouts, {} collections, {} stats).",
+                r.world_id,
+                r.created,
+                r.skipped,
+                r.cards,
+                r.fields,
+                r.layouts,
+                r.collections,
+                r.stats
+            );
+        }
         Command::Invite {
             provider,
             subject,
@@ -229,7 +253,9 @@ fn parse(args: &[String]) -> Result<Command, String> {
         | "list-users"
         | "list-invites" => &[],
         "seed-fixtures" => &["--owner-user-id", "--admin-subject"],
-        "seed-world-fixtures" | "seed-card-workshop" => &["--owner-user-id"],
+        "seed-world-fixtures" | "seed-card-workshop" | "seed-card-relations" => {
+            &["--owner-user-id"]
+        }
         "invite-user" => &["--subject", "--role", "--provider", "--note"],
         "disable-user" | "enable-user" => &["--id"],
         _ => return Err(format!("Unknown command.\n{USAGE}")),
@@ -276,12 +302,14 @@ fn parse(args: &[String]) -> Result<Command, String> {
         }
         "seed-creature-fixtures" => Ok(Command::SeedCreatureFixtures),
         "seed-reference-fixtures" => Ok(Command::SeedReferenceFixtures),
-        "seed-world-fixtures" | "seed-card-workshop" => {
+        "seed-world-fixtures" | "seed-card-workshop" | "seed-card-relations" => {
             let id = options
                 .remove("--owner-user-id")
                 .ok_or("Missing --owner-user-id")?;
             validate_id(&id)?;
-            if name == "seed-card-workshop" {
+            if name == "seed-card-relations" {
+                Ok(Command::SeedCardRelations { owner_user_id: id })
+            } else if name == "seed-card-workshop" {
                 Ok(Command::SeedCardWorkshop { owner_user_id: id })
             } else {
                 Ok(Command::SeedWorldFixtures { owner_user_id: id })

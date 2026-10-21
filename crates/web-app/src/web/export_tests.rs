@@ -14,8 +14,8 @@ use axum::body::{Body, to_bytes};
 use game_data::{
     authoring::ContentFields,
     card_fields::{CardField, FieldKind, FieldValue},
-    card_package::CardPackage,
     cards::CardComponent,
+    record_package::RecordPackage as CardPackage,
 };
 use sqlx::{AssertSqlSafe, SqlitePool};
 use std::collections::BTreeMap;
@@ -345,7 +345,7 @@ async fn full_fixture_preview_and_confirmed_attachment_roundtrip_offline_with_no
         );
         site.private_free(&download.2);
         let package = CardPackage::from_bytes(download.2.as_bytes()).unwrap();
-        assert_eq!(package.content.typed.world.id, world);
+        assert_eq!(package.content.cards.typed.world.id, world);
         assert_eq!(package.manifest.content_sha256, digest);
         assert_eq!(package.to_bytes().unwrap(), download.2.as_bytes());
         let again = site
@@ -423,24 +423,35 @@ async fn standalone_card_attachment_preserves_false_and_custom_edit_invalidates_
     assert_eq!(download.1[header::CACHE_CONTROL], "private, no-store");
     assert!(download.1.contains_key(header::CONTENT_DISPOSITION));
     let offline = CardPackage::from_bytes(download.2.as_bytes()).unwrap();
-    assert_eq!(offline.manifest.schema_version, 2);
+    assert_eq!(offline.manifest.schema_version, 3);
     assert_eq!(offline.manifest.content_sha256, digest);
     assert_eq!(offline.to_bytes().unwrap(), download.2.as_bytes());
-    assert!(offline.content.cards.contains(&card));
-    assert!(offline.content.card_roots.contains(&card.pin()));
-    assert!(offline.content.fields.contains(&definition));
-    assert!(offline.content.field_roots.contains(&definition.pin()));
+    assert!(offline.content.cards.cards.contains(&card));
+    assert!(offline.content.cards.card_roots.contains(&card.pin()));
+    assert!(offline.content.cards.fields.contains(&definition));
+    assert!(
+        offline
+            .content
+            .cards
+            .field_roots
+            .contains(&definition.pin())
+    );
     assert_eq!(
         offline.manifest.root_count,
-        offline.content.typed.roots.len()
-            + offline.content.card_roots.len()
-            + offline.content.field_roots.len()
+        offline.content.cards.typed.roots.len()
+            + offline.content.cards.card_roots.len()
+            + offline.content.cards.field_roots.len()
+            + offline.content.layout_roots.len()
+            + offline.content.collection_roots.len()
     );
     assert_eq!(
         offline.manifest.record_count,
-        offline.content.typed.records.len()
-            + offline.content.cards.len()
-            + offline.content.fields.len()
+        offline.content.cards.typed.records.len()
+            + offline.content.cards.cards.len()
+            + offline.content.cards.fields.len()
+            + offline.content.relations.len()
+            + offline.content.layouts.len()
+            + offline.content.collections.len()
     );
     site.private_free(&download.2);
     assert_eq!(site.snapshot().await, before);
@@ -485,6 +496,7 @@ async fn standalone_card_attachment_preserves_false_and_custom_edit_invalidates_
         CardPackage::from_bytes(download.2.as_bytes())
             .unwrap()
             .content
+            .cards
             .cards
             .contains(&updated)
     );

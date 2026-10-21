@@ -2090,6 +2090,22 @@ async fn append_variant_snapshot(l: &Lab, head: &VariantRecord, snapshot: &Varia
         legacy_unmodeled: false,
     };
     sqlx::query("INSERT INTO card_components(namespace,scope,card_id,revision,fields_defined,rules_text,labels_defined,audit_id,snapshot_json) VALUES ('variant',?,?,?,0,NULL,0,?,?)").bind(&head.world_id).bind(&head.id).bind(head.revision).bind(&audit).bind(envelope(&card)).execute(&mut *tx).await.unwrap();
+    let old = game_data::relations::CardRelationRecord {
+        card: game_data::cards::CardPin {
+            identity: card.identity.clone(),
+            version: previous,
+        },
+        relations: Default::default(),
+        legacy_unmodeled: false,
+    };
+    let record = game_data::relations::CardRelationRecord {
+        card: card.pin(),
+        relations: Default::default(),
+        legacy_unmodeled: false,
+    };
+    let before =
+        serde_json::to_string(&serde_json::json!({"snapshot_version":1,"content":old})).unwrap();
+    sqlx::query("INSERT INTO card_relation_versions(namespace,scope,card_id,revision,collections_defined,audit_id,previous_revision,before_json,snapshot_json) VALUES ('variant',?,?,?,0,?,?,?,?)").bind(&head.world_id).bind(&head.id).bind(head.revision).bind(&audit).bind(previous).bind(before).bind(envelope(&record)).execute(&mut *tx).await.unwrap();
     tx.commit().await.unwrap();
     l.integrity().await;
 }

@@ -26,6 +26,8 @@
 {% else %}
 <section aria-label="Card inventory"><h2>Cards ({{ card_total }})</h2><p>At most 25 cards per page. Each component previews at most 25 fields/values and labels; long text previews contain at most 2000 characters. Full saved evidence is linked in exact history.</p>{% for e in cards %}<article>{{ entry(e) }}</article>{% endfor %}</section>
 <section aria-label="Field inventory"><h2>Reusable fields ({{ field_total }})</h2><p>At most 25 exact field definitions per page. Choice options preview at most 25 entries.</p>{% for e in fields %}<article>{{ entry(e) }}</article>{% endfor %}</section>
+<section aria-label="Record layouts"><h2>Record layouts ({{ layout_total }})</h2>{% for e in layouts %}<article>{{ entry(e) }}</article>{% endfor %}</section>
+<section aria-label="Record collection definitions"><h2>Record collections ({{ collection_total }})</h2>{% for e in collections %}<article>{{ entry(e) }}</article>{% endfor %}</section>
 {% endif %}
 <nav aria-label="Results navigation"><ul>{% for link in links %}<li><a href="{{ link.url }}">{{ link.label }}</a></li>{% endfor %}</ul></nav>
 {% endblock %}

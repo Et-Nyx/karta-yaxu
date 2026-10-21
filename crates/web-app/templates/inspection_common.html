@@ -4,6 +4,7 @@
 <p>World revision {{ common.revision }} · Inspection contract version {{ common.contract }}<br>Captured world metadata: {{ common.world_state }} · Slug: {{ common.world_slug }}<br>Canonical world ID <code>{{ common.world_id }}</code></p>
 <p><strong>This is not combat or export readiness.</strong> Effects, formulas, eligibility and battle calculation are not evaluated. There is no pass/fail readiness result.</p>
 <p><a href="/worlds/{{ common.world_id }}/inspection/cards">Card and reusable-field inspection</a> includes same-revision components, exact card-reference values and field-definition usage in this world.</p>
+<p><a href="/worlds/{{ common.world_id }}/inspection/records">Record relationship inspection</a> includes exact layouts, collection definitions, repeated row/cell occurrences and Card/Stat/Field usage. These views share the same capture fingerprint.</p>
 {% if !common.notice.is_empty() %}<section role="status" class="notice" aria-label="Capture refreshed"><h2>Results refreshed</h2><p><strong>{{ common.notice }}</strong></p></section>{% endif %}
 <section aria-labelledby="coverage"><h2 id="coverage">Coverage: {% if common.complete %}Complete{% else %}Partial{% endif %}</h2>
 <p>{{ common.active }} Active roots · {{ common.archived }} Archived roots · {{ common.dependencies }} exact dependency nodes. {{ common.nodes }} verified captured nodes · {{ common.edges }} edge occurrences.</p>

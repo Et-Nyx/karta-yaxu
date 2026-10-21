@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} · Karta Yaxu{% endblock %}
+{% block content %}
+<h1>{{ title }}</h1>
+<p>Reusable records describe design intent. Conditions, costs, effects and relationships are inert; they do not execute gameplay.</p>
+<nav aria-label="Record authoring">{% for link in links %}<a href="{{ link.url }}">{{ link.label }}</a> {% endfor %}</nav>
+{% if filter %}<form method="get"><label for="query">Name contains</label><input id="query" name="query" value="{{ query }}"><button>Search names</button></form>{% endif %}
+{% for section in sections %}<section><h2>{{ section.title }}</h2>{% for line in section.lines %}<p class="plain-text">{{ line }}</p>{% endfor %}{% for link in section.links %}<p><a href="{{ link.url }}">{{ link.label }}</a></p>{% endfor %}</section>{% endfor %}
+<nav aria-label="Pages">{% if !previous.is_empty() %}<a href="{{ previous }}">Previous page</a>{% endif %} {% if !next.is_empty() %}<a href="{{ next }}">Next page</a>{% endif %}</nav>
+{% endblock %}

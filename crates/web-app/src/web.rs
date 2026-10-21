@@ -23,6 +23,7 @@ mod login_limit;
 mod moves;
 #[cfg(test)]
 mod moves_tests;
+mod relations;
 mod stats;
 #[cfg(test)]
 mod stats_tests;
@@ -103,6 +104,7 @@ pub fn router(state: AppState) -> Router {
     let inner = Router::new()
         .merge(authoring::routes())
         .merge(cards::routes())
+        .merge(relations::routes())
         .merge(card_inspection::routes())
         .merge(types::routes())
         .merge(charts::routes())

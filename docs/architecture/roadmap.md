@@ -31,7 +31,8 @@ before executable formulas. See decision 0012.
 The authoring slice is implemented: independent move attributes and definitions,
 world ruleset configuration, learning records and named presets with exact pins,
 separate histories and authoring diagnostics. Executable effects, acquisition
-conditions and formula evaluation remain follow-up mechanics work.
+conditions and live formula bindings remain follow-up mechanics work; independent
+sample formula evaluation is delivered separately in ADR0019.
 
 ## Delivered: World Inspection and Dependency Visibility
 
@@ -138,11 +139,48 @@ See [ADR0017](../decisions/0017-card-workshop-and-authoring-refinement.md) and t
 hosting resource was introduced. Workshop initialization is explicit and adds its
 own 15-object/16-event baseline, preserving subsequent edits and old seed scopes.
 
+## Delivered: Card records and content relationships
+
+ADR0018 implements independently reusable flat layouts and named collection
+definitions, same-card-revision rows/cells, explicit Card/Stat/Field reference kinds,
+absent cells and optional draft states. These express world-defined Items, Abilities,
+Natures/traits, Resources and other content without fixed global gameplay classes.
+The separate opt-in Card Relations Workshop demonstrates costs, grants, trait
+options and inert exact influences; old example baselines and histories remain.
+Migration 0010 records legacy record boundaries without rewriting old data; complete
+new exports use schema 3 while frozen v1/v2 readers remain. Formatting, strict Clippy,
+501 Rust tests and the complete 114-case keyboard suite passed. See
+[ADR0018](../decisions/0018-card-records-and-content-relationships.md),
+[record authoring](card-records.md) and [package v3](design-package-v3.md).
+
+## Delivered: Derived Values Foundation (ADR0019)
+
+Independent shared/local formulas now have native operation-scoped editing,
+attributed exact history, confirmed archival and public read-only exact-revision
+calculators with named sample inputs. Semantics 1 uses bounded reduced signed i64
+fractions, checked i128 intermediates, explicit rounding/clamp policy and explained
+Missing/Unknown/NotApplicable/error propagation. Format bounds are 100 inputs and
+200 steps; native pages show at most 25 entries under a 32 KiB draft/POST budget.
+No live content/formula bindings, formula source adoption, modifiers or scripts are
+introduced. Original UI exercises are documentation, not new seeds.
+
+Additive migration 0011 requires deliberate backup/migration; the local database
+was not migrated for this milestone. Old seed scopes remain 65/69, 15/16
+and 28/29. Inspection fingerprint v4 adds public local formula inventory, including
+archived definitions, without inventing usage. New schema-4 packages wrap unchanged
+records v3/cards v2/typed v1 and exact active-local formula closure; frozen readers
+1–3 remain unchanged. See [derived values](derived-values.md),
+[package v4](design-package-v4.md) and [ADR0019](../decisions/0019-derived-values-foundation.md).
+Formatting and strict Clippy passed; 538 Rust tests passed in the full workspace
+run plus one subsequent targeted upgrade regression (539 cases). All 120 keyboard
+browser cases passed across runs: the full attempt hit its one-hour limit without
+failures, and the remaining Stats/Types modules passed separately.
+
 ## Pinned follow-up directions
 
-1. **Derived Stats, formulas and modifiers:** explicit inputs, dependency/cycle
-   validation, evaluation order, exact rounding/clamping policy and inspectable
-   breakdowns. Unknown required inputs produce explained unresolved results.
+1. **Derived Stats, live bindings and modifiers:** build on delivered independent
+   named-sample formulas; actual Stat/content bindings, formula-to-formula dependencies,
+   source adoption and modifier application require explicit future contracts.
 2. **Further world validation and authoring recovery:** build on delivered inspection,
    scoped where-used and incomplete/context-difference reports; cross-world
    comparisons, explicit archive, attributed revert-as-new-revision and ownership

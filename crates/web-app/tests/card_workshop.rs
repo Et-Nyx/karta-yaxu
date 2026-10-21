@@ -1,5 +1,5 @@
 //! Opt-in original Workshop: atomic import, immutable baselines and old-seed isolation.
-use game_data::{card_fields::*, card_package::CardPackage, cards::*};
+use game_data::{card_fields::*, cards::*};
 use sqlx::{AssertSqlSafe, SqlitePool};
 use std::{
     collections::BTreeMap,
@@ -890,10 +890,10 @@ async fn public_inspection_and_v2_offline_export_include_full_original_closure_w
         .preview(&token, AddressKey::Slug("card-workshop".into()))
         .await
         .unwrap();
-    let offline = CardPackage::from_bytes(&export.bytes).unwrap();
-    assert_eq!(offline.manifest.schema_version, 2);
-    assert_eq!(offline.content.cards.len(), 7);
-    assert_eq!(offline.content.fields.len(), 7);
+    let offline = game_data::record_package::RecordPackage::from_bytes(&export.bytes).unwrap();
+    assert_eq!(offline.manifest.schema_version, 3);
+    assert_eq!(offline.content.cards.cards.len(), 7);
+    assert_eq!(offline.content.cards.fields.len(), 7);
     let wire = String::from_utf8(export.bytes).unwrap();
     assert!(wire.contains("10 + 3 + 5 = 18"));
     assert!(!wire.contains(&owner.user_id));

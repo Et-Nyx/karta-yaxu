@@ -1,5 +1,6 @@
 use game_data::card_package::CardPackage;
 use game_data::package::{MAX_PACKAGE_BYTES, Package};
+use game_data::record_package::RecordPackage;
 use game_data::{BUNDLED_FIXTURES, Catalog};
 use std::{io::Read, process::ExitCode};
 
@@ -44,6 +45,7 @@ fn usage() {
 enum OfflinePackage {
     V1(Package),
     V2(CardPackage),
+    V3(RecordPackage),
 }
 
 fn read_package(reader: impl Read) -> Result<OfflinePackage, String> {
@@ -60,7 +62,8 @@ fn read_package(reader: impl Read) -> Result<OfflinePackage, String> {
     match game_data::card_package::schema_version_from_bytes(&bytes)? {
         1 => Package::from_bytes(&bytes).map(OfflinePackage::V1),
         2 => CardPackage::from_bytes(&bytes).map(OfflinePackage::V2),
-        _ => Err("Unsupported package schema version (expected 1 or 2).".into()),
+        3 => RecordPackage::from_bytes(&bytes).map(OfflinePackage::V3),
+        _ => Err("Unsupported package schema version (expected 1, 2 or 3).".into()),
     }
 }
 
@@ -82,6 +85,12 @@ fn validate_package(path: Option<&str>) -> ExitCode {
                     p.diagnostics(),
                 ),
                 OfflinePackage::V2(p) => (
+                    p.manifest.root_count,
+                    p.manifest.record_count,
+                    p.manifest.content_sha256.clone(),
+                    p.diagnostics(),
+                ),
+                OfflinePackage::V3(p) => (
                     p.manifest.root_count,
                     p.manifest.record_count,
                     p.manifest.content_sha256.clone(),

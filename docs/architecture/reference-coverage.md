@@ -13,6 +13,39 @@ and simulation are the **absolute final steps**, after authoring and fine-tuning
 
 ## Implemented foundation
 
+- ADR0019 independent shared/local formulas, native editing/history/confirmed
+  archive and public exact-revision calculators with named sample inputs. Reduced
+  signed i64 numerator/positive i64 denominator, checked i128 intermediates and
+  explicit negative rounding preserve exactness. Missing/Unknown/NA, Known zero,
+  blocked provenance and arithmetic errors remain distinct. Bounds are 100 inputs,
+  200 steps, at most 25 displayed entries and 32 KiB drafts/POSTs. Samples save
+  nothing, stay out of URLs and use private/no-store responses. No live content or
+  formula bindings, formula source adoption, scripts or modifier execution.
+- Additive migration 0011 preserves old bytes/heads/seeds; backup and deliberate
+  migration are required, not applied locally for this milestone.
+  Inspection fingerprint v4 includes archived/current local formula inventory,
+  without invented usage edges. New schema 4 wraps records v3/cards v2/typed v1
+  plus exact active-local formula closure under canonical hashing/combined budgets;
+  frozen readers 1–3 remain unchanged. See [derived values](derived-values.md) and
+  [package v4](design-package-v4.md). Formatting/strict Clippy and 539 Rust cases
+  passed (538 full-workspace plus one subsequent targeted upgrade case). All 120
+  keyboard cases passed across runs; the one-hour full attempt timed out, with the
+  remaining Stats/Types modules verified separately.
+
+- Reusable flat record layouts and independently named collection definitions,
+  stable ordered row/cell IDs, exact scalar columns and explicit Card/Stat/Field
+  target allowlists. Absent cells, Missing/Unknown/NA and known-empty/false/zero
+  remain distinct; repeated targets survive. Same owning card revisions/audits
+  include records, preserving native identity and independent old scalar contracts.
+- Authoring for resource costs/production, grants, available traits and optional
+  Nature influences uses exact data and inert prose, not execution or fixed global
+  Item/Ability/Nature/Resource classes. Migration 0010 preserves old data/bytes and
+  marks pre-boundary records unmodeled. Schema-3 packages and mixed inspection
+  include complete record closure while frozen v1/v2 readers remain supported.
+- Opt-in Card Relations Workshop: 28 objects/29 initial system-attributed events,
+  separately atomic/idempotent and preserving old 65/69 and 15/16 seed scopes.
+  See [record authoring](card-records.md) and [ADR0018](../decisions/0018-card-records-and-content-relationships.md).
+
 - Card Workshop refinement (ADR0017): literal name/label/origin/kind/archive catalog
   filtering before 25-result pages; named exact field/card/source/choice/mapping
   selectors; type-driven Known controls; single-prose raw drafts retained through
@@ -113,10 +146,11 @@ and simulation are the **absolute final steps**, after authoring and fine-tuning
   This is an intended engine integration contract, not actual engine integration,
   executable gameplay acceptance or a CLI package-creation workflow (ADR0015).
 
-Card-aware extension: `/worlds/{world}/inspection/cards` and
+Historical ADR0016 card-aware extension: `/worlds/{world}/inspection/cards` and
 `/worlds/{world}/inspection/cards/where-used` expose components, exact field
 definitions and mixed native/custom bounded usage from the same capture. Complete
-fingerprint **v2** includes these roots/data/heads; partial/truncated results remain
+fingerprint **v2** introduced these roots/data/heads (current v4 also includes records
+and formula inventory); partial/truncated results remain
 honest, with no global-unused or safe-delete claim. New exports are schema-2
 **CardPackage**: complete card/field closure and a schema-1 typed projection that
 can include native dependencies reached only through custom references, so is not
@@ -134,22 +168,23 @@ Mega X typing. A general network importer or complete mechanics model is not pre
 | --- | --- | --- |
 | Source contexts | Distinguish individual game version, version group and generation from Karta definition/edit versions | Planned |
 | Types | Ordered exact pins; shared/world independence; directed pairwise effectiveness | Implemented; synthetic chart fixtures; multi-Type composition remains planned |
-| Stats | Describe supplied stats and modifiers without making Pokémon's stat vocabulary a universal engine constraint | Definitions, rosters and signed decimal base values implemented; calculation/modifier mechanics planned |
+| Stats | Describe supplied stats and modifiers without making Pokémon's stat vocabulary a universal engine constraint | Definitions, rosters and signed decimal base values implemented; independent named-sample formulas delivered (ADR0019); live Stat bindings/modifiers planned |
 | Moves and learnsets | Extensible move-owned numeric values; preserve multiple ordered acquisition records, descriptive method/context/condition and explicit threshold states | Shared/local Moves, attributes and independent learnsets implemented; source-edition-qualified learning and executable acquisition eligibility remain planned |
 | Movesets | Distinguish authored acquisition records, named configured presets and runtime repertoire/selection | Multiple independently versioned variant presets and exact-context policy-1/2 reports with explicit revalidation implemented; individual learned repertoires and runtime selection remain planned |
-| World ruleset configuration | Pin exact expectations and roster/chart context; author maximum/repeat policies without universal Pokémon limits | Configuration and authoring diagnostics implemented; formulas, effects, conditions and battle execution remain planned |
+| World ruleset configuration | Pin exact expectations and roster/chart context; author maximum/repeat policies without universal Pokémon limits | Configuration and authoring diagnostics implemented; independent sample formulas delivered separately; ruleset formula bindings, effects, conditions and battle execution planned |
 | World inspection and dependencies | Capture current independent roots and exact closure consistently; explain authoring findings and scoped direct/root usage without losing old pins or repeated sites | Implemented read-only dependency graph with complete-only public fingerprint, explicit partial gaps and bounded where-used; not an engine package or readiness verdict (ADR0014) |
 | Cards and fields | Same native definitions/revisions, standalone cards and exact reusable typed fields with explicit references | Delivered (ADR0016); no player instances or deck execution |
-| Abilities | Preserve available slots and hidden status, separate from a selected active ability; represent historical assignments | Standalone definitions/fields available; specialized relationships/execution planned |
-| Natures | Reference increased/decreased stats and modifiers, separately from final stat calculation/rounding | Planned |
-| Items | Distinguish item definitions, machine mappings, transformation requirements and wild held-item rarity | Standalone definitions/fields available; specialized relationships/execution planned |
+| Abilities | World-defined cards with exact availability/grant/resource records, separate from runtime selected abilities | Definitions and reusable record relationships implemented (ADR0018); activation/effect execution deferred |
+| Natures | World-defined traits with optional explicit Stat/field influences, separately from calculation | Exact record references/quantities/prose implemented (ADR0018); runtime trait selection and calculations deferred |
+| Items | Distinguish definitions and authored grants/requirements/quantities from owned inventory and consumption | Definitions, exact Card/Stat/Field record relationships and original grant/cost examples implemented (ADR0018); runtime inventory/consumption deferred |
+| Resources | Cards, including Types when a world chooses, referenced with authored amounts and descriptive conditions | Exact ordered cost/production records implemented; no balance/spending/production execution |
 | Descriptions | Language/game-qualified source text, normalized for display but inert; preserve source provenance | Planned; plain-text authored paragraphs implemented |
 | Evolutions | Branches, conjunctions/alternatives, form restrictions and typed conditions bind explicit world entries | Planned |
 | Transformations | Regional/persistent forms differ from Mega/Gigantamax activation and reversion; do not fold battle transformations into evolution | Planned; Mega X name/type reference only, no activation or reversion |
 | Cosmetic forms | Multiple appearances may share a mechanical reference definition | Planned |
 | Locations | Region/location/area relationships; actual playable map geometry needs a separate model | Planned |
 | Encounters | Edition, method, conditions, levels and chances; resolve mutually exclusive conditions rather than summing unrelated rows | Planned |
-| World packages | Explicit package roots and exact dependency closure, ruleset ids; deterministic, validated, self-contained export | V1 retained; new schema-2 CardPackage includes typed projection and complete card/field closure (ADR0016); actual engine integration/gameplay acceptance and retained publication deferred |
+| World packages | Explicit roots/exact closure, canonical identities and deterministic validated self-contained export | Frozen v1/v2/v3 reading unchanged; new schema-4 FormulaPackage wraps records v3/cards v2/typed v1 plus exact active-local formula closure (ADR0019); engine integration/gameplay acceptance and retained publication deferred |
 | Simulation | Independently verify executable stat/damage/turn/effect/transformation rules and deterministic replays | Absolute final steps with engine integration, after authoring/fine-tuning |
 
 ## Proposed bounded source set
@@ -191,7 +226,8 @@ damage.
 three-/four-entry lab rosters and new sample form/variants. Values and constraints
 are synthetic, not sourced Pokémon mechanics. Decision 0011 preserves exact
 definition/roster context and old history; frozen packages now preserve that context.
-Formulas, modifiers and actual engine integration remain separate work.
+Independent sample formulas are now delivered (ADR0019); live bindings, modifiers
+and actual engine integration remain separate work.
 
 `fixtures/moves.json` adds invented **Impact/Precision** move attributes, **Probe/
 Veil**, independent local copies, two lab rulesets, three learnsets and four named
@@ -238,13 +274,14 @@ render, blocking CPU work and the same cooperative capture/cancellation caveats 
 inspection. Preview roots/findings show at most 25 each; packages are complete or
 rejected. See [ADR0015](../decisions/0015-first-frozen-design-package.md) and the
 [frozen historical v1 protocol](design-package-v1.md); current card-aware exports
-follow [v2](design-package-v2.md). Migration 0009 adds technical native component
+follow [v4](design-package-v4.md), wrapping the v3 record/v2 card/v1 typed content.
+Migration 0009 adds technical native component
 seals on new fixture creation, without field/standalone fixture objects, additional
 authored events or changes to pre-boundary heads/bytes. No production database was
 migrated by this documentation task.
 
 The [pinned product roadmap](roadmap.md) preserves all deferred directions,
-including derived formulas/modifiers, source contexts/imports, recovery, engine
+including live derived-value bindings/modifiers, source contexts/imports, recovery, engine
 integration/further package workflows and deterministic simulation. Engine
 integration and the simulator are the **absolute final steps**, not the next
 milestone. Further card-content/world authoring and fine-tuning precede them.

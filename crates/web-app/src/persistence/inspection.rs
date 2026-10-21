@@ -19,6 +19,14 @@ use std::{
     time::Duration,
 };
 use tokio::time::{Instant, timeout_at};
+mod record_capture;
+
+#[derive(Default)]
+struct CardWork {
+    cards: BTreeSet<CardPin>,
+    fields: BTreeSet<FieldPin>,
+    typed: BTreeSet<DomainNodeKey>,
+}
 
 fn key(kind: DomainKind, world: Option<&str>, id: &str, revision: i64) -> DomainNodeKey {
     DomainNodeKey {
@@ -236,6 +244,9 @@ struct Capture {
     current: BTreeMap<DomainIdentity, DomainNodeKey>,
     card_preflight: BTreeSet<CardPin>,
     field_preflight: BTreeSet<FieldPin>,
+    record_preflight: BTreeSet<CardPin>,
+    layout_preflight: BTreeSet<game_data::relations::LayoutPin>,
+    collection_preflight: BTreeSet<game_data::relations::CollectionPin>,
 }
 
 /// The first SELECT resolves the anchor. Capture owns this connection's progress
@@ -279,6 +290,7 @@ pub(crate) async fn capture_pooled_package(
     capture_package_until(c, world, limits, deadline, accounts, token, || async {}).await
 }
 
+#[cfg(test)]
 pub(crate) async fn capture_pooled_card_package(
     c: PoolConnection<Sqlite>,
     world: AddressKey,
@@ -294,6 +306,30 @@ pub(crate) async fn capture_pooled_card_package(
         deadline,
         accounts,
         token,
+        true,
+        false,
+        || async {},
+    )
+    .await
+    .map(|p| p.cards)
+}
+
+pub(crate) async fn capture_pooled_record_package(
+    c: PoolConnection<Sqlite>,
+    world: AddressKey,
+    limits: InspectionLimits,
+    deadline: Instant,
+    accounts: &crate::accounts::Accounts,
+    token: &str,
+) -> Result<game_data::record_package::RecordPackageContent, Error> {
+    capture_authorized_package(
+        c,
+        world,
+        limits,
+        deadline,
+        accounts,
+        token,
+        true,
         true,
         || async {},
     )
@@ -325,9 +361,11 @@ where
         accounts,
         token,
         false,
+        false,
         after_first_read,
     )
     .await?
+    .cards
     .typed)
 }
 
@@ -340,8 +378,9 @@ async fn capture_authorized_package<F, Fut>(
     accounts: &crate::accounts::Accounts,
     token: &str,
     with_cards: bool,
+    with_records: bool,
     after_first_read: F,
-) -> Result<game_data::card_package::CardPackageContent, Error>
+) -> Result<game_data::record_package::RecordPackageContent, Error>
 where
     F: FnOnce() -> Fut,
     Fut: std::future::Future<Output = ()>,
@@ -391,19 +430,38 @@ where
                 if !capture.result.gaps.is_empty() {
                     return Err(Error::Unavailable);
                 }
+            }
+            if with_records {
+                capture
+                    .capture_records(&mut tx, true, Some(&mut typed.bindings))
+                    .await?;
+                if !capture.result.gaps.is_empty() {
+                    return Err(Error::Unavailable);
+                }
+            }
+            if with_cards {
                 typed.records = std::mem::take(&mut capture.result.nodes)
                     .into_iter()
                     .map(|(key, payload)| game_data::package::PackageRecord { key, payload })
                     .collect();
             }
             let data = capture.result.card_data;
-            Ok(game_data::card_package::CardPackageContent {
-                schema_version: 2,
-                typed,
-                card_roots: data.card_roots.into_iter().collect(),
-                field_roots: data.field_roots.into_iter().collect(),
-                cards: data.cards.into_values().collect(),
-                fields: data.fields.into_values().collect(),
+            let records = data.records;
+            Ok(game_data::record_package::RecordPackageContent {
+                schema_version: 3,
+                cards: game_data::card_package::CardPackageContent {
+                    schema_version: 2,
+                    typed,
+                    card_roots: data.card_roots.into_iter().collect(),
+                    field_roots: data.field_roots.into_iter().collect(),
+                    cards: data.cards.into_values().collect(),
+                    fields: data.fields.into_values().collect(),
+                },
+                layout_roots: records.layout_roots.into_iter().collect(),
+                collection_roots: records.collection_roots.into_iter().collect(),
+                layouts: records.layouts.into_values().collect(),
+                collections: records.collections.into_values().collect(),
+                relations: records.relations.into_values().collect(),
             })
         })
         .await
@@ -690,6 +748,9 @@ impl Capture {
             .len()
             .saturating_add(self.card_preflight.len())
             .saturating_add(self.field_preflight.len())
+            .saturating_add(self.record_preflight.len())
+            .saturating_add(self.layout_preflight.len())
+            .saturating_add(self.collection_preflight.len())
             > self.limits.max_nodes
         {
             return Err(budget(
@@ -747,6 +808,8 @@ impl Capture {
                 .map_err(|_| self.card_gap("Invalid exact card reference."))?;
             self.card_preflight.insert(p.clone());
             self.card_node_budget()?;
+            self.prepare_record_inputs(c, &p, &mut pending, &mut fields)
+                .await?;
             let i = &p.identity;
             let scope = i.world_id.as_deref().unwrap_or("");
             let head = self.card_head(c, i).await?;
@@ -1022,8 +1085,32 @@ impl Capture {
         )?;
         let mut pending = self.result.card_data.card_roots.clone();
         pending.extend(self.result.nodes.keys().filter_map(native_pin));
-        let mut fields = self.result.card_data.field_roots.clone();
-        let mut native_pending = BTreeSet::new();
+        let fields = self.result.card_data.field_roots.clone();
+        self.extend_cards(
+            c,
+            exporting,
+            bindings,
+            CardWork {
+                cards: pending,
+                fields,
+                typed: BTreeSet::new(),
+            },
+        )
+        .await
+    }
+
+    async fn extend_cards(
+        &mut self,
+        c: &mut SqliteConnection,
+        exporting: bool,
+        bindings: &mut Option<&mut Vec<game_data::package::IdentityBinding>>,
+        work: CardWork,
+    ) -> Result<(), CaptureGap> {
+        let CardWork {
+            cards: mut pending,
+            mut fields,
+            typed: mut native_pending,
+        } = work;
         loop {
             while let Some(k) = native_pending.pop_first() {
                 if self.result.nodes.contains_key(&k) {
@@ -1177,6 +1264,9 @@ impl Capture {
             current: BTreeMap::new(),
             card_preflight: BTreeSet::new(),
             field_preflight: BTreeSet::new(),
+            record_preflight: BTreeSet::new(),
+            layout_preflight: BTreeSet::new(),
+            collection_preflight: BTreeSet::new(),
         }
     }
 
@@ -1490,6 +1580,7 @@ impl Capture {
             }
         }
         self.capture_cards(c, false, None).await?;
+        self.capture_records(c, false, None).await?;
         self.derived_edges();
         if Instant::now() >= self.deadline {
             self.result
@@ -1706,6 +1797,9 @@ impl Capture {
                     .len()
                     .saturating_add(self.card_preflight.len())
                     .saturating_add(self.field_preflight.len())
+                    .saturating_add(self.record_preflight.len())
+                    .saturating_add(self.layout_preflight.len())
+                    .saturating_add(self.collection_preflight.len())
                     >= self.limits.max_nodes
             {
                 let gap = budget(
@@ -3443,6 +3537,7 @@ mod tests {
             &accounts,
             &owner,
             true,
+            true,
             || async move {
                 started.send(()).unwrap();
                 writer_done.await.unwrap();
@@ -3477,12 +3572,40 @@ mod tests {
                 )
                 .await
                 .unwrap();
+            let records = crate::application::relations::Relations::new(accounts.clone());
+            let layout = records
+                .create_layout(
+                    &owner,
+                    Some(&world.id),
+                    crate::application::relations::NewLayout {
+                        fields: fields("Later independent layout"),
+                        source: None,
+                        columns: vec![],
+                        reason: None,
+                    },
+                )
+                .await
+                .unwrap();
+            records
+                .create_collection(
+                    &owner,
+                    Some(&world.id),
+                    crate::application::relations::NewCollection {
+                        fields: fields("Later independent collection"),
+                        source: None,
+                        layout: layout.pin(),
+                        reason: None,
+                    },
+                )
+                .await
+                .unwrap();
             committed.send(()).unwrap();
         };
         let (old, ()) = tokio::join!(reader, writer);
         let old = old.unwrap();
-        assert!(old.card_roots.is_empty() && old.field_roots.is_empty());
-        let new = capture_pooled_card_package(
+        assert!(old.cards.card_roots.is_empty() && old.cards.field_roots.is_empty());
+        assert!(old.layout_roots.is_empty() && old.collection_roots.is_empty());
+        let new = capture_pooled_record_package(
             pool.acquire().await.unwrap(),
             AddressKey::Id(world.id),
             InspectionLimits::default(),
@@ -3492,9 +3615,11 @@ mod tests {
         )
         .await
         .unwrap();
-        assert_eq!(new.card_roots.len(), 1);
-        assert_eq!(new.field_roots.len(), 1);
-        game_data::card_package::CardPackage::build(new).unwrap();
+        assert_eq!(new.cards.card_roots.len(), 1);
+        assert_eq!(new.cards.field_roots.len(), 1);
+        assert_eq!(new.layout_roots.len(), 1);
+        assert_eq!(new.collection_roots.len(), 1);
+        game_data::record_package::RecordPackage::build(new).unwrap();
     }
 
     #[tokio::test]

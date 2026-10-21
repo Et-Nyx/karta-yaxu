@@ -11,3 +11,4 @@
 *.sqlite*
 *Zone.Identifier
 __pycache__/
+.opencode/

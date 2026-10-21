@@ -189,7 +189,7 @@ through validation/serialization/render. See the [workflow and limits](../README
 
 The foundation passed workspace and keyboard checks against temporary databases;
 the existing local database was not migrated by this implementation. Use the deliberate
-backup/stop/`admin migrate`/restart workflow inside `nix develop`: all **nine**
+backup/stop/`admin migrate`/restart workflow inside `nix develop`: all **ten**
 migrations are required. Startup and seed commands never migrate automatically.
 
 Migration `0009_cards.sql` adds immutable legacy-boundary bookkeeping and typed
@@ -216,11 +216,13 @@ and `/inspection/cards/where-used` under the same world prefix reuse these labs,
 including components/field definitions and mixed bounded usage with the common
 complete-only fingerprint v2. No extra fixture content is needed.
 
-New exports use CardPackage schema 2, adding active local standalone/field roots
+ADR0016 introduced CardPackage schema 2, adding active local standalone/field roots
 and complete exact card/field closure to the typed schema-1 projection. That
 projection is not necessarily a standalone v1 package when custom references reach
 additional native cards. The v1 reader/wire remains unchanged; offline
-`tools validate-package` dispatches schemas 1/2. Root/record/occurrence budgets are
+`tools validate-package` now dispatches schemas 1/2/3. Current schema-3 exports also
+include complete record layouts, collection definitions and same-revision row/cell
+components (ADR0018). Root/record/occurrence budgets are
 combined across typed/cards/fields; complete input/output remains capped at 32 MiB.
 See [card foundation](../docs/architecture/card-foundation.md) and
 [ADR0016](../docs/decisions/0016-card-definition-foundation.md).
@@ -255,6 +257,32 @@ examples, not approved final-game content or new mandatory card classes. The
 `10 + 3 + 5 = 18 against target 15` example is descriptive, with no calculation or
 success resolution. Normal card inspection and schema-2 packages include exact
 workshop dependencies. See [Card Workshop](../docs/architecture/card-workshop.md).
+
+## Optional Card Relations Workshop (ADR0018)
+
+On a schema-10 database, `admin seed-card-relations --owner-user-id <immutable-id>`
+creates a separate original world **Card Relations Workshop**, requiring an existing
+enabled editor/admin. It creates no accounts and is never called by other seeds,
+startup or migrations. One transaction creates **28 objects / 29 initial events**:
+one world, ten shared/local cards, six shared/local fields, four layouts, six collection
+definitions and one Stat. System actor `bundled-fixture-loader` uses reason
+`Original Card Relations Workshop v1 (ADR0018)`. The typed immutable creation manifest
+is `application/relation_workshop.rs`.
+
+Fernstrider has Patient/Restless trait options; Ember is a Type/resource example;
+Focus is a resource; Second Wind requires Ember ×2 and Focus ×1; Field Satchel grants
+it. Patient has personality prose and optional exact Resolve Stat / Quantity field
+influence targets. Shared/local sources illustrate explicit collection and column
+mapping, preserving shared referenced targets. Repeated rows, absent cells and
+Missing/Unknown/NA are intentional design data, not executable costs/effects.
+
+Reruns validate creation bytes, typed children, exact components and original audit
+provenance, skip all 28 and preserve edits/pins/archives/grants/sessions. Partial,
+colliding, corrupt or wrong-owner batches reject; late failures roll back all content
+and audit rows. Old labs retain 65/69 and Card Workshop retains 15/16. Migration 0010
+adds only compatibility bookkeeping/typed schema, not these example objects.
+See [card records](../docs/architecture/card-records.md) and
+[schema 3](../docs/architecture/design-package-v3.md).
 
 ## Type/reference and world fixtures
 

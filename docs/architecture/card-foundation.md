@@ -38,6 +38,12 @@ the absolute final steps**, after further content/world authoring and fine-tunin
 
 ## Reusable fields and inert prose
 
+The [record extension (ADR0018)](card-records.md) adds flat reusable layouts, named
+collection definitions and ordered row/cell data as a separate same-card-revision
+component. Existing scalar field/CardComponent representations remain unchanged.
+Current complete downloads use [schema 3](design-package-v3.md), with frozen v1/v2
+reading retained; all ten migrations are required by current complete card readers.
+
 Shared/local field definitions have immutable IDs, generated scoped slugs, metadata,
 revision/archive state and optional exact shared sources. Cards select an ordered
 list of distinct field identities at **exact same-scope revisions**, embedding the
@@ -122,7 +128,8 @@ bookkeeping invents no actors/events. New native creations and later owning
 revisions require complete sealed components, even when their data is unmodeled;
 missing post-boundary components fail closed. No creature v4 snapshot is introduced.
 
-All **nine migrations** are now required. Use the existing deliberate backup/stop/
+Current binaries require **ten migrations**, including the subsequent ADR0018 record
+extension. Use the existing deliberate backup/stop/
 `cargo run -p web-app --bin admin -- migrate`/restart workflow inside `nix develop`.
 Startup and seed commands do not migrate. No production database was migrated by
 this documentation task. Migration seeds no field definitions or standalone cards.

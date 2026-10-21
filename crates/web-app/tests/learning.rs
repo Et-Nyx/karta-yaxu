@@ -2305,6 +2305,10 @@ async fn populated_0006_upgrade_preserves_creature_snapshots_users_sessions_and_
         .execute(&pool)
         .await
         .unwrap();
+    sqlx::raw_sql(include_str!("../migrations/0010_records.sql"))
+        .execute(&pool)
+        .await
+        .unwrap();
     for (query, old) in retained {
         assert_eq!(
             sqlx::query_scalar::<_, String>(query)

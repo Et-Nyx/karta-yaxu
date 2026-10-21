@@ -19,7 +19,7 @@ pub(super) fn segment(slug: &str) -> String {
     }
 }
 
-fn key(value: &str) -> Result<AddressKey, Error> {
+pub(super) fn key(value: &str) -> Result<AddressKey, Error> {
     if let Some(slug) = value.strip_prefix('~') {
         if slug == "new" || is_id(slug) {
             return Ok(AddressKey::Slug(slug.to_owned()));
@@ -69,6 +69,12 @@ fn content_suffix(parts: &[&str]) -> bool {
     matches!(parts, [] | ["edit"] | ["history"])
         || matches!(parts, ["history", revision] if !revision.is_empty())
 }
+fn records_suffix(parts: &[&str]) -> bool {
+    matches!(
+        parts,
+        ["records"] | ["records", "edit"] | ["records", "history"]
+    ) || matches!(parts, ["records", "history", revision] if !revision.is_empty())
+}
 
 fn chart_suffix(parts: &[&str]) -> bool {
     content_suffix(parts)
@@ -117,16 +123,28 @@ fn classify<'a>(parts: &'a [&'a str]) -> Option<Address<'a>> {
         | ["worlds", world, "inspection", "where-used"]
         | ["worlds", world, "inspection", "cards"]
         | ["worlds", world, "inspection", "cards", "where-used"]
+        | ["worlds", world, "inspection", "records"]
+        | ["worlds", world, "inspection", "records", "where-used"]
         | ["worlds", world, "export"] => (Object::World(world), &parts[2..]),
         ["worlds", world, "cards"]
         | ["worlds", world, "cards", "new"]
         | ["worlds", world, "card-fields"]
         | ["worlds", world, "card-fields", "new"] => (Object::World(world), &parts[2..]),
+        ["worlds", world, "record-layouts"]
+        | ["worlds", world, "record-layouts", "new"]
+        | ["worlds", world, "record-collections"]
+        | ["worlds", world, "record-collections", "new"] => (Object::World(world), &parts[2..]),
+        ["worlds", world, "record-layouts", _, suffix @ ..]
+        | ["worlds", world, "record-collections", _, suffix @ ..]
+            if content_suffix(suffix) =>
+        {
+            (Object::World(world), &parts[2..])
+        }
         ["worlds", world, "cards", namespace, _, suffix @ ..]
             if matches!(
                 *namespace,
                 "form" | "variant" | "type" | "move" | "standalone"
-            ) && content_suffix(suffix) =>
+            ) && (content_suffix(suffix) || records_suffix(suffix)) =>
         {
             (Object::World(world), &parts[2..])
         }

@@ -16,7 +16,7 @@ from playwright.sync_api import expect
 from test_authoring import AuthoringSupport
 
 
-HASH_DOMAIN = b"karta-design-package-content-sha256-v2\n"
+HASH_DOMAIN = b"karta-design-package-content-sha256-v3\n"
 REVIEW_LABEL = "I reviewed this package and its draft diagnostics."
 
 
@@ -143,8 +143,12 @@ class ExportWorkflows(AuthoringSupport):
             "format", "schema_version", "producer", "content_sha256", "root_count", "record_count",
         })
         self.assertEqual(manifest["format"], "karta-design-package")
-        self.assertEqual(manifest["schema_version"], 2)
+        self.assertEqual(manifest["schema_version"], 3)
         self.assertEqual(manifest["producer"], "karta-yaxu")
+        record_content = content
+        self.assertEqual(set(record_content), {"schema_version", "cards", "layout_roots", "collection_roots", "layouts", "collections", "relations"})
+        self.assertEqual(record_content["schema_version"], 3)
+        content = record_content["cards"]
         self.assertEqual(set(content), {"schema_version", "typed", "card_roots", "field_roots", "cards", "fields"})
         self.assertEqual(content["schema_version"], 2)
         typed = content["typed"]
@@ -154,8 +158,8 @@ class ExportWorkflows(AuthoringSupport):
         self.assertEqual(typed["world"]["id"], world_id)
         self.assertEqual(typed["world"]["kind"], "world")
         self.assertIn(typed["world"], typed["roots"])
-        self.assertEqual(manifest["root_count"], len(typed["roots"]) + len(content["card_roots"]) + len(content["field_roots"]))
-        self.assertEqual(manifest["record_count"], len(typed["records"]) + len(content["cards"]) + len(content["fields"]))
+        self.assertEqual(manifest["root_count"], len(typed["roots"]) + len(content["card_roots"]) + len(content["field_roots"]) + len(record_content["layout_roots"]) + len(record_content["collection_roots"]))
+        self.assertEqual(manifest["record_count"], len(typed["records"]) + len(content["cards"]) + len(content["fields"]) + len(record_content["relations"]) + len(record_content["layouts"]) + len(record_content["collections"]))
         self.assertGreater(manifest["root_count"], 0)
         self.assertGreaterEqual(manifest["record_count"], manifest["root_count"])
 
@@ -191,10 +195,11 @@ class ExportWorkflows(AuthoringSupport):
         self.assertEqual(len(field_keys), len(content["fields"]))
         self.assertEqual(len(field_roots), len(content["field_roots"]))
         self.assertTrue(field_roots <= field_keys)
+        self.assertEqual({card_key(r["card"]) for r in record_content["relations"]}, cards)
 
         # Python preserves parsed field order. Do not sort object keys or change
         # authored array order; the domain marker is distinct from inspection.
-        canonical = json.dumps(content, ensure_ascii=False, separators=(",", ":"), allow_nan=False).encode("utf-8")
+        canonical = json.dumps(record_content, ensure_ascii=False, separators=(",", ":"), allow_nan=False).encode("utf-8")
         digest = hashlib.sha256(HASH_DOMAIN + canonical).hexdigest()
         self.assertEqual(manifest["content_sha256"], digest)
         self.assertEqual(digest, reviewed_digest)
